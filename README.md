@@ -86,27 +86,37 @@ publicação em aberto (feriado, falha, máquina desligada), coleta **todos** os
 dias faltantes na mesma rodada e registra `lacuna_recuperada: [datas]` nos avisos.
 Fim de semana vazio é normal e não é erro.
 
-## Agendamento (Windows)
+## Agendamento (macOS, launchd)
 
-`scripts/run_daily.ps1` ativa o Python do projeto, roda `run`, escreve um log
-rotativo em `logs/` e propaga o código de saída — código != 0 faz o Agendador
-marcar a execução como falha.
+`scripts/run_daily.sh` ativa o Python do projeto, roda `run`, escreve um log
+rotativo em `logs/run_*.log` (30 dias) e propaga o código de saída.
 
-Registrar a tarefa diária (07:30, depois de o HF ter publicado o dia anterior):
+O agente está registrado em `~/Library/LaunchAgents/com.samuelrochamotta.hfpapers-db.plist`,
+rodando todo dia às 07:30 (depois de o HF ter publicado o dia anterior).
+`RunAtLoad` é `false` — não dispara no login, só no horário marcado; se o Mac
+estava desligado/dormindo às 07:30, o launchd roda assim que possível ao acordar,
+e o próprio pipeline recupera os dias que ficaram faltando na mesma rodada.
 
-```powershell
-schtasks /Create `
-  /TN "hf-papers-db diario" `
-  /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\caminho\hf-papers-db\scripts\run_daily.ps1" `
-  /SC DAILY /ST 07:30 /RL LIMITED /F
+Comandos úteis:
+
+```bash
+# status do agente (state, last exit status)
+launchctl print gui/$(id -u)/com.samuelrochamotta.hfpapers-db
+
+# rodar agora, fora do horário
+launchctl kickstart -k gui/$(id -u)/com.samuelrochamotta.hfpapers-db
+
+# desativar/reativar sem apagar o registro
+launchctl bootout  gui/$(id -u) ~/Library/LaunchAgents/com.samuelrochamotta.hfpapers-db.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.samuelrochamotta.hfpapers-db.plist
+
+# acompanhar a execução mais recente
+tail -f logs/run_*.log
 ```
 
-Conferir e rodar na mão:
-
-```powershell
-schtasks /Query /TN "hf-papers-db diario" /V /FO LIST
-schtasks /Run   /TN "hf-papers-db diario"
-```
+`logs/launchd.out.log` e `logs/launchd.err.log` só capturam problema do próprio
+agendamento (script não encontrado, permissão); a saída real do pipeline vai
+para `logs/run_*.log`.
 
 ## Modelo de dados
 
