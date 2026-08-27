@@ -26,14 +26,14 @@ llm:
   estagio_a:
     # consultado em 2026-08-26 via `hfpapers modelos listar`:
     # US$ 0,375 / 1,875 por Mtok, contexto 1M, saída estruturada suportada
-    modelo: "google/gemini-3.7-flash"
+    modelo: "z-ai/fp8"
     temperatura: 0.0
     max_tokens: 1200
   estagio_b:
     # saída estruturada suportada.
     # Não aceita `temperature`: o cliente omite o parâmetro para os modelos que
     # não o anunciam, senão `require_parameters` zera os provedores (404).
-    modelo: "google/gemini-3.7-flash"
+    modelo: "z-ai/fp8"
     temperatura: 0.2
     # 3000 (valor do PROMPT) corta o JSON no meio: este modelo gasta o orçamento
     # de saída com raciocínio antes de começar a responder. Medido: ~3,4k tokens
