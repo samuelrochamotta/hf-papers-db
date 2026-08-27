@@ -1,0 +1,1211 @@
+{
+  "ultima_execucao": "2026-08-26",
+  "ultimo_dia_coberto": "2026-08-25",
+  "ids_vistos": {
+    "2608.13546": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 123
+    },
+    "2608.06867": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 103
+    },
+    "2608.13489": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 93
+    },
+    "2608.07545": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 86
+    },
+    "2608.13505": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 58
+    },
+    "2608.08975": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 48
+    },
+    "2608.13560": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 47
+    },
+    "2608.13552": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 43
+    },
+    "2608.12743": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 42
+    },
+    "2608.12149": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 30
+    },
+    "2608.11745": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 22
+    },
+    "2608.11752": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 21
+    },
+    "2608.08888": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 21
+    },
+    "2608.13049": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 16
+    },
+    "2608.07193": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 15
+    },
+    "2608.12313": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 14
+    },
+    "2608.10538": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 14
+    },
+    "2608.08020": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 14
+    },
+    "2608.02870": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 14
+    },
+    "2608.13391": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 13
+    },
+    "2608.13430": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 12
+    },
+    "2608.12990": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 12
+    },
+    "2607.29211": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 12
+    },
+    "2608.11660": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 11
+    },
+    "2608.12440": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 10
+    },
+    "2608.09158": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 10
+    },
+    "2608.06914": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.08606": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.12997": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.12773": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.11951": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 8
+    },
+    "2608.14391": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 267
+    },
+    "2608.14144": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 156
+    },
+    "2608.13417": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 47
+    },
+    "2608.14290": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 31
+    },
+    "2608.11341": {
+      "publicado": "2026-08-17",
+      "veredito": "amplo",
+      "upvotes_dia1": 31
+    },
+    "2608.14277": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 29
+    },
+    "2608.14530": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 27
+    },
+    "2608.13517": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 22
+    },
+    "2608.13606": {
+      "publicado": "2026-08-17",
+      "veredito": "amplo",
+      "upvotes_dia1": 21
+    },
+    "2608.13040": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 18
+    },
+    "2608.13555": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.14546": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 13
+    },
+    "2608.14284": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 12
+    },
+    "2608.13667": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 12
+    },
+    "2608.13567": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 12
+    },
+    "2608.11994": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 10
+    },
+    "2608.09928": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.14071": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.14106": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 7
+    },
+    "2608.13545": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 6
+    },
+    "2608.11612": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 5
+    },
+    "2608.03744": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 4
+    },
+    "2608.00220": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 4
+    },
+    "2608.10835": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.14075": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.13987": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.13760": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 2
+    },
+    "2608.13410": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 2
+    },
+    "2608.12571": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 2
+    },
+    "2608.09209": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.14138": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 0
+    },
+    "2608.12209": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 0
+    },
+    "2608.16072": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 107
+    },
+    "2608.15669": {
+      "publicado": "2026-08-16",
+      "veredito": "fora",
+      "upvotes_dia1": 56
+    },
+    "2608.15265": {
+      "publicado": "2026-08-15",
+      "veredito": "fora",
+      "upvotes_dia1": 52
+    },
+    "2608.15045": {
+      "publicado": "2026-08-15",
+      "veredito": "fora",
+      "upvotes_dia1": 41
+    },
+    "2608.15930": {
+      "publicado": "2026-08-16",
+      "veredito": "fora",
+      "upvotes_dia1": 40
+    },
+    "2608.16798": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 36
+    },
+    "2608.16887": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 28
+    },
+    "2608.16319": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 23
+    },
+    "2608.16721": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 21
+    },
+    "2608.14783": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 17
+    },
+    "2608.16328": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 13
+    },
+    "2608.16765": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.14718": {
+      "publicado": "2026-08-12",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.16143": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 6
+    },
+    "2608.15869": {
+      "publicado": "2026-08-16",
+      "veredito": "fora",
+      "upvotes_dia1": 6
+    },
+    "2608.12898": {
+      "publicado": "2026-08-13",
+      "veredito": "fora",
+      "upvotes_dia1": 5
+    },
+    "2608.15698": {
+      "publicado": "2026-08-16",
+      "veredito": "fora",
+      "upvotes_dia1": 4
+    },
+    "2608.15022": {
+      "publicado": "2026-08-15",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.15984": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    },
+    "2608.15659": {
+      "publicado": "2026-08-16",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    },
+    "2608.16320": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 0
+    },
+    "2608.16485": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 0
+    },
+    "2608.15037": {
+      "publicado": "2026-08-15",
+      "veredito": "fora",
+      "upvotes_dia1": 0
+    },
+    "2608.16859": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 115
+    },
+    "2608.16884": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 13
+    },
+    "2608.10679": {
+      "publicado": "2026-08-11",
+      "veredito": "fora",
+      "upvotes_dia1": 4
+    },
+    "2608.16435": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.11947": {
+      "publicado": "2026-08-12",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    },
+    "2608.16033": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 11
+    },
+    "2608.14667": {
+      "publicado": "2026-08-02",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    },
+    "2608.13900": {
+      "publicado": "2026-08-14",
+      "veredito": "amplo",
+      "upvotes_dia1": 25
+    },
+    "2608.14905": {
+      "publicado": "2026-08-14",
+      "veredito": "amplo",
+      "upvotes_dia1": 25
+    },
+    "2608.15304": {
+      "publicado": "2026-08-15",
+      "veredito": "amplo",
+      "upvotes_dia1": 16
+    },
+    "2608.14441": {
+      "publicado": "2026-08-14",
+      "veredito": "amplo",
+      "upvotes_dia1": 10
+    },
+    "2608.15089": {
+      "publicado": "2026-08-15",
+      "veredito": "estrito",
+      "upvotes_dia1": 221
+    },
+    "2608.16391": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 12
+    },
+    "2608.16003": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 3
+    },
+    "2608.14606": {
+      "publicado": "2026-07-06",
+      "veredito": "estrito",
+      "upvotes_dia1": 2
+    },
+    "2608.14614": {
+      "publicado": "2026-07-10",
+      "veredito": "estrito",
+      "upvotes_dia1": 2
+    },
+    "2608.06947": {
+      "publicado": "2026-08-07",
+      "veredito": "estrito",
+      "upvotes_dia1": 1
+    },
+    "2608.14639": {
+      "publicado": "2026-07-28",
+      "veredito": "estrito",
+      "upvotes_dia1": 1
+    },
+    "2608.14036": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 151
+    },
+    "2608.17310": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 96
+    },
+    "2608.16157": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 65
+    },
+    "2608.17271": {
+      "publicado": "2026-08-18",
+      "veredito": "amplo",
+      "upvotes_dia1": 55
+    },
+    "2608.17512": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 46
+    },
+    "2608.13556": {
+      "publicado": "2026-08-13",
+      "veredito": "fora",
+      "upvotes_dia1": 24
+    },
+    "2608.18063": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 21
+    },
+    "2608.17528": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 19
+    },
+    "2608.17067": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 17
+    },
+    "2608.17393": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 16
+    },
+    "2608.17566": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.15454": {
+      "publicado": "2026-08-16",
+      "veredito": "fora",
+      "upvotes_dia1": 14
+    },
+    "2608.17402": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 13
+    },
+    "2608.15008": {
+      "publicado": "2026-08-15",
+      "veredito": "estrito",
+      "upvotes_dia1": 13
+    },
+    "2608.18076": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 10
+    },
+    "2608.18933": {
+      "publicado": "2026-08-19",
+      "veredito": "estrito",
+      "upvotes_dia1": 9
+    },
+    "2608.05811": {
+      "publicado": "2026-08-07",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.17597": {
+      "publicado": "2026-08-18",
+      "veredito": "amplo",
+      "upvotes_dia1": 8
+    },
+    "2608.17286": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.17800": {
+      "publicado": "2026-08-18",
+      "veredito": "amplo",
+      "upvotes_dia1": 8
+    },
+    "2608.16002": {
+      "publicado": "2026-08-17",
+      "veredito": "estrito",
+      "upvotes_dia1": 6
+    },
+    "2608.14221": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 6
+    },
+    "2608.16393": {
+      "publicado": "2026-08-18",
+      "veredito": "estrito",
+      "upvotes_dia1": 5
+    },
+    "2608.17050": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 4
+    },
+    "2608.14881": {
+      "publicado": "2026-08-14",
+      "veredito": "amplo",
+      "upvotes_dia1": 4
+    },
+    "2608.17988": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.17975": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.16977": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.18580": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.16097": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.17379": {
+      "publicado": "2026-08-18",
+      "veredito": "amplo",
+      "upvotes_dia1": 1
+    },
+    "2608.16793": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    },
+    "2608.12944": {
+      "publicado": "2026-08-13",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    },
+    "2608.17426": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 153
+    },
+    "2608.16590": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 136
+    },
+    "2608.18565": {
+      "publicado": "2026-08-19",
+      "veredito": "estrito",
+      "upvotes_dia1": 112
+    },
+    "2608.17253": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 86
+    },
+    "2608.13558": {
+      "publicado": "2026-08-13",
+      "veredito": "amplo",
+      "upvotes_dia1": 84
+    },
+    "2608.19197": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 43
+    },
+    "2608.18940": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 29
+    },
+    "2608.14929": {
+      "publicado": "2026-08-14",
+      "veredito": "estrito",
+      "upvotes_dia1": 16
+    },
+    "2608.18746": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.18423": {
+      "publicado": "2026-08-19",
+      "veredito": "amplo",
+      "upvotes_dia1": 15
+    },
+    "2608.18171": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.14229": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.13947": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 13
+    },
+    "2608.18701": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 12
+    },
+    "2608.18607": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.18852": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.15964": {
+      "publicado": "2026-08-16",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2512.14629": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.16490": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.15888": {
+      "publicado": "2026-08-16",
+      "veredito": "estrito",
+      "upvotes_dia1": 2
+    },
+    "2608.18115": {
+      "publicado": "2026-06-30",
+      "veredito": "estrito",
+      "upvotes_dia1": 2
+    },
+    "2608.19080": {
+      "publicado": "2026-08-19",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    },
+    "2608.19880": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 257
+    },
+    "2608.20335": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 71
+    },
+    "2608.19799": {
+      "publicado": "2026-08-20",
+      "veredito": "amplo",
+      "upvotes_dia1": 61
+    },
+    "2608.20336": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 39
+    },
+    "2608.20202": {
+      "publicado": "2026-08-20",
+      "veredito": "amplo",
+      "upvotes_dia1": 31
+    },
+    "2608.13120": {
+      "publicado": "2026-08-13",
+      "veredito": "estrito",
+      "upvotes_dia1": 30
+    },
+    "2608.14022": {
+      "publicado": "2026-08-14",
+      "veredito": "fora",
+      "upvotes_dia1": 22
+    },
+    "2608.19854": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 17
+    },
+    "2608.19758": {
+      "publicado": "2026-08-20",
+      "veredito": "estrito",
+      "upvotes_dia1": 16
+    },
+    "2608.16885": {
+      "publicado": "2026-08-17",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.19891": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 13
+    },
+    "2608.17744": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 13
+    },
+    "2608.12875": {
+      "publicado": "2026-08-13",
+      "veredito": "estrito",
+      "upvotes_dia1": 12
+    },
+    "2608.08466": {
+      "publicado": "2026-08-09",
+      "veredito": "estrito",
+      "upvotes_dia1": 11
+    },
+    "2608.19936": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 10
+    },
+    "2608.20281": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 10
+    },
+    "2607.21596": {
+      "publicado": "2026-08-20",
+      "veredito": "estrito",
+      "upvotes_dia1": 9
+    },
+    "2608.19861": {
+      "publicado": "2026-08-20",
+      "veredito": "estrito",
+      "upvotes_dia1": 9
+    },
+    "2608.15767": {
+      "publicado": "2026-08-16",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.18027": {
+      "publicado": "2026-08-18",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.13210": {
+      "publicado": "2026-08-13",
+      "veredito": "amplo",
+      "upvotes_dia1": 8
+    },
+    "2608.13547": {
+      "publicado": "2026-08-13",
+      "veredito": "estrito",
+      "upvotes_dia1": 7
+    },
+    "2608.19759": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 6
+    },
+    "2608.19776": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 6
+    },
+    "2608.19863": {
+      "publicado": "2026-08-20",
+      "veredito": "fora",
+      "upvotes_dia1": 5
+    },
+    "2608.21156": {
+      "publicado": "2026-08-24",
+      "veredito": "amplo",
+      "upvotes_dia1": 42
+    },
+    "2608.20061": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 38
+    },
+    "2608.20910": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 35
+    },
+    "2608.16425": {
+      "publicado": "2026-08-24",
+      "veredito": "estrito",
+      "upvotes_dia1": 29
+    },
+    "2608.12781": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 29
+    },
+    "2608.21360": {
+      "publicado": "2026-08-24",
+      "veredito": "amplo",
+      "upvotes_dia1": 28
+    },
+    "2608.16647": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.21439": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 12
+    },
+    "2608.20886": {
+      "publicado": "2026-08-24",
+      "veredito": "estrito",
+      "upvotes_dia1": 11
+    },
+    "2608.08676": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 10
+    },
+    "2608.20634": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.18484": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.20210": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 7
+    },
+    "2608.18077": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 6
+    },
+    "2608.20707": {
+      "publicado": "2026-08-24",
+      "veredito": "amplo",
+      "upvotes_dia1": 5
+    },
+    "2608.21134": {
+      "publicado": "2026-08-24",
+      "veredito": "estrito",
+      "upvotes_dia1": 5
+    },
+    "2608.18184": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 5
+    },
+    "2608.21031": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.21278": {
+      "publicado": "2026-08-24",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.20438": {
+      "publicado": "2026-08-24",
+      "veredito": "amplo",
+      "upvotes_dia1": 3
+    },
+    "2608.20574": {
+      "publicado": "2026-08-24",
+      "veredito": "amplo",
+      "upvotes_dia1": 3
+    },
+    "2608.20364": {
+      "publicado": "2026-08-24",
+      "veredito": "amplo",
+      "upvotes_dia1": 2
+    },
+    "2608.23283": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 179
+    },
+    "2608.23189": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 67
+    },
+    "2608.20958": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 56
+    },
+    "2608.16812": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 47
+    },
+    "2608.23552": {
+      "publicado": "2026-08-25",
+      "veredito": "estrito",
+      "upvotes_dia1": 37
+    },
+    "2608.23035": {
+      "publicado": "2026-08-25",
+      "veredito": "amplo",
+      "upvotes_dia1": 37
+    },
+    "2608.22876": {
+      "publicado": "2026-08-25",
+      "veredito": "estrito",
+      "upvotes_dia1": 29
+    },
+    "2608.19567": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 27
+    },
+    "2608.23392": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 26
+    },
+    "2608.20430": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 25
+    },
+    "2608.23565": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 18
+    },
+    "2608.23311": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.13622": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 15
+    },
+    "2608.21833": {
+      "publicado": "2026-08-25",
+      "veredito": "amplo",
+      "upvotes_dia1": 14
+    },
+    "2608.15242": {
+      "publicado": "2026-08-25",
+      "veredito": "amplo",
+      "upvotes_dia1": 14
+    },
+    "2608.19741": {
+      "publicado": "2026-08-25",
+      "veredito": "amplo",
+      "upvotes_dia1": 10
+    },
+    "2608.20953": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 9
+    },
+    "2608.17906": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.19408": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 8
+    },
+    "2608.20169": {
+      "publicado": "2026-08-25",
+      "veredito": "estrito",
+      "upvotes_dia1": 7
+    },
+    "2608.23200": {
+      "publicado": "2026-08-25",
+      "veredito": "amplo",
+      "upvotes_dia1": 6
+    },
+    "2608.22872": {
+      "publicado": "2026-08-25",
+      "veredito": "estrito",
+      "upvotes_dia1": 6
+    },
+    "2608.22817": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 5
+    },
+    "2606.13610": {
+      "publicado": "2026-08-25",
+      "veredito": "estrito",
+      "upvotes_dia1": 5
+    },
+    "2608.17336": {
+      "publicado": "2026-08-25",
+      "veredito": "estrito",
+      "upvotes_dia1": 5
+    },
+    "2608.23252": {
+      "publicado": "2026-08-25",
+      "veredito": "estrito",
+      "upvotes_dia1": 4
+    },
+    "2608.22856": {
+      "publicado": "2026-08-25",
+      "veredito": "estrito",
+      "upvotes_dia1": 4
+    },
+    "2608.23070": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 4
+    },
+    "2608.22614": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 4
+    },
+    "2608.22510": {
+      "publicado": "2026-08-25",
+      "veredito": "amplo",
+      "upvotes_dia1": 4
+    },
+    "2608.22849": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.13914": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 3
+    },
+    "2608.21455": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 2
+    },
+    "2608.22591": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    },
+    "2608.21486": {
+      "publicado": "2026-08-25",
+      "veredito": "fora",
+      "upvotes_dia1": 1
+    }
+  }
+}
