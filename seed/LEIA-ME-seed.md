@@ -1,7 +1,12 @@
 # Arquivos-semente do backfill
 
-Tudo o que o `python -m hfpapers backfill --seed ./seed` precisa já está aqui.
-Copie esta pasta inteira para `<raiz-do-projeto>/seed/`. **Nada a baixar à parte.**
+Tudo o que o `python -m hfpapers backfill --seed ./seed` precisa está aqui — nada
+a baixar à parte.
+
+**Esta pasta é permanente, não é andaime de instalação.** Além de alimentar o
+backfill uma vez, ela é o conjunto de validação contra o qual cada versão nova do
+prompt do Estágio B é medida, e é a fixture de `tests/` (`conftest.py: seed_dir`).
+Absorvê-la no banco destrói a régua.
 
 ```
 seed/
@@ -56,7 +61,18 @@ Por isso a lista de trabalho do backfill é a **união** das três fontes:
 | **união** | **242** |
 
 Um backfill que use só o `estado.json` produz 241 papers e 82 fichas — e está
-errado. O número correto é **242 papers, 83 fichas** (55 estrito + 28 amplo).
+errado. O número correto é **242 papers, 83 fichas** (54 estrito + 29 amplo).
+
+O paper recuperado é `amplo` (seção `## 4.` do digest de 18/08): por isso o amplo
+sobe de 28 para 29 e o estrito continua 54. Verificável:
+
+```bash
+python -c "
+import collections; from pathlib import Path
+from hfpapers.backfill import montar_lista
+print(collections.Counter(i.veredito for i in montar_lista(Path('seed')).values()))"
+# Counter({'fora': 159, 'estrito': 54, 'amplo': 29})
+```
 
 ## Integridade verificada
 

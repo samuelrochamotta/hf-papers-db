@@ -8,7 +8,8 @@ paths:
   marts: "marts"
   prompts: "prompts"
   logs: "logs"
-  relatorios: "relatorios"
+  relatorios: "relatorios"        # artefatos de leitura: painel.html, validacao_backfill.md
+  estado: "data/estado"           # cache que alimenta a proxima etapa - nao apague
 
 hf:
   base_url: "https://huggingface.co"

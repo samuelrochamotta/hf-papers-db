@@ -36,6 +36,7 @@ def cfg(tmp_path) -> Config:
     c.paths.banco = str(tmp_path / "hfpapers.db")
     c.paths.marts = str(tmp_path / "marts")
     c.paths.relatorios = str(tmp_path / "relatorios")
+    c.paths.estado = str(tmp_path / "estado")
     c.paths.logs = str(tmp_path / "logs")
     c.llm.estagio_a.modelo = "modelo/teste-a"
     c.llm.estagio_b.modelo = "modelo/teste-b"

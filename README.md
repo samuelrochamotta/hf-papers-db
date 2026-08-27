@@ -252,9 +252,13 @@ reproduz a qualidade do antigo.
 
 O veredito histórico não é reaberto pelo backfill: ele fica em `fato_triagem` como
 registro. O veredito que o Estágio B devolve na regeneração vai para
-`relatorios/vereditos_estagio_b.json`, e é dele que sai a comparação — sem esse
+`data/estado/vereditos_estagio_b.json`, e é dele que sai a comparação — sem esse
 registro o relatório compararia o histórico contra ele mesmo e daria sempre 100%
 de concordância.
+
+Por isso ele mora em `data/estado/` e não em `relatorios/`: é **entrada** de uma
+etapa seguinte, não artefato de leitura. Apagar `relatorios/` é inócuo (regenera);
+apagar `data/estado/` não quebra o relatório — faz ele mentir.
 
 ## Testes
 
@@ -274,11 +278,18 @@ src/hfpapers/
 ├── db.py           conexão, migração, upserts idempotentes, calendário
 ├── schema.sql
 ├── execucao.py     orquestra os 5 estágios e grava log_execucao
-├── backfill.py     carga histórica a partir de seed/
 ├── digests.py      parser dos digests históricos (conjunto de validação)
 ├── taxonomia.py    governança do vocabulário, promoção e fusão
 ├── guardrails.py   avisos de volume
 ├── doutor.py       diagnóstico
+├── backfill/       carga histórica a partir de seed/ — um módulo por etapa
+│   ├── __init__.py     rodar(): a única coisa que conhece a ordem das etapas
+│   ├── tipos.py        ResultadoBackfill, ItemTrabalho, RUN_ID
+│   ├── lista.py        a união das três fontes do seed
+│   ├── hidratacao.py   busca cada paper no HF
+│   ├── importacao.py   triagem histórica + as 83 classificações curadas
+│   ├── regeneracao.py  Estágios A e B pelo pipeline novo + vereditos regenerados
+│   └── validacao.py    monta relatorios/validacao_backfill.md
 ├── fontes/         hf_client.py (httpx, retry, rate limit) + modelos.py (pydantic)
 ├── llm/            cliente OpenRouter, schemas, estágios A e B
 └── estagios/       coleta, enriquecimento, classificação, refresh, export
@@ -287,7 +298,11 @@ scripts/
 ├── gerar_painel.sh     wrapper do painel (launchd, WatchPaths em _manifest.json)
 └── gerar_painel.py     monta relatorios/painel.html a partir dos Parquet
 prompts/            regras versionadas
-seed/               insumos do backfill
+seed/               insumos do backfill + conjunto de validação (versionado)
 marts/              ← o Power BI aponta para cá
-relatorios/         painel.html gerado (não versionado)
+relatorios/         artefatos de leitura: painel.html, validacao_backfill.md
+data/               banco + estado/ (cache dos vereditos regenerados)
 ```
+
+`relatorios/`, `marts/`, `data/` e `logs/` não são versionados. A diferença entre
+eles: `relatorios/` e `marts/` regeneram do banco; `data/` **é** a fonte.
