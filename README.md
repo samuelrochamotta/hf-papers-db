@@ -118,6 +118,51 @@ tail -f logs/run_*.log
 agendamento (script não encontrado, permissão); a saída real do pipeline vai
 para `logs/run_*.log`.
 
+## Painel HTML de distribuição
+
+Segundo agente, separado do primeiro: `com.samuelrochamotta.hfpapers-painel`.
+Gera `relatorios/painel.html` — arquivo único, sem dependência de rede, que abre
+em qualquer visualizador de HTML (Teams, e-mail, navegador).
+
+Não substitui o Power BI, que continua sendo a interface de leitura. O painel é
+a vitrine para quem não vai abrir o Power BI.
+
+**O gatilho é dependência real, não horário chutado.** O estágio de export
+escreve `marts/_manifest.json` por último e de forma atômica (`os.replace`),
+depois dos 12 Parquet — então a mudança desse arquivo *é* o sinal de "pipeline
+terminou". O plist usa `WatchPaths` nele; medido, dispara ~1s após o export.
+
+Três defesas contra o disparo repetido ou perdido:
+
+- `gerar_painel.py` grava o `run_id` gerado em `marts/.painel_run_id` e sai em
+  no-op se o `run_id` não mudou — `WatchPaths` pode disparar mais de uma vez
+  para a mesma escrita;
+- `ThrottleInterval` de 60s segura rajada;
+- `StartCalendarInterval` às 08:30 é rede de segurança para o caso de o
+  `WatchPaths` perder a notificação do `os.replace` (troca de inode). Se o
+  gatilho já pegou, essa execução sai em no-op pela trava de `run_id`.
+
+A janela padrão é de 90 dias (`--dias N` muda). Sem recorte o arquivo cresceria
+para sempre — entram ~28 papers/dia. A série histórica completa continua nos
+Parquet; o painel mostra a janela.
+
+Ordem de grandeza medida: **~3,8 KB por card aprovado**. Com a janela de 90 dias
+cheia isso projeta ~1.000 cards / ~4 MB — grande para anexo de Teams. Se doer,
+`--dias` é o botão para girar.
+
+```bash
+# gerar na mão
+scripts/gerar_painel.sh                 # janela padrão (90 dias)
+scripts/gerar_painel.sh --dias 30
+scripts/gerar_painel.sh --force         # ignora a trava de run_id
+
+# status / disparo manual do agente
+launchctl print    gui/$(id -u)/com.samuelrochamotta.hfpapers-painel
+launchctl kickstart -k gui/$(id -u)/com.samuelrochamotta.hfpapers-painel
+```
+
+Log em `logs/painel_*.log` (rotação de 30 dias, igual ao pipeline).
+
 ## Modelo de dados
 
 Esquema estrela em `data/hfpapers.db` (DDL em `src/hfpapers/schema.sql`, aplicado
@@ -237,7 +282,12 @@ src/hfpapers/
 ├── fontes/         hf_client.py (httpx, retry, rate limit) + modelos.py (pydantic)
 ├── llm/            cliente OpenRouter, schemas, estágios A e B
 └── estagios/       coleta, enriquecimento, classificação, refresh, export
+scripts/
+├── run_daily.sh        pipeline diário (launchd, 07:30)
+├── gerar_painel.sh     wrapper do painel (launchd, WatchPaths em _manifest.json)
+└── gerar_painel.py     monta relatorios/painel.html a partir dos Parquet
 prompts/            regras versionadas
 seed/               insumos do backfill
 marts/              ← o Power BI aponta para cá
+relatorios/         painel.html gerado (não versionado)
 ```
