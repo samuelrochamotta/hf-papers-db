@@ -2,7 +2,8 @@
 data/
 marts/
 logs/
-relatorios/
+relatorios/*
+!relatorios/painel.html
 .venv/
 __pycache__/
 *.py[cod]
