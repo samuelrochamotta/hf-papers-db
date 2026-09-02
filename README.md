@@ -127,6 +127,13 @@ em qualquer visualizador de HTML (Teams, e-mail, navegador).
 Não substitui o Power BI, que continua sendo a interface de leitura. O painel é
 a vitrine para quem não vai abrir o Power BI.
 
+O desenho é o do Artifact **Painel Daily Papers**, que nasceu como artboard da
+Claude Design. Aquele arquivo só roda dentro do runtime do canvas;
+`scripts/painel_app.js` é o mesmo layout portado para JS de navegador — cinco
+seções (volume, vocabulário, votos, adoção, fichas), filtro cruzado por dia,
+veredito, área, tópico e organização. `gerar_painel.py` não desenha nada:
+extrai os dados de `marts/`, serializa em `DADOS` e embute o app.
+
 **O gatilho é dependência real, não horário chutado.** O estágio de export
 escreve `marts/_manifest.json` por último e de forma atômica (`os.replace`),
 depois dos 12 Parquet — então a mudança desse arquivo *é* o sinal de "pipeline
@@ -146,8 +153,8 @@ A janela padrão é de 90 dias (`--dias N` muda). Sem recorte o arquivo cresceri
 para sempre — entram ~28 papers/dia. A série histórica completa continua nos
 Parquet; o painel mostra a janela.
 
-Ordem de grandeza medida: **~3,8 KB por card aprovado**. Com a janela de 90 dias
-cheia isso projeta ~1.000 cards / ~4 MB — grande para anexo de Teams. Se doer,
+O peso agora vem do texto das fichas embutido em `DADOS`, não de HTML por card.
+Ordem de grandeza medida: **420 KB para 296 papers e 104 fichas**. Se doer,
 `--dias` é o botão para girar.
 
 ```bash
@@ -296,7 +303,8 @@ src/hfpapers/
 scripts/
 ├── run_daily.sh        pipeline diário (launchd, 07:30)
 ├── gerar_painel.sh     wrapper do painel (launchd, WatchPaths em _manifest.json)
-└── gerar_painel.py     monta relatorios/painel.html a partir dos Parquet
+├── gerar_painel.py     monta relatorios/painel.html a partir dos Parquet
+└── painel_app.js       app do painel (porte do artboard da Claude Design)
 prompts/            regras versionadas
 seed/               insumos do backfill + conjunto de validação (versionado)
 marts/              ← o Power BI aponta para cá

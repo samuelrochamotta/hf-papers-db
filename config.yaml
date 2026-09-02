@@ -24,20 +24,23 @@ llm:
   titulo_app: "hf-papers-db"
   timeout_s: 180            # teto por chamada; sem isso uma conexão pendurada trava a rodada
   estagio_a:
-    # consultado em 2026-08-26 via `hfpapers modelos listar`:
-    # US$ 0,375 / 1,875 por Mtok, contexto 1M, saída estruturada suportada
-    modelo: "z-ai/fp8"
+    # trocado em 2026-09-02 via `hfpapers modelos listar --contem gemini`:
+    # z-ai/glm-5.3-flash travava em timeout/truncamento; qwen/qwen3.8-flash
+    # bateu rate-limit (429, pool compartilhado Alibaba) em 5 de 6 papers
+    # (ver logs/run_manual_2026-09-02_135243.log). US$ 0,750 / 3,750 por
+    # Mtok, contexto 1M, saída estruturada suportada.
+    modelo: "google/gemini-3.7-flash"
     temperatura: 0.0
     max_tokens: 1200
   estagio_b:
     # saída estruturada suportada.
     # Não aceita `temperature`: o cliente omite o parâmetro para os modelos que
     # não o anunciam, senão `require_parameters` zera os provedores (404).
-    modelo: "z-ai/fp8"
+    modelo: "google/gemini-3.7-flash"
     temperatura: 0.2
-    # 3000 (valor do PROMPT) corta o JSON no meio: este modelo gasta o orçamento
-    # de saída com raciocínio antes de começar a responder. Medido: ~3,4k tokens
-    # de saída por ficha completa.
+    # 3000 (valor do PROMPT) corta o JSON no meio: modelos anteriores gastavam
+    # orçamento de saída com raciocínio antes de responder. Mantido alto até
+    # confirmar o comportamento deste modelo.
     max_tokens: 8000
   provider:
     require_parameters: true  # só roteia para provedores com saída estruturada
