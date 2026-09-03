@@ -322,13 +322,14 @@
         '<div class="card" style="padding: 62px 26px; text-align: center;">' +
           '<div style="font-family: Newsreader, Georgia, serif; font-size: 28px; font-weight: 400; color: #f5f3ee; margin-bottom: 12px;">Nenhum período saiu da janela ainda</div>' +
           '<div style="font-size: 13px; line-height: 1.65; color: #8b8f96; max-width: 580px; margin: 0 auto;">Um paper entra no registro histórico quando completa ' +
-            DADOS.diasHall + ' dias — a mesma marca em que o pipeline para de reconsultar os votos dele. Até lá ele está na aba <em style="color: #a8a49b;">Janela</em>, com o número de votos ainda vivo.</div>' +
+            (DADOS.diasRefresh || DADOS.diasHall) + ' dias — a mesma marca em que o pipeline para de reconsultar os votos dele. Até lá ele está na aba <em style="color: #a8a49b;">Janela</em>, com o número de votos ainda vivo.</div>' +
         '</div>');
+      out.push(rodape('REGISTRO HISTÓRICO · NENHUM PERÍODO FECHADO'));
       return out.join('');
     }
 
     var atual = null;
-    hall.forEach(function (h) { if (h.per === s.perSel) atual = h; });
+    hall.forEach(function (per) { if (per.per === s.perSel) atual = per; });
     if (!atual) atual = hall[0];
 
     /* ── nota de leitura ────────────────────────────────────────────────── */
@@ -338,20 +339,22 @@
         '<div style="font-size: 12.5px; line-height: 1.7; color: #a8a49b; max-width: 880px; text-wrap: pretty;">' +
           'A aba <em style="color: #ecebe6; font-style: normal;">Janela</em> mostra os últimos ' + DADOS.janela + ' dias. Aqui ficam, de cada trimestre já fora dela, os mais votados pela comunidade — ' +
           'os dez aprovados com a ficha inteira e os dez que o pipeline descartou. ' +
-          '<span style="color: #6d7178;">Nada é apagado em lugar nenhum: a série completa continua no banco e nos Parquet. Os votos aqui estão congelados porque o refresh para de reconsultá-los aos ' + DADOS.diasHall + ' dias — medido, eles já haviam parado de se mexer no segundo dia.</span>' +
+          '<span style="color: #6d7178;">Nada é apagado em lugar nenhum: a série completa continua no banco e nos Parquet. Os votos aqui estão congelados porque o refresh para de reconsultá-los aos ' + (DADOS.diasRefresh || DADOS.diasHall) + ' dias — medido, eles param de se mexer por volta do décimo quarto.</span>' +
         '</div>' +
       '</div>'
     );
 
     /* ── seletor de trimestre ───────────────────────────────────────────── */
-    var chipsPer = hall.map(function (h) {
-      var on = h.per === atual.per;
+    // `per` e nao `h`: `h` e o registrador global de handlers, e sombrea-lo aqui
+    // deixaria a proxima edicao deste callback sem como registrar evento
+    var chipsPer = hall.map(function (per) {
+      var on = per.per === atual.per;
       return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' +
-        ev('c', function () { setState({ perSel: h.per, abertaH: null }); }) +
+        ev('c', function () { setState({ perSel: per.per, abertaH: null }); }) +
         ' style="' + (on ? pillOnGlobal() : pill(false)) + '">' +
-        esc(h.rot) +
-        '<span style="margin-left: 7px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; opacity: 0.62;">' + h.n + '</span>' +
-        (h.cons ? '<span style="margin-left: 8px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7;">consolidando</span>' : '') +
+        esc(per.rot) +
+        '<span style="margin-left: 7px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; opacity: 0.62;">' + per.n + '</span>' +
+        (per.cons ? '<span style="margin-left: 8px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7;">consolidando</span>' : '') +
         '</div>';
     }).join('');
 
@@ -365,7 +368,7 @@
     var avisoCons = atual.cons
       ? '<span style="display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: ' + ACCENT + '; background: rgba(217,164,65,0.1); border: 1px solid rgba(217,164,65,0.35); border-radius: 100px; padding: 6px 13px;">' +
           '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ' + ACCENT + ';"></span>' +
-          'em consolidação — parte do trimestre ainda está na janela</span>'
+          'em consolidação — o trimestre ainda não saiu inteiro do corte</span>'
       : '<span style="font-size: 11.5px; color: #6d7178;">período fechado · ranking definitivo</span>';
 
     /* ── 01 · os dez aprovados mais votados ─────────────────────────────── */
@@ -460,7 +463,9 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O outro lado do voto</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Os ' + atual.de.length + ' mais votados entre os ' + atual.nd + ' descartados do trimestre, com a regra e a justificativa que os tiraram.</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Os ' + atual.de.length + ' mais votados entre os ' + atual.nd + ' descartados do trimestre, com a regra e a justificativa que os tiraram.' +
+              (atual.nx ? ' <span style="color: #6d7178;">Outros ' + atual.nx + ' do trimestre nunca chegaram a ser classificados e ficam fora das duas listas.</span>' : '') +
+            '</div>' +
           '</div>' +
           '<span style="font-size: 11.5px; color: #6d7178; text-align: right; max-width: 300px; line-height: 1.5;">Upvote não entra em decisão nenhuma do pipeline. Esta lista existe para medir a divergência, não para reabrir o veredito.</span>' +
         '</div>' +
@@ -470,7 +475,7 @@
     );
 
     var somaAp = 0, somaDe = 0;
-    hall.forEach(function (h) { somaAp += h.ap.length; somaDe += h.de.length; });
+    hall.forEach(function (per) { somaAp += per.ap.length; somaDe += per.de.length; });
     out.push(rodape('REGISTRO HISTÓRICO · ' + hall.length + ' TRIMESTRE(S) · ' + somaAp + ' APROVADOS · ' + somaDe + ' DESCARTADOS'));
     return out.join('');
   }

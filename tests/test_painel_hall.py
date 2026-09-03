@@ -153,12 +153,59 @@ def test_trimestres_saem_do_mais_recente_para_o_mais_antigo():
 
 
 def test_cada_paper_cai_em_um_unico_periodo():
-    """A deduplicacao e estrutural: `data_hf_daily` e imutavel."""
-    ps = [paper(f"p{i}", dt.date(2026, 7, 1) + dt.timedelta(days=i), i) for i in range(40)]
-    triagem = {p["paper_id"]: triado("estrito") for p in ps}
+    """A deduplicacao e estrutural: `data_hf_daily` e imutavel.
 
-    vistos = [p["id"] for h in montar(ps, triagem) for p in h["ap"] + h["de"]]
-    assert len(vistos) == len(set(vistos))
+    Os papers atravessam DUAS fronteiras de trimestre de proposito, e nenhuma
+    lista chega ao teto: um teste que so gerasse um trimestre passaria por
+    construcao (`ap` e truncado em dez), sem exercitar nada.
+    """
+    dias = [
+        dt.date(2025, 12, 30), dt.date(2025, 12, 31),      # 2025-T4
+        dt.date(2026, 1, 1), dt.date(2026, 3, 31),         # 2026-T1
+        dt.date(2026, 4, 1), dt.date(2026, 6, 30),         # 2026-T2
+    ]
+    ps = [paper(f"p{i}", d, i) for i, d in enumerate(dias)]
+    triagem = {p["paper_id"]: triado("estrito" if i % 2 else "fora")
+               for i, p in enumerate(ps)}
+
+    hall = montar(ps, triagem)
+    assert [h["per"] for h in hall] == ["2026-T2", "2026-T1", "2025-T4"]
+    assert [h["n"] for h in hall] == [2, 2, 2]
+
+    vistos = [e["id"] for h in hall for e in h["ap"] + h["de"]]
+    assert sorted(vistos) == [p["paper_id"] for p in ps]     # cada um exatamente uma vez
+
+
+def test_virada_de_ano_ordena_pelo_calendario_e_nao_pela_string():
+    ps = [
+        paper("velho", dt.date(2024, 11, 1), 1),
+        paper("novo", dt.date(2026, 2, 1), 1),
+        paper("meio", dt.date(2025, 11, 1), 1),
+    ]
+    triagem = {p["paper_id"]: triado("estrito") for p in ps}
+    assert [h["per"] for h in montar(ps, triagem)] == ["2026-T1", "2025-T4", "2024-T4"]
+
+
+def test_o_corte_e_exclusivo_no_proprio_dia():
+    """`d == corte` ainda esta na janela viva; `corte - 1` ja saiu."""
+    no_corte = paper("no_corte", CORTE, 10)
+    vespera = paper("vespera", CORTE - dt.timedelta(days=1), 10)
+    triagem = {"no_corte": triado("estrito"), "vespera": triado("estrito")}
+
+    hall = montar([no_corte, vespera], triagem)
+    assert [p["id"] for p in hall[0]["ap"]] == ["vespera"]
+
+
+def test_trimestre_que_termina_no_corte_ainda_consolida():
+    """`fim >= corte` e a fronteira: no dia exato o trimestre nao fechou."""
+    # CORTE = 2026-09-02, dentro do T3 (que termina em 30/09)
+    dentro = montar([paper("a", dt.date(2026, 7, 1), 1)], {"a": triado("estrito")},
+                    corte=dt.date(2026, 9, 30))
+    assert dentro[0]["cons"] == 1
+
+    depois = montar([paper("a", dt.date(2026, 7, 1), 1)], {"a": triado("estrito")},
+                    corte=dt.date(2026, 10, 1))
+    assert depois[0]["cons"] == 0
 
 
 # ══════════════ as duas listas ══════════════
@@ -236,6 +283,34 @@ def test_data_da_ultima_medicao_acompanha_o_paper():
     assert entrada["uq"] == "2026-09-29"
 
 
+def test_paper_sem_triagem_nao_vira_descartado():
+    """Nunca classificado nao e o mesmo que rejeitado.
+
+    Se `veredito()` tratasse ausencia como `fora`, o paper entraria no podio dos
+    descartados com `rf: None` e `j: ""` - e o `h: 0` nao acionaria o aviso de
+    veredito herdado, entao a secao que promete "a regra e a justificativa que
+    os tiraram" renderizaria um paragrafo em branco. Aconteceria: hoje a base
+    tem papers sem linha em fato_triagem (falha do Estagio A).
+    """
+    orfao = paper("orfao", dt.date(2026, 7, 1), 999)      # o mais votado de longe
+    ok = paper("ok", dt.date(2026, 7, 1), 5)
+    hall = montar([orfao, ok], {"ok": triado("fora")})     # `orfao` nao esta na triagem
+
+    h = hall[0]
+    assert [p["id"] for p in h["de"]] == ["ok"]
+    assert h["ap"] == []
+    assert (h["n"], h["na"], h["nd"], h["nx"]) == (2, 0, 1, 1)
+
+
+def test_contagens_do_periodo_sempre_fecham():
+    ps = [paper("a", dt.date(2026, 7, 1), 1), paper("b", dt.date(2026, 7, 2), 1),
+          paper("c", dt.date(2026, 7, 3), 1), paper("d", dt.date(2026, 7, 4), 1)]
+    triagem = {"a": triado("estrito"), "b": triado("amplo"), "c": triado("fora")}
+
+    h = montar(ps, triagem)[0]
+    assert h["n"] == h["na"] + h["nd"] + h["nx"] == 4
+
+
 def test_paper_sem_data_hf_daily_e_ignorado():
     sem_data = paper("p1", None, 900)
     com_data = paper("p2", dt.date(2026, 7, 1), 10)
@@ -264,3 +339,31 @@ def test_corte_do_hall_segue_a_janela_do_refresh():
 
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     assert janela_hall() == cfg["refresh"]["janela_morna_dias"]
+
+
+@pytest.mark.parametrize(
+    "conteudo, esperado",
+    [
+        ("refresh:\n  janela_morna_dias: 45\n", 45),
+        ("refresh:\n  janela_morna_dias: '60'\n", 60),      # string vira int
+        ("refresh: {}\n", 90),                              # chave ausente -> padrao
+        ("llm: {}\n", 90),                                  # secao ausente -> padrao
+        ("refresh:\n  janela_morna_dias: nao-e-numero\n", 90),
+        ("refresh:\n  janela_morna_dias: 0\n", 1),          # nunca zero: dividiria a base
+        ("refresh:\n  janela_morna_dias: -5\n", 1),
+    ],
+)
+def test_janela_hall_aguenta_config_torto(tmp_path, monkeypatch, conteudo, esperado):
+    import gerar_painel
+
+    caminho = tmp_path / "config.yaml"
+    caminho.write_text(conteudo, encoding="utf-8")
+    monkeypatch.setattr(gerar_painel, "CONFIG", caminho)
+    assert gerar_painel.janela_hall() == esperado
+
+
+def test_janela_hall_sem_arquivo_usa_o_padrao(tmp_path, monkeypatch):
+    import gerar_painel
+
+    monkeypatch.setattr(gerar_painel, "CONFIG", tmp_path / "nao-existe.yaml")
+    assert gerar_painel.janela_hall() == gerar_painel.JANELA_HALL_PADRAO

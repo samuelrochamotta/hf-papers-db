@@ -159,6 +159,11 @@ mais votados** com a ficha inteira e os **10 descartados mais votados** com a
 regra e a justificativa que os tiraram. A série completa continua nos Parquet e
 no banco; o painel mostra a janela mais esse resumo.
 
+Paper sem linha em `fato_triagem` (o Estágio A falhou nele) não é o mesmo que
+descartado: fica fora das duas listas e das duas contagens, e aparece só como
+`nx` no subtítulo da segunda seção. Entrasse como `fora`, apareceria no pódio
+dos descartados com o campo da justificativa em branco.
+
 Três coisas que essa aba **não** é, e vale ter escrito:
 
 - **Não preserva dado contra perda.** Nada é apagado — nem do banco, nem dos
@@ -183,9 +188,22 @@ pode congelar sem mentir. A consequência prática: `--dias` continua sendo a
 válvula para encolher o arquivo — baixar o valor mostra menos, não empurra
 papers para o histórico.
 
-Congelar não perde quase nada, e isso foi medido em `fato_metrica`: a mediana do
-upvote atinge o valor final **no dia +2** e não sai mais dali; só 15% dos papers
-crescem mais de 10% depois disso, tudo dentro da janela quente de 30 dias.
+Congelar aos 90 dias não perde quase nada, e isso foi medido em `fato_metrica`
+(idade contada a partir de `data_hf_daily`, não do índice do snapshot — os
+snapshots não começam no dia da publicação):
+
+| corte | mediana upvote/final | ainda crescem >10% depois |
+|---|---|---|
+| dia +2 | 0,89 | 58,6% |
+| dia +5 | 0,96 | 41,0% |
+| dia +7 | 1,00 | 26,5% |
+| dia +10 | 1,00 | 7,6% |
+| dia +14 | 1,00 | 0,7% |
+| dia +18 | 1,00 | 0,0% |
+
+A mediana atinge o valor final **no dia +6** e o movimento residual acaba por
+volta do **dia +14** — tudo dentro da janela quente de 30 dias, com folga de ~6x
+até o corte de 90 dias. O maior salto tardio observado foi 286 → 339 votos.
 
 ### Tamanho
 
@@ -198,11 +216,12 @@ duas listas terem tamanhos diferentes:
 
 | Lista | Conteúdo | Por entrada | Por trimestre |
 |---|---|---|---|
-| 10 aprovados | ficha inteira (5 campos) | ~2,5 KB | ~25 KB |
-| 10 descartados | regra + justificativa | ~0,7 KB | ~7 KB |
+| 10 aprovados | ficha inteira (5 campos) | ~2,3 KB | ~23 KB |
+| 10 descartados | regra + justificativa | ~0,4 KB | ~4 KB |
 
-**~32 KB por trimestre, ~130 KB por ano** — contra os ~250 KB/mês que a janela
-viva teria se não fosse recortada. Se doer, `--dias` é o botão para girar.
+**~27 KB por trimestre, ~110 KB por ano** — contra os **~860 KB/mês** que a
+janela viva acumularia se não fosse recortada (os 455 papers de 21 dias corridos
+pesam 603 KB de payload). Se doer, `--dias` é o botão para girar.
 
 Vale lembrar que `painel.html` é commitado e empurrado todo dia (168 KB
 comprimido, ~60 MB/ano de repositório): cada KB adicionado se multiplica por 365.
@@ -213,16 +232,26 @@ diff sem significado.
 ```bash
 # gerar na mão
 scripts/gerar_painel.sh                 # janela padrão (90 dias)
-scripts/gerar_painel.sh --dias 30
 scripts/gerar_painel.sh --force         # ignora a trava de run_id
 
-# inspecionar a aba histórica antes de o primeiro trimestre fechar
-scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force
+# inspecionar a aba histórica antes de o primeiro trimestre fechar.
+# SEMPRE com --destino: o painel publicado não é rascunho.
+scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force --destino /tmp/previa.html
 
 # status / disparo manual do agente
 launchctl print    gui/$(id -u)/com.samuelrochamotta.hfpapers-painel
 launchctl kickstart -k gui/$(id -u)/com.samuelrochamotta.hfpapers-painel
 ```
+
+Duas defesas contra publicar rascunho por engano, porque `--dias` e `--dias-hall`
+mudam **o que** o painel mostra (com `--dias 10` são 270 papers em vez de 455, e
+os 185 que sobram não aparecem em aba nenhuma):
+
+- `gerar_painel.sh` não commita nem empurra quando recebe `--dias`, `--dias-hall`
+  ou `--destino` — só a geração diária, sem argumentos, publica;
+- `gerar_painel.py` só carimba `marts/.painel_run_id` quando escreveu no destino
+  padrão. Sem isso, uma prévia em `/tmp` deixaria a geração seguinte do painel de
+  verdade saindo em no-op, e nem a rede de segurança das 08:30 desfaria.
 
 Log em `logs/painel_*.log` (rotação de 30 dias, igual ao pipeline).
 

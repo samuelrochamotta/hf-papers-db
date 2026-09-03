@@ -188,14 +188,23 @@ def montar_hall(
     nao ha nada a "selar". Enquanto isso nao acontece o trimestre e marcado como
     em consolidacao, porque o top-10 dele ainda muda a cada dia que passa.
     """
-    def veredito(pid: str) -> str:
-        return triagem.get(pid, {}).get("veredito") or "fora"
+    def veredito(pid: str) -> str | None:
+        """None = nunca classificado, e isso NAO e o mesmo que `fora`.
+
+        A aba viva pode tratar os dois como um chip cinza; aqui nao da: a lista
+        de descartados promete em prosa "a regra e a justificativa que o
+        tiraram", e um paper que o Estagio A nunca julgou nao tem nem uma nem
+        outra. Ele ficaria no podio com um paragrafo em branco. Entao ele fica
+        de fora das duas listas e das duas contagens, e aparece so em `nx`.
+        """
+        return triagem.get(pid, {}).get("veredito")
 
     # Contagem sobre TODOS os papers do trimestre, inclusive os que ainda estao
     # na janela viva: senao "10 de 41 aprovados" mentiria enquanto o trimestre
     # esta saindo aos poucos.
     total: Counter[str] = Counter()
     aprovados: Counter[str] = Counter()
+    descartados: Counter[str] = Counter()
     rotulos: dict[str, tuple[str, dt.date, dt.date]] = {}
     for p in papers:
         d = p.get("data_hf_daily")
@@ -204,8 +213,11 @@ def montar_hall(
         chave, rotulo, ini, fim = periodo(d)
         rotulos[chave] = (rotulo, ini, fim)
         total[chave] += 1
-        if veredito(p["paper_id"]) != "fora":
+        v = veredito(p["paper_id"])
+        if v in ("estrito", "amplo"):
             aprovados[chave] += 1
+        elif v == "fora":
+            descartados[chave] += 1
 
     saidos: dict[str, list[dict]] = defaultdict(list)
     for p in papers:
@@ -218,7 +230,7 @@ def montar_hall(
         rotulo, ini, fim = rotulos[chave]
         grupo = saidos[chave]
 
-        aprov = por_voto([p for p in grupo if veredito(p["paper_id"]) != "fora"])
+        aprov = por_voto([p for p in grupo if veredito(p["paper_id"]) in ("estrito", "amplo")])
         desc = por_voto([p for p in grupo if veredito(p["paper_id"]) == "fora"])
 
         entradas_aprov = []
@@ -277,7 +289,8 @@ def montar_hall(
             "fim": fim.isoformat(),
             "n": total[chave],
             "na": aprovados[chave],
-            "nd": total[chave] - aprovados[chave],
+            "nd": descartados[chave],
+            "nx": total[chave] - aprovados[chave] - descartados[chave],
             "cons": 1 if fim >= corte else 0,
             "ap": entradas_aprov,
             "de": entradas_desc,
@@ -378,6 +391,9 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         "modeloB": modelo_b,
         "janela": janela,
         "diasHall": dias_hall,
+        # o corte efetivo pode vir de --dias-hall, mas a frase que explica o
+        # congelamento fala do refresh - e o refresh nao muda por flag de CLI
+        "diasRefresh": janela_hall(),
         "areas": [{"a": a["area"], "def": a.get("definicao") or ""} for a in ler("dim_area")],
         "topicos": [{"t": t["topico"], "def": t.get("definicao") or ""} for t in ler("dim_topico")],
         "papers": lista,
@@ -458,7 +474,11 @@ def main() -> int:
     tmp.write_text(doc, encoding="utf-8")
     os.replace(tmp, args.destino)   # atomico: ninguem le um arquivo pela metade
 
-    if run_id:
+    # So carimba quando escreveu o painel publicado. Um `--destino /tmp/x.html`
+    # que carimbasse faria a geracao seguinte do painel de verdade sair em no-op
+    # - a rede de seguranca das 08:30 e o redisparo do WatchPaths se calariam, e
+    # o painel do dia nao seria gerado.
+    if run_id and args.destino == DESTINO_PADRAO:
         CARIMBO.write_text(run_id, encoding="utf-8")
 
     kb = len(doc.encode("utf-8")) / 1024

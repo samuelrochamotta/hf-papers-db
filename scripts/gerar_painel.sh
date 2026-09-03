@@ -12,9 +12,10 @@
 #
 # Uso:
 #   scripts/gerar_painel.sh                        # janela padrao (90 dias)
-#   scripts/gerar_painel.sh --dias 30
 #   scripts/gerar_painel.sh --force                # ignora a trava de run_id
-#   scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force   # espia a aba historica
+#
+#   # inspecao: SEMPRE com --destino, o painel publicado nao e rascunho
+#   scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force --destino /tmp/previa.html
 #
 # --dias recorta so a aba viva. A aba historica segue refresh.janela_morna_dias
 # do config.yaml; --dias-hall existe para inspeciona-la antes de o primeiro
@@ -55,12 +56,26 @@ set -e
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] codigo de saida: $CODIGO" | tee -a "$LOG"
 
+# Recorte na mao nao vai para o ar. `--dias`/`--dias-hall` mudam o QUE o painel
+# mostra: com --dias 10 sao 270 papers em vez de 455, e os 185 que sobram nao
+# aparecem em aba nenhuma. Publicar isso trocaria o painel do dia por um
+# rascunho - e, como o run_id ja estaria carimbado, nem a rede de seguranca das
+# 08:30 desfaria. Quem recorta na mao usa --destino e olha local.
+PUBLICAVEL=1
+for arg in "$@"; do
+    case "$arg" in
+        --dias|--dias=*|--dias-hall|--dias-hall=*|--destino|--destino=*) PUBLICAVEL=0 ;;
+    esac
+done
+
 # Publica o painel no repo remoto so quando o script deu certo: e o que
 # permite a rotina cloud (RemoteTrigger, trig_01RW4ZtwQ2Kyspc2WHHrTDG8)
 # enxergar o painel.html atualizado e republicar no Artifact - o tool
 # Artifact so existe em sessao interativa ou de rotina cloud (CCR), nao
 # em `claude -p` headless local, entao nao da pra pular o GitHub aqui.
-if [ "$CODIGO" -eq 0 ] && [ -z "$(git -C "$RAIZ" status --porcelain -- relatorios/painel.html 2>/dev/null)" ]; then
+if [ "$CODIGO" -eq 0 ] && [ "$PUBLICAVEL" -eq 0 ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] geracao com recorte manual, nao publica." | tee -a "$LOG"
+elif [ "$CODIGO" -eq 0 ] && [ -z "$(git -C "$RAIZ" status --porcelain -- relatorios/painel.html 2>/dev/null)" ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] painel.html sem alteracoes, nada a publicar." | tee -a "$LOG"
 elif [ "$CODIGO" -eq 0 ]; then
     {
