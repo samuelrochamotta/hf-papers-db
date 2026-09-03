@@ -142,6 +142,74 @@ def checar_banco(cfg: Config) -> list[Item]:
     return itens
 
 
+def checar_pendencias(cfg: Config) -> Item:
+    """Papers sem veredito - e se a repescagem ja teve chance de pega-los.
+
+    O refresh (estagio 4) roda DEPOIS da classificacao (estagio 3) e grava
+    paper novo: o HF acrescenta paper ao daily de um dia ja passado, e o
+    refresh o descobre tarde demais para a rodada que o achou. Ele nasce sem
+    triagem e so e classificado na rodada seguinte, que varre todo pendente de
+    qualquer dia (`classificacao.selecionar` sem `--data`). Isso e latencia
+    normal, nao falha - por isso `na fila` fica em `ok`.
+
+    O que merece aviso e o pendente que JA passou por uma rodada de
+    classificacao e continuou sem veredito: ali a repescagem teve chance e nao
+    pegou. O corte e a ultima execucao que classificou alguem; uma rodada que
+    nao classificou nada pode nem ter rodado o estagio 3 (`--only export`),
+    entao nao serve de prova de que houve chance.
+    """
+    conn = db.abrir(cfg)
+    try:
+        pendentes = [
+            (r["paper_id"], str(r["primeiro_visto_em"] or ""))
+            for r in conn.execute(
+                "SELECT paper_id, primeiro_visto_em FROM dim_paper "
+                "WHERE paper_id NOT IN (SELECT paper_id FROM fato_triagem) "
+                "ORDER BY primeiro_visto_em, paper_id"
+            )
+        ]
+        if not pendentes:
+            total = db.contar(conn, "dim_paper")
+            return Item("triagem", OK, f"{total} papers, todos com veredito", {"pendentes": 0})
+
+        row = conn.execute(
+            "SELECT MAX(finalizado_em) AS corte FROM log_execucao "
+            "WHERE finalizado_em IS NOT NULL "
+            "AND COALESCE(qtd_fora,0) + COALESCE(qtd_amplo,0) + COALESCE(qtd_estrito,0) > 0"
+        ).fetchone()
+    finally:
+        conn.close()
+
+    corte = str(row["corte"]) if row and row["corte"] else ""
+    atrasados = [pid for pid, visto in pendentes if corte and visto and visto < corte]
+    na_fila = len(pendentes) - len(atrasados)
+
+    if not atrasados:
+        return Item(
+            "triagem",
+            OK,
+            f"{na_fila} sem veredito, todos vistos depois da ultima classificacao "
+            "(entram na proxima rodada)",
+            {"pendentes": len(pendentes), "atrasados": 0, "na_fila": na_fila},
+        )
+
+    amostra = ", ".join(atrasados[:3]) + ("..." if len(atrasados) > 3 else "")
+    fila = f" (+{na_fila} na fila)" if na_fila else ""
+    return Item(
+        "triagem",
+        AVISO,
+        f"{len(atrasados)} sem veredito apos a rodada de {corte[:16]}{fila}: {amostra} "
+        "- rode `hfpapers run --only classificacao,export`",
+        {
+            "pendentes": len(pendentes),
+            "atrasados": len(atrasados),
+            "na_fila": na_fila,
+            "corte": corte,
+            "ids": atrasados,
+        },
+    )
+
+
 def rodar(cfg: Optional[Config] = None, *, sem_rede: bool = False) -> list[Item]:
     cfg = cfg or config()
     itens = checar_config(cfg)
@@ -153,4 +221,5 @@ def rodar(cfg: Optional[Config] = None, *, sem_rede: bool = False) -> list[Item]
         itens.append(checar_hf(cfg))
         itens.append(checar_openrouter(cfg))
     itens.extend(checar_banco(cfg))
+    itens.append(checar_pendencias(cfg))
     return itens

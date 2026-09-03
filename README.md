@@ -75,9 +75,37 @@ python -m hfpapers taxonomia listar
 python -m hfpapers taxonomia fundir --de "X" --para "Y" --tipo topico
 python -m hfpapers modelos listar
 python -m hfpapers custos --mes 2026-08       # quanto a LLM custou
-python -m hfpapers doutor [--sem-rede]        # chave ok? API ok? banco íntegro?
+python -m hfpapers doutor [--sem-rede]        # chave, API, banco e pendências de triagem
 python -m hfpapers schema                     # DDL efetivo do banco
 ```
+
+### Papers que chegam pelo refresh
+
+O HF acrescenta paper ao daily de um dia **já passado**. Quem os encontra é o
+refresh, que reconsulta as datas quentes e grava pelo mesmo caminho da coleta
+(`refresh.py` → `coleta.gravar_itens`). Como o refresh é o estágio 4 e a
+classificação é o 3, esse paper nasce depois da classificação da rodada que o
+descobriu: entra na base sem veredito e só é classificado no dia seguinte —
+a rodada seguinte varre **todo** pendente de qualquer dia, porque
+`classificacao.selecionar` só filtra por data quando alguém passa `--data`.
+
+É latência de um dia por desenho, não falha. Em 2026-09-03 eram 9 papers de
+455 (2%), todos com `primeiro_visto_em` idêntico ao instante do refresh.
+O mesmo vale para `enriquecido_em`: o enriquecimento também é anterior ao
+refresh, e só alcança esses papers na segunda-feira, via
+`refresh.enriquecimento_semanal`.
+
+O que o `doutor` vigia é a diferença entre **esperar** e **falhar**:
+
+| situação | estado | leitura |
+|---|---|---|
+| pendente visto depois da última classificação | `ok` | está na fila, entra amanhã |
+| pendente que atravessou uma rodada de classificação | `aviso` | a repescagem teve chance e não pegou |
+
+O corte é a última execução que classificou alguém — uma que não classificou
+nada pode nem ter rodado o estágio 3 (`--only export`), e uma morta no meio
+(`finalizado_em` nulo, como em 02/09) não prova chance nenhuma. O remédio que
+o aviso imprime é `run --only classificacao,export`.
 
 ### Recuperação de lacuna
 
