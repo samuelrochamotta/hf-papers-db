@@ -33,4 +33,7 @@ packages = ["src/hfpapers"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+# scripts/ entra no path por causa de gerar_painel.py: o painel nao e um
+# modulo do pacote, mas a regra de ranqueamento do hall e logica de verdade
+# e precisa de teste.
+pythonpath = ["src", "scripts"]

@@ -11,9 +11,14 @@
 # run_id dentro de gerar_painel.py faz o disparo extra sair em no-op.
 #
 # Uso:
-#   scripts/gerar_painel.sh              # janela padrao (30 dias)
-#   scripts/gerar_painel.sh --dias 60
-#   scripts/gerar_painel.sh --force      # ignora a trava de run_id
+#   scripts/gerar_painel.sh                        # janela padrao (90 dias)
+#   scripts/gerar_painel.sh --dias 30
+#   scripts/gerar_painel.sh --force                # ignora a trava de run_id
+#   scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force   # espia a aba historica
+#
+# --dias recorta so a aba viva. A aba historica segue refresh.janela_morna_dias
+# do config.yaml; --dias-hall existe para inspeciona-la antes de o primeiro
+# trimestre fechar, nao para a geracao diaria.
 
 set -euo pipefail
 

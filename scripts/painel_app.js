@@ -27,9 +27,11 @@
   var elTip = document.getElementById('tip');
 
   var state = {
+    aba: 'janela',
     diasSel: [], vereditos: [], areas: [], topicos: [], orgs: [],
     busca: '', ordem: 'votos', aberta: null,
-    menu: null, buscaMenu: ''
+    menu: null, buscaMenu: '',
+    perSel: null, abertaH: null
   };
 
   /* Handlers vivem num array reconstruido a cada render; o HTML so carrega o
@@ -267,6 +269,218 @@
       '</div>';
   }
 
+  /* Rodape comum as duas abas: a procedencia do dado e os modelos que o
+     produziram nao mudam de aba para aba. */
+  function rodape(esquerda) {
+    return '<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 28px; padding-top: 24px; margin-top: 30px; border-top: 1px solid #242a30; font-size: 10.5px; letter-spacing: 0.1em; color: #5f636a;">' +
+      '<span>' + esquerda + '</span>' +
+      '<span>ESTÁGIO A: ' + esc(DADOS.modeloA) + ' · ESTÁGIO B: ' + esc(DADOS.modeloB) + '</span>' +
+      '</div>';
+  }
+
+  /* Navegacao entre as duas abas. Sublinhado em vez de pilula: as pilulas ja
+     significam "filtro" em todo o resto do painel, e uma aba nao filtra nada -
+     ela troca a pergunta que a pagina responde. */
+  function navAbas() {
+    var s = state;
+    var itens = [
+      { valor: 'janela', label: 'Janela', nota: DADOS.papers.length + ' papers · ' + DADOS.janela + 'd' },
+      { valor: 'historico', label: 'Registro histórico', nota: (DADOS.hall || []).length + ' trimestres' }
+    ];
+    return '<div style="display: flex; gap: 30px; margin-top: 26px; border-bottom: 1px solid #242a30;">' +
+      itens.map(function (i) {
+        var on = s.aba === i.valor;
+        return '<div class="aba"' + ev('c', function () { setState({ aba: i.valor, menu: null, aberta: null, abertaH: null }); }) +
+          ' style="display: flex; align-items: baseline; gap: 10px; padding: 0 2px 13px; margin-bottom: -1px; border-bottom: 2px solid ' +
+          (on ? ACCENT : 'transparent') + '; color: ' + (on ? '#f5f3ee' : '#8b8f96') + ';">' +
+          '<span style="font-size: 13.5px; font-weight: ' + (on ? '600' : '400') + ';">' + i.label + '</span>' +
+          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + (on ? '#8b8f96' : '#5f636a') + ';">' + esc(i.nota) + '</span>' +
+          '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  /* ══════════════ ABA HISTÓRICA ══════════════
+
+     A aba viva mostra uma janela de dias; esta guarda o que saiu dela. Ela NAO
+     preserva dado contra perda - nada e apagado, a serie inteira continua em
+     marts/*.parquet e no banco. O que ela resolve e visibilidade: impedir que o
+     recorte esconda para sempre o que a comunidade mais votou.
+
+     O ranking de um trimestre congela sozinho, sem passo de "selagem": quando o
+     ultimo dia dele cruza o corte, nem entram papers novos no grupo (data_hf_daily
+     e imutavel) nem os votos se mexem (o refresh para de re-consultar na mesma
+     marca de dias). Ate isso acontecer o trimestre e marcado "em consolidação",
+     porque o top-10 dele ainda muda a cada dia que passa. */
+  function construirHall() {
+    var s = state;
+    var hall = DADOS.hall || [];
+    var out = [];
+
+    if (!hall.length) {
+      out.push(
+        '<div class="card" style="padding: 62px 26px; text-align: center;">' +
+          '<div style="font-family: Newsreader, Georgia, serif; font-size: 28px; font-weight: 400; color: #f5f3ee; margin-bottom: 12px;">Nenhum período saiu da janela ainda</div>' +
+          '<div style="font-size: 13px; line-height: 1.65; color: #8b8f96; max-width: 580px; margin: 0 auto;">Um paper entra no registro histórico quando completa ' +
+            DADOS.diasHall + ' dias — a mesma marca em que o pipeline para de reconsultar os votos dele. Até lá ele está na aba <em style="color: #a8a49b;">Janela</em>, com o número de votos ainda vivo.</div>' +
+        '</div>');
+      return out.join('');
+    }
+
+    var atual = null;
+    hall.forEach(function (h) { if (h.per === s.perSel) atual = h; });
+    if (!atual) atual = hall[0];
+
+    /* ── nota de leitura ────────────────────────────────────────────────── */
+    out.push(
+      '<div class="card" style="margin: 26px 0 30px; padding: 20px 24px; display: flex; align-items: flex-start; gap: 16px;">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.5v.01"></path></svg>' +
+        '<div style="font-size: 12.5px; line-height: 1.7; color: #a8a49b; max-width: 880px; text-wrap: pretty;">' +
+          'A aba <em style="color: #ecebe6; font-style: normal;">Janela</em> mostra os últimos ' + DADOS.janela + ' dias. Aqui ficam, de cada trimestre já fora dela, os mais votados pela comunidade — ' +
+          'os dez aprovados com a ficha inteira e os dez que o pipeline descartou. ' +
+          '<span style="color: #6d7178;">Nada é apagado em lugar nenhum: a série completa continua no banco e nos Parquet. Os votos aqui estão congelados porque o refresh para de reconsultá-los aos ' + DADOS.diasHall + ' dias — medido, eles já haviam parado de se mexer no segundo dia.</span>' +
+        '</div>' +
+      '</div>'
+    );
+
+    /* ── seletor de trimestre ───────────────────────────────────────────── */
+    var chipsPer = hall.map(function (h) {
+      var on = h.per === atual.per;
+      return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' +
+        ev('c', function () { setState({ perSel: h.per, abertaH: null }); }) +
+        ' style="' + (on ? pillOnGlobal() : pill(false)) + '">' +
+        esc(h.rot) +
+        '<span style="margin-left: 7px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; opacity: 0.62;">' + h.n + '</span>' +
+        (h.cons ? '<span style="margin-left: 8px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7;">consolidando</span>' : '') +
+        '</div>';
+    }).join('');
+
+    out.push(
+      '<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 30px;">' +
+        '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">PERÍODO</span>' +
+        chipsPer +
+      '</div>'
+    );
+
+    var avisoCons = atual.cons
+      ? '<span style="display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: ' + ACCENT + '; background: rgba(217,164,65,0.1); border: 1px solid rgba(217,164,65,0.35); border-radius: 100px; padding: 6px 13px;">' +
+          '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ' + ACCENT + ';"></span>' +
+          'em consolidação — parte do trimestre ainda está na janela</span>'
+      : '<span style="font-size: 11.5px; color: #6d7178;">período fechado · ranking definitivo</span>';
+
+    /* ── 01 · os dez aprovados mais votados ─────────────────────────────── */
+    out.push(secao('01', 'Os mais votados entre os aprovados'));
+
+    var linhasAp = atual.ap.map(function (p, i) {
+      var aberta = s.abertaH === p.id;
+      var badge = 'display: inline-flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 0; border-radius: 100px; color: ' + cor(p.v) + '; background: ' + cor(p.v) + '1f; border: 1px solid ' + cor(p.v) + '4d;';
+
+      var corpo = '';
+      if (aberta) {
+        corpo = '<div style="padding: 10px 24px 30px;">';
+        if (p.f) {
+          // ordem normativa da ficha: Achado, Padrao Extraido, Implicacao,
+          // Exemplo, Ressalva. O Padrao some quando o achado e puramente empirico.
+          corpo += '<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px;">' +
+            camposFicha(p).map(function (c) {
+              return '<div style="' + c.wrap + '">' +
+                '<div style="' + c.regua + '"></div>' +
+                '<div style="' + c.rotuloStyle + '">' + c.rotulo + '</div>' +
+                '<div style="' + c.nomeStyle + '">' + esc(c.nome) + '</div>' +
+                '<div style="font-family: Newsreader, Georgia, serif; font-size: 16px; font-weight: 300; line-height: 1.68; color: #d5d1c8; text-wrap: pretty;">' + esc(c.texto) + '</div>' +
+                '</div>';
+            }).join('') +
+            '</div>';
+        } else {
+          corpo += '<div style="font-size: 12.5px; color: #6d7178; padding: 6px 0 14px;">Aprovado sem ficha gerada — o Estágio B não chegou a escrevê-la. Ele fica no ranking porque tirá-lo faria o top-10 mentir sobre quem foi mais votado.</div>';
+        }
+        corpo += '<div style="display: flex; gap: 20px; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #242a30;">' +
+            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px;">' + esc(p.id) + ' ↗</a>' +
+            '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.tp.join(' · ')) + '</span>' +
+            (p.uq ? '<span style="font-size: 11.5px; color: #5f636a;">votos medidos em ' + esc(diaCurto(p.uq)) + '</span>' : '') +
+          '</div>' +
+          '</div>';
+      }
+
+      return '<div style="border-bottom: 1px solid #1d2226;">' +
+        '<div class="row"' + ev('c', function () { setState({ abertaH: aberta ? null : p.id }); }) + ' style="display: grid; grid-template-columns: 30px 78px minmax(0, 1fr) 200px 66px 60px; gap: 14px; padding: 14px 24px; align-items: center;">' +
+          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: ' + (i < 3 ? ACCENT : '#4a5058') + ';">' + (i + 1) + '</span>' +
+          '<span style="' + badge + '">' + esc(p.v) + '</span>' +
+          '<div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">' +
+            '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.t) + '</span>' +
+            '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.org || '—') + (p.f ? '' : ' · sem ficha') + '</span>' +
+          '</div>' +
+          '<span style="font-size: 11.5px; color: #8b8f96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.a || '—') + '</span>' +
+          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12.5px; color: #ecebe6; text-align: right;">' + p.u + '</span>' +
+          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #6d7178; text-align: right;">' + diaCurto(p.d) + '</span>' +
+        '</div>' + corpo +
+        '</div>';
+    }).join('');
+
+    out.push(
+      '<div class="card" style="overflow: hidden; margin-bottom: 34px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O que ficou do ' + esc(atual.rot) + '</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">' + atual.ap.length + ' de ' + atual.na + ' aprovados, ordenados por voto da comunidade. Clique para abrir a ficha inteira.</div>' +
+          '</div>' + avisoCons +
+        '</div>' +
+        '<div style="display: grid; grid-template-columns: 30px 78px minmax(0, 1fr) 200px 66px 60px; gap: 14px; padding: 11px 24px; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; background: #131619; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">' +
+          '<span>#</span><span>CRITÉRIO</span><span>TÍTULO</span><span>ÁREA</span><span style="text-align: right;">VOTOS</span><span style="text-align: right;">DIA</span>' +
+        '</div>' +
+        linhasAp +
+        (linhasAp ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum aprovado neste trimestre.</div>') +
+      '</div>'
+    );
+
+    /* ── 02 · votados e descartados ─────────────────────────────────────── */
+    out.push(secao('02', 'Votados pela comunidade, descartados pelo pipeline'));
+
+    var linhasDe = atual.de.map(function (p, i) {
+      return '<div style="display: grid; grid-template-columns: 30px 66px minmax(0, 1fr); gap: 16px; padding: 15px 24px; border-bottom: 1px solid #1d2226; align-items: start;">' +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: #4a5058; padding-top: 2px;">' + (i + 1) + '</span>' +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 13px; color: #9aa1a9; text-align: right; padding-top: 1px;">' + p.u + '</span>' +
+        '<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">' +
+          '<div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">' +
+            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-size: 13.5px; color: #ecebe6; border-bottom-color: rgba(236,235,230,0.18);">' + esc(p.t) + '</a>' +
+            (p.rf
+              ? '<span style="font-size: 10.5px; font-family: \'IBM Plex Mono\', monospace; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">' + esc(p.rf) + '</span>'
+              : '') +
+            '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.org || '—') + ' · ' + diaCurto(p.d) + '</span>' +
+          '</div>' +
+          (p.h
+            ? '<div style="font-size: 12.5px; font-style: italic; color: #6d7178;">Veredito herdado dos digests históricos — o backfill não registra justificativa por paper.</div>'
+            : '<div style="font-family: Newsreader, Georgia, serif; font-size: 15px; font-weight: 300; line-height: 1.6; color: #a8a49b; text-wrap: pretty;">' + esc(p.j) + '</div>') +
+        '</div>' +
+        '</div>';
+    }).join('');
+
+    out.push(
+      '<div class="card" style="overflow: hidden; margin-bottom: 34px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O outro lado do voto</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Os ' + atual.de.length + ' mais votados entre os ' + atual.nd + ' descartados do trimestre, com a regra e a justificativa que os tiraram.</div>' +
+          '</div>' +
+          '<span style="font-size: 11.5px; color: #6d7178; text-align: right; max-width: 300px; line-height: 1.5;">Upvote não entra em decisão nenhuma do pipeline. Esta lista existe para medir a divergência, não para reabrir o veredito.</span>' +
+        '</div>' +
+        linhasDe +
+        (linhasDe ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum descarte neste trimestre.</div>') +
+      '</div>'
+    );
+
+    var somaAp = 0, somaDe = 0;
+    hall.forEach(function (h) { somaAp += h.ap.length; somaDe += h.de.length; });
+    out.push(rodape('REGISTRO HISTÓRICO · ' + hall.length + ' TRIMESTRE(S) · ' + somaAp + ' APROVADOS · ' + somaDe + ' DESCARTADOS'));
+    return out.join('');
+  }
+
+  // a pilula "ligada" tambem e usada pelo seletor de trimestre, que roda fora
+  // de construir() - onde a variavel local `pillOn` nao alcanca
+  function pillOnGlobal() {
+    return 'display: inline-flex; align-items: center; gap: 0; font-size: 12.5px; line-height: 1; padding: 8px 15px; border-radius: 100px; white-space: nowrap; background: ' + ACCENT + '; border: 1px solid ' + ACCENT + '; color: #14161a; font-weight: 600;';
+  }
+
   function construir() {
     var s = state;
     var todos = DADOS.papers;
@@ -313,6 +527,18 @@
         '</div>' +
       '</div>'
     );
+
+    out.push(navAbas());
+
+    /* A aba historica sai aqui. Ela nao passa pela barra de filtro de proposito:
+       `filtrados()` recorta DADOS.papers, que e so a janela - deixar o filtro
+       de dia/area/organizacao valer para o hall zeraria a aba inteira assim que
+       alguem marcasse um dia. O hall tem o seletor de trimestre e nada mais. */
+    if (s.aba === 'historico') {
+      out.push(construirHall());
+      out.push('</div>');
+      return out.join('');
+    }
 
     /* ══════════════ FILTROS ══════════════ */
     var chipsVeredito = ['estrito', 'amplo', 'fora'].map(function (v) {
@@ -827,12 +1053,7 @@
     );
 
     /* ══════════════ RODAPÉ ══════════════ */
-    out.push(
-      '<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 28px; padding-top: 24px; margin-top: 30px; border-top: 1px solid #242a30; font-size: 10.5px; letter-spacing: 0.1em; color: #5f636a;">' +
-        '<span>FONTE: data/hfpapers.db → marts/*.parquet · ' + todos.length + ' PAPERS · ' + DADOS.fichas.length + ' FICHAS</span>' +
-        '<span>ESTÁGIO A: ' + esc(DADOS.modeloA) + ' · ESTÁGIO B: ' + esc(DADOS.modeloB) + '</span>' +
-      '</div>'
-    );
+    out.push(rodape('FONTE: data/hfpapers.db → marts/*.parquet · ' + todos.length + ' PAPERS · ' + DADOS.fichas.length + ' FICHAS'));
 
     out.push('</div>');
     return out.join('');

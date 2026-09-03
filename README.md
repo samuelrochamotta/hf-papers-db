@@ -149,19 +149,75 @@ Três defesas contra o disparo repetido ou perdido:
   `WatchPaths` perder a notificação do `os.replace` (troca de inode). Se o
   gatilho já pegou, essa execução sai em no-op pela trava de `run_id`.
 
-A janela padrão é de 90 dias (`--dias N` muda). Sem recorte o arquivo cresceria
-para sempre — entram ~28 papers/dia. A série histórica completa continua nos
-Parquet; o painel mostra a janela.
+### As duas abas
 
-O peso agora vem do texto das fichas embutido em `DADOS`, não de HTML por card.
-Ordem de grandeza medida: **420 KB para 296 papers e 104 fichas**. Se doer,
-`--dias` é o botão para girar.
+**Janela** — os últimos 90 dias (`--dias N` muda), com o filtro cruzado e as
+cinco seções. Sem recorte o arquivo cresceria para sempre: entram ~28 papers/dia.
+
+**Registro histórico** — de cada trimestre já fora da janela, os **10 aprovados
+mais votados** com a ficha inteira e os **10 descartados mais votados** com a
+regra e a justificativa que os tiraram. A série completa continua nos Parquet e
+no banco; o painel mostra a janela mais esse resumo.
+
+Três coisas que essa aba **não** é, e vale ter escrito:
+
+- **Não preserva dado contra perda.** Nada é apagado — nem do banco, nem dos
+  Parquet. A janela de 90 dias sempre foi recorte de renderização, não deleção.
+  O que a aba resolve é visibilidade: impedir que o recorte esconda para sempre
+  o que a comunidade mais votou.
+- **Não precisa de deduplicação.** `data_hf_daily` é imutável, então cada paper
+  pertence a exatamente um trimestre, para sempre. Não há chave de dedupe nem
+  reconciliação entre períodos.
+- **Não precisa de "selagem".** O ranking de um trimestre congela sozinho:
+  quando o último dia dele cruza o corte, nem entram papers novos no grupo nem
+  os votos se mexem — o refresh para de reconsultá-los na mesma marca de dias.
+  Até lá o trimestre aparece marcado como *em consolidação*.
+
+Por isso ela é derivada dos Parquet a cada geração: sem tabela nova, sem estado
+em `data/estado/`, sem estágio novo no pipeline, sem chamada de LLM e sem
+requisição ao HF.
+
+O corte da aba histórica vem de `refresh.janela_morna_dias`, **não** de `--dias`.
+É o ponto em que o pipeline para de atualizar os votos, então é onde um ranking
+pode congelar sem mentir. A consequência prática: `--dias` continua sendo a
+válvula para encolher o arquivo — baixar o valor mostra menos, não empurra
+papers para o histórico.
+
+Congelar não perde quase nada, e isso foi medido em `fato_metrica`: a mediana do
+upvote atinge o valor final **no dia +2** e não sai mais dali; só 15% dos papers
+crescem mais de 10% depois disso, tudo dentro da janela quente de 30 dias.
+
+### Tamanho
+
+O peso vem do texto das fichas embutido em `DADOS`, não de HTML por card.
+Medido: **681 KB para 455 papers e 155 fichas**, dos quais 322 KB são fichas
+(~2,1 KB cada) e 196 KB são os papers (~440 B cada).
+
+O custo por entrada do histórico é assimétrico de propósito — é o que permite as
+duas listas terem tamanhos diferentes:
+
+| Lista | Conteúdo | Por entrada | Por trimestre |
+|---|---|---|---|
+| 10 aprovados | ficha inteira (5 campos) | ~2,5 KB | ~25 KB |
+| 10 descartados | regra + justificativa | ~0,7 KB | ~7 KB |
+
+**~32 KB por trimestre, ~130 KB por ano** — contra os ~250 KB/mês que a janela
+viva teria se não fosse recortada. Se doer, `--dias` é o botão para girar.
+
+Vale lembrar que `painel.html` é commitado e empurrado todo dia (168 KB
+comprimido, ~60 MB/ano de repositório): cada KB adicionado se multiplica por 365.
+Por isso o ranking desempata por `paper_id` — sem critério estável, dois papers
+empatados em votos trocariam de lugar entre rodadas e o commit diário ganharia
+diff sem significado.
 
 ```bash
 # gerar na mão
 scripts/gerar_painel.sh                 # janela padrão (90 dias)
 scripts/gerar_painel.sh --dias 30
 scripts/gerar_painel.sh --force         # ignora a trava de run_id
+
+# inspecionar a aba histórica antes de o primeiro trimestre fechar
+scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force
 
 # status / disparo manual do agente
 launchctl print    gui/$(id -u)/com.samuelrochamotta.hfpapers-painel
@@ -201,6 +257,10 @@ requisições/dia para uma janela quente de 30 dias, em vez de ~1.000.
 - acima de 90 dias: congelado
 - `numTotal*` (modelos/datasets/spaces): semanal, via `papers/{id}`
 
+`janela_morna_dias` tem um segundo consumidor: é o corte da aba histórica do
+painel. Mexer nele move as duas coisas junto, e isso é de propósito — o
+histórico congela ranking exatamente onde o refresh para de atualizar voto.
+
 ## Export para o Power BI
 
 `python -m hfpapers export` escreve em `marts/`, um Parquet por tabela, com
@@ -234,7 +294,10 @@ Três invariantes que os testes cobrem:
 
 1. **Upvote não entra em decisão nenhuma** e não aparece em prompt nenhum. É
    métrica de saída, guardada em `fato_metrica` para você descobrir depois se
-   prediz aprovação.
+   prediz aprovação. A aba histórica do painel ordena por upvote, mas isso é
+   exibição, não decisão: o veredito já foi dado e não é reaberto. A lista de
+   descartados existe justamente para medir a divergência — no lote atual, 14
+   dos 20 papers mais votados são `fora`.
 2. **O Padrão Extraído é escrito e testado antes do veredito.** A ordem das
    propriedades no schema do Estágio B é normativa.
 3. **A LLM não cria rótulo de área ou tópico.** O enum é injetado do banco;

@@ -9,20 +9,31 @@ artboard da Claude Design. Aquele arquivo so roda dentro do runtime do canvas;
 `scripts/painel_app.js` e o porte do mesmo layout para JS de navegador. Este
 script nao desenha nada: extrai os dados, serializa em `DADOS` e embute o app.
 
-Tres decisoes que valem explicacao:
+Quatro decisoes que valem explicacao:
 
 1. Le `marts/_manifest.json` e nao roda de novo se o `run_id` for o mesmo da
    ultima geracao. O gatilho do launchd e `WatchPaths`, que pode disparar mais
    de uma vez para a mesma escrita; a trava de `run_id` torna o disparo extra
    um no-op em vez de trabalho repetido.
 
-2. Recorta uma janela de dias (padrao 90). Sem isso o arquivo cresce para
-   sempre: sao ~28 papers/dia entrando na base. A serie historica completa
-   continua nos Parquet - o painel e a vitrine, nao o arquivo morto. O peso
-   agora vem do texto das fichas embutido em `DADOS`, nao de HTML por card.
+2. Recorta uma janela de dias (padrao 90) para a aba viva. Sem isso o arquivo
+   cresce para sempre: sao ~28 papers/dia entrando na base. A serie historica
+   completa continua nos Parquet - o painel e a vitrine, nao o arquivo morto.
+   O peso vem do texto das fichas embutido em `DADOS`, nao de HTML por card.
    Se ficar pesado para distribuir, `--dias` e o botao para girar.
 
-3. Nada de pandas nem jinja2. O env `digest-hf` nao tem os dois, e um painel de
+3. A aba historica (`hall`) guarda, por trimestre de publicacao, os 10
+   aprovados mais votados com a ficha inteira e os 10 descartados mais votados
+   com a regra e a justificativa. Ela NAO preserva dado nenhum contra perda:
+   nada e apagado, nem do banco nem dos Parquet. O que ela resolve e
+   visibilidade - impedir que o recorte de 90 dias esconda para sempre o que a
+   comunidade mais votou. Por isso e derivada a cada geracao, sem tabela nova,
+   sem estado em `data/estado/` e sem estagio novo no pipeline.
+
+   Nao ha deduplicacao a fazer: `data_hf_daily` e imutavel, entao cada paper
+   pertence a exatamente um trimestre, para sempre.
+
+4. Nada de pandas nem jinja2. O env `digest-hf` nao tem os dois, e um painel de
    distribuicao nao justifica dependencia nova - pyarrow e pyyaml ja estao la.
 """
 
@@ -33,7 +44,7 @@ import datetime as dt
 import json
 import os
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +59,22 @@ APP_JS = Path(__file__).resolve().parent / "painel_app.js"
 CONFIG = RAIZ / "config.yaml"
 
 JANELA_PADRAO = 90
+JANELA_HALL_PADRAO = 90
+
+# Dez e dez, por decisao editorial. O custo por entrada e assimetrico e e o que
+# justifica os dois tamanhos: um aprovado com a ficha inteira pesa ~2,5 KB; um
+# descartado com regra + justificativa pesa ~0,7 KB. Um trimestre inteiro
+# acrescenta ~32 KB ao arquivo, ~130 KB por ano.
+TOPO_APROVADOS = 10
+TOPO_DESCARTADOS = 10
+
+ORDINAL = {1: "1", 2: "2", 3: "3", 4: "4"}
+
+# O backfill nao tem justificativa por paper: ele importa o veredito curado dos
+# digests historicos e carimba esta marca no lugar (backfill/importacao.py).
+# Exibir esse carimbo como se fosse o motivo do descarte seria mentir sobre o
+# que o pipeline avaliou, entao o hall o troca por um aviso explicito.
+MARCA_BACKFILL = "Importado do historico ("
 
 # O que o artboard trazia no <helmet>. O resto do desenho vive em style inline
 # dentro de painel_app.js - e assim que o canvas escreve, e manter igual e o
@@ -60,6 +87,8 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
 .chip { transition: background 120ms ease, border-color 120ms ease, color 120ms ease; cursor: pointer; user-select: none; }
 .chip:hover { background: #23282e !important; border-color: #414a53 !important; color: #ecebe6 !important; }
 .chip-on:hover { filter: brightness(1.08); }
+.aba { transition: color 120ms ease, border-color 120ms ease; cursor: pointer; user-select: none; }
+.aba:hover { color: #ecebe6 !important; }
 .mark { transition: opacity 120ms ease, transform 120ms ease; cursor: pointer; }
 .mark:hover { opacity: 1 !important; transform: scale(1.35); }
 .bar { transition: filter 120ms ease; cursor: pointer; }
@@ -87,18 +116,176 @@ def iso(d: Any) -> str | None:
     return d.isoformat() if isinstance(d, (dt.date, dt.datetime)) else (d or None)
 
 
+def _config() -> dict:
+    try:
+        return yaml.safe_load(CONFIG.read_text(encoding="utf-8")) or {}
+    except OSError:
+        return {}
+
+
 def modelos() -> tuple[str, str]:
     """Rodape do painel. Vem do config para nao envelhecer quando o modelo trocar."""
+    llm = _config().get("llm", {})
+    return (llm.get("estagio_a", {}).get("modelo", "?"),
+            llm.get("estagio_b", {}).get("modelo", "?"))
+
+
+def janela_hall() -> int:
+    """Idade, em dias, a partir da qual um paper entra no registro historico.
+
+    Nao e `--dias` e nao e um numero solto: vem de `refresh.janela_morna_dias`,
+    o ponto em que o pipeline para de re-consultar as metricas do paper
+    (`estagios/refresh.py`). Dali para tras o numero de votos nao muda mais -
+    entao e exatamente ali que um ranking pode ser congelado sem mentir.
+
+    Amarrar o hall a essa configuracao, e nao a `--dias`, tem duas consequencias
+    boas: `--dias` continua sendo a valvula para encolher o arquivo (baixar o
+    valor nao empurra papers para o hall, so mostra menos), e se um dia a janela
+    do refresh mudar, o hall segue junto sem ninguem lembrar de mexer aqui.
+    """
+    valor = _config().get("refresh", {}).get("janela_morna_dias", JANELA_HALL_PADRAO)
     try:
-        cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8")) or {}
-        llm = cfg.get("llm", {})
-        return (llm.get("estagio_a", {}).get("modelo", "?"),
-                llm.get("estagio_b", {}).get("modelo", "?"))
-    except OSError:
-        return "?", "?"
+        return max(1, int(valor))
+    except (TypeError, ValueError):
+        return JANELA_HALL_PADRAO
 
 
-def montar_dados(janela: int) -> tuple[dict, dict]:
+def periodo(d: dt.date) -> tuple[str, str, dt.date, dt.date]:
+    """Trimestre civil de uma data: chave ordenavel, rotulo, primeiro e ultimo dia."""
+    t = (d.month - 1) // 3 + 1
+    ini = dt.date(d.year, 3 * t - 2, 1)
+    proximo = dt.date(d.year + 1, 1, 1) if t == 4 else dt.date(d.year, 3 * t + 1, 1)
+    return (f"{d.year}-T{t}", f"{ORDINAL[t]}º trimestre de {d.year}",
+            ini, proximo - dt.timedelta(days=1))
+
+
+def por_voto(papers: list[dict]) -> list[dict]:
+    """Ordena por upvotes desc, desempatando por paper_id.
+
+    O desempate nao e capricho: `painel.html` e commitado e empurrado todo dia
+    (`gerar_painel.sh`). Sem criterio estavel, dois papers com o mesmo numero de
+    votos trocariam de lugar entre rodadas e o commit diario ganharia um diff
+    que nao significa nada.
+    """
+    return sorted(papers, key=lambda p: (-(p.get("upvotes_atual") or 0), p["paper_id"]))
+
+
+def montar_hall(
+    papers: list[dict],
+    triagem: dict[str, dict],
+    fichas: dict[str, dict],
+    area_primaria: dict[str, str],
+    topicos_por_paper: dict[str, list[str]],
+    ultimo_voto: dict[str, str],
+    *,
+    corte: dt.date,
+) -> list[dict]:
+    """Ranking por trimestre entre os papers que ja sairam da janela viva.
+
+    Funcao pura dos Parquet: nao le disco, nao guarda estado. O ranking de um
+    trimestre se estabiliza sozinho quando o ultimo dia dele cruza `corte` -
+    dali em diante nem entram papers novos no grupo nem os votos se mexem, entao
+    nao ha nada a "selar". Enquanto isso nao acontece o trimestre e marcado como
+    em consolidacao, porque o top-10 dele ainda muda a cada dia que passa.
+    """
+    def veredito(pid: str) -> str:
+        return triagem.get(pid, {}).get("veredito") or "fora"
+
+    # Contagem sobre TODOS os papers do trimestre, inclusive os que ainda estao
+    # na janela viva: senao "10 de 41 aprovados" mentiria enquanto o trimestre
+    # esta saindo aos poucos.
+    total: Counter[str] = Counter()
+    aprovados: Counter[str] = Counter()
+    rotulos: dict[str, tuple[str, dt.date, dt.date]] = {}
+    for p in papers:
+        d = p.get("data_hf_daily")
+        if not d:
+            continue
+        chave, rotulo, ini, fim = periodo(d)
+        rotulos[chave] = (rotulo, ini, fim)
+        total[chave] += 1
+        if veredito(p["paper_id"]) != "fora":
+            aprovados[chave] += 1
+
+    saidos: dict[str, list[dict]] = defaultdict(list)
+    for p in papers:
+        d = p.get("data_hf_daily")
+        if d and d < corte:
+            saidos[periodo(d)[0]].append(p)
+
+    hall = []
+    for chave in sorted(saidos, reverse=True):     # trimestre mais recente primeiro
+        rotulo, ini, fim = rotulos[chave]
+        grupo = saidos[chave]
+
+        aprov = por_voto([p for p in grupo if veredito(p["paper_id"]) != "fora"])
+        desc = por_voto([p for p in grupo if veredito(p["paper_id"]) == "fora"])
+
+        entradas_aprov = []
+        for p in aprov[:TOPO_APROVADOS]:
+            pid = p["paper_id"]
+            f = fichas.get(pid, {})
+            entradas_aprov.append({
+                "id": pid,
+                "t": p.get("titulo") or "",
+                "d": iso(p.get("data_hf_daily")),
+                "v": veredito(pid),
+                "a": area_primaria.get(pid),
+                "tp": topicos_por_paper.get(pid, []),
+                "u": p.get("upvotes_atual") or 0,
+                "uq": ultimo_voto.get(pid),
+                "org": p.get("organizacao"),
+                "url": p.get("url_hf"),
+                # Um aprovado sem ficha e raro mas existe (o Estagio B falhou
+                # depois do veredito). Ele fica no ranking - tira-lo faria o
+                # top-10 mentir sobre quem foi mais votado - e a linha so nao
+                # abre. `f` e o que o app usa para decidir isso.
+                "f": 1 if f else 0,
+                "ach": f.get("achado") or "",
+                "pn": f.get("padrao_nome") or "",
+                "pm": f.get("padrao_mecanismo") or "",
+                "imp": f.get("implicacao_pratica") or "",
+                "ex": f.get("exemplo_concreto") or "",
+                "res": f.get("ressalva") or "",
+            })
+
+        entradas_desc = []
+        for p in desc[:TOPO_DESCARTADOS]:
+            pid = p["paper_id"]
+            t = triagem.get(pid, {})
+            justificativa = t.get("justificativa") or ""
+            herdado = justificativa.startswith(MARCA_BACKFILL)
+            entradas_desc.append({
+                "id": pid,
+                "t": p.get("titulo") or "",
+                "d": iso(p.get("data_hf_daily")),
+                "u": p.get("upvotes_atual") or 0,
+                "uq": ultimo_voto.get(pid),
+                "org": p.get("organizacao"),
+                "url": p.get("url_hf"),
+                "rf": t.get("regra_fora"),
+                # a justificativa e o contraponto do `achado`: por que o
+                # pipeline descartou o que a comunidade votou.
+                "j": "" if herdado else justificativa,
+                "h": 1 if herdado else 0,
+            })
+
+        hall.append({
+            "per": chave,
+            "rot": rotulo,
+            "ini": ini.isoformat(),
+            "fim": fim.isoformat(),
+            "n": total[chave],
+            "na": aprovados[chave],
+            "nd": total[chave] - aprovados[chave],
+            "cons": 1 if fim >= corte else 0,
+            "ap": entradas_aprov,
+            "de": entradas_desc,
+        })
+    return hall
+
+
+def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]:
     """Extrai de marts/ o objeto `DADOS` que o app le no navegador.
 
     As chaves sao curtas de proposito: sao ~300 papers e ~100 fichas embutidos
@@ -112,15 +299,20 @@ def montar_dados(janela: int) -> tuple[dict, dict]:
 
     hoje = dt.date.today()
     corte = hoje - dt.timedelta(days=janela)
+    dias_hall = dias_hall if dias_hall is not None else janela_hall()
+    corte_hall = hoje - dt.timedelta(days=dias_hall)
 
     # A janela usa data_hf_daily (a data da operacao diaria), nao data_arxiv.
     na_janela = [p for p in papers if p.get("data_hf_daily") and p["data_hf_daily"] >= corte]
     ids = {p["paper_id"] for p in na_janela}
+    ids_hall = {p["paper_id"] for p in papers
+                if p.get("data_hf_daily") and p["data_hf_daily"] < corte_hall}
+    ids_uteis = ids | ids_hall
 
     area_primaria: dict[str, str] = {}
     areas_sec: dict[str, list[str]] = defaultdict(list)
     for r in ler("ponte_paper_area"):
-        if r["paper_id"] not in ids:
+        if r["paper_id"] not in ids_uteis:
             continue
         if r.get("is_primaria"):
             area_primaria[r["paper_id"]] = r["area"]
@@ -129,15 +321,22 @@ def montar_dados(janela: int) -> tuple[dict, dict]:
 
     topicos_por_paper: dict[str, list[str]] = defaultdict(list)
     for r in ler("ponte_paper_topico"):
-        if r["paper_id"] in ids:
+        if r["paper_id"] in ids_uteis:
             topicos_por_paper[r["paper_id"]].append(r["topico"])
 
+    # Uma passada so: a serie completa para quem esta na janela, e a data da
+    # ultima medicao para quem esta no hall (o "votos em" que honra o
+    # congelamento do refresh).
     serie: dict[str, list] = defaultdict(list)
+    ultimo_voto: dict[str, str] = {}
     for m in sorted(ler("fato_metrica"), key=lambda r: (r["paper_id"], r["data_snapshot"])):
-        if m["paper_id"] in ids:
-            serie[m["paper_id"]].append(
+        pid = m["paper_id"]
+        if pid in ids:
+            serie[pid].append(
                 [iso(m["data_snapshot"]), m.get("upvotes"), m.get("comentarios"), m.get("github_stars")]
             )
+        if pid in ids_hall and m.get("upvotes") is not None:
+            ultimo_voto[pid] = iso(m["data_snapshot"])   # ordenado por data: o ultimo vence
 
     lista = []
     for p in sorted(na_janela, key=lambda x: (x["data_hf_daily"], x["paper_id"])):
@@ -167,11 +366,18 @@ def montar_dados(janela: int) -> tuple[dict, dict]:
             "f": 1 if pid in fichas else 0,
         })
 
+    hall = montar_hall(
+        papers, triagem, fichas, area_primaria, topicos_por_paper, ultimo_voto,
+        corte=corte_hall,
+    )
+
     modelo_a, modelo_b = modelos()
     dados = {
         "gerado": manifest.get("gerado_em") or dt.datetime.now().replace(microsecond=0).isoformat(),
         "modeloA": modelo_a,
         "modeloB": modelo_b,
+        "janela": janela,
+        "diasHall": dias_hall,
         "areas": [{"a": a["area"], "def": a.get("definicao") or ""} for a in ler("dim_area")],
         "topicos": [{"t": t["topico"], "def": t.get("definicao") or ""} for t in ler("dim_topico")],
         "papers": lista,
@@ -188,12 +394,13 @@ def montar_dados(janela: int) -> tuple[dict, dict]:
             for pid, f in fichas.items() if pid in ids
         ],
         "serie": dict(serie),
+        "hall": hall,
     }
     return dados, manifest
 
 
-def montar(janela: int) -> tuple[str, dict]:
-    dados, manifest = montar_dados(janela)
+def montar(janela: int, dias_hall: int | None = None) -> tuple[str, dict]:
+    dados, manifest = montar_dados(janela, dias_hall)
     app = APP_JS.read_text(encoding="utf-8")
 
     # `</` escapado: um titulo de paper com "</script>" fecharia a tag e o
@@ -218,9 +425,15 @@ def montar(janela: int) -> tuple[str, dict]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Gera o painel HTML estatico de marts/.")
     ap.add_argument("--dias", type=int, default=JANELA_PADRAO,
-                    help=f"Janela em dias (padrao {JANELA_PADRAO}). Segura o tamanho do arquivo.")
+                    help=f"Janela em dias da aba viva (padrao {JANELA_PADRAO}). Segura o tamanho "
+                         "do arquivo. Nao afeta a aba historica, que segue refresh.janela_morna_dias.")
     ap.add_argument("--destino", type=Path, default=DESTINO_PADRAO,
                     help=f"Arquivo de saida (padrao {DESTINO_PADRAO}).")
+    ap.add_argument("--dias-hall", type=int, default=None, dest="dias_hall",
+                    help="Sobrescreve o corte da aba historica, que por padrao vem de "
+                         "refresh.janela_morna_dias. Existe para inspecionar a aba antes de o "
+                         "primeiro trimestre fechar - nao use na geracao diaria: abaixo da janela "
+                         "do refresh os votos do hall ainda estao se mexendo.")
     ap.add_argument("--force", action="store_true",
                     help="Regera mesmo se o run_id nao mudou.")
     args = ap.parse_args()
@@ -238,7 +451,7 @@ def main() -> int:
         print(f"sem novidade: painel ja gerado para {run_id} (use --force para regerar)")
         return 0
 
-    doc, _ = montar(args.dias)
+    doc, _ = montar(args.dias, args.dias_hall)
 
     args.destino.parent.mkdir(parents=True, exist_ok=True)
     tmp = args.destino.with_suffix(".html.tmp")
