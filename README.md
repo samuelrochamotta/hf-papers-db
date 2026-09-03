@@ -266,10 +266,21 @@ scripts/gerar_painel.sh --force         # ignora a trava de run_id
 # SEMPRE com --destino: o painel publicado não é rascunho.
 scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force --destino /tmp/previa.html
 
+# a mesma aba como ficará depois que o trimestre fechar, sem o aviso de
+# consolidação. O `=` é obrigatório: sem ele o argparse lê -30 como opção.
+scripts/gerar_painel.sh --dias 10 --dias-hall=-30 --force --destino /tmp/fechado.html
+
 # status / disparo manual do agente
 launchctl print    gui/$(id -u)/com.samuelrochamotta.hfpapers-painel
 launchctl kickstart -k gui/$(id -u)/com.samuelrochamotta.hfpapers-painel
 ```
+
+Por que o corte negativo: `--dias-hall` positivo puxa o corte para trás de hoje,
+e um trimestre só perde o selo de consolidação quando `fim >= corte` deixa de
+valer. Como o trimestre corrente termina no futuro, **nenhum valor positivo
+mostra a aba no estado final** — só o corte adiantado consegue. Fora dessa
+inspeção o valor negativo não faz sentido nenhum, e a geração diária (sem
+argumentos) nunca chega perto dele.
 
 Duas defesas contra publicar rascunho por engano, porque `--dias` e `--dias-hall`
 mudam **o que** o painel mostra (com `--dias 10` são 270 papers em vez de 455, e

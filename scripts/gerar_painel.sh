@@ -17,6 +17,10 @@
 #   # inspecao: SEMPRE com --destino, o painel publicado nao e rascunho
 #   scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force --destino /tmp/previa.html
 #
+#   # a mesma aba como ficara depois que o trimestre fechar (sem o aviso de
+#   # consolidacao). O `=` e obrigatorio: sem ele o argparse le -30 como opcao.
+#   scripts/gerar_painel.sh --dias 10 --dias-hall=-30 --force --destino /tmp/fechado.html
+#
 # --dias recorta so a aba viva. A aba historica segue refresh.janela_morna_dias
 # do config.yaml; --dias-hall existe para inspeciona-la antes de o primeiro
 # trimestre fechar, nao para a geracao diaria.

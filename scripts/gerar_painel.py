@@ -438,7 +438,7 @@ def montar(janela: int, dias_hall: int | None = None) -> tuple[str, dict]:
     return doc, manifest
 
 
-def main() -> int:
+def _parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description="Gera o painel HTML estatico de marts/.")
     ap.add_argument("--dias", type=int, default=JANELA_PADRAO,
                     help=f"Janela em dias da aba viva (padrao {JANELA_PADRAO}). Segura o tamanho "
@@ -449,10 +449,18 @@ def main() -> int:
                     help="Sobrescreve o corte da aba historica, que por padrao vem de "
                          "refresh.janela_morna_dias. Existe para inspecionar a aba antes de o "
                          "primeiro trimestre fechar - nao use na geracao diaria: abaixo da janela "
-                         "do refresh os votos do hall ainda estao se mexendo.")
+                         "do refresh os votos do hall ainda estao se mexendo. Aceita valor "
+                         "negativo de proposito: --dias-hall=-30 joga o corte para o futuro e e a "
+                         "unica forma de ver um trimestre ja consolidado enquanto o corrente nao "
+                         "terminou (com valor positivo o corte nunca passa de hoje, entao "
+                         "`fim >= corte` mantem o trimestre marcado como em consolidacao).")
     ap.add_argument("--force", action="store_true",
                     help="Regera mesmo se o run_id nao mudou.")
-    args = ap.parse_args()
+    return ap
+
+
+def main() -> int:
+    args = _parser().parse_args()
 
     manifest_path = DIR_MARTS / "_manifest.json"
     if not manifest_path.exists():

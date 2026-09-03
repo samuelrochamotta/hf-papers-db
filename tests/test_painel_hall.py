@@ -367,3 +367,27 @@ def test_janela_hall_sem_arquivo_usa_o_padrao(tmp_path, monkeypatch):
 
     monkeypatch.setattr(gerar_painel, "CONFIG", tmp_path / "nao-existe.yaml")
     assert gerar_painel.janela_hall() == gerar_painel.JANELA_HALL_PADRAO
+
+
+def test_corte_negativo_chega_intacto_na_cli():
+    """`--dias-hall=-30` e a unica inspecao do estado consolidado, e e fragil.
+
+    Com valor positivo o corte nunca passa de hoje, entao `fim >= corte` mantem
+    o trimestre corrente marcado como em consolidacao para sempre - e a aba no
+    estado final fica sem nenhuma forma de ser vista antes de ela existir de
+    verdade. Um `max(1, ...)` aqui, do tipo que `janela_hall()` faz de proposito
+    para o config, apagaria essa inspecao em silencio: o painel continuaria
+    gerando, so que sempre no estado errado.
+    """
+    from gerar_painel import _parser
+
+    assert _parser().parse_args(["--dias-hall=-30"]).dias_hall == -30
+
+
+def test_corte_adiantado_tira_o_selo_de_consolidacao():
+    """O efeito que o corte negativo produz, medido no proprio hall."""
+    p = paper("a", dt.date(2026, 7, 15), 10)                 # T3, termina 30/09
+    triagem = {"a": triado("estrito")}
+
+    assert montar([p], triagem, corte=dt.date(2026, 9, 2))[0]["cons"] == 1
+    assert montar([p], triagem, corte=dt.date(2026, 10, 1))[0]["cons"] == 0
