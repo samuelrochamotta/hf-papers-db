@@ -71,10 +71,46 @@ TOPO_DESCARTADOS = 10
 ORDINAL = {1: "1", 2: "2", 3: "3", 4: "4"}
 
 # O backfill nao tem justificativa por paper: ele importa o veredito curado dos
-# digests historicos e carimba esta marca no lugar (backfill/importacao.py).
-# Exibir esse carimbo como se fosse o motivo do descarte seria mentir sobre o
-# que o pipeline avaliou, entao o hall o troca por um aviso explicito.
-MARCA_BACKFILL = "Importado do historico ("
+# digests historicos e carimba `run_id = 'backfill'` na linha (backfill/tipos.py,
+# gravado em backfill/importacao.py). Exibir o texto do carimbo como se fosse o
+# motivo da decisao seria mentir sobre o que o pipeline avaliou, entao o app
+# troca por um aviso explicito sempre que a linha vem de la.
+RUN_ID_BACKFILL = "backfill"
+
+# Enquanto uma linha antiga sobreviver com esse prefixo (estagios/classificacao.py),
+# a justificativa dela e sobre a infraestrutura ter falhado, nao sobre o paper -
+# apresentar isso sob o rotulo "POR QUE AMPLO" seria fingir raciocinio de
+# classificacao onde so houve fallback. A causa e corrigida na issue #1; isto e
+# rede para o que ja foi gravado.
+#
+# A issue #1 remove o fallback inteiro de estagios/classificacao.py - depois
+# dela, nada mais escreve este literal, e um grep por quem produz este texto
+# nao vai encontrar ninguem. Isso NAO torna esta constante codigo morto: ela
+# existe para as linhas ja gravadas no banco antes da mudanca, que carregam
+# esse prefixo para sempre. Nao remova so porque o produtor sumiu.
+PREFIXO_FALLBACK = "Estagio B falhou;"
+
+
+def justificativa_exibivel(triagem: dict) -> tuple[str, int]:
+    """Decide o que o app pode mostrar como motivo da decisao.
+
+    Retorna (texto, codigo): codigo 0 e o texto normal, 1 e veredito herdado do
+    backfill (texto descartado, o app troca por aviso), 2 e justificativa de
+    fallback do Estagio B (idem), 3 e ausencia de texto - uma linha do pipeline
+    com `justificativa` vazia, que sem este codigo sairia como cabecalho oco
+    (rotulo "POR QUE ESTRITO"/"POR QUE AMPLO" sem corpo). As duas notas de
+    honestidade da issue #2 passam por aqui, para as duas listas (aprovados e
+    descartados) nao divergirem na regra.
+    """
+    if triagem.get("run_id") == RUN_ID_BACKFILL:
+        return "", 1
+    texto = triagem.get("justificativa") or ""
+    if texto.startswith(PREFIXO_FALLBACK):
+        return "", 2
+    if not texto:
+        return "", 3
+    return texto, 0
+
 
 # O que o artboard trazia no <helmet>. O resto do desenho vive em style inline
 # dentro de painel_app.js - e assim que o canvas escreve, e manter igual e o
@@ -95,6 +131,8 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
 .bar:hover { filter: brightness(1.22) saturate(1.1); }
 .row { transition: background 120ms ease; cursor: pointer; }
 .row:hover { background: #191d21; }
+.mais { color: #d9a441; border-bottom: 1px solid rgba(217,164,65,0.3); transition: color 120ms ease, border-color 120ms ease; cursor: pointer; }
+.mais:hover { color: #ecc478; border-bottom-color: #ecc478; }
 .card { background: #16191c; border: 1px solid #242a30; border-radius: 5px; }
 .busca::placeholder { color: #6d7178; }
 .busca:focus { border-color: #d9a441 !important; background: #1e2328 !important; }
@@ -237,6 +275,8 @@ def montar_hall(
         for p in aprov[:TOPO_APROVADOS]:
             pid = p["paper_id"]
             f = fichas.get(pid, {})
+            t = triagem.get(pid, {})
+            j, h = justificativa_exibivel(t)
             entradas_aprov.append({
                 "id": pid,
                 "t": p.get("titulo") or "",
@@ -253,6 +293,11 @@ def montar_hall(
                 # top-10 mentir sobre quem foi mais votado - e a linha so nao
                 # abre. `f` e o que o app usa para decidir isso.
                 "f": 1 if f else 0,
+                # cabecalho da decisao (issue #2): por que o veredito saiu
+                # estrito/amplo, independente de a ficha ter sido escrita.
+                "j": j,
+                "h": h,
+                "fr": 1 if t.get("decisao_fronteira") else 0,
                 "ach": f.get("achado") or "",
                 "pn": f.get("padrao_nome") or "",
                 "pm": f.get("padrao_mecanismo") or "",
@@ -265,8 +310,7 @@ def montar_hall(
         for p in desc[:TOPO_DESCARTADOS]:
             pid = p["paper_id"]
             t = triagem.get(pid, {})
-            justificativa = t.get("justificativa") or ""
-            herdado = justificativa.startswith(MARCA_BACKFILL)
+            j, h = justificativa_exibivel(t)
             entradas_desc.append({
                 "id": pid,
                 "t": p.get("titulo") or "",
@@ -278,8 +322,8 @@ def montar_hall(
                 "rf": t.get("regra_fora"),
                 # a justificativa e o contraponto do `achado`: por que o
                 # pipeline descartou o que a comunidade votou.
-                "j": "" if herdado else justificativa,
-                "h": 1 if herdado else 0,
+                "j": j,
+                "h": h,
             })
 
         hall.append({
@@ -355,12 +399,13 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     for p in sorted(na_janela, key=lambda x: (x["data_hf_daily"], x["paper_id"])):
         pid = p["paper_id"]
         t = triagem.get(pid, {})
-        lista.append({
+        veredito_p = t.get("veredito") or "fora"
+        entrada = {
             "id": pid,
             "t": p.get("titulo") or "",
             "d": iso(p.get("data_hf_daily")),
             "da": iso(p.get("data_arxiv")),
-            "v": t.get("veredito") or "fora",
+            "v": veredito_p,
             "rf": t.get("regra_fora"),
             "fr": 1 if t.get("decisao_fronteira") else 0,
             "art": t.get("tem_artefato_nomeado"),
@@ -377,7 +422,13 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "nv": p.get("qtd_autores_verificados") or 0,
             "url": p.get("url_hf"),
             "f": 1 if pid in fichas else 0,
-        })
+        }
+        # cabecalho da decisao (issue #2): so os aprovados o renderizam, entao
+        # so eles carregam `j`/`h` - a janela tem ~2500 papers e a maioria e
+        # `fora`, e essa e a restricao de peso que a issue pede para respeitar.
+        if veredito_p != "fora":
+            entrada["j"], entrada["h"] = justificativa_exibivel(t)
+        lista.append(entrada)
 
     hall = montar_hall(
         papers, triagem, fichas, area_primaria, topicos_por_paper, ultimo_voto,

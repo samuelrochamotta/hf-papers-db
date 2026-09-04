@@ -31,7 +31,11 @@
     diasSel: [], vereditos: [], areas: [], topicos: [], orgs: [],
     busca: '', ordem: 'votos', aberta: null,
     menu: null, buscaMenu: '',
-    perSel: null, abertaH: null
+    perSel: null, abertaH: null,
+    // "mais" do cabecalho da decisao, por card aberto (chave: secao + id) -
+    // um objeto, nao um id unico, porque o card da aba viva e o do hall podem
+    // estar abertos ao mesmo tempo (abas diferentes, mesmo estado).
+    justExp: {}
   };
 
   /* Handlers vivem num array reconstruido a cada render; o HTML so carrega o
@@ -85,7 +89,10 @@
     var l = state[campo].slice();
     var i = l.indexOf(valor);
     if (i < 0) l.push(valor); else l.splice(i, 1);
-    var novo = { aberta: null };
+    // `aberta` some porque o card que estava aberto pode nem sobreviver ao
+    // novo recorte; `justExp` some pelo mesmo motivo - guardar o "mais" de um
+    // card que o filtro tirou de cena so acumularia estado morto.
+    var novo = { aberta: null, justExp: {} };
     novo[campo] = l;
     setState(novo);
   }
@@ -156,7 +163,7 @@
       check: caixa(marcados.length === 0),
       labelStyle: 'font-size: 12.5px; color: ' + (marcados.length === 0 ? '#f5f3ee' : '#8b8f96') + ';',
       click: function () {
-        var novo = { aberta: null };
+        var novo = { aberta: null, justExp: {} };
         novo[campo] = [];
         setState(novo);
       }
@@ -254,6 +261,88 @@
     });
   }
 
+  /* Acima de 320 caracteres o texto e cortado com "mais". 320 fica acima do
+     `maxLength: 300` do schema do Estagio B (src/hfpapers/llm/schemas.py) -
+     isto e rede de seguranca para texto que escapou do limite, nao interacao
+     de todo card: a maioria nunca precisa do botao. */
+  var LIMITE_JUSTIFICATIVA = 320;
+
+  /* Traduz o codigo de `justificativa_exibivel` (gerar_painel.py) para o aviso
+     que substitui o texto - ou `null` quando ha texto de verdade para mostrar.
+     Unica funcao a interpretar `h`: os tres consumidores do contrato de quatro
+     valores (a lista da janela, os aprovados e os descartados do hall) chamam
+     esta funcao em vez de testar `h` por si, porque um `if (p.h)` cru trata
+     qualquer valor diferente de zero como "veio do backfill" - e o codigo 3
+     (justificativa vazia gravada pelo proprio pipeline, sem relacao com o
+     backfill) e um caso vivo em `estagios/classificacao.py`, nao hipotetico.
+     So o codigo 0 devolve `null` (ha texto). Qualquer outro valor, `undefined`
+     incluido, cai no aviso residual - a guarda e invertida de proposito: o
+     painel publica sozinho as 08:30, e um `h` fora do contrato nao pode virar
+     cabecalho com rotulo e corpo vazio. */
+  function avisoDecisao(h) {
+    if (h === 1) return 'Veredito herdado dos digests históricos — o backfill não registra justificativa por paper.';
+    if (h === 2) return 'O Estágio B não concluiu neste paper — o veredito é preliminar.';
+    // codigo 3 e qualquer residual: a decisao pode ter sido so do Estagio A
+    // (classificacao.py:206 grava "fora" sem o B chegar a rodar), entao o
+    // aviso nao pode apontar o dedo para um estagio especifico.
+    if (h !== 0) return 'O pipeline não registrou motivo para esta decisão.';
+    return null;
+  }
+
+  /* Cabecalho da decisao: por que o veredito saiu estrito ou amplo, acima dos
+     cinco campos da ficha (ou sozinho, quando nao ha ficha). Nao e um sexto
+     campo - os cinco falam do paper, este fala da decisao do pipeline - entao
+     ele nao usa a regua colorida nem o rotulo espacado de `camposFicha`: uma
+     barra lateral na cor do veredito (azul/laranja, `cor()`) e texto em itálico
+     o separam visualmente dos cinco.
+     `p` precisa de {v, j, h, fr}; `chave` identifica o card para o estado do
+     "mais" (aba viva e historica podem ter cards abertos ao mesmo tempo). */
+  function cabecalhoDecisao(p, chave) {
+    // `v` inalcancavel hoje (fora nunca chega aqui), mas o painel e publicado
+    // sozinho as 08:30 pelo launchd - sem essa guarda um dado torto vira
+    // TypeError em `toUpperCase()` e a pagina inteira sai em branco.
+    if (!p.v) return '';
+
+    var corV = cor(p.v);
+    var selo = p.fr
+      ? '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">decisão de fronteira</span>'
+      : '';
+
+    var miolo;
+    var aviso = avisoDecisao(p.h);
+    if (aviso) {
+      miolo = '<div style="font-size: 12.5px; font-style: italic; color: #6d7178;">' + aviso + '</div>';
+    } else {
+      var texto = p.j || '';
+      var aberto = !!state.justExp[chave];
+      var precisaCortar = texto.length > LIMITE_JUSTIFICATIVA;
+      var exibido = (precisaCortar && !aberto)
+        ? texto.slice(0, LIMITE_JUSTIFICATIVA).replace(/\s+\S*$/, '') + '…'
+        : texto;
+      // classe `mais`: sem ela o unico elemento clicavel do painel sem hover
+      // seria este link (todo o resto - `a`, `.chip`, `.aba`, `.row`, `.mark`,
+      // `.bar` - tem estado de hover no CSS de gerar_painel.py).
+      var botaoMais = precisaCortar
+        ? ' <span class="mais" style="font-size: 12px;"' +
+          ev('c', function () {
+            var m = {};
+            for (var k in state.justExp) if (Object.prototype.hasOwnProperty.call(state.justExp, k)) m[k] = state.justExp[k];
+            m[chave] = !aberto;
+            setState({ justExp: m });
+          }) + '>' + (aberto ? 'menos' : 'mais') + '</span>'
+        : '';
+      miolo = '<div style="font-family: Newsreader, Georgia, serif; font-size: 15px; font-style: italic; font-weight: 300; line-height: 1.62; color: #c9c5bb; text-wrap: pretty;">' + esc(exibido) + botaoMais + '</div>';
+    }
+
+    return '<div style="border-left: 2px solid ' + corV + '; padding: 1px 0 1px 16px; margin-bottom: 22px;">' +
+      '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">' +
+        '<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: ' + corV + ';">POR QUE ' + esc(String(p.v).toUpperCase()) + '</span>' +
+        selo +
+      '</div>' +
+      miolo +
+      '</div>';
+  }
+
   function secao(numero, titulo) {
     return '<div style="display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px;">' +
       '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + ACCENT + ';">' + numero + '</span>' +
@@ -290,7 +379,7 @@
     return '<div style="display: flex; gap: 30px; margin-top: 26px; border-bottom: 1px solid #242a30;">' +
       itens.map(function (i) {
         var on = s.aba === i.valor;
-        return '<div class="aba"' + ev('c', function () { setState({ aba: i.valor, menu: null, aberta: null, abertaH: null }); }) +
+        return '<div class="aba"' + ev('c', function () { setState({ aba: i.valor, menu: null, aberta: null, abertaH: null, justExp: {} }); }) +
           ' style="display: flex; align-items: baseline; gap: 10px; padding: 0 2px 13px; margin-bottom: -1px; border-bottom: 2px solid ' +
           (on ? ACCENT : 'transparent') + '; color: ' + (on ? '#f5f3ee' : '#8b8f96') + ';">' +
           '<span style="font-size: 13.5px; font-weight: ' + (on ? '600' : '400') + ';">' + i.label + '</span>' +
@@ -350,7 +439,7 @@
     var chipsPer = hall.map(function (per) {
       var on = per.per === atual.per;
       return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' +
-        ev('c', function () { setState({ perSel: per.per, abertaH: null }); }) +
+        ev('c', function () { setState({ perSel: per.per, abertaH: null, justExp: {} }); }) +
         ' style="' + (on ? pillOnGlobal() : pill(false)) + '">' +
         esc(per.rot) +
         '<span style="margin-left: 7px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; opacity: 0.62;">' + per.n + '</span>' +
@@ -381,6 +470,7 @@
       var corpo = '';
       if (aberta) {
         corpo = '<div style="padding: 10px 24px 30px;">';
+        corpo += cabecalhoDecisao(p, 'hall:' + p.id);
         if (p.f) {
           // ordem normativa da ficha: Achado, Padrao Extraido, Implicacao,
           // Exemplo, Ressalva. O Padrao some quando o achado e puramente empirico.
@@ -425,7 +515,7 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O que ficou do ' + esc(atual.rot) + '</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">' + atual.ap.length + ' de ' + atual.na + ' aprovados, ordenados por voto da comunidade. Clique para abrir a ficha inteira.</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">' + atual.ap.length + ' de ' + atual.na + ' aprovados, ordenados por voto da comunidade. Clique para abrir o porquê da decisão — e a ficha inteira, quando o Estágio B chegou a escrevê-la. <span style="color: #6d7178;">A marca de decisão de fronteira só existe para papers classificados pelo pipeline — o backfill não a registra.</span></div>' +
           '</div>' + avisoCons +
         '</div>' +
         '<div style="display: grid; grid-template-columns: 30px 78px minmax(0, 1fr) 200px 66px 60px; gap: 14px; padding: 11px 24px; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; background: #131619; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">' +
@@ -451,9 +541,12 @@
               : '') +
             '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.org || '—') + ' · ' + diaCurto(p.d) + '</span>' +
           '</div>' +
-          (p.h
-            ? '<div style="font-size: 12.5px; font-style: italic; color: #6d7178;">Veredito herdado dos digests históricos — o backfill não registra justificativa por paper.</div>'
-            : '<div style="font-family: Newsreader, Georgia, serif; font-size: 15px; font-weight: 300; line-height: 1.6; color: #a8a49b; text-wrap: pretty;">' + esc(p.j) + '</div>') +
+          (function () {
+            var aviso = avisoDecisao(p.h);
+            return aviso
+              ? '<div style="font-size: 12.5px; font-style: italic; color: #6d7178;">' + aviso + '</div>'
+              : '<div style="font-family: Newsreader, Georgia, serif; font-size: 15px; font-weight: 300; line-height: 1.6; color: #a8a49b; text-wrap: pretty;">' + esc(p.j) + '</div>';
+          })() +
         '</div>' +
         '</div>';
     }).join('');
@@ -613,10 +706,10 @@
             '<div style="position: relative; display: flex; align-items: center;">' +
               '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6d7178" stroke-width="1.7" stroke-linecap="round" style="position: absolute; left: 13px;"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg>' +
               '<input id="q-principal" class="busca" type="text" value="' + esc(s.busca) + '"' +
-                ev('i', function (e) { setState({ busca: e.target.value, aberta: null }); }) +
+                ev('i', function (e) { setState({ busca: e.target.value, aberta: null, justExp: {} }); }) +
                 ' placeholder="buscar título ou organização" style="font-family: \'Instrument Sans\', sans-serif; font-size: 13px; padding: 9px 14px 9px 36px; width: 268px; border: 1px solid #2b3138; border-radius: 100px; background: #1b1f23; color: #ecebe6; outline: none;">' +
             '</div>' +
-            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], topicos: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '' }); }) + ' style="' + estiloLimpar + '">' +
+            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], topicos: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>limpar</span>' +
             '</div>' +
           '</div>' +
@@ -973,37 +1066,45 @@
     );
 
     /* ══════════════ 05 · FICHAS ══════════════ */
-    out.push(secao('05', 'Fichas dos aprovados'));
+    out.push(secao('05', 'Por que passou, e o que ficou registrado'));
 
     var fichaPorId = {};
     DADOS.fichas.forEach(function (f) { fichaPorId[f.p] = f; });
-    var comFichas = sel.filter(function (p) { return p.f && fichaPorId[p.id]; });
-    if (s.ordem === 'votos') comFichas.sort(function (a, b) { return b.u - a.u; });
-    else if (s.ordem === 'dia') comFichas.sort(function (a, b) { return (b.d || '').localeCompare(a.d || ''); });
-    else comFichas.sort(function (a, b) { return a.t.localeCompare(b.t); });
+    // Antes so entrava quem tinha ficha; com o cabecalho da decisao todo
+    // aprovado tem conteudo para mostrar, mesmo sem ficha (o Estagio B pode
+    // falhar depois de emitir o veredito) - a defesa continua existindo, so
+    // que agora ela mostra em vez de esconder.
+    var aprovadosCard = sel.filter(function (p) { return p.v !== 'fora'; });
+    if (s.ordem === 'votos') aprovadosCard.sort(function (a, b) { return b.u - a.u; });
+    else if (s.ordem === 'dia') aprovadosCard.sort(function (a, b) { return (b.d || '').localeCompare(a.d || ''); });
+    else aprovadosCard.sort(function (a, b) { return a.t.localeCompare(b.t); });
 
     var limite = COMPACTA ? 10 : 16;
-    var linhasFicha = comFichas.slice(0, limite).map(function (p) {
+    var linhasFicha = aprovadosCard.slice(0, limite).map(function (p) {
       var f = fichaPorId[p.id];
       var aberta = s.aberta === p.id;
       var badge = 'display: inline-flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 0; border-radius: 100px; color: ' + cor(p.v) + '; background: ' + cor(p.v) + '1f; border: 1px solid ' + cor(p.v) + '4d;';
 
       var corpo = '';
       if (aberta) {
-        // ordem normativa da ficha: Achado, Padrao Extraido, Implicacao,
-        // Exemplo, Ressalva. O Padrao some quando o achado e puramente empirico.
-        corpo = '<div style="padding: 10px 24px 30px;">' +
-          '<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px;">' +
-          camposFicha(f).map(function (c) {
-            return '<div style="' + c.wrap + '">' +
-              '<div style="' + c.regua + '"></div>' +
-              '<div style="' + c.rotuloStyle + '">' + c.rotulo + '</div>' +
-              '<div style="' + c.nomeStyle + '">' + esc(c.nome) + '</div>' +
-              '<div style="font-family: Newsreader, Georgia, serif; font-size: 16px; font-weight: 300; line-height: 1.68; color: #d5d1c8; text-wrap: pretty;">' + esc(c.texto) + '</div>' +
-              '</div>';
-          }).join('') +
-          '</div>' +
-          '<div style="display: flex; gap: 20px; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #242a30;">' +
+        corpo = '<div style="padding: 10px 24px 30px;">' + cabecalhoDecisao(p, 'jan:' + p.id);
+        if (f) {
+          // ordem normativa da ficha: Achado, Padrao Extraido, Implicacao,
+          // Exemplo, Ressalva. O Padrao some quando o achado e puramente empirico.
+          corpo += '<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px;">' +
+            camposFicha(f).map(function (c) {
+              return '<div style="' + c.wrap + '">' +
+                '<div style="' + c.regua + '"></div>' +
+                '<div style="' + c.rotuloStyle + '">' + c.rotulo + '</div>' +
+                '<div style="' + c.nomeStyle + '">' + esc(c.nome) + '</div>' +
+                '<div style="font-family: Newsreader, Georgia, serif; font-size: 16px; font-weight: 300; line-height: 1.68; color: #d5d1c8; text-wrap: pretty;">' + esc(c.texto) + '</div>' +
+                '</div>';
+            }).join('') +
+            '</div>';
+        } else {
+          corpo += '<div style="font-size: 12.5px; color: #6d7178; padding: 6px 0 14px;">Aprovado sem ficha gerada — o Estágio B não chegou a escrevê-la.</div>';
+        }
+        corpo += '<div style="display: flex; gap: 20px; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #242a30;">' +
             '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px;">' + esc(p.id) + ' ↗</a>' +
             '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.tp.join(' · ')) + '</span>' +
           '</div>' +
@@ -1015,7 +1116,7 @@
           '<span style="' + badge + '">' + esc(p.v) + '</span>' +
           '<div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">' +
             '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.t) + '</span>' +
-            '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.org || '—') + '</span>' +
+            '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.org || '—') + (p.f ? '' : ' · sem ficha') + '</span>' +
           '</div>' +
           '<span style="font-size: 11.5px; color: #8b8f96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.a || '—') + '</span>' +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12.5px; color: #ecebe6; text-align: right;">' + p.u + '</span>' +
@@ -1037,8 +1138,8 @@
       '<div class="card" style="overflow: hidden;">' +
         '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Cinco campos, cinco trabalhos distintos</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Clique numa linha para abrir a ficha inteira.</div>' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Nem todo aprovado deixou ficha</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Clique numa linha para abrir o porquê da decisão — e a ficha inteira, quando o Estágio B chegou a escrevê-la.</div>' +
           '</div>' +
           '<div style="display: flex; align-items: center; gap: 9px;">' +
             '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">ORDENAR</span>' + chipsOrdem +
@@ -1050,9 +1151,9 @@
         linhasFicha +
         (linhasFicha ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum paper aprovado dentro deste recorte.</div>') +
         '<div style="padding: 15px 24px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #6d7178;">' +
-          (comFichas.length > limite
-            ? 'Mostrando ' + limite + ' de ' + comFichas.length + ' fichas — refine o recorte para ver o resto.'
-            : comFichas.length + ' ficha(s) neste recorte.') +
+          (aprovadosCard.length > limite
+            ? 'Mostrando ' + limite + ' de ' + aprovadosCard.length + ' aprovados — refine o recorte para ver o resto.'
+            : aprovadosCard.length + ' aprovado(s) neste recorte.') +
         '</div>' +
       '</div>'
     );

@@ -11,9 +11,9 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
-
 from gerar_painel import (
-    MARCA_BACKFILL,
+    PREFIXO_FALLBACK,
+    RUN_ID_BACKFILL,
     TOPO_APROVADOS,
     TOPO_DESCARTADOS,
     montar_hall,
@@ -243,6 +243,52 @@ def test_aprovado_carrega_a_ficha_inteira():
     ]
 
 
+def test_aprovado_carrega_justificativa_exibivel_e_marca_de_fronteira():
+    """`entradas_aprov` traz `j`/`h` (cabecalho da decisao) e `fr`, assim como `entradas_desc`."""
+    p = paper("p1", dt.date(2026, 7, 1), 10)
+    triagem = {"p1": triado("estrito", justificativa="motivo forte", decisao_fronteira=True)}
+    entrada = montar([p], triagem)[0]["ap"][0]
+
+    assert entrada["j"] == "motivo forte"
+    assert entrada["h"] == 0
+    assert entrada["fr"] == 1
+
+
+def test_aprovado_sem_decisao_fronteira_marca_fr_zero():
+    p = paper("p1", dt.date(2026, 7, 1), 10)
+    entrada = montar([p], {"p1": triado("estrito")})[0]["ap"][0]
+    assert entrada["fr"] == 0
+
+
+def test_aprovado_com_veredito_herdado_do_backfill_troca_justificativa_por_aviso():
+    p = paper("p1", dt.date(2026, 7, 1), 10)
+    triagem = {"p1": triado("estrito", run_id=RUN_ID_BACKFILL, justificativa="texto do digest antigo")}
+    entrada = montar([p], triagem)[0]["ap"][0]
+
+    assert entrada["j"] == ""
+    assert entrada["h"] == 1
+
+
+def test_aprovado_com_justificativa_de_fallback_do_estagio_b_vira_aviso():
+    """Caso concreto: `estagios/classificacao.py` grava `veredito="amplo"` com esse prefixo
+    quando o Estagio B falha, e a linha continua entrando no ranking dos aprovados."""
+    p = paper("p1", dt.date(2026, 7, 1), 10)
+    triagem = {"p1": triado("amplo", justificativa=PREFIXO_FALLBACK + " timeout na chamada")}
+    entrada = montar([p], triagem)[0]["ap"][0]
+
+    assert entrada["j"] == ""
+    assert entrada["h"] == 2
+
+
+def test_aprovado_sem_justificativa_vira_codigo_tres():
+    p = paper("p1", dt.date(2026, 7, 1), 10)
+    triagem = {"p1": triado("estrito", justificativa="")}
+    entrada = montar([p], triagem)[0]["ap"][0]
+
+    assert entrada["j"] == ""
+    assert entrada["h"] == 3
+
+
 def test_aprovado_sem_ficha_continua_no_ranking():
     """Tira-lo faria o top-10 mentir sobre quem foi mais votado."""
     p = paper("p1", dt.date(2026, 7, 1), 999)
@@ -267,12 +313,33 @@ def test_descartado_carrega_regra_e_justificativa():
 
 
 def test_carimbo_do_backfill_nao_vira_justificativa():
-    """`Importado do historico (...)` e marca de procedencia, nao motivo de descarte."""
+    """Veredito herdado do backfill (`run_id == "backfill"`) nao vira justificativa exibida."""
     p = paper("p1", dt.date(2026, 7, 1), 300)
-    triagem = {"p1": triado("fora", justificativa=MARCA_BACKFILL + "estado)")}
+    triagem = {"p1": triado("fora", run_id=RUN_ID_BACKFILL, justificativa="texto do digest antigo")}
     entrada = montar([p], triagem)[0]["de"][0]
 
     assert entrada["h"] == 1
+    assert entrada["j"] == ""
+
+
+def test_descartado_com_justificativa_de_fallback_do_estagio_b_vira_aviso():
+    """Uma justificativa que so registra a falha de infra nao pode se passar por raciocinio."""
+    p = paper("p1", dt.date(2026, 7, 1), 300)
+    triagem = {"p1": triado("fora", justificativa=PREFIXO_FALLBACK + " timeout na chamada")}
+    entrada = montar([p], triagem)[0]["de"][0]
+
+    assert entrada["h"] == 2
+    assert entrada["j"] == ""
+
+
+def test_descartado_sem_justificativa_vira_codigo_tres():
+    """Linha do pipeline com `justificativa` vazia - o caso que `estagios/classificacao.py`
+    produz de verdade quando o Estagio A roda mas nao escreve motivo nenhum."""
+    p = paper("p1", dt.date(2026, 7, 1), 300)
+    triagem = {"p1": triado("fora", justificativa="")}
+    entrada = montar([p], triagem)[0]["de"][0]
+
+    assert entrada["h"] == 3
     assert entrada["j"] == ""
 
 
@@ -287,10 +354,13 @@ def test_paper_sem_triagem_nao_vira_descartado():
     """Nunca classificado nao e o mesmo que rejeitado.
 
     Se `veredito()` tratasse ausencia como `fora`, o paper entraria no podio dos
-    descartados com `rf: None` e `j: ""` - e o `h: 0` nao acionaria o aviso de
-    veredito herdado, entao a secao que promete "a regra e a justificativa que
-    os tiraram" renderizaria um paragrafo em branco. Aconteceria: hoje a base
-    tem papers sem linha em fato_triagem (falha do Estagio A).
+    descartados com `rf: None` e `justificativa_exibivel` tratando a ausencia de
+    texto como codigo 3 - o mesmo aviso generico de "sem motivo registrado" que
+    uma linha real de fato_triagem sem justificativa recebe. A secao promete "a
+    regra e a justificativa que os tiraram", e um paper nunca julgado nao tem
+    nem uma nem outra: ele tem de ficar fora das duas listas, nao entrar com um
+    aviso que finge ter sido avaliado. Aconteceria: hoje a base tem papers sem
+    linha em fato_triagem (falha do Estagio A).
     """
     orfao = paper("orfao", dt.date(2026, 7, 1), 999)      # o mais votado de longe
     ok = paper("ok", dt.date(2026, 7, 1), 5)
@@ -334,7 +404,6 @@ def test_corte_do_hall_segue_a_janela_do_refresh():
     tempo demais para mostrar um periodo ja fechado).
     """
     import yaml
-
     from gerar_painel import CONFIG, janela_hall
 
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
