@@ -1,0 +1,17 @@
+{
+  "issue": null,
+  "pr": null,
+  "data": "2026-09-03",
+  "skill_version": null,
+  "procedencia": "ATENCAO: estes numeros NAO foram medidos neste repositorio. Eles vem do texto da skill `implementar-issue`, que os declara como linha de base ja medida ('revisor ~192 turnos, testador ~202'). Foi a primeira execucao da skill aqui, entao nao ha baseline propria. Tratar como referencia externa, nao como medicao local - e substituir por numeros medidos assim que houver uma segunda execucao para comparar.",
+  "papeis": {
+    "orquestrador":  { "modelo": null, "turnos": null, "output": null, "cache_read": null, "cache_create": null },
+    "implementador": { "modelo": null, "turnos": null, "output": null, "cache_read": null, "cache_create": null },
+    "revisor":       { "modelo": null, "turnos": 192,  "output": null, "cache_read": null, "cache_create": null },
+    "testador":      { "modelo": null, "turnos": 202,  "output": null, "cache_read": null, "cache_create": null }
+  },
+  "rodadas_ate_aprovar": { "implementacao": null, "testes": null },
+  "achados": { "bloqueadores": [], "nits": null, "pegos_pelo_testador_e_nao_pelo_revisor": null },
+  "cobertura_final": { "linha": null, "branch": null, "alvo_atingido": null },
+  "teto_de_rodadas_estourado": null
+}

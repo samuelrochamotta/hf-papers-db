@@ -1,0 +1,36 @@
+{
+  "issue": 3,
+  "pr": 5,
+  "data": "2026-09-03",
+  "skill_version": null,
+  "nota_de_medicao": "O harness reportou por subagente apenas um total cumulativo de tokens e a contagem de chamadas de ferramenta, nao a separacao output/cache_read/cache_create nem turnos. Esses campos ficam null em vez de estimados.",
+  "papeis": {
+    "orquestrador":  { "modelo": "opus-5",   "turnos": null, "output": null, "cache_read": null, "cache_create": null, "total_tokens_reportado": null, "invocacoes": null },
+    "implementador": { "modelo": "sonnet-5", "turnos": null, "output": null, "cache_read": null, "cache_create": null, "total_tokens_reportado": 349140, "invocacoes": 6, "chamadas_de_ferramenta": 158 },
+    "revisor":       { "modelo": "opus-5",   "turnos": null, "output": null, "cache_read": null, "cache_create": null, "total_tokens_reportado": 485402, "invocacoes": 5, "chamadas_de_ferramenta": 95, "detalhe": "5 revisoes de implementacao, cada uma com agente novo. Sem revisao de teste: a issue dispensa cobertura para codigo temporario." },
+    "testador":      { "modelo": null, "turnos": null, "output": null, "cache_read": null, "cache_create": null, "total_tokens_reportado": null, "invocacoes": 0, "detalhe": "Nao houve: comando temporario, sem teste por decisao da issue." }
+  },
+  "rodadas_ate_aprovar": { "implementacao": 5, "testes": 0 },
+  "achados": {
+    "bloqueadores": [
+      "uniformizar_justificativas.py - `db.upsert_triagem` parcial estourava `IntegrityError: NOT NULL constraint failed: fato_triagem.veredito` em TODA gravacao: o SQLite valida NOT NULL da linha do INSERT antes de resolver o ON CONFLICT",
+      "uniformizar_justificativas.py - `--aplicar` regerava o texto com a LLM em vez de gravar o que foi conferido no dry-run; com temperatura 0.2, o aplicado nao era o revisado",
+      "uniformizar_justificativas.py - `escrever_relatorio` fora do try: uma interrupcao descartava todos os diffs, com linhas ja commitadas no banco",
+      "uniformizar_justificativas.py - o `finally` que corrigiu o item acima nao protegia nada: os diffs so existiam no retorno das funcoes de lote e morriam no frame delas",
+      "uniformizar_justificativas.py - no dry-run, o estado so era salvo no fim: um Ctrl-C em 289/290 descartava tudo que ja tinha sido gerado e pago",
+      "uniformizar_justificativas.py - retomar o dry-run re-condensava papers ja migrados, e o relatorio mandava fazer exatamente isso; o `--aplicar` seguinte aplicava porque o `antes` ainda batia",
+      "uniformizar_justificativas.py - `_nome_relatorio` engolia `aplicado` quando `interrompido`: o relatorio de um `--aplicar` interrompido colidia no nome com o de um dry-run interrompido",
+      "uniformizar_justificativas.py - um segundo `--aplicar` sobrescrevia o relatorio da gravacao real com um so de 'pulado'",
+      "uniformizar_justificativas.py - escrita nao atomica do arquivo de estado, ~290 vezes por rodada, num comando cujo mecanismo de parada previsto e o Ctrl-C",
+      "uniformizar_justificativas.py - `main` em C(18), acima de B e acima de qualquer funcao do repositorio",
+      "uniformizar_justificativas.py - o backup via `shutil.copy2` ignorava o WAL: `schema.sql` liga `journal_mode = WAL` e uma transacao commitada pode viver so no `-wal`; a copia perdia a linha e podia sair corrompida se caisse num checkpoint alheio",
+      "uniformizar_justificativas.py - carimbo do relatorio com resolucao de 1 segundo enquanto `--aplicar` roda em milissegundos: dois `--aplicar` seguidos colidiam e o segundo apagava o registro do primeiro"
+    ],
+    "nits": 19,
+    "pegos_pelo_testador_e_nao_pelo_revisor": 0,
+    "nota": "11 bloqueadores em 4 revisoes que reprovaram (3+2+4+2), mais 1 que o coordenador introduziu ao exigir o backup e que a revisao seguinte corrigiu. NENHUM foi pego por leitura - todos exigiram exercitar o codigo contra banco temporario. Padrao dominante: gravacao irreversivel cujo registro do que foi feito se perdia em algum caminho de falha."
+  },
+  "cobertura_final": { "linha": null, "branch": null, "alvo_atingido": null, "detalhe": "Sem teste por decisao da issue (codigo temporario). A unica barreira foram 5 revisoes exercitando o codigo contra banco temporario com duble de LLM." },
+  "teto_de_rodadas_estourado": false,
+  "nota_do_coordenador": "Na 4a rodada o coordenador parou de endurecer a maquina de registro e exigiu backup do banco antes de qualquer UPDATE, mudando a natureza do risco. A sugestao inicial (`shutil.copy2`) estava errada para um banco em WAL e virou o bloqueador 11 - corrigida para a API de backup do proprio SQLite mais `PRAGMA quick_check`."
+}

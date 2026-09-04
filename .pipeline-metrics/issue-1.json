@@ -1,0 +1,28 @@
+{
+  "issue": 1,
+  "pr": 4,
+  "data": "2026-09-03",
+  "skill_version": null,
+  "nota_de_medicao": "O harness reportou por subagente apenas um total cumulativo de tokens e a contagem de chamadas de ferramenta, nao a separacao output/cache_read/cache_create nem turnos. Esses campos ficam null em vez de estimados; `total_tokens_reportado` e `chamadas_de_ferramenta` sao o que foi de fato medido.",
+  "papeis": {
+    "orquestrador":  { "modelo": "opus-5",   "turnos": null, "output": null, "cache_read": null, "cache_create": null, "total_tokens_reportado": null, "invocacoes": null },
+    "implementador": { "modelo": "sonnet-5", "turnos": null, "output": null, "cache_read": null, "cache_create": null, "total_tokens_reportado": 127854, "invocacoes": 3, "chamadas_de_ferramenta": 79 },
+    "revisor":       { "modelo": "opus-5",   "turnos": null, "output": null, "cache_read": null, "cache_create": null, "total_tokens_reportado": 391966, "invocacoes": 5, "chamadas_de_ferramenta": 131, "detalhe": "2 revisoes de implementacao + 3 revisoes de teste, cada uma com agente novo" },
+    "testador":      { "modelo": "sonnet-5", "turnos": null, "output": null, "cache_read": null, "cache_create": null, "total_tokens_reportado": 189413, "invocacoes": 4, "chamadas_de_ferramenta": 86 }
+  },
+  "rodadas_ate_aprovar": { "implementacao": 2, "testes": 4 },
+  "achados": {
+    "bloqueadores": [
+      "tests/test_execucao.py - o fio que injeta `nao_classificados` no guardrail podia ser apagado com a suite verde: cobertura de 100% media a funcao isolada, nao a integracao",
+      "tests/test_classificacao_estagio_b_segunda_passada.py - `res.uso.somar(b.uso)` da chamada recuperada na segunda passada nao era afirmado; a rodada podia mentir sobre quanto gastou",
+      "tests/test_classificacao_estagio_b_segunda_passada.py - o backoff, mecanismo declarado da correcao, nao tinha teste: zerar o multiplicador ou apagar o sleep deixava a suite verde",
+      "tests/test_classificacao_estagio_b_segunda_passada.py - o teste de backoff escrito para fechar o item acima saiu tautologico: comparava a constante consigo mesma e sobrevivia a zera-la, com docstring afirmando o contrario"
+    ],
+    "nits": 16,
+    "pegos_pelo_testador_e_nao_pelo_revisor": 0,
+    "nota": "Nenhum bloqueador na implementacao em 2 rodadas de revisao. Todos os 4 bloqueadores sao de cobertura de teste, e os 4 so apareceram por revisao por mutacao - nenhum seria pego por leitura ou por metrica de cobertura."
+  },
+  "cobertura_final": { "linha": 0.88, "branch": null, "alvo_atingido": true, "detalhe": "guardrails.py 100% linha e ramo; classificacao.py 88% linha, de 79% no HEAD. Descoberto e pre-existente e alheio a issue." },
+  "teto_de_rodadas_estourado": true,
+  "nota_teto": "Teto de 3 rodadas do testador estendido em 1, deliberadamente: o achado remanescente era um teste tautologico com correcao de 2 linhas ja verificada pelo revisor. Deixar como estava seria pior que teste faltando, porque o docstring afirmava uma protecao inexistente."
+}
