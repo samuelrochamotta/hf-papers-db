@@ -4,8 +4,10 @@ Roda so nos sobreviventes do Estagio A (~10/dia).
 
 As validacoes da secao 4.4 rodam em codigo, depois da resposta: o schema garante
 forma, nao coerencia. Violacao vira `ErroValidacao`, que o cliente reenvia com a
-mensagem anexada. Na segunda falha o chamador decide - e a decisao normativa e
-manter o veredito do Estagio A e registrar aviso, nunca abortar a rodada.
+mensagem anexada. Se todas as tentativas do `ClienteLLM` se esgotarem, sobe
+`ErroLLM` - quem decide o que fazer com isso e `estagios/classificacao.py`
+(issue #1: nao fabrica veredito, deixa o paper pendente para a segunda passada
+do estagio e, se preciso, para a proxima rodada).
 """
 
 from __future__ import annotations

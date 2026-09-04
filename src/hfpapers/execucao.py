@@ -37,6 +37,7 @@ class ResultadoRun:
     fora: int = 0
     amplo: int = 0
     estrito: int = 0
+    nao_classificados: int = 0
     fichas: int = 0
     refresh_papers: int = 0
     avisos: list[str] = field(default_factory=list)
@@ -151,6 +152,7 @@ def rodar(
                 llm = llm or ClienteLLM(cfg, conn=conn, run_id=run_id)
                 r = classificacao.rodar(conn, llm, pendentes, run_id=run_id, cfg=cfg)
                 res.fora, res.amplo, res.estrito = r.fora, r.amplo, r.estrito
+                res.nao_classificados = r.nao_classificados
                 res.fichas = r.fichas
                 res.avisos.extend(r.avisos)
                 res.uso.somar(r.uso)
@@ -173,6 +175,7 @@ def rodar(
                     fora=res.fora,
                     amplo=res.amplo,
                     estrito=res.estrito,
+                    nao_classificados=res.nao_classificados,
                     dia_util=dia_util,
                 ),
                 cfg.guardrails,

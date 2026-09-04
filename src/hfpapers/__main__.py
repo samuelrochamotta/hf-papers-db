@@ -85,7 +85,8 @@ def run(
     )
     taxa = f"{r.taxa_fora:.0%}" if r.taxa_fora is not None else "—"
     typer.echo(
-        f"fora {r.fora} | amplo {r.amplo} | estrito {r.estrito} | fichas {r.fichas} | taxa FORA {taxa}"
+        f"fora {r.fora} | amplo {r.amplo} | estrito {r.estrito} | fichas {r.fichas} | "
+        f"pendentes {r.nao_classificados} | taxa FORA {taxa}"
     )
     typer.echo(
         f"LLM: {r.uso.chamadas} chamadas, {r.uso.tokens_entrada} in / {r.uso.tokens_saida} out, "
@@ -171,7 +172,7 @@ def reclassificar(
         r = classificacao.rodar(conn, cliente, papers, run_id=run_id, cfg=cfg)
         typer.echo(
             f"fora {r.fora} | amplo {r.amplo} | estrito {r.estrito} | fichas {r.fichas} | "
-            f"US$ {r.uso.custo_usd:.4f}"
+            f"pendentes {r.nao_classificados} | US$ {r.uso.custo_usd:.4f}"
         )
         for aviso in r.avisos:
             typer.echo(f"  [aviso] {aviso}")
