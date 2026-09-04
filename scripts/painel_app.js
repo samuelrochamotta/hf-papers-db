@@ -29,9 +29,16 @@
   var state = {
     aba: 'janela',
     diasSel: [], vereditos: [], areas: [], topicos: [], orgs: [],
+    // recortes que so o grafico produz (nao ha menu para eles na barra de
+    // filtro): `regrasFora` vem do clique no Pareto, `areasSec` do clique na
+    // matriz de cruzamento. Entram em `filtrados()` como qualquer dimensao.
+    regrasFora: [], areasSec: [],
     busca: '', ordem: 'votos', aberta: null,
     menu: null, buscaMenu: '',
     perSel: null, abertaH: null,
+    // alternancias de desenho dentro de um card - nao recortam dado
+    vistaArea: 'dist', taxaDecomp: false, paretoModo: 'qtd',
+    heatOrd: 'volume', lagGrupo: 'veredito',
     // "mais" do cabecalho da decisao, por card aberto (chave: secao + id) -
     // um objeto, nao um id unico, porque o card da aba viva e o do hall podem
     // estar abertos ao mesmo tempo (abas diferentes, mesmo estado).
@@ -51,6 +58,20 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  /* Corta no ultimo espaco antes do limite e sinaliza o corte. Sem as
+     reticencias o leitor nao distingue um titulo truncado de um titulo curto -
+     "Beyond Data Scaling: Representatio" parece um erro de digitacao. */
+  function rotuloCurto(texto, limite) {
+    var t = String(texto || '');
+    if (t.length <= limite) return t;
+    var corte = t.slice(0, limite);
+    var porPalavra = corte.replace(/\s+\S*$/, '');
+    /* Quando nao sobra palavra inteira - titulo de uma palavra so, ou titulo
+       que comeca com espaco - o corte por palavra devolve vazio e o rotulo
+       viraria so "…". Nesse caso vale o corte cru, que ao menos informa. */
+    return (porPalavra.trim() ? porPalavra : corte.trim()) + '…';
+  }
+
   function setState(patch) {
     for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) state[k] = patch[k];
     render();
@@ -60,19 +81,34 @@
   function cor(v) { return v === 'estrito' ? '#3987e5' : v === 'amplo' ? '#d95926' : '#6b7480'; }
   function corTexto(v) { return v === 'estrito' ? '#6aa9ee' : v === 'amplo' ? '#e8794c' : '#8b8f96'; }
 
-  /* `exceto` deixa uma dimensao de fora: e o que mantem as outras opcoes de um
-     seletor visiveis depois que ele ja filtrou (senao marcar a 2a area pelo
-     grafico ficaria impossivel - a 1a teria apagado as demais barras). */
+  /* Chave do motivo de descarte. `regra_fora` so existe para quem saiu, e a
+     cobertura hoje e parcial - o Pareto exige que o nulo continue visivel em
+     vez de sumir da contagem, entao ele vira uma categoria de verdade. */
+  var REGRA_NULA = '__sem-regra__';
+  function chaveRegra(p) { return p.rf || REGRA_NULA; }
+  function rotuloRegra(k) { return k === REGRA_NULA ? 'regra não registrada' : k; }
+
+  /* `exceto` deixa uma ou mais dimensoes de fora: e o que mantem as outras
+     opcoes de um seletor visiveis depois que ele ja filtrou (senao marcar a 2a
+     area pelo grafico ficaria impossivel - a 1a teria apagado as demais
+     barras). Aceita string ou array: a matriz de areas precisa soltar as duas
+     dimensoes de area de uma vez para nao virar uma unica celula acesa. */
   function filtrados(exceto) {
     var s = state;
     var q = (s.busca || '').trim().toLowerCase();
+    var solta = typeof exceto === 'string' ? [exceto] : (exceto || []);
+    function livre(dim) { return solta.indexOf(dim) >= 0; }
     return DADOS.papers.filter(function (p) {
       if (s.diasSel.length && s.diasSel.indexOf(p.d) < 0) return false;
       if (s.vereditos.length && s.vereditos.indexOf(p.v) < 0) return false;
       // dentro de cada dimensao a selecao e OR; entre dimensoes, AND
-      if (exceto !== 'areas' && s.areas.length && s.areas.indexOf(p.a) < 0) return false;
-      if (exceto !== 'topicos' && s.topicos.length && !s.topicos.some(function (t) { return p.tp.indexOf(t) >= 0; })) return false;
-      if (exceto !== 'orgs' && s.orgs.length) {
+      if (!livre('areas') && s.areas.length && s.areas.indexOf(p.a) < 0) return false;
+      if (!livre('areasSec') && s.areasSec.length && !s.areasSec.some(function (a) { return (p.as || []).indexOf(a) >= 0; })) return false;
+      // marcar uma regra e marcar um recorte de descartados: quem foi aprovado
+      // nao tem regra nenhuma e nao pode entrar pela porta do nulo
+      if (!livre('regrasFora') && s.regrasFora.length && (p.v !== 'fora' || s.regrasFora.indexOf(chaveRegra(p)) < 0)) return false;
+      if (!livre('topicos') && s.topicos.length && !s.topicos.some(function (t) { return p.tp.indexOf(t) >= 0; })) return false;
+      if (!livre('orgs') && s.orgs.length) {
         var chave = p.org || '__sem-org__';
         if (s.orgs.indexOf(chave) < 0) return false;
       }
@@ -115,15 +151,87 @@
     var m = Math.floor(o.length / 2);
     return o.length % 2 ? o[m] : Math.round((o[m - 1] + o[m]) / 2);
   }
+  /* Quartil por interpolacao linear. `mediana` arredonda porque so mede votos;
+     P25 e P75 de amostra pequena caem entre dois valores, e arredondar a haste
+     de um box plot de defasagem em dias esconderia justamente a assimetria que
+     o grafico existe para mostrar. */
+  function quartil(xs, q) {
+    if (!xs.length) return 0;
+    var o = xs.slice().sort(function (a, b) { return a - b; });
+    var pos = (o.length - 1) * q;
+    var lo = Math.floor(pos), hi = Math.ceil(pos);
+    if (lo === hi) return o[lo];
+    return o[lo] + (o[hi] - o[lo]) * (pos - lo);
+  }
   function diaCurto(iso) {
     if (!iso) return '—';
     var p = iso.split('-');
     return p[2] + '/' + p[1];
   }
+  /* Dias desde a epoca, para subtrair duas datas ISO sem aritmetica de Date -
+     que em fuso local erra por um dia perto do horario de verao. */
+  function diaNum(iso) {
+    if (!iso) return null;
+    var p = iso.split('-');
+    return Math.round(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000);
+  }
   function pct(n, total) { return total ? Math.round((n / total) * 100) : 0; }
   function escalaLog(v, max) {
     if (max <= 0) return 0;
     return (Math.log(1 + v) / Math.log(1 + max)) * 100;
+  }
+  /* Ticks de um eixo log1p: os valores redondos que ainda cabem, mais o
+     maximo. Derivados do maximo, nunca fixos - com um recorte que baixe o teto,
+     escalaLog(160, 50) da 129% e o rotulo sai do container. A folga de 7% e o
+     que impede 400 e 510 de virarem um borrao: na escala log eles ficam a
+     quatro pixels um do outro, e quem tem de sobreviver e o maximo. */
+  function ticksLog(max) {
+    if (max <= 0) return [0];
+    var out = [0];
+    [5, 20, 60, 160, 400, 1000, 2500].concat([max]).forEach(function (v) {
+      if (v <= 0 || v > max) return;
+      var ultimo = out[out.length - 1];
+      if (v === max) {
+        while (out.length > 1 && escalaLog(v, max) - escalaLog(out[out.length - 1], max) < 7) out.pop();
+        if (v !== out[out.length - 1]) out.push(v);
+        return;
+      }
+      if (escalaLog(v, max) - escalaLog(ultimo, max) >= 7) out.push(v);
+    });
+    return out;
+  }
+
+  /* ── plano cartesiano em SVG ───────────────────────────────────────────────
+     Os cards sao fluidos, entao o viewBox e 0-100 nos dois eixos e o desenho
+     estica junto (`preserveAspectRatio: none`). `vector-effect` e o que impede
+     a espessura do traco de esticar com ele. Ponto e circulo continuam sendo
+     div posicionada por porcentagem: dentro do viewBox esticado eles virariam
+     elipse. `y` ja chega invertido (0 no topo), como o SVG espera. */
+  function svgPlano(conteudo) {
+    return '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none;">' + conteudo + '</svg>';
+  }
+  function poliLinha(pts, c, larg, tracos) {
+    if (pts.length < 2) return '';
+    return '<polyline points="' + pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' ') +
+      '" fill="none" stroke="' + c + '" stroke-width="' + larg + '" vector-effect="non-scaling-stroke"' +
+      (tracos ? ' stroke-dasharray="' + tracos + '"' : '') +
+      ' stroke-linejoin="round" stroke-linecap="round"></polyline>';
+  }
+  function poliArea(pts, c, opacidade) {
+    if (pts.length < 3) return '';
+    return '<polygon points="' + pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' ') +
+      '" fill="' + c + '" opacity="' + opacidade + '" stroke="none"></polygon>';
+  }
+  /* Quebra a serie nos buracos: com `n` abaixo do minimo a mediana daquela
+     idade nao existe, e ligar os dois lados inventaria o ponto que falta. */
+  function trechos(pontos) {
+    var out = [], atual = [];
+    pontos.forEach(function (p) {
+      if (p === null) { if (atual.length) out.push(atual); atual = []; }
+      else atual.push(p);
+    });
+    if (atual.length) out.push(atual);
+    return out;
   }
 
   /* pilula de filtro: arredondada, com estados legiveis no escuro */
@@ -132,6 +240,15 @@
     if (!on) return base + ' background: #1b1f23; border: 1px solid #2b3138; color: #a8a49b;';
     if (corOn) return base + ' background: ' + corOn + '26; border: 1px solid ' + corOn + '; color: ' + corOn + '; font-weight: 500;';
     return base + ' background: #d9a441; border: 1px solid #d9a441; color: #14161a; font-weight: 600;';
+  }
+
+  /* Alternador de vista dentro de um card (Distribuicao|Cruzamentos, dia|
+     semana, veredito|area). Menor e mais discreto que a pilula de filtro de
+     proposito: ele nao recorta paper nenhum, so troca o desenho - e no
+     vocabulario do painel a pilula cheia significa filtro. */
+  function chipVista(rotulo, on, fn) {
+    return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' + ev('c', fn) +
+      ' style="' + (on ? pillOnGlobal() : pill(false)) + ' font-size: 11.5px; padding: 6px 12px;">' + esc(rotulo) + '</div>';
   }
 
   var SVG_CHEVRON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"></path></svg>';
@@ -316,9 +433,7 @@
       var texto = p.j || '';
       var aberto = !!state.justExp[chave];
       var precisaCortar = texto.length > LIMITE_JUSTIFICATIVA;
-      var exibido = (precisaCortar && !aberto)
-        ? texto.slice(0, LIMITE_JUSTIFICATIVA).replace(/\s+\S*$/, '') + '…'
-        : texto;
+      var exibido = (precisaCortar && !aberto) ? rotuloCurto(texto, LIMITE_JUSTIFICATIVA) : texto;
       // classe `mais`: sem ela o unico elemento clicavel do painel sem hover
       // seria este link (todo o resto - `a`, `.chip`, `.aba`, `.row`, `.mark`,
       // `.bar` - tem estado de hover no CSS de gerar_painel.py).
@@ -639,10 +754,26 @@
     }
 
     /* ══════════════ FILTROS ══════════════ */
+    /* Um recorte por regra do Pareto ja implica `fora`: aprovado nao tem regra
+       nenhuma. Sem dizer isso aqui, a linha mostra os tres chips apagados
+       enquanto o painel so traz descartados - e clicar em `estrito` zeraria o
+       recorte em silencio. O chip nao deixa de ser clicavel; so para de mentir. */
+    var regraAtiva = s.regrasFora.length > 0;
     var chipsVeredito = ['estrito', 'amplo', 'fora'].map(function (v) {
       var on = s.vereditos.indexOf(v) >= 0;
       var n = todos.filter(function (p) { return p.v === v; }).length;
-      return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' + ev('c', function () { alternaLista('vereditos', v); }) + ' style="' + pill(on, cor(v)) + '">' +
+      var implicito = regraAtiva && v === 'fora' && !on;
+      var anulado = regraAtiva && v !== 'fora';
+      var extra = implicito
+        ? ' border-style: dashed; border-color: ' + cor(v) + '; color: ' + corTexto(v) + ';'
+        : (anulado ? ' opacity: 0.4;' : '');
+      var dica = implicito
+        ? ev('e', mostraTip('em vigor pelo filtro de regra', 'Uma regra de descarte só existe para quem saiu: o recorte já está restrito a fora.')) + ev('l', escondeTip())
+        : (anulado
+          ? ev('e', mostraTip('zeraria o recorte', 'O filtro de regra já restringe a descartados; somar ' + v + ' não deixa nenhum paper de pé.')) + ev('l', escondeTip())
+          : '');
+      return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' + ev('c', function () { alternaLista('vereditos', v); }) + dica +
+        ' style="' + pill(on, cor(v)) + extra + '">' +
         '<span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; background: ' + cor(v) + ';"></span>' + esc(v) +
         '<span style="' + comContagem + '">' + n + '</span>' +
         '</div>';
@@ -679,6 +810,10 @@
     if (s.diasSel.length) ativos.push(s.diasSel.length === 1 ? diaCurto(s.diasSel[0]) : s.diasSel.length + ' dias');
     if (s.vereditos.length) ativos.push(s.vereditos.join('+'));
     if (s.areas.length) ativos.push(s.areas.length === 1 ? s.areas[0] : s.areas.length + ' áreas');
+    // `regrasFora` e `areasSec` so entram pelo grafico: sem eles no resumo o
+    // recorte ficaria invisivel e o "limpar" pareceria quebrado
+    if (s.areasSec.length) ativos.push(s.areasSec.length === 1 ? 'sec: ' + s.areasSec[0] : s.areasSec.length + ' áreas secundárias');
+    if (s.regrasFora.length) ativos.push(s.regrasFora.length === 1 ? 'regra: ' + rotuloRegra(s.regrasFora[0]) : s.regrasFora.length + ' regras');
     if (s.topicos.length) ativos.push(s.topicos.length === 1 ? s.topicos[0] : s.topicos.length + ' tópicos');
     if (s.orgs.length) ativos.push(s.orgs.length === 1 ? (s.orgs[0] === '__sem-org__' ? 'sem organização' : s.orgs[0]) : s.orgs.length + ' organizações');
     if (s.busca) ativos.push('"' + s.busca + '"');
@@ -709,7 +844,7 @@
                 ev('i', function (e) { setState({ busca: e.target.value, aberta: null, justExp: {} }); }) +
                 ' placeholder="buscar título ou organização" style="font-family: \'Instrument Sans\', sans-serif; font-size: 13px; padding: 9px 14px 9px 36px; width: 268px; border: 1px solid #2b3138; border-radius: 100px; background: #1b1f23; color: #ecebe6; outline: none;">' +
             '</div>' +
-            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], topicos: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
+            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], areasSec: [], regrasFora: [], topicos: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>limpar</span>' +
             '</div>' +
           '</div>' +
@@ -718,7 +853,13 @@
         linhaFiltro('DIA', zDia, montaMenu('DIA', 'diasSel', itensDia, { todos: 'todos os dias' })) +
         '<div style="display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 16px; align-items: start; position: relative; z-index: 3;">' +
           '<div style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96; padding-top: 9px;">VEREDITO</div>' +
-          '<div style="display: flex; gap: 7px; flex-wrap: wrap;">' + chipsVeredito + '</div>' +
+          '<div style="display: flex; gap: 7px; flex-wrap: wrap; align-items: center;">' + chipsVeredito +
+            (regraAtiva
+              // a nota vem um tom abaixo do resto para o nome do veredito
+              // subir: em #8b8f96 nos dois, o realce de `fora` era um no-op
+              ? '<span style="font-size: 11.5px; color: #6d7178;">restrito a <span style="color: ' + corTexto('fora') + ';">fora</span> pelo filtro de regra</span>'
+              : '') +
+          '</div>' +
         '</div>' +
         linhaFiltro('TEMA', zTema,
           montaMenu('ÁREA', 'areas', itensArea, { todos: 'todas' }) +
@@ -756,9 +897,10 @@
           '</div>';
       }).join('') + '</div>');
 
-    /* ══════════════ 01 · VOLUME ══════════════ */
-    out.push(secao('01', 'Volume e corte'));
+    /* ══════════════ 01 · VOLUME E RECÊNCIA ══════════════ */
+    out.push(secao('01', 'Volume e recência'));
 
+    var nCol = Math.max(1, dias.length);
     var porDia = {};
     dias.forEach(function (d) { porDia[d] = { fora: 0, amplo: 0, estrito: 0, total: 0 }; });
     sel.forEach(function (p) { if (porDia[p.d]) { porDia[p.d][p.v]++; porDia[p.d].total++; } });
@@ -769,6 +911,12 @@
         '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: ' + cor(v) + ';"></span>' + v + '</div>';
     }).join('');
 
+    /* Sem fresta entre as colunas (`gap: 0`, largura interna na barra): o painel
+       da taxa fica exatamente sobre o de volume porque os dois derivam a
+       posicao da mesma coluna de `flex: 1`. Com `gap` em px o centro da coluna
+       i sai do centro percentual em ate meia fresta, e o ponto da taxa deixaria
+       de cair sobre a barra do proprio dia - que e a unica razao de os dois
+       paineis existirem alinhados em vez de num eixo duplo. */
     var barrasDia = dias.map(function (d) {
       var c = porDia[d];
       var segs = ['fora', 'amplo', 'estrito'].filter(function (v) { return c[v] > 0; }).map(function (v) {
@@ -779,89 +927,253 @@
         '<div class="bar"' +
           ev('e', mostraTip(diaCurto(d) + ' · ' + c.total + ' papers', c.estrito + ' estrito · ' + c.amplo + ' amplo · ' + c.fora + ' fora')) +
           ev('l', escondeTip()) +
-          ' style="width: 100%; height: ' + ((c.total / maxDia) * 100) + '%; display: flex; flex-direction: column-reverse; gap: 2px; min-height: 4px;">' + segs + '</div>' +
+          ' style="width: 74%; height: ' + ((c.total / maxDia) * 100) + '%; display: flex; flex-direction: column-reverse; gap: 2px; min-height: 4px;">' + segs + '</div>' +
         '</div>';
     }).join('');
     var rotulosDia = dias.map(function (d) {
       return '<span style="flex: 1; text-align: center; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #6d7178;">' + diaCurto(d) + '</span>';
     }).join('');
 
-    /* ── perfil do aprovado ─────────────────────────────────────────────── */
-    var grupoAprov = sel.filter(function (p) { return p.v !== 'fora'; });
-    var grupoFora = sel.filter(function (p) { return p.v === 'fora'; });
-    /* Aqui "aprovados" e estrito + amplo, nao uma das duas categorias - por isso
-       nao pode usar nem o azul do estrito nem o laranja do amplo. Aqua e o slot
-       seguinte do catalogo e separa dos dois e do cinza (validado all-pairs). */
-    var corAprov = '#1baf7a';
-    var corAprovTexto = '#4ecfa2';
-    var perfilLegenda = [
-      { label: 'aprovados', n: grupoAprov.length, cor: corAprov },
-      { label: 'descartados', n: grupoFora.length, cor: '#6b7480' }
-    ].map(function (g) {
-      return '<div style="display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #a8a49b; white-space: nowrap;">' +
-        '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: ' + g.cor + ';"></span>' + g.label +
-        '<span style="font-family: \'IBM Plex Mono\', monospace; color: #6d7178;">' + g.n + '</span></div>';
+    /* ── taxa de aprovação ao longo do tempo ────────────────────────────── */
+    var idxDia = {};
+    dias.forEach(function (d, i) { idxDia[d] = i; });
+    var serieTaxa = dias.filter(function (d) { return porDia[d].total > 0; }).map(function (d) {
+      var c = porDia[d];
+      return { d: d, c: c, ap: c.estrito + c.amplo, tot: c.total, x: ((idxDia[d] + 0.5) / nCol) * 100 };
+    });
+    serieTaxa.forEach(function (r, i) {
+      r.taxa = r.ap / r.tot;
+      var ini = Math.max(0, i - 4);
+      var sa = 0, st = 0;
+      for (var k = ini; k <= i; k++) { sa += serieTaxa[k].ap; st += serieTaxa[k].tot; }
+      /* Media movel sobre a razao agregada dos cinco dias, nao sobre a media
+         das cinco taxas: um dia de 3 papers nao pode pesar igual a um de 40. */
+      r.mm = st ? sa / st : 0;
+    });
+    // com poucas datas a media movel de cinco dias e quase a serie inteira -
+    // ela viraria uma segunda linha dizendo o mesmo, entao some e o ponto do
+    // dia cresce para assumir a leitura
+    var mostraMM = serieTaxa.length >= 8;
+    var raioPonto = mostraMM ? 5 : 7;
+
+    function ptsTaxa(campo) {
+      return serieTaxa.map(function (r) { return [r.x, 100 - r[campo] * 100]; });
+    }
+    var gradeTaxa = [0, 25, 50, 75, 100].map(function (g) {
+      return '<line x1="0" y1="' + g + '" x2="100" y2="' + g + '" stroke="' + (g === 50 ? '#242a30' : '#1d2226') + '" stroke-width="1" vector-effect="non-scaling-stroke"></line>';
+    }).join('');
+    var desenhoTaxa = gradeTaxa;
+    if (s.taxaDecomp) {
+      desenhoTaxa += poliLinha(serieTaxa.map(function (r) { return [r.x, 100 - (r.c.estrito / r.tot) * 100]; }), cor('estrito'), 1.2, '3 3');
+      desenhoTaxa += poliLinha(serieTaxa.map(function (r) { return [r.x, 100 - (r.c.amplo / r.tot) * 100]; }), cor('amplo'), 1.2, '3 3');
+    }
+    if (mostraMM) desenhoTaxa += poliLinha(ptsTaxa('mm'), '#6d7178', 1.4, '5 4');
+    desenhoTaxa += poliLinha(ptsTaxa('taxa'), ACCENT, 2, null);
+
+    var celulasTaxa = dias.map(function (d) {
+      var c = porDia[d];
+      var r = null;
+      serieTaxa.forEach(function (x) { if (x.d === d) r = x; });
+      var ponto = r
+        ? '<span style="position: absolute; left: 50%; bottom: ' + (r.taxa * 100) + '%; width: ' + raioPonto + 'px; height: ' + raioPonto + 'px; margin-left: -' + (raioPonto / 2) + 'px; margin-bottom: -' + (raioPonto / 2) + 'px; border-radius: 50%; background: ' + ACCENT + '; border: 1px solid #0d0f11;"></span>'
+        : '';
+      var l2 = r
+        ? c.total + ' papers · ' + c.estrito + ' estrito (' + pct(c.estrito, c.total) + '%) · ' + c.amplo + ' amplo (' + pct(c.amplo, c.total) + '%) · ' + c.fora + ' fora'
+        : 'nenhum paper neste recorte';
+      return '<div' +
+        ev('e', mostraTip(diaCurto(d) + ' · ' + (r ? pct(r.ap, r.tot) + '% aprovado' : 'sem dado'), l2)) +
+        ev('l', escondeTip()) +
+        ' style="flex: 1; position: relative; height: 100%; cursor: pointer;">' + ponto + '</div>';
     }).join('');
 
-    var metricas = [
-      { rotulo: 'repositório aberto', fn: function (p) { return p.oa === 1; } },
-      { rotulo: 'página do projeto', fn: function (p) { return p.pp === 1; } },
-      { rotulo: 'organização identificada', fn: function (p) { return !!p.org; } },
-      { rotulo: 'autor verificado no HF', fn: function (p) { return p.nv > 0; } },
-      { rotulo: 'time pequeno (1–2 autores)', fn: function (p) { return p.na > 0 && p.na <= 2; } }
-    ];
+    /* Mesma ancoragem dos eixos da maturacao e da dispersao: cada rotulo
+       centrado no proprio valor. Com `space-between` o 100% encostava o topo
+       do texto em y=0 e o 0% o rodape em y=104 - meia linha de erro em cada
+       extremo, e so o 50% caia no lugar certo. */
+    var eixoTaxaY = [100, 50, 0].map(function (g) {
+      return '<span style="position: absolute; top: ' + (100 - g) + '%; right: 0; transform: translateY(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #6d7178;">' + g + '%</span>';
+    }).join('');
 
-    var perfil = metricas.map(function (m) {
-      var pa = grupoAprov.length ? Math.round((grupoAprov.filter(m.fn).length / grupoAprov.length) * 100) : 0;
-      var pf = grupoFora.length ? Math.round((grupoFora.filter(m.fn).length / grupoFora.length) * 100) : 0;
-      /* `corPct` e o passo de texto da mesma serie da barra: le como a cor da
-         barra, mas com contraste suficiente a 11.5px sobre o fundo do card. */
-      function barra(pctv, c, corPct, rotulo, n, base) {
-        return '<div' +
-          ev('e', mostraTip(rotulo + ' · ' + m.rotulo, base ? pctv + '% de ' + n + ' papers' : 'nenhum paper neste grupo')) +
-          ev('l', escondeTip()) +
-          ' style="display: grid; grid-template-columns: minmax(0, 1fr) 40px; gap: 10px; align-items: center; cursor: pointer;">' +
-          '<div style="height: 9px; background: #1d2226; border-radius: 2px; overflow: hidden;">' +
-            '<div class="bar" style="height: 100%; width: ' + (base ? pctv : 0) + '%; background: ' + c + '; border-radius: 2px;"></div>' +
+    var legendaTaxa = [
+      { rot: '% aprovado', c: ACCENT, tracos: false },
+      { rot: 'média móvel 5d', c: '#6d7178', tracos: true }
+    ].filter(function (l) { return mostraMM || l.c === ACCENT; }).map(function (l) {
+      return '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b; white-space: nowrap;">' +
+        '<span style="display: inline-block; width: 14px; height: 0; border-top: 2px ' + (l.tracos ? 'dashed' : 'solid') + ' ' + l.c + ';"></span>' + l.rot + '</div>';
+    }).join('');
+
+    var gutter = 'display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px; align-items: end;';
+
+    out.push(
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 18px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O lote diário e o que sobrou dele</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Papers por dia de publicação no HF, empilhados por veredito.</div>' +
           '</div>' +
-          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; font-weight: 500; color: ' + (base ? corPct : '#4a5058') + '; text-align: right;">' + (base ? pctv + '%' : '—') + '</span>' +
-          '</div>';
+          '<div style="display: flex; gap: 15px; padding-top: 5px;">' + legenda + '</div>' +
+        '</div>' +
+        '<div style="' + gutter + '"><div></div>' +
+          '<div style="display: flex; align-items: flex-end; gap: 0; height: 200px; border-bottom: 1px solid #333a41;">' + barrasDia + '</div>' +
+        '</div>' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; padding-top: 4px; border-top: 1px solid #242a30;">' +
+          '<div style="display: flex; flex-direction: column; gap: 4px; padding-top: 14px;">' +
+            '<div style="font-size: 13.5px; color: #ecebe6;">Taxa de aprovação ao longo do tempo</div>' +
+            '<div style="font-size: 12px; color: #8b8f96;">(estrito + amplo) ÷ total do dia. Mede seletividade do pipeline — não qualidade nem acurácia.</div>' +
+          '</div>' +
+          '<div style="display: flex; align-items: center; gap: 14px;">' +
+            '<div style="display: flex; gap: 13px;">' + legendaTaxa + '</div>' +
+            chipVista('decompor', s.taxaDecomp, function () { setState({ taxaDecomp: !s.taxaDecomp }); }) +
+          '</div>' +
+        '</div>' +
+        '<div style="' + gutter + '">' +
+          '<div style="position: relative; height: 104px;">' + eixoTaxaY + '</div>' +
+          '<div style="position: relative; height: 104px; border-bottom: 1px solid #333a41;">' +
+            svgPlano(desenhoTaxa) +
+            '<div style="position: absolute; inset: 0; display: flex; gap: 0;">' + celulasTaxa + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="' + gutter + '"><div></div><div style="display: flex; gap: 0;">' + rotulosDia + '</div></div>' +
+        (serieTaxa.length ? '' : '<div style="font-size: 12.5px; color: #6d7178; text-align: center; padding: 6px 0;">Nenhum dia com paper dentro deste recorte.</div>') +
+      '</div>'
+    );
+
+    /* ── defasagem arXiv → HF Daily ─────────────────────────────────────── */
+    /* `p.d - p.da` em dias. Negativo significaria HF Daily antes do arXiv, que
+       nao existe no mundo - por isso o valor nao e corrigido nem cortado aqui:
+       ele fica no grafico, em vermelho, como achado de auditoria. */
+    var comLag = [];
+    sel.forEach(function (p) {
+      var a = diaNum(p.da), b = diaNum(p.d);
+      if (a === null || b === null) return;
+      comLag.push({ p: p, lag: b - a });
+    });
+
+    var chaveLag = s.lagGrupo === 'area'
+      ? function (r) { return r.p.a || 'sem área'; }
+      : function (r) { return r.p.v; };
+    var gruposLag = {};
+    comLag.forEach(function (r) {
+      var k = chaveLag(r);
+      if (!gruposLag[k]) gruposLag[k] = [];
+      gruposLag[k].push(r);
+    });
+    var ordemLag = s.lagGrupo === 'area'
+      ? Object.keys(gruposLag).sort(function (x, y) { return gruposLag[y].length - gruposLag[x].length || x.localeCompare(y); })
+      : ['estrito', 'amplo', 'fora'].filter(function (v) { return gruposLag[v]; });
+
+    var negativos = comLag.filter(function (r) { return r.lag < 0; }).length;
+    var minLag = Math.min.apply(null, comLag.map(function (r) { return r.lag; }).concat([0]));
+    var maxLag = Math.max.apply(null, comLag.map(function (r) { return r.lag; }).concat([1]));
+    if (maxLag <= minLag) maxLag = minLag + 1;
+    function posLag(v) { return ((v - minLag) / (maxLag - minLag)) * 100; }
+
+    /* Passo "redondo" (1, 2, 5, 10 · 10^k) para o eixo de dias: fixar o passo
+       quebraria quando um recorte deixasse a janela com 3 dias de defasagem. */
+    function passoEixo(intervalo, alvo) {
+      var bruto = intervalo / Math.max(1, alvo);
+      var mag = Math.pow(10, Math.floor(Math.log(bruto) / Math.LN10));
+      var n = bruto / mag;
+      return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag;
+    }
+    /* Piso de 1: o eixo conta dias inteiros. Num recorte em que todas as
+       defasagens caem em {0, 1}, o passo redondo daria 0,2 e os seis ticks
+       colapsariam em "0 0 0 1 1 1", empilhando rotulo sobre rotulo. */
+    var passoLag = Math.max(1, passoEixo(maxLag - minLag, 6));
+    var ticksLag = [];
+    for (var tl = Math.ceil(minLag / passoLag) * passoLag; tl <= maxLag + 0.001; tl += passoLag) ticksLag.push(Math.round(tl));
+    // o passo redondo quase nunca cai sobre o minimo negativo; sem este tick a
+    // faixa vermelha do grafico ficaria sem numero e o leitor nao saberia de
+    // quantos dias e a inversao que ele esta vendo
+    if (minLag < 0 && ticksLag[0] !== minLag) ticksLag.unshift(minLag);
+
+    var MIN_CAIXA = 5;
+    var caixasLag = ordemLag.map(function (k) {
+      var itens = gruposLag[k];
+      var xs = itens.map(function (r) { return r.lag; });
+      var cg = s.lagGrupo === 'area' ? ACCENT : cor(k);
+      var med = quartil(xs, 0.5);
+
+      function ponto(r, forte) {
+        var neg = r.lag < 0;
+        return '<span class="mark"' +
+          ev('e', mostraTip(r.p.t, r.lag + ' dia(s) · arXiv ' + diaCurto(r.p.da) + ' → HF ' + diaCurto(r.p.d) + (neg ? ' · valor negativo, provável erro de dado' : ''))) +
+          ev('l', escondeTip()) +
+          ' style="position: absolute; left: ' + posLag(r.lag) + '%; top: 50%; width: 7px; height: 7px; margin-left: -3.5px; margin-top: -3.5px; border-radius: 50%; background: ' +
+          (neg ? '#e66767' : cg) + '; opacity: ' + (forte ? '0.9' : '0.72') + ';"></span>';
       }
-      return '<div style="display: flex; flex-direction: column; gap: 7px;">' +
-        '<div style="font-size: 12.5px; color: #ecebe6;">' + esc(m.rotulo) + '</div>' +
-        barra(pa, corAprov, corAprovTexto, 'aprovados', grupoAprov.length, grupoAprov.length > 0) +
-        barra(pf, '#6b7480', '#9aa1a9', 'descartados', grupoFora.length, grupoFora.length > 0) +
+
+      var miolo;
+      if (itens.length < MIN_CAIXA) {
+        /* Abaixo de cinco papers a caixa desenharia quartis que a amostra nao
+           sustenta - os pontos individuais dizem a mesma coisa sem fingir
+           distribuicao. */
+        miolo = itens.map(function (r) { return ponto(r, true); }).join('');
+      } else {
+        var q1 = quartil(xs, 0.25), q3 = quartil(xs, 0.75);
+        var iqr = q3 - q1;
+        var limInf = q1 - 1.5 * iqr, limSup = q3 + 1.5 * iqr;
+        var dentro = xs.filter(function (v) { return v >= limInf && v <= limSup; });
+        var hasteInf = dentro.length ? Math.min.apply(null, dentro) : q1;
+        var hasteSup = dentro.length ? Math.max.apply(null, dentro) : q3;
+        var fora = itens.filter(function (r) { return r.lag < limInf || r.lag > limSup; });
+        miolo =
+          '<div style="position: absolute; left: ' + posLag(hasteInf) + '%; width: ' + (posLag(hasteSup) - posLag(hasteInf)) + '%; top: 50%; height: 1px; background: ' + cg + '; opacity: 0.5;"></div>' +
+          '<div style="position: absolute; left: ' + posLag(hasteInf) + '%; top: 32%; bottom: 32%; width: 1px; background: ' + cg + '; opacity: 0.5;"></div>' +
+          '<div style="position: absolute; left: ' + posLag(hasteSup) + '%; top: 32%; bottom: 32%; width: 1px; background: ' + cg + '; opacity: 0.5;"></div>' +
+          '<div' +
+            ev('e', mostraTip(k + ' · n = ' + itens.length, 'mediana ' + med + 'd · P25 ' + q1 + 'd · P75 ' + q3 + 'd · haste ' + hasteInf + '–' + hasteSup + 'd')) +
+            ev('l', escondeTip()) +
+            ' style="position: absolute; left: ' + posLag(q1) + '%; width: ' + (posLag(q3) - posLag(q1)) + '%; top: 22%; bottom: 22%; background: ' + cg + '26; border: 1px solid ' + cg + '; border-radius: 2px; cursor: pointer;"></div>' +
+          '<div style="position: absolute; left: ' + posLag(med) + '%; top: 16%; bottom: 16%; width: 2px; margin-left: -1px; background: ' + cg + ';"></div>' +
+          fora.map(function (r) { return ponto(r, false); }).join('');
+      }
+
+      return '<div style="display: grid; grid-template-columns: 168px minmax(0, 1fr) 44px; gap: 14px; align-items: center;">' +
+        '<div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #ecebe6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' +
+          '<span style="flex: none; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: ' + cg + ';"></span>' + esc(k) + '</div>' +
+        '<div style="position: relative; height: 40px; border-bottom: 1px solid #1d2226;">' +
+          (minLag < 0 ? '<div style="position: absolute; left: 0; width: ' + posLag(0) + '%; top: 0; bottom: 0; background: rgba(230,103,103,0.08);"></div>' : '') +
+          miolo +
+        '</div>' +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: ' + (itens.length < MIN_CAIXA ? '#6d7178' : '#8b8f96') + '; text-align: right;">n ' + itens.length + '</span>' +
         '</div>';
     }).join('');
 
     out.push(
-      '<div style="display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 14px; margin-bottom: 34px;">' +
-        '<div class="card" style="padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 20px;">' +
-          '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
-            '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-              '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O lote diário e o que sobrou dele</div>' +
-              '<div style="font-size: 12.5px; color: #8b8f96;">Papers por dia de publicação no HF, empilhados por veredito.</div>' +
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 16px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Defasagem arXiv → HF Daily</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Dias entre a publicação no arXiv e a entrada no Daily. Caixa = P25–P75, traço = mediana, pontos = fora de 1,5×IQR.' +
+              (comLag.length < sel.length ? ' <span style="color: #6d7178;">' + (sel.length - comLag.length) + ' sem uma das duas datas.</span>' : '') +
             '</div>' +
-            '<div style="display: flex; gap: 15px; padding-top: 5px;">' + legenda + '</div>' +
           '</div>' +
-          '<div style="display: flex; align-items: flex-end; gap: 12px; height: 214px; border-bottom: 1px solid #333a41;">' + barrasDia + '</div>' +
-          '<div style="display: flex; gap: 12px;">' + rotulosDia + '</div>' +
+          '<div style="display: flex; align-items: center; gap: 9px; padding-top: 3px;">' +
+            '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">AGRUPAR</span>' +
+            chipVista('veredito', s.lagGrupo === 'veredito', function () { setState({ lagGrupo: 'veredito' }); }) +
+            chipVista('área', s.lagGrupo === 'area', function () { setState({ lagGrupo: 'area' }); }) +
+          '</div>' +
         '</div>' +
-        '<div class="card" style="padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 18px;">' +
-          '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">' +
-            '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-              '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Perfil do aprovado</div>' +
-              '<div style="font-size: 12.5px; color: #8b8f96;">Quanto de cada grupo carrega o atributo, em % do próprio grupo.</div>' +
+        (caixasLag
+          ? '<div style="display: flex; flex-direction: column; gap: 8px;">' + caixasLag + '</div>' +
+            '<div style="display: grid; grid-template-columns: 168px minmax(0, 1fr) 44px; gap: 14px;"><div></div>' +
+              '<div style="position: relative; height: 18px;">' +
+                ticksLag.map(function (v) {
+                  return '<span style="position: absolute; left: ' + posLag(v) + '%; transform: translateX(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + (v < 0 ? '#e66767' : '#6d7178') + ';">' + v + '</span>';
+                }).join('') +
+              '</div><div></div>' +
             '</div>' +
-            '<div style="display: flex; flex-direction: column; gap: 7px; padding-top: 3px;">' + perfilLegenda + '</div>' +
-          '</div>' +
-          '<div style="display: flex; flex-direction: column; gap: 15px;">' + perfil + '</div>' +
-        '</div>' +
+            (negativos
+              ? '<div style="font-size: 12px; color: #e66767; background: rgba(230,103,103,0.08); border: 1px solid rgba(230,103,103,0.3); border-radius: 4px; padding: 9px 12px;">' +
+                  negativos + ' paper(s) com defasagem negativa — o HF Daily viria antes do arXiv. O valor fica no gráfico como está: é problema de dado a auditar, não de escala a corrigir.</div>'
+              : '')
+          : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum paper com as duas datas dentro deste recorte.</div>') +
       '</div>'
     );
 
-    /* ══════════════ 02 · VOCABULÁRIO ══════════════ */
-    out.push(secao('02', 'Vocabulário controlado'));
+    /* ══════════════ 02 · VOCABULÁRIO E CRUZAMENTOS ══════════════ */
+    out.push(secao('02', 'Vocabulário e cruzamentos'));
 
     var areaMap = {};
     filtrados('areas').forEach(function (p) {
@@ -891,177 +1203,596 @@
         '</div>';
     }).join('');
 
-    // empilhado por veredito, como as areas: uma barra de cor unica esconderia
-    // que a composicao muda muito de um topico para outro
-    var topMap = {};
-    filtrados('topicos').forEach(function (p) {
-      p.tp.forEach(function (t) {
-        if (!topMap[t]) topMap[t] = { fora: 0, amplo: 0, estrito: 0, total: 0 };
-        topMap[t][p.v]++; topMap[t].total++;
+    /* ── matriz área primária × secundária ──────────────────────────────── */
+    /* As duas dimensoes de area saem do recorte de uma vez: filtrar por uma
+       delas e depois desenhar a matriz deixaria uma linha (ou uma coluna) acesa
+       e o resto apagado - e o cruzamento seria ilegivel justamente depois do
+       primeiro clique nele. */
+    var selMatriz = filtrados(['areas', 'areasSec']);
+    var totPrim = {}, totSec = {}, cruz = {}, semSec = 0;
+    selMatriz.forEach(function (p) {
+      if (p.a) totPrim[p.a] = (totPrim[p.a] || 0) + 1;
+      var secs = p['as'] || [];
+      if (!secs.length) { semSec++; return; }
+      secs.forEach(function (b) {
+        totSec[b] = (totSec[b] || 0) + 1;
+        if (!p.a) return;
+        var k = p.a + '\u0000' + b;
+        if (!cruz[k]) cruz[k] = { n: 0, ap: 0 };
+        cruz[k].n++;
+        if (p.v !== 'fora') cruz[k].ap++;
       });
     });
-    var topsOrd = Object.keys(topMap).sort(function (x, y) { return topMap[y].total - topMap[x].total; }).slice(0, 10);
-    var maxTop = Math.max.apply(null, topsOrd.map(function (t) { return topMap[t].total; }).concat([1]));
-    var barrasTopico = topsOrd.map(function (t) {
-      var c = topMap[t];
-      var on = s.topicos.indexOf(t) >= 0;
-      var segs = ['estrito', 'amplo', 'fora'].filter(function (v) { return c[v] > 0; }).map(function (v) {
-        return '<div class="bar" style="flex: ' + c[v] + '; background: ' + cor(v) + ';"></div>';
+    // linhas e colunas na mesma ordem (volume da area primaria): so assim a
+    // diagonal significa "primaria igual a secundaria" e pode ser neutralizada
+    var eixoAreas = DADOS.areas.map(function (a) { return a.a; })
+      .filter(function (a) { return totPrim[a] || totSec[a]; })
+      .sort(function (x, y) { return (totPrim[y] || 0) - (totPrim[x] || 0) || x.localeCompare(y); });
+    var maxCruz = 1;
+    for (var kc in cruz) if (Object.prototype.hasOwnProperty.call(cruz, kc) && cruz[kc].n > maxCruz) maxCruz = cruz[kc].n;
+
+    var colsMatriz = 'grid-template-columns: 190px repeat(' + Math.max(1, eixoAreas.length) + ', minmax(0, 1fr)); gap: 3px;';
+    var cabMatriz = '<div style="display: grid; ' + colsMatriz + ' align-items: end; margin-bottom: 3px;">' +
+      '<div style="font-size: 10px; font-weight: 600; letter-spacing: 0.13em; color: #6d7178; padding-bottom: 4px;">PRIMÁRIA ↓ &nbsp;SEC →</div>' +
+      eixoAreas.map(function (a, j) {
+        return '<div' + ev('e', mostraTip(a, 'coluna ' + (j + 1) + ' · ' + (totSec[a] || 0) + ' como área secundária')) + ev('l', escondeTip()) +
+          ' style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #8b8f96; text-align: center; padding-bottom: 4px; cursor: pointer;">' + (j + 1) + '</div>';
+      }).join('') + '</div>';
+
+    var linhasMatriz = eixoAreas.map(function (a, i) {
+      var celulas = eixoAreas.map(function (b, j) {
+        if (i === j) {
+          // uma area nunca e secundaria de si mesma: a celula existe so para a
+          // grade nao pular, e por isso nao acende nem responde a clique
+          return '<div style="height: 34px; border-radius: 2px; background: #16191c; border: 1px dashed #242a30;"></div>';
+        }
+        var c = cruz[a + '\u0000' + b];
+        var n = c ? c.n : 0;
+        var alfa = n ? 0.12 + (escalaLog(n, maxCruz) / 100) * 0.78 : 0;
+        var marcada = s.areas.length === 1 && s.areas[0] === a && s.areasSec.length === 1 && s.areasSec[0] === b;
+        return '<div' +
+          ev('c', function () {
+            setState(marcada
+              ? { areas: [], areasSec: [], aberta: null, justExp: {} }
+              : { areas: [a], areasSec: [b], aberta: null, justExp: {} });
+          }) +
+          ev('e', mostraTip(a + ' → ' + b, n ? n + ' papers · ' + (c.ap) + ' aprovados · ' + (n - c.ap) + ' descartados · ' + pct(c.ap, n) + '% aprovado' : 'nenhum paper neste cruzamento')) +
+          ev('l', escondeTip()) +
+          ' style="height: 34px; border-radius: 2px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: ' +
+          (n ? 'rgba(217,164,65,' + alfa.toFixed(3) + ')' : '#1a1d21') +
+          '; border: 1px solid ' + (marcada ? ACCENT : 'transparent') + ';">' +
+          (n ? '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + (alfa > 0.55 ? '#14161a' : '#a8a49b') + ';">' + n + '</span>' : '') +
+          '</div>';
       }).join('');
-      return '<div' + ev('c', function () { alternaLista('topicos', t); }) +
-        ev('e', mostraTip(t, c.estrito + ' estrito · ' + c.amplo + ' amplo · ' + c.fora + ' fora')) +
-        ev('l', escondeTip()) +
-        ' style="display: grid; grid-template-columns: 182px minmax(0, 1fr) 36px; gap: 12px; align-items: center; cursor: pointer;">' +
-        '<span style="font-size: 12.5px; color: ' + (on ? ACCENT : '#a8a49b') + '; font-weight: ' + (on ? '600' : '400') + '; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(t) + '</span>' +
-        '<div style="height: 12px; background: #1d2226; border-radius: 2px; overflow: hidden;">' +
-          '<div style="display: flex; height: 100%; width: ' + ((c.total / maxTop) * 100) + '%; gap: 2px; min-width: 3px;">' + segs + '</div>' +
-        '</div>' +
-        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #8b8f96; text-align: right;">' + c.total + '</span>' +
-        '</div>';
+      var onLinha = s.areas.length === 1 && s.areas[0] === a;
+      return '<div style="display: grid; ' + colsMatriz + ' align-items: center;">' +
+        '<div' + ev('c', function () { alternaLista('areas', a); }) +
+          ' style="display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: ' + (onLinha ? ACCENT : '#a8a49b') + '; cursor: pointer; overflow: hidden;">' +
+          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #6d7178;">' + (i + 1) + '</span>' +
+          '<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(a) + '</span>' +
+        '</div>' + celulas + '</div>';
     }).join('');
 
+    var vistaAreaCruz = s.vistaArea === 'cruz';
     out.push(
-      '<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 34px;">' +
-        '<div class="card" style="padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 18px;">' +
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 18px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Área primária</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">A LLM escolhe de uma lista fechada — nunca inventa rótulo. Clique para filtrar.</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">' +
+              (vistaAreaCruz
+                ? 'Cada paper conta uma vez por área secundária. Clique numa célula para filtrar a combinação.' +
+                  (semSec ? ' <span style="color: #6d7178;">' + semSec + ' sem área secundária ficam fora da matriz.</span>' : '')
+                : 'A LLM escolhe de uma lista fechada — nunca inventa rótulo. Clique para filtrar.') +
+            '</div>' +
           '</div>' +
-          '<div style="display: flex; flex-direction: column; gap: 13px;">' + barrasArea + '</div>' +
-        '</div>' +
-        '<div class="card" style="padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 18px;">' +
-          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Tópicos mais atribuídos</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Até cinco por paper. Clique para filtrar o painel inteiro.</div>' +
+          '<div style="display: flex; align-items: center; gap: 9px; padding-top: 3px;">' +
+            chipVista('Distribuição', !vistaAreaCruz, function () { setState({ vistaArea: 'dist' }); }) +
+            chipVista('Cruzamentos', vistaAreaCruz, function () { setState({ vistaArea: 'cruz' }); }) +
           '</div>' +
-          '<div style="display: flex; flex-direction: column; gap: 11px;">' + barrasTopico + '</div>' +
         '</div>' +
+        (vistaAreaCruz
+          ? (eixoAreas.length
+            ? '<div style="display: flex; flex-direction: column; gap: 3px;">' + cabMatriz + linhasMatriz + '</div>'
+            : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhuma área dentro deste recorte.</div>')
+          : (barrasArea
+            ? '<div style="display: flex; flex-direction: column; gap: 13px;">' + barrasArea + '</div>'
+            : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhuma área dentro deste recorte.</div>')) +
       '</div>'
     );
 
-    /* ══════════════ 03 · A REGRA DO UPVOTE ══════════════ */
-    out.push(secao('03', 'Distribuição de votos'));
+    /* ── heatmap tópico × tempo ─────────────────────────────────────────── */
+    /* Acima de ~24 colunas o dia vira faixa de 1 pixel e o rotulo some, entao a
+       coluna passa a ser a semana. O corte e do desenho, nao do dado: a janela
+       padrao e de 90 dias e ninguem le 90 colunas. */
+    var porSemana = dias.length > 24;
+    var periodos = [], mapaPer = {}, perDeDia = {};
+    dias.forEach(function (d) {
+      // segunda-feira da semana: 1970-01-01 caiu numa quinta, dai o +3
+      var chave = porSemana ? String(diaNum(d) - ((diaNum(d) + 3) % 7)) : d;
+      if (!mapaPer[chave]) {
+        mapaPer[chave] = { k: chave, dias: [], total: 0, ap: 0, tp: {} };
+        periodos.push(mapaPer[chave]);
+      }
+      mapaPer[chave].dias.push(d);
+      perDeDia[d] = mapaPer[chave];
+    });
 
-    var maxUp = Math.max.apply(null, sel.map(function (p) { return p.u; }).concat([1]));
-    var faixas = ['estrito', 'amplo', 'fora'].map(function (v) {
-      var grupo = sel.filter(function (p) { return p.v === v; });
-      var med = mediana(grupo.map(function (p) { return p.u; }));
-      var pontos = grupo.map(function (p, i) {
-        return '<div class="mark"' +
-          ev('e', mostraTip(p.t, p.u + ' votos · ' + p.v + ' · ' + diaCurto(p.d))) +
+    var selTopico = filtrados('topicos');
+    var linhaTop = {};
+    selTopico.forEach(function (p) {
+      var per = perDeDia[p.d];
+      if (per) { per.total++; if (p.v !== 'fora') per.ap++; }
+      // um paper conta uma vez por topico, mesmo que o topico se repita na
+      // lista: o denominador do heatmap e paper, nao ocorrencia
+      var vistos = {};
+      p.tp.forEach(function (t) {
+        if (vistos[t]) return;
+        vistos[t] = 1;
+        if (per) per.tp[t] = (per.tp[t] || 0) + 1;
+        if (!linhaTop[t]) linhaTop[t] = { n: 0, ap: 0 };
+        linhaTop[t].n++;
+        if (p.v !== 'fora') linhaTop[t].ap++;
+      });
+    });
+
+    var meioPer = Math.floor(periodos.length / 2);
+    function participacao(t, de, ate) {
+      var n = 0, tot = 0;
+      for (var i = de; i < ate; i++) { n += periodos[i].tp[t] || 0; tot += periodos[i].total; }
+      return tot ? n / tot : 0;
+    }
+    var MIN_TAXA_TOP = 5;
+    var topsOrd = Object.keys(linhaTop).sort(function (x, y) {
+      if (s.heatOrd === 'crescimento') {
+        // diferenca de PARTICIPACAO entre a metade recente e a antiga, nao de
+        // contagem: o tamanho do lote diario varia demais para comparar cru
+        var gx = participacao(x, meioPer, periodos.length) - participacao(x, 0, meioPer);
+        var gy = participacao(y, meioPer, periodos.length) - participacao(y, 0, meioPer);
+        return gy - gx || linhaTop[y].n - linhaTop[x].n;
+      }
+      if (s.heatOrd === 'aprovacao') {
+        // topico de 1 paper aprovado nao pode liderar um ranking de taxa:
+        // abaixo do minimo de amostra ele cai para o fim da lista
+        var ex = linhaTop[x].n >= MIN_TAXA_TOP ? linhaTop[x].ap / linhaTop[x].n : -1;
+        var ey = linhaTop[y].n >= MIN_TAXA_TOP ? linhaTop[y].ap / linhaTop[y].n : -1;
+        return ey - ex || linhaTop[y].n - linhaTop[x].n;
+      }
+      return linhaTop[y].n - linhaTop[x].n || x.localeCompare(y);
+    });
+    var LINHAS_HEAT = 12;
+    var topsVisiveis = topsOrd.slice(0, LINHAS_HEAT);
+
+    var maxPart = 0;
+    topsVisiveis.forEach(function (t) {
+      periodos.forEach(function (per) {
+        if (!per.total) return;
+        var v = (per.tp[t] || 0) / per.total;
+        if (v > maxPart) maxPart = v;
+      });
+    });
+    if (maxPart <= 0) maxPart = 1;
+
+    var colsHeat = 'grid-template-columns: 186px repeat(' + Math.max(1, periodos.length) + ', minmax(0, 1fr)) 46px 54px; gap: 2px;';
+    // com muitas colunas o rotulo de cada uma se sobrepoe; um sim, um nao
+    var puloRot = periodos.length > 18 ? 2 : 1;
+    var cabHeat = '<div style="display: grid; ' + colsHeat + ' align-items: end; margin-bottom: 4px;">' +
+      '<div style="font-size: 10px; font-weight: 600; letter-spacing: 0.13em; color: #6d7178;">' + (porSemana ? 'SEMANA DE →' : 'DIA →') + '</div>' +
+      periodos.map(function (per, i) {
+        return '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 9.5px; color: #6d7178; text-align: center;">' +
+          (i % puloRot === 0 ? diaCurto(per.dias[0]) : '') + '</div>';
+      }).join('') +
+      '<div style="font-size: 9.5px; letter-spacing: 0.1em; color: #6d7178; text-align: right;">N</div>' +
+      '<div style="font-size: 9.5px; letter-spacing: 0.1em; color: #6d7178; text-align: right;">% APR</div>' +
+      '</div>';
+
+    var linhasHeat = topsVisiveis.map(function (t) {
+      var on = s.topicos.indexOf(t) >= 0;
+      var lt = linhaTop[t];
+      var celulas = periodos.map(function (per) {
+        var n = per.tp[t] || 0;
+        var parte = per.total ? n / per.total : 0;
+        var alfa = parte > 0 ? 0.12 + (parte / maxPart) * 0.78 : 0;
+        var rot = porSemana ? 'semana de ' + diaCurto(per.dias[0]) : diaCurto(per.dias[0]);
+        return '<div' +
+          ev('c', function () { setState({ topicos: [t], diasSel: per.dias.slice(), aberta: null, justExp: {} }); }) +
+          ev('e', mostraTip(t + ' · ' + rot, per.total ? n + ' de ' + per.total + ' papers · ' + Math.round(parte * 100) + '% do lote' : 'nenhum paper neste período')) +
           ev('l', escondeTip()) +
-          ' style="position: absolute; left: ' + escalaLog(p.u, maxUp) + '%; top: ' + (12 + ((i * 37) % 34)) + '%; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: ' + cor(v) + '; opacity: 0.62;"></div>';
+          ' style="height: 22px; border-radius: 2px; cursor: pointer; background: ' +
+          (parte > 0 ? 'rgba(217,164,65,' + alfa.toFixed(3) + ')' : '#1a1d21') + ';"></div>';
       }).join('');
-      return '<div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; align-items: center;">' +
-        '<div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #ecebe6;">' +
-          '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: ' + cor(v) + ';"></span>' + v + '</div>' +
-        '<div style="position: relative; height: 62px; border-left: 1px solid #333a41; border-bottom: 1px solid #1d2226;">' + pontos +
-          '<div style="position: absolute; left: ' + escalaLog(med, maxUp) + '%; top: -2px; bottom: -2px; width: 2px; background: ' + cor(v) + ';"></div>' +
-        '</div>' +
-        '</div>';
-    }).join('');
-
-    // ticks derivados de maxUp: fixa-los faria o rotulo sair do container assim
-    // que um recorte baixasse o maximo (escalaLog(160, 50) = 129%)
-    var ticks = [0];
-    [5, 20, 60, 160, 400].forEach(function (v) { if (v < maxUp * 0.82) ticks.push(v); });
-    ticks.push(maxUp);
-    var eixoUpvotes = ticks.map(function (v) {
-      return '<span style="position: absolute; left: ' + escalaLog(v, maxUp) + '%; transform: translateX(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #6d7178;">' + v + '</span>';
-    }).join('');
-    var medianas = ['estrito', 'amplo', 'fora'].map(function (v) {
-      var g = sel.filter(function (p) { return p.v === v; });
-      return '<div style="display: flex; flex-direction: column; gap: 4px;">' +
-        '<span style="font-size: 10.5px; letter-spacing: 0.14em; color: #8b8f96;">MEDIANA ' + v + '</span>' +
-        '<span style="font-family: Newsreader, Georgia, serif; font-size: 30px; font-weight: 400; line-height: 1; color: ' + corTexto(v) + ';">' + mediana(g.map(function (p) { return p.u; })) + '</span>' +
+      return '<div style="display: grid; ' + colsHeat + ' align-items: center;">' +
+        '<div' + ev('c', function () { alternaLista('topicos', t); }) +
+          ev('e', mostraTip(t, lt.n + ' papers · ' + lt.ap + ' aprovados · ' + pct(lt.ap, lt.n) + '% aprovado')) +
+          ev('l', escondeTip()) +
+          ' style="font-size: 12px; color: ' + (on ? ACCENT : '#a8a49b') + '; font-weight: ' + (on ? '600' : '400') + '; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">' + esc(t) + '</div>' +
+        celulas +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #8b8f96; text-align: right;">' + lt.n + '</span>' +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + (lt.n >= MIN_TAXA_TOP ? '#8b8f96' : '#4a5058') + '; text-align: right;">' + pct(lt.ap, lt.n) + '%</span>' +
         '</div>';
     }).join('');
 
     out.push(
-      '<div class="card" style="padding: 24px 26px 24px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 22px;">' +
-        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 32px;">' +
-          '<div style="display: flex; flex-direction: column; gap: 7px; max-width: 700px;">' +
-            '<div style="font-family: Newsreader, Georgia, serif; font-size: 30px; font-weight: 400; line-height: 1.12; color: #f5f3ee;">Votos por veredito</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Um ponto por paper, na escala logarítmica de votos. A linha vertical marca a mediana da faixa.</div>' +
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 16px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Tópico × tempo</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Intensidade = participação do tópico no lote do período. Clique na célula para filtrar tópico e período; no nome, só o tópico.' +
+              (topsOrd.length > LINHAS_HEAT ? ' <span style="color: #6d7178;">Outros ' + (topsOrd.length - LINHAS_HEAT) + ' tópicos ficam fora do corte de ' + LINHAS_HEAT + ' linhas.</span>' : '') +
+            '</div>' +
           '</div>' +
-          '<div style="display: flex; gap: 26px; text-align: right;">' + medianas + '</div>' +
-        '</div>' +
-        '<div style="display: flex; flex-direction: column; gap: 4px;">' + faixas +
-          '<div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px;"><div></div>' +
-            '<div style="position: relative; height: 20px;">' + eixoUpvotes + '</div>' +
+          '<div style="display: flex; align-items: center; gap: 9px; padding-top: 3px;">' +
+            '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">ORDENAR</span>' +
+            chipVista('volume', s.heatOrd === 'volume', function () { setState({ heatOrd: 'volume' }); }) +
+            chipVista('crescimento', s.heatOrd === 'crescimento', function () { setState({ heatOrd: 'crescimento' }); }) +
+            chipVista('aprovação', s.heatOrd === 'aprovacao', function () { setState({ heatOrd: 'aprovacao' }); }) +
           '</div>' +
         '</div>' +
+        (linhasHeat
+          ? '<div style="display: flex; flex-direction: column; gap: 2px;">' + cabHeat + linhasHeat + '</div>'
+          : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum tópico atribuído dentro deste recorte.</div>') +
       '</div>'
     );
 
-    /* ══════════════ 04 · ADOÇÃO ══════════════ */
-    out.push(secao('04', 'Sinais de adoção'));
+    /* ══════════════ 03 · REGRAS DO CORTE ══════════════ */
+    out.push(secao('03', 'Regras do corte'));
 
-    var maxCom = Math.max.apply(null, sel.map(function (p) { return p.c; }).concat([1]));
-    var dispersao = sel.map(function (p) {
-      var d = p.oa ? 9 : 7;
-      return '<div class="mark"' +
-        ev('e', mostraTip(p.t, p.u + ' votos · ' + p.c + ' comentários · ' + p.v)) +
+    var selPareto = filtrados('regrasFora');
+    var descartes = selPareto.filter(function (p) { return p.v === 'fora'; });
+    var contaRegra = {};
+    descartes.forEach(function (p) {
+      var k = chaveRegra(p);
+      contaRegra[k] = (contaRegra[k] || 0) + 1;
+    });
+    var regrasOrd = Object.keys(contaRegra).sort(function (x, y) { return contaRegra[y] - contaRegra[x] || x.localeCompare(y); });
+    var totalDesc = descartes.length;
+    var comRegra = descartes.filter(function (p) { return !!p.rf; }).length;
+    var maxRegra = Math.max.apply(null, regrasOrd.map(function (k) { return contaRegra[k]; }).concat([1]));
+
+    var acum = 0;
+    var linhasPareto = regrasOrd.map(function (k, i) {
+      var n = contaRegra[k];
+      var parte = totalDesc ? (n / totalDesc) * 100 : 0;
+      acum += parte;
+      var acumAqui = acum;
+      var on = s.regrasFora.indexOf(k) >= 0;
+      var nulo = k === REGRA_NULA;
+      var largura = s.paretoModo === 'pct' ? parte : (n / maxRegra) * 100;
+      /* O acumulado nao e rotulado na linha, so no eixo e no tooltip: como a
+         curva chega perto de 100% nas ultimas regras, o numero cairia
+         exatamente sob o ponto dela e os dois brigariam pelo mesmo pixel. */
+      var valor = s.paretoModo === 'pct'
+        ? parte.toFixed(1) + '% <span style="color: #5f636a;">· ' + n + '</span>'
+        : n + ' <span style="color: #5f636a;">· ' + parte.toFixed(1) + '%</span>';
+      /* O nulo nao e uma regra: e a cobertura que falta. Cinza em vez do azul
+         da serie, para nao ler como mais um motivo de descarte a estudar. */
+      var corBarra = nulo ? '#4a5058' : (on ? ACCENT : '#3987e5');
+      return '<div' +
+        ev('c', function () { alternaLista('regrasFora', k); }) +
+        ev('e', mostraTip(rotuloRegra(k), n + ' descartes · ' + parte.toFixed(1) + '% dos descartados · acumulado ' + acumAqui.toFixed(1) + '%')) +
         ev('l', escondeTip()) +
-        ' style="position: absolute; left: ' + escalaLog(p.u, maxUp) + '%; bottom: ' + escalaLog(p.c, maxCom) + '%; width: ' + d + 'px; height: ' + d + 'px; margin-left: -' + (d / 2) + 'px; margin-bottom: -' + (d / 2) + 'px; border-radius: 50%; ' +
-        (p.oa ? 'background: ' + cor(p.v) + '; opacity: 0.72;' : 'background: transparent; border: 1.5px solid ' + cor(p.v) + '; opacity: 0.8;') + '"></div>';
-    }).join('');
-    var gradeDispersao = [25, 50, 75].map(function (g) {
-      return '<div style="position: absolute; left: 0; right: 0; bottom: ' + g + '%; height: 1px; background: #1d2226;"></div>';
+        ' style="display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; cursor: pointer;">' +
+        // rotulo e numero a esquerda, os dois: a metade direita da linha
+        // pertence a curva do acumulado, que termina em 100% justamente onde
+        // um texto alinhado a direita estaria
+        '<div style="display: flex; align-items: baseline; gap: 12px; max-width: 62%;">' +
+          '<span style="font-size: 13px; color: ' + (on ? ACCENT : (nulo ? '#8b8f96' : '#ecebe6')) + '; font-weight: ' + (on ? '600' : '400') + '; font-style: ' + (nulo ? 'italic' : 'normal') + '; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(rotuloRegra(k)) + '</span>' +
+          '<span style="flex: none; font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #8b8f96; white-space: nowrap;">' + valor + '</span>' +
+        '</div>' +
+        '<div style="height: 13px; background: #1d2226; border-radius: 2px; overflow: hidden;">' +
+          '<div class="bar" style="height: 100%; width: ' + largura + '%; min-width: 2px; background: ' + corBarra + '; border-radius: 2px;"></div>' +
+        '</div>' +
+        '</div>';
     }).join('');
 
-    var bruta = [];
+    /* A linha acumulada percorre a mesma faixa horizontal das barras (0-100%
+       do card), so que na escala de percentual acumulado. O y de cada ponto
+       cai sobre a barra da regra porque as linhas tem altura igual - por isso
+       o rotulo mora DENTRO da linha, e nao numa coluna a esquerda: uma coluna
+       de rotulos encolheria a faixa das barras e a linha deixaria de bater. */
+    var nRegras = regrasOrd.length;
+    var acum2 = 0;
+    var ptsAcum = regrasOrd.map(function (k, i) {
+      acum2 += totalDesc ? (contaRegra[k] / totalDesc) * 100 : 0;
+      // 0,615 e onde a barra fica dentro da linha (rotulo 17px + fresta 6 +
+      // metade dos 13 da barra = 29,5, sobre os 48 da linha - 17+6+13+12 de
+      // padding): o ponto do acumulado precisa cair sobre a barra da propria
+      // regra, nao entre duas. As linhas tem altura igual porque o rotulo e
+      // `nowrap`, entao a fracao vale para todas.
+      return [acum2, ((i + 0.615) / Math.max(1, nRegras)) * 100];
+    });
+    var marcasAcum = ptsAcum.map(function (pt) {
+      return '<span style="position: absolute; left: ' + pt[0] + '%; top: ' + pt[1] + '%; width: 7px; height: 7px; margin-left: -3.5px; margin-top: -3.5px; border-radius: 50%; background: ' + ACCENT + '; border: 1px solid #0d0f11;"></span>';
+    }).join('');
+    var gradeAcum = [25, 50, 75, 100].map(function (g) {
+      return '<line x1="' + g + '" y1="0" x2="' + g + '" y2="100" stroke="#1d2226" stroke-width="1" vector-effect="non-scaling-stroke"></line>';
+    }).join('');
+
+    out.push(
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 18px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 720px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Onde o pipeline corta</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Motivos de descarte em ordem de volume, com o percentual acumulado. Clique numa regra para filtrar o painel inteiro. ' +
+              '<span style="color: ' + (comRegra === totalDesc ? '#6d7178' : ACCENT) + ';">Cobertura de regra: ' + comRegra + ' de ' + totalDesc + ' descartes (' + pct(comRegra, totalDesc) + '%).</span></div>' +
+          '</div>' +
+          '<div style="display: flex; align-items: center; gap: 9px; padding-top: 3px;">' +
+            chipVista('quantidade', s.paretoModo === 'qtd', function () { setState({ paretoModo: 'qtd' }); }) +
+            chipVista('% dos descartados', s.paretoModo === 'pct', function () { setState({ paretoModo: 'pct' }); }) +
+          '</div>' +
+        '</div>' +
+        (linhasPareto
+          ? '<div style="position: relative;">' +
+              svgPlano(gradeAcum + poliLinha(ptsAcum, ACCENT, 1.6, null)) +
+              marcasAcum +
+              /* sem `position: relative` aqui: as barras e o SVG do acumulado
+                 sao irmaos de mesmo z-index, entao quem pinta por ultimo cobre
+                 - e posicionar as barras as jogava por cima da curva inteira */
+              '<div>' + linhasPareto + '</div>' +
+            '</div>' +
+            '<div style="border-top: 1px solid #242a30; padding-top: 6px;">' +
+              '<div style="position: relative; height: 14px;">' +
+                [0, 25, 50, 75, 100].map(function (g) {
+                  return '<span style="position: absolute; left: ' + g + '%; transform: translateX(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: ' + ACCENT + '; opacity: 0.75;">' + g + '%</span>';
+                }).join('') +
+              '</div>' +
+              // titulo do eixo em linha propria: sobreposto aos ticks ele
+              // cobriria justamente o 100%, que e onde a curva termina
+              '<div style="text-align: right; font-size: 10px; letter-spacing: 0.13em; color: ' + ACCENT + '; opacity: 0.75;">% ACUMULADO →</div>' +
+            '</div>'
+          : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum descarte dentro deste recorte.</div>') +
+      '</div>'
+    );
+
+    /* ══════════════ 04 · ATENÇÃO E ADOÇÃO ══════════════ */
+    out.push(secao('04', 'Atenção e adoção'));
+
+    /* ── curva de maturação dos votos ───────────────────────────────────── */
+    /* A idade vem de `p.d` (data_hf_daily), nao do primeiro snapshot da serie.
+       Sao coisas diferentes: o refresh nao mede todo paper no dia em que ele
+       entra, entao "dias desde o primeiro snapshot" comeca o relogio em datas
+       diferentes para cada paper e achata a curva das primeiras 24 horas. */
+    var MIN_AMOSTRA = 5;
+    var acumulo = { estrito: {}, amplo: {}, fora: {} };
+    sel.forEach(function (p) {
+      var serie = DADOS.serie[p.id];
+      if (!serie || !acumulo[p.v]) return;
+      var base = diaNum(p.d);
+      if (base === null) return;
+      serie.forEach(function (m) {
+        if (m[1] === null || m[1] === undefined) return;
+        var idade = diaNum(m[0]) - base;
+        // snapshot anterior ao HF Daily e dado torto: ele aparece na auditoria
+        // da defasagem, nao como idade negativa nesta curva
+        if (idade < 0) return;
+        if (!acumulo[p.v][idade]) acumulo[p.v][idade] = [];
+        acumulo[p.v][idade].push(m[1]);
+      });
+    });
+
+    var idadeFim = -1;
+    ['estrito', 'amplo', 'fora'].forEach(function (v) {
+      for (var a in acumulo[v]) {
+        if (!Object.prototype.hasOwnProperty.call(acumulo[v], a)) continue;
+        if (acumulo[v][a].length >= MIN_AMOSTRA && +a > idadeFim) idadeFim = +a;
+      }
+    });
+
+    var curvas = {}, maxVoto = 1;
+    ['estrito', 'amplo', 'fora'].forEach(function (v) {
+      curvas[v] = [];
+      for (var a = 0; a <= idadeFim; a++) {
+        var xs = acumulo[v][a] || [];
+        // abaixo do minimo a mediana daquela idade nao se sustenta - o ponto
+        // fica vazio e a linha quebra, em vez de interpolar o que falta
+        if (xs.length < MIN_AMOSTRA) { curvas[v].push(null); continue; }
+        var q3 = quartil(xs, 0.75);
+        if (q3 > maxVoto) maxVoto = q3;
+        curvas[v].push({ idade: a, n: xs.length, med: mediana(xs), q1: quartil(xs, 0.25), q3: q3 });
+      }
+    });
+
+    function xIdade(a) { return idadeFim > 0 ? (a / idadeFim) * 100 : 50; }
+    function yVoto(v) { return 100 - escalaLog(v, maxVoto); }
+
+    var desenhoMat = '';
+    ticksLog(maxVoto).forEach(function (v) {
+      desenhoMat += '<line x1="0" y1="' + yVoto(v) + '" x2="100" y2="' + yVoto(v) + '" stroke="#1d2226" stroke-width="1" vector-effect="non-scaling-stroke"></line>';
+    });
+    ['fora', 'amplo', 'estrito'].forEach(function (v) {
+      trechos(curvas[v]).forEach(function (tr) {
+        if (tr.length < 2) return;
+        var cima = tr.map(function (r) { return [xIdade(r.idade), yVoto(r.q3)]; });
+        var baixo = tr.slice().reverse().map(function (r) { return [xIdade(r.idade), yVoto(r.q1)]; });
+        desenhoMat += poliArea(cima.concat(baixo), cor(v), 0.16);
+      });
+    });
+    ['fora', 'amplo', 'estrito'].forEach(function (v) {
+      trechos(curvas[v]).forEach(function (tr) {
+        desenhoMat += poliLinha(tr.map(function (r) { return [xIdade(r.idade), yVoto(r.med)]; }), cor(v), 2, null);
+      });
+    });
+
+    var celulasMat = [];
+    for (var im = 0; im <= idadeFim; im++) {
+      (function (a) {
+        var partes = ['estrito', 'amplo', 'fora'].map(function (v) {
+          var r = curvas[v][a];
+          return r ? v + ' ' + r.med + ' (P25 ' + Math.round(r.q1) + '–P75 ' + Math.round(r.q3) + ', n ' + r.n + ')' : null;
+        }).filter(function (x) { return x; });
+        celulasMat.push('<div' +
+          ev('e', mostraTip('dia ' + a + ' desde o HF Daily', partes.length ? partes.join(' · ') : 'nenhum veredito com amostra suficiente')) +
+          ev('l', escondeTip()) +
+          ' style="flex: 1; height: 100%; cursor: pointer;"></div>');
+      })(im);
+    }
+
+    var eixoMatY = ticksLog(maxVoto).map(function (v) {
+      return '<span style="position: absolute; top: ' + yVoto(v) + '%; right: 0; transform: translateY(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #6d7178;">' + v + '</span>';
+    }).join('');
+    var passoIdade = Math.max(1, passoEixo(Math.max(1, idadeFim), 6));
+    var eixoMatX = '';
+    for (var tx = 0; tx <= idadeFim; tx += passoIdade) {
+      eixoMatX += '<span style="position: absolute; left: ' + xIdade(tx) + '%; transform: translateX(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #6d7178;">' + tx + '</span>';
+    }
+
+    /* Velocidade recente: delta entre os dois ultimos snapshots dividido pelo
+       intervalo real entre eles. Sem a divisao, um paper medido de sete em sete
+       dias venceria sempre um medido diariamente. */
+    var vel = [];
     sel.forEach(function (p) {
       var serie = DADOS.serie[p.id];
       if (!serie || serie.length < 2) return;
-      var ini = serie[0][1], fim = serie[serie.length - 1][1];
-      if (ini === null || fim === null || fim <= ini) return;
-      bruta.push({ p: p, ini: ini, fim: fim, delta: fim - ini });
+      var ant = serie[serie.length - 2], ult = serie[serie.length - 1];
+      if (ant[1] === null || ult[1] === null || ant[1] === undefined || ult[1] === undefined) return;
+      var dias2 = diaNum(ult[0]) - diaNum(ant[0]);
+      if (dias2 <= 0 || ult[1] <= ant[1]) return;
+      vel.push({ p: p, taxa: (ult[1] - ant[1]) / dias2, de: ant[1], para: ult[1], dias: dias2 });
     });
-    bruta.sort(function (a, b) { return b.delta - a.delta; });
-    var topo = bruta.slice(0, COMPACTA ? 6 : 9);
-    var maxFim = Math.max.apply(null, topo.map(function (t) { return t.fim; }).concat([1]));
-    var tracao = topo.map(function (t) {
-      var x1 = (t.ini / maxFim) * 100, x2 = (t.fim / maxFim) * 100;
+    vel.sort(function (a, b) { return b.taxa - a.taxa; });
+    var listaVel = vel.slice(0, 5).map(function (r) {
       return '<div' +
-        ev('e', mostraTip(t.p.t, t.ini + ' → ' + t.fim + ' votos (+' + t.delta + ') · ' + t.p.v)) +
+        ev('e', mostraTip(r.p.t, r.de + ' → ' + r.para + ' votos em ' + r.dias + ' dia(s) · ' + r.p.v)) +
         ev('l', escondeTip()) +
-        ' style="display: grid; grid-template-columns: minmax(0, 1fr) 66px; gap: 14px; align-items: center; cursor: pointer;">' +
-        '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-          '<span style="font-size: 12.5px; color: #ecebe6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">' + esc(t.p.t) + '</span>' +
-          '<div style="position: relative; height: 12px;">' +
-            '<div style="position: absolute; left: ' + x1 + '%; width: ' + (x2 - x1) + '%; top: 5px; height: 2px; background: ' + cor(t.p.v) + '; opacity: 0.45;"></div>' +
-            '<div style="position: absolute; left: ' + x1 + '%; top: 2px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: #16191c; border: 1.5px solid ' + cor(t.p.v) + ';"></div>' +
-            '<div style="position: absolute; left: ' + x2 + '%; top: 1px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: ' + cor(t.p.v) + ';"></div>' +
-          '</div>' +
+        ' style="display: flex; flex-direction: column; gap: 4px; cursor: pointer;">' +
+        '<div style="display: flex; align-items: baseline; gap: 8px;">' +
+          '<span style="flex: none; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: ' + cor(r.p.v) + ';"></span>' +
+          '<span style="font-size: 12px; color: #ecebe6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(r.p.t) + '</span>' +
         '</div>' +
-        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: #4ec07a; text-align: right;">+' + t.delta + '</span>' +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #4ec07a; padding-left: 15px;">+' + r.taxa.toFixed(1) + ' votos/dia</span>' +
         '</div>';
-    }).join('') || '<div style="font-size: 12.5px; color: #6d7178; padding: 34px 0; text-align: center;">Nenhum paper com dois snapshots dentro deste recorte.</div>';
+    }).join('') || '<div style="font-size: 12px; color: #6d7178; padding: 20px 0;">Nenhum paper com dois snapshots e voto crescendo neste recorte.</div>';
+
+    var legendaMat = ['estrito', 'amplo', 'fora'].map(function (v) {
+      return '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b; white-space: nowrap;">' +
+        '<span style="display: inline-block; width: 14px; height: 0; border-top: 2px solid ' + cor(v) + ';"></span>' + v + '</div>';
+    }).join('');
 
     out.push(
-      '<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 34px;">' +
-        '<div class="card" style="padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 16px;">' +
-          '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;">' +
-            '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-              '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Votos &amp; comentários</div>' +
-              '<div style="font-size: 12.5px; color: #8b8f96;">Cada ponto é um paper. Preenchido = tem repositório aberto.</div>' +
-            '</div>' +
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 18px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 700px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Como o voto amadurece</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Mediana de votos acumulados por dia desde o HF Daily, com a faixa P25–P75. Escala log; rótulos em votos reais. Só idades com pelo menos ' + MIN_AMOSTRA + ' papers observados.</div>' +
           '</div>' +
-          '<div style="position: relative; height: 254px; border-left: 1px solid #333a41; border-bottom: 1px solid #333a41;">' + gradeDispersao + dispersao +
-            '<span style="position: absolute; left: 10px; top: 7px; font-size: 10.5px; letter-spacing: 0.14em; color: #8b8f96;">COMENTÁRIOS ↑</span>' +
-          '</div>' +
-          '<div style="display: flex; justify-content: space-between; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #6d7178;">' +
-            '<span>0</span><span style="letter-spacing: 0.14em; font-family: \'Instrument Sans\', sans-serif; font-size: 10.5px;">UPVOTES →</span><span>' + maxUp + '</span>' +
+          '<div style="display: flex; gap: 15px; padding-top: 5px;">' + legendaMat + '</div>' +
+        '</div>' +
+        '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 268px; gap: 26px;">' +
+          (idadeFim >= 1
+            ? '<div style="display: flex; flex-direction: column; gap: 8px;">' +
+                '<div style="display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px;">' +
+                  '<div style="position: relative; height: 232px;">' + eixoMatY + '</div>' +
+                  '<div style="position: relative; height: 232px; border-left: 1px solid #333a41; border-bottom: 1px solid #333a41;">' +
+                    svgPlano(desenhoMat) +
+                    '<div style="position: absolute; inset: 0; display: flex;">' + celulasMat.join('') + '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div style="display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px;"><div></div>' +
+                  '<div><div style="position: relative; height: 14px;">' + eixoMatX + '</div>' +
+                    // o titulo do eixo mora numa linha propria: sobre os ticks
+                    // ele apagaria os ultimos dias, que sao os que interessam
+                    '<div style="text-align: right; font-size: 10px; letter-spacing: 0.13em; color: #6d7178;">DIAS DESDE O HF DAILY →</div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>'
+            /* Dois motivos distintos para o card nao ter curva, e a mensagem
+               precisa separa-los: ou nenhuma idade chegou ao minimo de
+               amostra, ou chegou uma so - e uma idade sozinha nao desenha
+               linha. Dizer "amostra insuficiente" no segundo caso e falso. */
+            : '<div style="padding: 90px 0; text-align: center; font-size: 12.5px; color: #6d7178;">' +
+                (idadeFim < 0
+                  ? 'Amostra insuficiente: nenhuma idade com ' + MIN_AMOSTRA + ' papers ou mais neste recorte.'
+                  : 'Só o dia 0 reúne ' + MIN_AMOSTRA + ' papers ou mais neste recorte: uma idade sozinha não desenha curva.') +
+              '</div>') +
+          '<div style="display: flex; flex-direction: column; gap: 12px; border-left: 1px solid #242a30; padding-left: 22px;">' +
+            '<div style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">MAIOR VELOCIDADE RECENTE</div>' +
+            '<div style="display: flex; flex-direction: column; gap: 13px;">' + listaVel + '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="card" style="padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 16px;">' +
-          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Quem pegou tração</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Votos no dia da publicação <span style="font-family: \'IBM Plex Mono\', monospace; color: #a8a49b;">→</span> hoje. Só quem cresceu.</div>' +
+      '</div>'
+    );
+
+    /* ── upvotes no HF × stars no GitHub ────────────────────────────────── */
+    /* So papers com repositorio. `gs = 0` e um repositorio sem estrela nenhuma
+       e continua no grafico, na base do eixo; paper sem repositorio nao tem
+       coordenada Y e fica de fora - as duas coisas parecem "zero" e nao sao. */
+    var comRepo = sel.filter(function (p) { return p.oa === 1; });
+    var semRepo = sel.length - comRepo.length;
+    var zeroStar = comRepo.filter(function (p) { return !p.gs; }).length;
+    var maxU = Math.max.apply(null, comRepo.map(function (p) { return p.u; }).concat([1]));
+    var maxG = Math.max.apply(null, comRepo.map(function (p) { return p.gs; }).concat([1]));
+    // idade medida da geracao do painel, nao do relogio do navegador: o HTML e
+    // estatico e pode ser lido dias depois sem que o numero de stars mude
+    var hojeNum = diaNum(String(DADOS.gerado).slice(0, 10));
+
+    // rotulo permanente so nos extremos: os tres mais votados e os tres mais
+    // estrelados. Rotular tudo cobriria a nuvem inteira de texto.
+    var rotulados = {};
+    comRepo.slice().sort(function (a, b) { return b.u - a.u; }).slice(0, 3).forEach(function (p) { rotulados[p.id] = 1; });
+    comRepo.slice().sort(function (a, b) { return b.gs - a.gs; }).slice(0, 3).forEach(function (p) { rotulados[p.id] = 1; });
+
+    var pontosGh = comRepo.map(function (p) {
+      var x = escalaLog(p.u, maxU), y = escalaLog(p.gs, maxG);
+      var forma = p.pp
+        ? 'width: 9px; height: 9px; margin-left: -4.5px; margin-bottom: -4.5px; transform: rotate(45deg); border-radius: 1px;'
+        : 'width: 8px; height: 8px; margin-left: -4px; margin-bottom: -4px; border-radius: 50%;';
+      // outlier perto da borda direita ganha o rotulo a esquerda do ponto:
+      // ancorado sempre a direita, o titulo do paper mais votado sairia do card
+      var aDireita = x > 62;
+      var rot = rotulados[p.id]
+        ? '<span style="position: absolute; ' +
+          (aDireita ? 'right: ' + (100 - x) + '%; margin-right: 9px; text-align: right;' : 'left: ' + x + '%; margin-left: 9px;') +
+          ' bottom: ' + y + '%; margin-bottom: -6px; font-size: 10.5px; color: #8b8f96; white-space: nowrap; pointer-events: none;">' + esc(rotuloCurto(p.t, 34)) + '</span>'
+        : '';
+      return '<a class="mark" href="' + esc(p.url) + '" target="_blank" rel="noopener"' +
+        ev('e', mostraTip(p.t, p.u + ' votos · ' + p.gs + ' stars · ' + p.c + ' comentários · ' + p.v + ' · ' + (p.a || 'sem área') + ' · ' + (p.org || 'sem organização') +
+          (hojeNum !== null && diaNum(p.d) !== null ? ' · ' + (hojeNum - diaNum(p.d)) + 'd no HF' : ''))) +
+        ev('l', escondeTip()) +
+        ' style="position: absolute; left: ' + x + '%; bottom: ' + y + '%; ' + forma +
+        ' background: ' + cor(p.v) + '; opacity: 0.78; border-bottom: none;"></a>' + rot;
+    }).join('');
+    var gradeGh = [25, 50, 75].map(function (g) {
+      return '<div style="position: absolute; left: 0; right: 0; bottom: ' + g + '%; height: 1px; background: #1d2226;"></div>' +
+        '<div style="position: absolute; top: 0; bottom: 0; left: ' + g + '%; width: 1px; background: #1d2226;"></div>';
+    }).join('');
+    var eixoGhY = ticksLog(maxG).map(function (v) {
+      return '<span style="position: absolute; bottom: ' + escalaLog(v, maxG) + '%; right: 0; transform: translateY(50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #6d7178;">' + v + '</span>';
+    }).join('');
+    var eixoGhX = ticksLog(maxU).map(function (v) {
+      return '<span style="position: absolute; left: ' + escalaLog(v, maxU) + '%; transform: translateX(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #6d7178;">' + v + '</span>';
+    }).join('');
+
+    var legendaGh = '<div style="display: flex; gap: 15px; flex-wrap: wrap;">' +
+      ['estrito', 'amplo', 'fora'].map(function (v) {
+        return '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b;">' +
+          '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ' + cor(v) + ';"></span>' + v + '</div>';
+      }).join('') +
+      '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b;">' +
+        '<span style="display: inline-block; width: 8px; height: 8px; background: #8b8f96; transform: rotate(45deg);"></span>com página do projeto</div>' +
+      '</div>';
+
+    out.push(
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 16px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 700px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Upvotes no HF × stars no GitHub</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Um ponto por paper com repositório, nas duas escalas logarítmicas. ' +
+              '<span style="color: #6d7178;">' + zeroStar + ' com repositório e zero star ficam na base do eixo; ' + semRepo + ' sem repositório não entram.</span></div>' +
           '</div>' +
-          '<div style="display: flex; flex-direction: column; gap: 11px;">' + tracao + '</div>' +
         '</div>' +
+        legendaGh +
+        (comRepo.length
+          ? '<div style="display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px;">' +
+              '<div style="position: relative; height: 268px;">' + eixoGhY + '</div>' +
+              '<div style="position: relative; height: 268px; border-left: 1px solid #333a41; border-bottom: 1px solid #333a41;">' + gradeGh + pontosGh +
+                '<span style="position: absolute; left: 10px; top: 7px; font-size: 10.5px; letter-spacing: 0.14em; color: #8b8f96;">STARS ↑</span>' +
+              '</div>' +
+              '<div></div>' +
+              '<div><div style="position: relative; height: 14px;">' + eixoGhX + '</div>' +
+                '<div style="text-align: right; font-size: 10px; letter-spacing: 0.13em; color: #6d7178;">UPVOTES →</div>' +
+              '</div>' +
+            '</div>'
+          : '<div style="padding: 76px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum paper com repositório dentro deste recorte — a dispersão precisa de <span style="font-family: \'IBM Plex Mono\', monospace;">tem_codigo_aberto</span> para existir.</div>') +
       '</div>'
     );
 
@@ -1138,7 +1869,7 @@
       '<div class="card" style="overflow: hidden;">' +
         '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Nem todo aprovado deixou ficha</div>' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Aprovados, decisão e ficha</div>' +
             '<div style="font-size: 12.5px; color: #8b8f96;">Clique numa linha para abrir o porquê da decisão — e a ficha inteira, quando o Estágio B chegou a escrevê-la.</div>' +
           '</div>' +
           '<div style="display: flex; align-items: center; gap: 9px;">' +
