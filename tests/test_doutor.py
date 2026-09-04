@@ -202,6 +202,53 @@ def test_corte_e_a_execucao_mais_recente_que_classificou(cfg, base):
     assert item.dados["corte"] == "2026-09-03T09:00:00"
 
 
+# ── execucao dirigida: nao serve de corte ───────────────────────────────────
+
+
+def test_backfill_nao_serve_de_corte(cfg, base):
+    """O caso de 04/09: `backfill --seed ./seed` fez o doutor virar `aviso`.
+
+    O backfill trabalha so sobre o `seed/` (14/08 a 25/08) e nunca teve como
+    alcancar um paper visto em 04/09. A linha dele em `log_execucao` satisfazia
+    o filtro de contagem positiva e virava corte assim mesmo.
+    """
+    _paper(base, "2609.00196", "2026-09-04T07:33:00")
+    _execucao(base, "backfill", fim="2026-09-04T08:55:00", classificou=308)
+    base.commit()
+
+    item = checar_pendencias(cfg)
+    assert item.estado == OK
+    assert item.dados["atrasados"] == 0
+    assert item.dados["na_fila"] == 1
+
+
+def test_backfill_nao_encobre_a_rodada_real_anterior(cfg, base):
+    """Excluir o backfill do corte nao pode apagar o corte que existia: a
+    rodada de verdade continua acusando quem atravessou ela."""
+    _paper(base, "2609.00001", "2026-09-03T07:00:00")
+    _execucao(base, "run-a", fim="2026-09-03T09:00:00", classificou=5)
+    _execucao(base, "backfill", fim="2026-09-04T08:55:00", classificou=308)
+    base.commit()
+
+    item = checar_pendencias(cfg)
+    assert item.estado == AVISO
+    assert item.dados["corte"] == "2026-09-03T09:00:00"
+    assert item.dados["atrasados"] == 1
+
+
+def test_rodada_de_verdade_continua_entrando_no_corte(cfg, base):
+    """A protecao original nao pode ter sido perdida: rodada normal e corte."""
+    _paper(base, "2609.00001", "2026-09-04T07:33:00")
+    _execucao(base, "backfill", fim="2026-09-04T08:55:00", classificou=308)
+    _execucao(base, "run-b", fim="2026-09-04T09:10:00", classificou=1)
+    base.commit()
+
+    item = checar_pendencias(cfg)
+    assert item.estado == AVISO
+    assert item.dados["corte"] == "2026-09-04T09:10:00"
+    assert item.dados["ids"] == ["2609.00001"]
+
+
 # ── integracao ──────────────────────────────────────────────────────────────
 
 

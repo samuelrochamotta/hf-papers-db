@@ -11,9 +11,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from .. import db
 from ..llm.cliente import Uso
 
-RUN_ID = "backfill"
+RUN_ID = db.RUN_ID_BACKFILL
 
 
 @dataclass
@@ -22,7 +23,13 @@ class ResultadoBackfill:
     hidratados: int = 0
     falhas_hidratacao: list[str] = field(default_factory=list)
     triagens: int = 0
+    # `vereditos` e o retrato da tabela inteira depois do backfill (e o que o
+    # console mostra como "triagens na base"); `vereditos_importados` e so o que
+    # ESTA execucao gravou. Numa segunda rodada o primeiro nao muda e o segundo
+    # zera - e a diferenca que impede `log_execucao` de dizer que o backfill
+    # classificou 308 papers sem ter tocado em nenhum.
     vereditos: dict[str, int] = field(default_factory=dict)
+    vereditos_importados: dict[str, int] = field(default_factory=dict)
     classificacoes_curadas: int = 0
     estagio_a: int = 0
     fichas_geradas: int = 0

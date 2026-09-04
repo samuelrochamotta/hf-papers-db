@@ -115,6 +115,9 @@ def rodar(
         # 8. validacao contra o historico
         relatorio_validacao(conn, seed, cfg, res)
 
+        # as contagens sao o que ESTA execucao gravou, nao o retrato da tabela:
+        # com `res.vereditos` a linha dizia `qtd_fora=308` num backfill que nao
+        # inseriu triagem nenhuma. Ver `importar_triagem`.
         db.upsert_execucao(
             conn,
             {
@@ -125,9 +128,9 @@ def rodar(
                 "dias_cobertos": json.dumps([]),
                 "qtd_coletados": res.papers,
                 "qtd_novos": res.hidratados,
-                "qtd_fora": res.vereditos.get("fora", 0),
-                "qtd_amplo": res.vereditos.get("amplo", 0),
-                "qtd_estrito": res.vereditos.get("estrito", 0),
+                "qtd_fora": res.vereditos_importados.get("fora", 0),
+                "qtd_amplo": res.vereditos_importados.get("amplo", 0),
+                "qtd_estrito": res.vereditos_importados.get("estrito", 0),
                 "tokens_entrada": res.uso.tokens_entrada,
                 "tokens_saida": res.uso.tokens_saida,
                 "custo_usd": res.uso.custo_usd,

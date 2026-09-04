@@ -24,13 +24,19 @@ def importar_triagem(
     Os campos de portabilidade ficam NULL: nao foram registrados na epoca.
     `INSERT OR IGNORE` protege uma reclassificacao posterior de ser sobrescrita
     por um segundo backfill.
+
+    Sao duas contagens diferentes, e confundi-las ja gerou dado falso em
+    `log_execucao`: `res.vereditos` e o retrato da tabela inteira (a base tem
+    papers que nao vieram do seed), `res.vereditos_importados` e o que este
+    backfill de fato gravou - zero quando o IGNORE descarta tudo.
     """
     agora = db.agora()
+    importados: dict[str, int] = {}
     with db.transacao(conn):
         for pid, it in itens.items():
             if not it.veredito:
                 continue
-            db.inserir_ignorando(
+            entrou = db.inserir_ignorando(
                 conn,
                 "fato_triagem",
                 {
@@ -44,7 +50,10 @@ def importar_triagem(
                     "revisao": 0,
                 },
             )
+            if entrou:
+                importados[it.veredito] = importados.get(it.veredito, 0) + 1
     res.triagens = db.contar(conn, "fato_triagem")
+    res.vereditos_importados = importados
     res.vereditos = {
         r["veredito"]: r["n"]
         for r in conn.execute(

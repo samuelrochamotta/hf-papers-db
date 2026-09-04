@@ -142,6 +142,74 @@ def test_segunda_execucao_nao_altera_contagem_nem_chama_hf(cfg, seed_dir):
     assert hf2.chamadas == []          # nada a re-hidratar
 
 
+def test_log_execucao_registra_o_que_o_backfill_gravou(cfg, seed_dir):
+    """A linha da execucao conta as triagens DESTA rodada, nao a tabela inteira.
+
+    Era o defeito de 04/09: `qtd_fora` saia com o total da base (308) num
+    backfill que nao inseriu triagem nenhuma, e o `doutor` lia aquilo como uma
+    rodada de classificacao que teria varrido tudo.
+    """
+    res, _ = _rodar(cfg, seed_dir)
+    assert res.vereditos_importados["fora"] == 159
+    assert (
+        res.vereditos_importados["estrito"] + res.vereditos_importados["amplo"] == 83
+    )
+
+    conn = db.abrir(cfg)
+    try:
+        linha = conn.execute(
+            "SELECT * FROM log_execucao WHERE run_id = ?", (backfill.RUN_ID,)
+        ).fetchone()
+        assert linha["qtd_fora"] == 159
+        assert linha["qtd_amplo"] + linha["qtd_estrito"] == 83
+    finally:
+        conn.close()
+
+
+def test_segundo_backfill_registra_zero_classificado(cfg, seed_dir):
+    """Nada entrou: a linha tem de dizer zero, mesmo com 242 triagens na base."""
+    _rodar(cfg, seed_dir)
+    res, _ = _rodar(cfg, seed_dir)
+
+    assert res.vereditos_importados == {}
+    assert res.vereditos["fora"] == 159          # o retrato da base nao muda
+    assert res.triagens == 242
+
+    conn = db.abrir(cfg)
+    try:
+        linha = conn.execute(
+            "SELECT * FROM log_execucao WHERE run_id = ?", (backfill.RUN_ID,)
+        ).fetchone()
+        assert (linha["qtd_fora"], linha["qtd_amplo"], linha["qtd_estrito"]) == (0, 0, 0)
+    finally:
+        conn.close()
+
+
+def test_backfill_nao_vira_corte_do_doutor(cfg, seed_dir):
+    """Cenario da issue #8, fim a fim: paper pendente visto depois do periodo
+    coberto pelo seed (14/08 a 25/08) continua `ok` depois de um backfill."""
+    from hfpapers.doutor import OK, checar_pendencias
+
+    _rodar(cfg, seed_dir)
+    conn = db.abrir(cfg)
+    try:
+        with db.transacao(conn):
+            db.upsert_paper(
+                conn,
+                {
+                    "paper_id": "2609.00196",
+                    "titulo": "Visto depois do seed",
+                    "primeiro_visto_em": "2026-08-26T07:33:00",
+                },
+            )
+    finally:
+        conn.close()
+
+    item = checar_pendencias(cfg)
+    assert item.estado == OK
+    assert item.dados["atrasados"] == 0
+
+
 def test_relatorio_de_validacao_e_escrito(cfg, seed_dir):
     res, _ = _rodar(cfg, seed_dir)
     assert res.relatorio and res.relatorio.exists()

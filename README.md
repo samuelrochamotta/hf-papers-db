@@ -107,6 +107,13 @@ nada pode nem ter rodado o estágio 3 (`--only export`), e uma morta no meio
 (`finalizado_em` nulo, como em 02/09) não prova chance nenhuma. O remédio que
 o aviso imprime é `run --only classificacao,export`.
 
+Contagem positiva também não basta: ela diz que **alguém** foi classificado,
+não que a base inteira foi varrida. O `backfill` trabalha só sobre o `seed/`
+(14/08 a 25/08) e entrava no corte acusando papers de setembro que nunca teve
+como alcançar — por isso ele fica de fora (`db.RUN_IDS_DIRIGIDOS`) e registra
+em `log_execucao` só as triagens que a própria execução gravou, não o retrato
+da tabela.
+
 ### Recuperação de lacuna
 
 `run` compara `MAX(data_hf_daily)` com hoje. Se houver mais de um dia de

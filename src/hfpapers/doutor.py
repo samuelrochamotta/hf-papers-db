@@ -157,6 +157,11 @@ def checar_pendencias(cfg: Config) -> Item:
     pegou. O corte e a ultima execucao que classificou alguem; uma rodada que
     nao classificou nada pode nem ter rodado o estagio 3 (`--only export`),
     entao nao serve de prova de que houve chance.
+
+    Contagem positiva tambem nao basta: ela diz que alguem foi classificado,
+    nao que a base inteira foi varrida. O backfill trabalha so sobre o `seed/`
+    e entrava no corte acusando papers que ele nunca teve como alcancar - por
+    isso as execucoes dirigidas (`db.RUN_IDS_DIRIGIDOS`) ficam de fora.
     """
     conn = db.abrir(cfg)
     try:
@@ -172,10 +177,13 @@ def checar_pendencias(cfg: Config) -> Item:
             total = db.contar(conn, "dim_paper")
             return Item("triagem", OK, f"{total} papers, todos com veredito", {"pendentes": 0})
 
+        marcas = ", ".join("?" for _ in db.RUN_IDS_DIRIGIDOS)
         row = conn.execute(
             "SELECT MAX(finalizado_em) AS corte FROM log_execucao "
             "WHERE finalizado_em IS NOT NULL "
-            "AND COALESCE(qtd_fora,0) + COALESCE(qtd_amplo,0) + COALESCE(qtd_estrito,0) > 0"
+            "AND COALESCE(qtd_fora,0) + COALESCE(qtd_amplo,0) + COALESCE(qtd_estrito,0) > 0 "
+            f"AND run_id NOT IN ({marcas})",
+            db.RUN_IDS_DIRIGIDOS,
         ).fetchone()
     finally:
         conn.close()

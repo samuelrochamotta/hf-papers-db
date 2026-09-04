@@ -37,6 +37,15 @@ TABELAS_ESPERADAS = [
     "log_execucao", "log_llm", "dim_calendario",
 ]
 
+# Execucoes dirigidas: gravam em `log_execucao` como qualquer rodada, mas
+# trabalham sobre um recorte fixo. O backfill so olha o `seed/` - ele nunca teve
+# como classificar um paper de fora dali. Quem precisa de "rodada que varreu a
+# base inteira" (o `doutor`, para decidir se a repescagem teve chance) tem de
+# exclui-las, e o `run_id` e a unica marca que a tabela ja carrega. O literal
+# mora aqui, ao lado do dono da tabela, em vez de duplicado nos dois lados.
+RUN_ID_BACKFILL = "backfill"
+RUN_IDS_DIRIGIDOS = (RUN_ID_BACKFILL,)
+
 
 # ── conexao ─────────────────────────────────────────────────────────────────
 
@@ -145,14 +154,20 @@ def upsert(
 
 def inserir_ignorando(
     conn: sqlite3.Connection, tabela: str, dados: Mapping[str, Any]
-) -> None:
+) -> int:
+    """Devolve 1 se a linha entrou e 0 se o IGNORE a descartou.
+
+    Quem so quer gravar ignora o retorno; quem precisa contar o que a **propria
+    execucao** escreveu (o backfill, em `log_execucao`) nao tem outro jeito de
+    separar insercao de linha ja existente sem consultar a tabela antes.
+    """
     cols = list(dados.keys())
     vals = [_valor(dados[c]) for c in cols]
     sql = (
         f"INSERT OR IGNORE INTO {tabela} ({', '.join(cols)}) "
         f"VALUES ({', '.join('?' for _ in cols)})"
     )
-    conn.execute(sql, vals)
+    return conn.execute(sql, vals).rowcount
 
 
 # ── upserts nomeados ────────────────────────────────────────────────────────
