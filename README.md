@@ -104,8 +104,12 @@ O que o `doutor` vigia é a diferença entre **esperar** e **falhar**:
 
 O corte é a última execução que classificou alguém — uma que não classificou
 nada pode nem ter rodado o estágio 3 (`--only export`), e uma morta no meio
-(`finalizado_em` nulo, como em 02/09) não prova chance nenhuma. O remédio que
-o aviso imprime é `run --only classificacao,export`.
+(`finalizado_em` nulo, como em 02/09) não prova chance nenhuma. O **instante**
+do corte é o fim do estágio 3 dessa execução (o último `classificado_em` que
+ela gravou), não o `finalizado_em`: este é carimbado depois do refresh, e o
+refresh é justamente quem grava o paper novo — em 04/09 os 5 pendentes nasceram
+4 s depois da última triagem e 29 s antes do fim da rodada. O remédio que o
+aviso imprime é `run --only classificacao,export`.
 
 Contagem positiva também não basta: ela diz que **alguém** foi classificado,
 não que a base inteira foi varrida. O `backfill` trabalha só sobre o `seed/`

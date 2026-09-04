@@ -26,15 +26,22 @@ def _paper(conn, paper_id: str, visto: str) -> None:
     )
 
 
-def _triagem(conn, paper_id: str, veredito: str = "fora") -> None:
+def _triagem(
+    conn,
+    paper_id: str,
+    veredito: str = "fora",
+    *,
+    run_id: str = "run-teste",
+    quando: str = "2026-09-03T07:00:00",
+) -> None:
     db.upsert_triagem(
         conn,
         {
             "paper_id": paper_id,
             "veredito": veredito,
             "justificativa": "teste",
-            "classificado_em": "2026-09-03T07:00:00",
-            "run_id": "run-teste",
+            "classificado_em": quando,
+            "run_id": run_id,
         },
     )
 
@@ -113,6 +120,51 @@ def test_nascido_no_instante_exato_do_fim_da_rodada_conta_como_fila(cfg, base):
     item = checar_pendencias(cfg)
     assert item.estado == OK
     assert item.dados["atrasados"] == 0
+
+
+def test_nascido_durante_o_refresh_conta_como_fila(cfg, base):
+    """O corte e o fim do estagio 3, nao o fim da rodada. O refresh (estagio 4)
+    grava paper novo entre os dois instantes; se o refresh demora, esse paper
+    fica com `primeiro_visto_em < finalizado_em` sem nunca ter tido chance."""
+    _paper(base, "2609.00001", "2026-09-04T07:31:00")
+    _triagem(base, "2609.00001", run_id="run-a", quando="2026-09-04T07:33:07")
+    _execucao(base, "run-a", fim="2026-09-04T07:33:40", classificou=1)
+    # descoberto pelo refresh, 4 s depois da ultima triagem e 29 s antes do fim
+    _paper(base, "2609.00002", "2026-09-04T07:33:11")
+    base.commit()
+
+    item = checar_pendencias(cfg)
+    assert item.estado == OK
+    assert item.dados == {"pendentes": 1, "atrasados": 0, "na_fila": 1}
+
+
+def test_corte_e_a_ultima_triagem_da_rodada_nao_o_fim_dela(cfg, base):
+    """Quem nasceu antes do fim do estagio 3 continua sendo acusado, e o
+    instante reportado e o da ultima triagem, nao o do fim da rodada."""
+    _paper(base, "2609.00001", "2026-09-04T07:31:00")
+    _triagem(base, "2609.00001", run_id="run-a", quando="2026-09-04T07:33:07")
+    _execucao(base, "run-a", fim="2026-09-04T07:33:40", classificou=1)
+    _paper(base, "2609.00002", "2026-09-04T07:33:00")
+    base.commit()
+
+    item = checar_pendencias(cfg)
+    assert item.estado == AVISO
+    assert item.dados["corte"] == "2026-09-04T07:33:07"
+    assert item.dados["ids"] == ["2609.00002"]
+
+
+def test_execucao_sem_triagem_propria_cai_no_fim_da_rodada(cfg, base):
+    """Se todas as triagens da rodada foram reclassificadas depois (o `run_id`
+    da linha troca), sobra so `finalizado_em` como reserva."""
+    _paper(base, "2609.00001", "2026-09-04T07:31:00")
+    _triagem(base, "2609.00001", run_id="run-reclassificacao", quando="2026-09-04T10:00:00")
+    _execucao(base, "run-a", fim="2026-09-04T07:33:40", classificou=1)
+    _paper(base, "2609.00002", "2026-09-04T07:33:00")
+    base.commit()
+
+    item = checar_pendencias(cfg)
+    assert item.estado == AVISO
+    assert item.dados["corte"] == "2026-09-04T07:33:40"
 
 
 def test_sem_execucao_que_classificou_tudo_e_fila(cfg, base):

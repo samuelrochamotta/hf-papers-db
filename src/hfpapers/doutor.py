@@ -162,6 +162,16 @@ def checar_pendencias(cfg: Config) -> Item:
     nao que a base inteira foi varrida. O backfill trabalha so sobre o `seed/`
     e entrava no corte acusando papers que ele nunca teve como alcancar - por
     isso as execucoes dirigidas (`db.RUN_IDS_DIRIGIDOS`) ficam de fora.
+
+    O instante do corte e o fim do estagio 3 dessa execucao - o ultimo
+    `classificado_em` que ela gravou - e nao `finalizado_em`. `finalizado_em`
+    e carimbado depois do refresh, e o refresh e justamente quem grava o
+    paper novo: um paper visto entre o fim da classificacao e o fim da rodada
+    nao teve chance nenhuma. Em 03/09 e 04/09 os dois instantes cairam no
+    mesmo segundo por coincidencia; um refresh que demore mais faria o doutor
+    acusar de atraso quem acabou de nascer. `finalizado_em` fica so como
+    reserva para uma execucao sem linha propria em `fato_triagem` (todas as
+    dela ja reclassificadas, que troca o `run_id` da linha).
     """
     conn = db.abrir(cfg)
     try:
@@ -179,16 +189,19 @@ def checar_pendencias(cfg: Config) -> Item:
 
         marcas = ", ".join("?" for _ in db.RUN_IDS_DIRIGIDOS)
         row = conn.execute(
-            "SELECT MAX(finalizado_em) AS corte FROM log_execucao "
-            "WHERE finalizado_em IS NOT NULL "
-            "AND COALESCE(qtd_fora,0) + COALESCE(qtd_amplo,0) + COALESCE(qtd_estrito,0) > 0 "
-            f"AND run_id NOT IN ({marcas})",
+            "SELECT e.run_id, e.finalizado_em, "
+            "(SELECT MAX(t.classificado_em) FROM fato_triagem t WHERE t.run_id = e.run_id) AS fim_estagio_3 "
+            "FROM log_execucao e "
+            "WHERE e.finalizado_em IS NOT NULL "
+            "AND COALESCE(e.qtd_fora,0) + COALESCE(e.qtd_amplo,0) + COALESCE(e.qtd_estrito,0) > 0 "
+            f"AND e.run_id NOT IN ({marcas}) "
+            "ORDER BY e.finalizado_em DESC LIMIT 1",
             db.RUN_IDS_DIRIGIDOS,
         ).fetchone()
     finally:
         conn.close()
 
-    corte = str(row["corte"]) if row and row["corte"] else ""
+    corte = str(row["fim_estagio_3"] or row["finalizado_em"]) if row else ""
     atrasados = [pid for pid, visto in pendentes if corte and visto and visto < corte]
     na_fila = len(pendentes) - len(atrasados)
 
