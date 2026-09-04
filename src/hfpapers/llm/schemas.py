@@ -7,11 +7,22 @@ filtros do Power BI.
 No Estagio B a **ordem das propriedades e normativa**: ela reproduz a ordem do
 raciocinio (o padrao e escrito e testado antes de o veredito ser decidido). Nao
 reordene.
+
+O piso da justificativa mora aqui em duas formas - `minLength` no schema e
+`validar_justificativa` em codigo. Ficam lado a lado de proposito: a declaracao
+sozinha nao e cumprida por todo provedor, e separar as duas em modulos
+diferentes seria o convite para elas divergirem. O teto tem so a declaracao e um
+aviso no log; `validar_justificativa` explica por que ele nao derruba o paper.
 """
 
 from __future__ import annotations
 
 from typing import Any, Sequence
+
+from ..log import logger
+from .cliente import ErroValidacao
+
+log = logger("llm")
 
 REGRAS_FORA = [
     "treino_ou_postreino",
@@ -21,6 +32,27 @@ REGRAS_FORA = [
 ]
 
 VEREDITOS = ["fora", "amplo", "estrito"]
+
+# Piso da justificativa, nos dois estagios. Existe porque teto sem piso deixa
+# passar resposta degenerada - na migracao da issue #3 o paper 2608.06867
+# devolveu literalmente "..." e o painel exibiria os tres pontos sob "POR QUE
+# ESTRITO" (a defesa de `justificativa_exibivel` so troca texto vazio, e "..."
+# nao e vazio). 80 nao corta nada legitimo: as 317 justificativas do corpus
+# migrado em 2026-09-04 tem minimo de 104 caracteres e media de 200.
+PISO_JUSTIFICATIVA = 80
+
+# Segundo piso, em letras: o de caracteres sozinho aceitaria 80 sinais de
+# pontuacao. Nao e um segundo palpite sobre tamanho, e um detector de
+# preenchimento - as 317 justificativas do corpus tem no minimo 0,76 letra por
+# caractere (a pior delas: 82 letras em 104 caracteres) e um enfileiramento de
+# pontuacao tem zero, entao 0,50 passa longe dos dois lados. Numero proprio, e
+# nao `PISO_JUSTIFICATIVA // 2`, para que mexer num nao mova o outro em silencio.
+PISO_LETRAS_JUSTIFICATIVA = 40
+
+# Teto da secao 4.4. Declarado no schema e conferido em codigo so para virar
+# aviso: ver `validar_justificativa` para por que estourar o teto nao derruba o
+# paper como estourar o piso derruba.
+TETO_JUSTIFICATIVA = 300
 
 
 def schema_estagio_a(areas: Sequence[str], topicos: Sequence[str]) -> dict[str, Any]:
@@ -43,7 +75,11 @@ def schema_estagio_a(areas: Sequence[str], topicos: Sequence[str]) -> dict[str, 
         "properties": {
             "veredito_preliminar": {"type": "string", "enum": ["fora", "candidato"]},
             "regra_fora": {"type": ["string", "null"], "enum": [*REGRAS_FORA, None]},
-            "justificativa": {"type": "string", "maxLength": 300},
+            "justificativa": {
+                "type": "string",
+                "minLength": PISO_JUSTIFICATIVA,
+                "maxLength": TETO_JUSTIFICATIVA,
+            },
             "area_primaria": {"type": "string", "enum": areas},
             "areas_secundarias": {
                 "type": "array",
@@ -104,7 +140,11 @@ SCHEMA_ESTAGIO_B: dict[str, Any] = {
             },
         },
         "veredito": {"type": "string", "enum": VEREDITOS},
-        "justificativa_veredito": {"type": "string", "maxLength": 300},
+        "justificativa_veredito": {
+            "type": "string",
+            "minLength": PISO_JUSTIFICATIVA,
+            "maxLength": TETO_JUSTIFICATIVA,
+        },
         "decisao_fronteira": {"type": "boolean"},
         "ficha": {
             "type": ["object", "null"],
@@ -126,3 +166,58 @@ def response_format(nome: str, schema: dict[str, Any]) -> dict[str, Any]:
         "type": "json_schema",
         "json_schema": {"name": nome, "strict": True, "schema": schema},
     }
+
+
+# ── rede em codigo para o piso ──────────────────────────────────────────────
+
+
+def validar_justificativa(texto: Any, campo: str) -> None:
+    """Confere o tamanho util de `campo` e levanta `ErroValidacao` se fugir dele.
+
+    `minLength` sob `strict: true` nao e cumprido por todo provedor, entao o
+    piso e cobrado aqui. Quem chama sao `estagio_a.validar` e
+    `estagio_b.validar`, e o `ErroValidacao` volta ao modelo pelo mesmo caminho
+    de retentativa das outras regras da secao 4.4; esgotadas as tentativas vira
+    `ErroLLM` e o paper cai em pendencia, que e o desfecho certo - justificativa
+    degenerada e falha de geracao, nao veredito.
+
+    **O teto nao e cobrado do mesmo jeito**, e a assimetria e deliberada.
+    `_validar_tamanho` da migracao da issue #3 (commit `fa840aa`) estourava nos
+    dois limites, mas la o custo de estourar era uma linha nao migrada e uma
+    entrada no relatorio de diff. Aqui o custo e outro: `ErroLLM` no Estagio A
+    faz `classificacao` pular o paper, que fica sem area e sem topico - o buraco
+    que a issue #3 existiu para tapar - e ainda marca a rodada como `parcial`.
+    Perder a taxonomia de um paper bem classificado por 5 caracteres a mais e
+    pior do que gravar 305 caracteres numa coluna `TEXT` sem constraint, que o
+    painel renderiza sem reclamar. Justificativa curta demais e falha de
+    conteudo; comprida demais e cosmetica. O teto continua declarado no schema e
+    passa a ser registrado no log quando violado, para que um provedor mal
+    comportado apareca sem custar papers.
+
+    O tamanho e medido depois do `strip()`, entao `"   "` conta como zero. A
+    segunda checagem existe porque a primeira, sozinha, aceitaria 80 caracteres
+    de pontuacao ou de espaco interno: exige um minimo de letras muito abaixo do
+    que qualquer frase real tem (uma justificativa de 80 caracteres em portugues
+    passa dos 60 letras) e muito acima do que um preenchimento de pontuacao
+    alcanca (zero).
+    """
+    limpo = texto.strip() if isinstance(texto, str) else ""
+    if len(limpo) < PISO_JUSTIFICATIVA:
+        raise ErroValidacao(
+            f"{campo} tem {len(limpo)} caracteres uteis e o piso e "
+            f"{PISO_JUSTIFICATIVA}: escreva uma ou duas frases dizendo em que a "
+            "decisao se apoiou"
+        )
+    letras = sum(1 for c in limpo if c.isalpha())
+    if letras < PISO_LETRAS_JUSTIFICATIVA:
+        raise ErroValidacao(
+            f"{campo} tem {letras} letras em {len(limpo)} caracteres: nao e uma "
+            "frase, e preenchimento"
+        )
+    if len(limpo) > TETO_JUSTIFICATIVA:
+        log.warning(
+            "%s veio com %d caracteres, acima do teto de %d declarado no schema",
+            campo,
+            len(limpo),
+            TETO_JUSTIFICATIVA,
+        )

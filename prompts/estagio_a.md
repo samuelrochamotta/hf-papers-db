@@ -47,9 +47,10 @@ mais próximos**: nenhum paper pode ficar sem classificação. Quando nada falta
 
 ## Justificativa
 
-Uma ou duas frases, no máximo 300 caracteres, dizendo *por que* este veredito.
-Sem elogiar o paper, sem recomendar leitura, sem chamá-lo de promissor ou
-interessante.
+Uma ou duas frases, entre 80 e 300 caracteres, dizendo *por que* este veredito.
+Resposta vazia, reticências ou frase sem conteúdo é rejeitada e volta para você
+refazer. Sem elogiar o paper, sem recomendar leitura, sem chamá-lo de promissor
+ou interessante.
 
 ---
 

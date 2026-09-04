@@ -20,13 +20,23 @@ SEED = Path(__file__).parents[1] / "seed"
 RESPOSTA_A = {
     "veredito_preliminar": "candidato",
     "regra_fora": None,
-    "justificativa": "propoe um harness reutilizavel",
+    # Longa de proposito: `validar` exige piso de 80 caracteres uteis nos dois
+    # estagios (issue #7), e os dublês passam por `validar` como o cliente real.
+    "justificativa": "Propoe um harness de agentes reutilizavel fora do benchmark dos autores, entao segue para o Estagio B em vez de cair numa regra de descarte.",
     "area_primaria": "Agentes & automação",
     "areas_secundarias": [],
     "topicos": ["Agentes de codificação"],
     "candidato_novo_rotulo": None,
 }
-RESPOSTA_A_FORA = {**RESPOSTA_A, "veredito_preliminar": "fora", "regra_fora": "treino_ou_postreino"}
+RESPOSTA_A_FORA = {
+    **RESPOSTA_A,
+    "veredito_preliminar": "fora",
+    "regra_fora": "treino_ou_postreino",
+    # Propria, e nao herdada: a de `RESPOSTA_A` diz que o paper segue para o
+    # Estagio B, o oposto deste veredito. Ninguem afirma o conteudo, mas e o
+    # texto que aparece em `fato_triagem` de quem for depurar.
+    "justificativa": "Descreve uma receita de pos-treino do proprio modelo dos autores, entao cai na regra de descarte antes de chegar ao Estagio B.",
+}
 RESPOSTA_B = {
     "tem_artefato_nomeado": True,
     "padrao_extraido": {"nome": "Contrato de preservar-e-estender", "mecanismo": "Uma versao nova so entra se mantiver o que a anterior resolvia."},
@@ -36,7 +46,7 @@ RESPOSTA_B = {
         "aprovado": True,
     },
     "veredito": "estrito",
-    "justificativa_veredito": "entrega artefato adotavel",
+    "justificativa_veredito": "Entrega artefato adotavel por quem nao treina modelo: o padrao passou no teste de portabilidade e se sustenta fora do benchmark dos autores.",
     "decisao_fronteira": False,
     "ficha": {
         "achado": "a", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d",

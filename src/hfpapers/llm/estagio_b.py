@@ -123,6 +123,13 @@ def validar(dados: dict[str, Any]) -> None:
                 "sem verbo dirigido ao leitor (isso pertence a Implicacao Pratica)"
             )
 
+    # Ultima, porque so faz sentido cobrar a explicacao de um veredito coerente.
+    # O painel exibe este texto sob "POR QUE ESTRITO"/"POR QUE AMPLO": sem piso,
+    # um "..." atravessa o schema e vira a explicacao da decisao.
+    schemas.validar_justificativa(
+        dados.get("justificativa_veredito"), "justificativa_veredito"
+    )
+
 
 # ── prompt e chamada ────────────────────────────────────────────────────────
 

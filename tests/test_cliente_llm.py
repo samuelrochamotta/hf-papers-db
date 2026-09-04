@@ -1,12 +1,15 @@
 """Transporte da camada LLM: parametros, truncamento, retry e contabilidade.
 
-Os dois bugs que estes testes travam foram encontrados em execucao real contra o
+Os tres bugs que estes testes travam foram encontrados em execucao real contra o
 OpenRouter:
 
 1. mandar `temperature` para um modelo que nao a anuncia zera a lista de
    provedores sob `require_parameters` e a chamada volta 404;
 2. `finish_reason == 'length'` corta o JSON no meio, e retentar com o mesmo teto
-   so repete o corte.
+   so repete o corte;
+3. o modelo devolve um campo que satisfaz o schema e nao diz nada - `"..."` numa
+   justificativa (issue #7). Quem barra e o `validar`, e o valor de barrar esta
+   no que vem depois: a retentativa carrega a mensagem do erro de volta.
 """
 
 import json
@@ -14,11 +17,22 @@ from types import SimpleNamespace
 
 import pytest
 
+from hfpapers.llm import estagio_a as ea
 from hfpapers.llm import schemas
 from hfpapers.llm.cliente import ClienteLLM, ErroLLM, ErroValidacao, Preco, Uso
 
 RESPOSTA = {"veredito": "amplo"}
 RF = schemas.response_format("t", {"type": "object", "properties": {}})
+
+JUSTIFICATIVA = (
+    "Propoe um harness de agentes reutilizavel fora do benchmark dos autores, "
+    "entao segue para o Estagio B em vez de cair numa regra de descarte."
+)
+
+
+def _resposta_a(justificativa):
+    """Resposta minima do Estagio A - so o campo que `ea.validar` olha importa."""
+    return {"veredito_preliminar": "candidato", "justificativa": justificativa}
 
 
 class OpenAIDuble:
@@ -121,6 +135,35 @@ def test_validacao_reprovada_reenvia_com_a_mensagem(cfg):
     r = _chamar(c, validar=validar)
     assert r.dados["veredito"] == "estrito"
     assert "veredito tem de ser estrito" in c.openai.chamadas[1]["messages"][-1]["content"]
+
+
+def test_justificativa_degenerada_retenta_e_o_modelo_se_corrige(cfg):
+    """Issue #7: `"..."` passa pelo schema, entao quem barra e `validar`.
+
+    O ciclo inteiro: a resposta degenerada vira `ErroValidacao`, o cliente
+    reenvia com a mensagem anexada e a resposta seguinte, ja legitima, e aceita.
+    """
+    c = _cliente(
+        cfg,
+        [
+            (json.dumps(_resposta_a("...")), "stop"),
+            (json.dumps(_resposta_a(JUSTIFICATIVA)), "stop"),
+        ],
+        {},
+    )
+    r = _chamar(c, validar=ea.validar)
+    assert r.dados["justificativa"] == JUSTIFICATIVA
+    assert r.tentativas == 2
+    assert "justificativa" in c.openai.chamadas[1]["messages"][-1]["content"]
+
+
+def test_justificativa_degenerada_insistente_vira_erro_llm(cfg):
+    """Esgotadas as tentativas sobe `ErroLLM` - e o paper cai em pendencia por
+    `estagios/classificacao.py`, em vez de gravar "..." como se fosse motivo."""
+    c = _cliente(cfg, [(json.dumps(_resposta_a("...")), "stop")] * 3, {})
+    with pytest.raises(ErroLLM):
+        _chamar(c, validar=ea.validar)
+    assert len(c.openai.chamadas) == 3
 
 
 def test_json_invalido_retenta(cfg):

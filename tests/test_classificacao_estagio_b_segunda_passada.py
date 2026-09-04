@@ -66,7 +66,9 @@ class LLMComVeredito(LLMDuble):
                 **RESPOSTA_B,
                 "veredito": "fora",
                 "ficha": None,
-                "justificativa_veredito": "colapsa em generalidade",
+                "justificativa_veredito": (
+                    "Colapsa em generalidade: a frase do padrao seria verdadeira de qualquer sistema do mesmo tipo, entao o veredito tem de ser fora."
+                ),
             }
         else:
             dados = {**RESPOSTA_B, "veredito": self._veredito}

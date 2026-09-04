@@ -1,6 +1,7 @@
 """Validacoes pos-LLM (secao 4.4), schemas e a regra do upvote (secao 6.6)."""
 
 import json
+import logging
 
 import pytest
 
@@ -24,6 +25,30 @@ PAPER = ea.PaperEntrada(
 )
 
 
+# Justificativas de tamanho legitimo. As validacoes exigem piso de 80 caracteres
+# uteis (issue #7), entao toda fixture que passa por `validar` precisa de uma.
+JUSTIFICATIVA_B = (
+    "Entrega artefato adotavel por quem nao treina modelo: o padrao passou no teste de portabilidade e se sustenta fora do benchmark dos autores."
+)
+JUSTIFICATIVA_A = (
+    "Propoe um harness de agentes reutilizavel fora do benchmark dos autores, entao segue para o Estagio B em vez de cair numa regra de descarte."
+)
+
+
+def _base_a(**over):
+    d = {
+        "veredito_preliminar": "candidato",
+        "regra_fora": None,
+        "justificativa": JUSTIFICATIVA_A,
+        "area_primaria": "Agentes & automação",
+        "areas_secundarias": [],
+        "topicos": ["Agentes de codificação"],
+        "candidato_novo_rotulo": None,
+    }
+    d.update(over)
+    return d
+
+
 def _base(**over):
     d = {
         "tem_artefato_nomeado": True,
@@ -34,7 +59,7 @@ def _base(**over):
             "aprovado": True,
         },
         "veredito": "estrito",
-        "justificativa_veredito": "entrega artefato adotavel",
+        "justificativa_veredito": JUSTIFICATIVA_B,
         "decisao_fronteira": False,
         "ficha": {
             "achado": "a",
@@ -60,6 +85,17 @@ def test_enum_de_area_e_topico_e_injetado():
 def test_schema_a_recusa_vocabulario_vazio():
     with pytest.raises(ValueError):
         schemas.schema_estagio_a([], [])
+
+
+def test_os_dois_campos_de_justificativa_declaram_piso_e_teto():
+    """Issue #7: teto sem piso deixava `"..."` passar pela saida estruturada."""
+    a = schemas.schema_estagio_a(VOCAB.rotulos_area, VOCAB.rotulos_topico)
+    for campo in (
+        a["properties"]["justificativa"],
+        schemas.SCHEMA_ESTAGIO_B["properties"]["justificativa_veredito"],
+    ):
+        assert campo["minLength"] == schemas.PISO_JUSTIFICATIVA
+        assert campo["maxLength"] == schemas.TETO_JUSTIFICATIVA
 
 
 def test_ordem_das_propriedades_do_estagio_b_e_normativa():
@@ -135,6 +171,70 @@ def test_padrao_com_imperativo_e_rejeitado():
 
 def test_padrao_impessoal_passa():
     eb.validar(_base())
+
+
+# ── piso da justificativa (issue #7) ────────────────────────────────────────
+
+# `minLength` no schema nao basta: a rede em codigo e que segura o caso real.
+DEGENERADAS = [
+    "...",                    # o que o paper 2608.06867 devolveu na migracao da issue #3
+    "",
+    "   ",
+    "Sem motivo.",
+    ". " * 60,                # 120 caracteres, zero conteudo: passa por um teto so
+    None,                     # campo ausente na resposta
+]
+
+
+@pytest.mark.parametrize("texto", DEGENERADAS)
+def test_justificativa_degenerada_e_rejeitada_no_estagio_b(texto):
+    with pytest.raises(ErroValidacao):
+        eb.validar(_base(justificativa_veredito=texto))
+
+
+@pytest.mark.parametrize("texto", DEGENERADAS)
+def test_justificativa_degenerada_e_rejeitada_no_estagio_a(texto):
+    with pytest.raises(ErroValidacao):
+        ea.validar(_base_a(justificativa=texto))
+
+
+def test_reticencias_sao_rejeitadas_nos_dois_estagios():
+    """O caso concreto da issue: `"..."` nao e vazio, entao atravessava a defesa
+    do painel (`justificativa_exibivel`) e era exibido como se fosse conteudo."""
+    with pytest.raises(ErroValidacao) as e_b:
+        eb.validar(_base(justificativa_veredito="..."))
+    assert "justificativa_veredito" in str(e_b.value)
+    with pytest.raises(ErroValidacao) as e_a:
+        ea.validar(_base_a(justificativa="..."))
+    assert "justificativa" in str(e_a.value)
+
+
+def test_justificativa_legitima_passa_nos_dois_estagios():
+    eb.validar(_base())
+    ea.validar(_base_a())
+
+
+def test_justificativa_no_limite_do_piso_passa():
+    """80 caracteres uteis e o piso, nao o degrau abaixo dele."""
+    texto = "o" + "l" * (schemas.PISO_JUSTIFICATIVA - 1)
+    eb.validar(_base(justificativa_veredito=f"  {texto}  "))
+    with pytest.raises(ErroValidacao):
+        eb.validar(_base(justificativa_veredito=texto[:-1]))
+
+
+def test_justificativa_acima_do_teto_passa_e_so_avisa(caplog):
+    """O teto nao e simetrico ao piso: estourar por cima e cosmetico.
+
+    Derrubar aqui custaria a taxonomia do paper no Estagio A e marcaria a rodada
+    como parcial - caro demais para uma coluna `TEXT` sem constraint que o
+    painel renderiza sem reclamar. Fica o aviso, para um provedor mal comportado
+    aparecer no log sem custar papers.
+    """
+    longa = "Entrega artefato adotavel. " * 20
+    assert len(longa) > schemas.TETO_JUSTIFICATIVA
+    with caplog.at_level(logging.WARNING, logger="hfpapers.llm"):
+        eb.validar(_base(justificativa_veredito=longa))
+    assert "acima do teto" in caplog.text
 
 
 # ── regra do upvote (secao 6.6, criterio de aceite 7) ───────────────────────

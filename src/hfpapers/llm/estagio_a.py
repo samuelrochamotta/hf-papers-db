@@ -85,6 +85,19 @@ class PaperEntrada:
     topicos: list[str] = field(default_factory=list)
 
 
+# ── validacao pos-resposta ──────────────────────────────────────────────────
+
+
+def validar(dados: dict[str, Any]) -> None:
+    """A unica regra do Estagio A que o schema nao consegue garantir sozinho.
+
+    A justificativa daqui e a que o painel exibe para os descartados, na aba
+    historica - o mesmo problema do campo gemeo do Estagio B, e por isso a mesma
+    rede: ver `schemas.validar_justificativa`.
+    """
+    schemas.validar_justificativa(dados.get("justificativa"), "justificativa")
+
+
 def montar_prompt(
     paper: PaperEntrada, vocab: Vocabulario, cfg: Optional[Config] = None
 ) -> str:
@@ -119,6 +132,7 @@ def classificar(
         temperatura=est.temperatura,
         max_tokens=est.max_tokens,
         paper_id=paper.paper_id,
+        validar=validar,
     )
     d = resposta.dados
     return ResultadoA(

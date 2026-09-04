@@ -66,10 +66,11 @@ conteúdo, e `ficha` = `null`.
   relatório técnico de modelo).
 
 `justificativa_veredito` é escrita depois do veredito, nunca antes: linguagem
-simples e direta, no máximo 2 frases e 300 caracteres. É para quem vai ler o
-painel, não para justificar o raciocínio interno — diga em que ela se apoiou
-(o teste de portabilidade, a regra de descarte, o tipo de artefato), sem
-repetir o Padrão Extraído nem antecipar a ficha.
+simples e direta, no máximo 2 frases e 300 caracteres, e no mínimo 80 — resposta
+vazia, reticências ou frase sem conteúdo é rejeitada e volta para você refazer.
+É para quem vai ler o painel, não para justificar o raciocínio interno — diga
+em que ela se apoiou (o teste de portabilidade, a regra de descarte, o tipo de
+artefato), sem repetir o Padrão Extraído nem antecipar a ficha.
 
 `decisao_fronteira` é `true` quando o paper poderia legitimamente ter ido para o
 outro lado.
