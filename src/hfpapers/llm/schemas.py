@@ -104,7 +104,7 @@ SCHEMA_ESTAGIO_B: dict[str, Any] = {
             },
         },
         "veredito": {"type": "string", "enum": VEREDITOS},
-        "justificativa_veredito": {"type": "string"},
+        "justificativa_veredito": {"type": "string", "maxLength": 300},
         "decisao_fronteira": {"type": "boolean"},
         "ficha": {
             "type": ["object", "null"],
