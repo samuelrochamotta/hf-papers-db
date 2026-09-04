@@ -187,10 +187,12 @@ mais votados** com a ficha inteira e os **10 descartados mais votados** com a
 regra e a justificativa que os tiraram. A série completa continua nos Parquet e
 no banco; o painel mostra a janela mais esse resumo.
 
-Paper sem linha em `fato_triagem` (o Estágio A falhou nele) não é o mesmo que
-descartado: fica fora das duas listas e das duas contagens, e aparece só como
-`nx` no subtítulo da segunda seção. Entrasse como `fora`, apareceria no pódio
-dos descartados com o campo da justificativa em branco.
+Paper sem linha em `fato_triagem` (o Estágio A ou o Estágio B falhou nele,
+inclusive depois da segunda passada do Estágio B) não é o mesmo que descartado:
+fica fora das duas listas e das duas contagens, e aparece só como `nx` no
+subtítulo da segunda seção. Entrasse como `amplo` ou `fora`, um timeout de
+infraestrutura viraria veredito — apareceria aprovado, ou no pódio dos
+descartados com o campo da justificativa em branco.
 
 Três coisas que essa aba **não** é, e vale ter escrito:
 

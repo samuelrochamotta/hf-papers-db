@@ -5,66 +5,14 @@ import datetime as dt
 import httpx
 import pytest
 import respx
+from conftest import LLMDuble, LLMQuebrado
 
 from hfpapers import db, execucao, taxonomia
 from hfpapers.estagios import classificacao
 from hfpapers.fontes.hf_client import ClienteHF
-from hfpapers.llm.cliente import ClienteLLM, Preco, Resposta, Uso
+from hfpapers.llm.cliente import Preco
 
 HOJE = dt.date(2026, 8, 26)
-
-RESPOSTA_A = {
-    "veredito_preliminar": "candidato",
-    "regra_fora": None,
-    "justificativa": "propoe um harness reutilizavel",
-    "area_primaria": "Agentes & automação",
-    "areas_secundarias": [],
-    "topicos": ["Agentes de codificação"],
-    "candidato_novo_rotulo": None,
-}
-RESPOSTA_A_FORA = {**RESPOSTA_A, "veredito_preliminar": "fora", "regra_fora": "treino_ou_postreino"}
-RESPOSTA_B = {
-    "tem_artefato_nomeado": True,
-    "padrao_extraido": {"nome": "Contrato de preservar-e-estender", "mecanismo": "Uma versao nova so entra se mantiver o que a anterior resolvia."},
-    "teste_portabilidade": {
-        "depende_do_nome_proprio": False,
-        "colapsa_em_generalidade": False,
-        "aprovado": True,
-    },
-    "veredito": "estrito",
-    "justificativa_veredito": "entrega artefato adotavel",
-    "decisao_fronteira": False,
-    "ficha": {
-        "achado": "a", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d",
-    },
-}
-
-
-class LLMDuble(ClienteLLM):
-    """Nao fala com a rede: devolve respostas fixas e conta as chamadas."""
-
-    def __init__(self, conn=None, cfg=None, um_a_cada=3):
-        self.cfg = cfg
-        self.conn = conn
-        self.run_id = "teste"
-        self.uso = Uso()
-        self._precos = {"modelo/teste-a": Preco(1e-6, 2e-6), "modelo/teste-b": Preco(2e-6, 1e-5)}
-        self.openai = None
-        self.chamadas = []
-        self.um_a_cada = um_a_cada
-
-    def chamar(self, *, etapa, modelo, prompt, validar=None, paper_id=None, **kw):
-        self.chamadas.append((etapa, paper_id))
-        if etapa == "estagio_a":
-            n = len([c for c in self.chamadas if c[0] == "estagio_a"])
-            dados = RESPOSTA_A if n % self.um_a_cada == 0 else RESPOSTA_A_FORA
-        else:
-            dados = RESPOSTA_B
-        if validar:
-            validar(dados)
-        uso = Uso(100, 50, 0.0001, 1)
-        self.uso.somar(uso)
-        return Resposta(dados, uso, modelo, 1, 10)
 
 
 @pytest.fixture()
@@ -141,14 +89,6 @@ def test_force_reclassifica_e_incrementa_revisao(cfg, base, daily_bruto, paper_b
 
 @respx.mock
 def test_falha_do_estagio_b_nao_aborta_a_rodada(cfg, base, daily_bruto, paper_bruto):
-    from hfpapers.llm.cliente import ErroLLM
-
-    class LLMQuebrado(LLMDuble):
-        def chamar(self, *, etapa, **kw):
-            if etapa == "estagio_b":
-                raise ErroLLM("provedor fora do ar")
-            return super().chamar(etapa=etapa, **kw)
-
     respx.get("https://huggingface.co/api/daily_papers").mock(
         return_value=httpx.Response(200, json=daily_bruto[:6])
     )
@@ -159,9 +99,23 @@ def test_falha_do_estagio_b_nao_aborta_a_rodada(cfg, base, daily_bruto, paper_br
     r = execucao.rodar(cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE,
                        cliente_hf=_hf(), cliente_llm=llm)
 
-    assert any(a.startswith("estagio_b_falhou") for a in r.avisos)
-    assert db.contar(base, "fato_triagem") == 6      # os demais foram gravados
+    # 2 dos 6 papers viram "candidato" no Estagio A (um_a_cada=3) e caem no
+    # Estagio B, que a duble sempre derruba - nas duas passadas. Nenhum dos
+    # dois ganha linha fabricada: ficam pendentes. Os outros 4 sao "fora" no
+    # Estagio A e nem chegam ao Estagio B, entao sao gravados normalmente.
+    avisos_b = [a for a in r.avisos if a.startswith("estagio_b_falhou")]
+    assert len(avisos_b) == 2
+    assert db.contar(base, "fato_triagem") == 4      # so os "fora" foram gravados
     assert db.contar(base, "dim_ficha") == 0
+    assert r.nao_classificados == 2
+    # o denominador chega ao guardrail: sem isso o aviso de volume ficaria
+    # "volume_atipico:0", mudo sobre os 2 que nao foram classificados
+    assert "volume_atipico:0 (+2 pendentes)" in r.avisos
+
+    # os 2 pendentes nao tem linha em fato_triagem -> selecionar (sem force)
+    # os repesca na rodada seguinte, como papers novos.
+    pendentes = classificacao.selecionar(base, data="2026-08-25")
+    assert len(pendentes) == 2
 
 
 @respx.mock

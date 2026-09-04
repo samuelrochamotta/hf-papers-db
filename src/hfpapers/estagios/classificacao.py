@@ -4,15 +4,27 @@ Idempotencia: paper que ja tem linha em `fato_triagem` nao volta para a LLM.
 Reprocessar exige `--force` ou o comando `reclassificar`, que incrementa
 `revisao`.
 
-Falha no Estagio B nao aborta a rodada. Depois das retentativas, o paper e
-gravado com o veredito do Estagio A (candidato vira `amplo`, sem ficha) e a
-execucao ganha o aviso `estagio_b_falhou` - fica visivel para revisao manual em
-vez de sumir da base.
+Falha no Estagio B nao aborta a rodada nem fabrica veredito: infraestrutura
+nao e decisao. O paper falho fica sem linha em `fato_triagem` - pendente,
+repescado por `selecionar` (sem `force`) na proxima rodada, exatamente como um
+paper novo. Ao fim da varredura do estagio, quem falhou e retentado **uma vez**
+com um backoff maior que o de `llm.retry` (ver `_MULTIPLICADOR_BACKOFF_SEGUNDA_PASSADA`),
+na tentativa de resolver na propria rodada a instabilidade transitoria que e a
+totalidade dos casos observados (issue #1: 404 de roteamento, 429, timeout).
+Quem passa nessa segunda chance segue o caminho normal de gravacao. Quem falha
+de novo gera o aviso `estagio_b_falhou:<paper_id>` e permanece pendente - se o
+paper ja tinha linha (`reclassificar --force`), essa linha e mantida intacta,
+porque nada e apagado nem sobrescrito no caminho de falha.
+
+Nao ha teto de retentativas entre rodadas: um paper que falhe sempre volta
+para a fila do dia seguinte. E o `doutor` que vigia o pendente que atravessou
+uma rodada sem se resolver (`aviso`, nao `erro`) - ver `doutor.py`.
 """
 
 from __future__ import annotations
 
 import sqlite3
+import time
 from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
@@ -25,6 +37,13 @@ from ..log import logger
 
 log = logger("classificacao")
 
+# Multiplicador do backoff da segunda passada sobre `llm.retry.backoff_inicial_s`.
+# O retry interno de `ClienteLLM.chamar` ja dobrou a espera a cada tentativa
+# (issue #1: 404/429/timeout observados em rajada); esperar mais um multiplo
+# antes de retentar no fim do estagio da tempo do rate limit ou do roteamento
+# se recuperarem, em vez de bater na mesma janela de instabilidade.
+_MULTIPLICADOR_BACKOFF_SEGUNDA_PASSADA = 4
+
 
 @dataclass
 class ResultadoClassificacao:
@@ -32,6 +51,7 @@ class ResultadoClassificacao:
     amplo: int = 0
     estrito: int = 0
     pulados: int = 0
+    nao_classificados: int = 0
     fichas: int = 0
     candidatos_taxonomia: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
@@ -132,6 +152,42 @@ def _gravar_triagem(
     )
 
 
+def _gravar_sucesso_b(
+    conn: sqlite3.Connection,
+    *,
+    paper_id: str,
+    a: ea.ResultadoA,
+    b: eb.ResultadoB,
+    run_id: str,
+    cfg: Config,
+    res: ResultadoClassificacao,
+) -> None:
+    """Caminho normal de gravacao do Estagio B: usado na varredura principal e,
+    identico, para quem passa na segunda passada apos falhar na primeira."""
+    with db.transacao(conn):
+        _gravar_triagem(
+            conn,
+            paper_id=paper_id,
+            veredito=b.veredito,
+            regra_fora=a.regra_fora if b.veredito == "fora" else None,
+            justificativa=b.justificativa_veredito or a.justificativa,
+            run_id=run_id,
+            b=b,
+        )
+        if b.aprovado and b.ficha:
+            gravar_ficha(conn, paper_id, b.ficha, modelo=cfg.llm.estagio_b.modelo, run_id=run_id)
+            res.fichas += 1
+        elif not b.aprovado:
+            conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper_id,))
+
+    if b.veredito == "fora":
+        res.fora += 1
+    elif b.veredito == "amplo":
+        res.amplo += 1
+    else:
+        res.estrito += 1
+
+
 def gravar_ficha(
     conn: sqlite3.Connection, paper_id: str, ficha: eb.Ficha, *, modelo: str, run_id: str
 ) -> None:
@@ -170,6 +226,10 @@ def rodar(
         return res
 
     vocab = ea.carregar_vocabulario(conn)
+    # papers cujo Estagio B falhou na primeira passada; guardamos `a` (para
+    # nao repetir o Estagio A) e `entrada_b` ja montada, de onde tambem sai o
+    # `paper_id` - nao ha motivo para carregar o `PaperEntrada` original.
+    falhas_b: list[tuple[ea.ResultadoA, ea.PaperEntrada]] = []
 
     for paper in papers:
         try:
@@ -233,52 +293,45 @@ def rodar(
         try:
             b = eb.avaliar(cliente, entrada_b, cfg=cfg)
         except ErroLLM as e:
-            log.error("estagio B falhou em %s: %s", paper.paper_id, e)
-            res.avisos.append(f"estagio_b_falhou:{paper.paper_id}")
-            with db.transacao(conn):
-                _gravar_triagem(
-                    conn,
-                    paper_id=paper.paper_id,
-                    veredito="amplo",
-                    regra_fora=None,
-                    justificativa=(
-                        "Estagio B falhou; mantido o veredito preliminar do Estagio A. "
-                        + a.justificativa
-                    ),
-                    run_id=run_id,
-                )
-            res.amplo += 1
+            # Infraestrutura, nao veredito (issue #1): nada e gravado agora.
+            # O paper fica sem linha em `fato_triagem` - pendente - e entra na
+            # segunda passada, no fim da varredura deste estagio.
+            log.warning("estagio B falhou em %s (1a passada): %s", entrada_b.paper_id, e)
+            falhas_b.append((a, entrada_b))
             continue
 
         res.uso.somar(b.uso)
-        with db.transacao(conn):
-            _gravar_triagem(
-                conn,
-                paper_id=paper.paper_id,
-                veredito=b.veredito,
-                regra_fora=a.regra_fora if b.veredito == "fora" else None,
-                justificativa=b.justificativa_veredito or a.justificativa,
-                run_id=run_id,
-                b=b,
-            )
-            if b.aprovado and b.ficha:
-                gravar_ficha(
-                    conn, paper.paper_id, b.ficha, modelo=cfg.llm.estagio_b.modelo, run_id=run_id
-                )
-                res.fichas += 1
-            elif not b.aprovado:
-                conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper.paper_id,))
+        _gravar_sucesso_b(
+            conn, paper_id=paper.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+        )
 
-        if b.veredito == "fora":
-            res.fora += 1
-        elif b.veredito == "amplo":
-            res.amplo += 1
-        else:
-            res.estrito += 1
+    if falhas_b:
+        espera = cfg.llm.retry.backoff_inicial_s * _MULTIPLICADOR_BACKOFF_SEGUNDA_PASSADA
+        log.warning(
+            "segunda passada do estagio B: %s paper(s), espera de %ss", len(falhas_b), espera
+        )
+        time.sleep(espera)
+        for a, entrada_b in falhas_b:
+            try:
+                b = eb.avaliar(cliente, entrada_b, cfg=cfg)
+            except ErroLLM as e:
+                # Falhou de novo mesmo com a folga extra: paper continua
+                # pendente (linha nova) ou intacto (linha de `--force`) - o
+                # aviso e o unico rastro, para o `doutor` vigiar na proxima
+                # rodada se a fila nao se resolver sozinha.
+                log.error("estagio B falhou em %s (2a passada): %s", entrada_b.paper_id, e)
+                res.avisos.append(f"estagio_b_falhou:{entrada_b.paper_id}")
+                res.nao_classificados += 1
+                continue
+
+            res.uso.somar(b.uso)
+            _gravar_sucesso_b(
+                conn, paper_id=entrada_b.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+            )
 
     log.info(
-        "classificacao: %s fora, %s amplo, %s estrito, %s fichas, US$ %.4f",
-        res.fora, res.amplo, res.estrito, res.fichas, res.uso.custo_usd,
+        "classificacao: %s fora, %s amplo, %s estrito, %s fichas, %s pendentes, US$ %.4f",
+        res.fora, res.amplo, res.estrito, res.fichas, res.nao_classificados, res.uso.custo_usd,
     )
     return res
 
