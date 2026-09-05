@@ -3,9 +3,10 @@
 Camada de preparação de dados dos **Hugging Face Daily Papers**: coleta diária,
 classificação por LLM, base SQLite viva e export em formato estrela para o Power BI.
 
-Não gera digest em markdown, consolidação semanal, painel HTML nem e-mail — o
-Power BI é a única interface de leitura. Semana é atributo de `dim_calendario`
-(`ano_semana_iso`), então "os aprovados da semana 34" é um filtro, não um arquivo.
+Não gera digest em markdown, consolidação semanal nem e-mail — o Power BI é a
+interface de leitura (o painel HTML é vitrine de distribuição, não substituto).
+Semana é atributo de `dim_calendario` (`ano_semana_iso`), então "os aprovados da
+semana 34" é um filtro, não um arquivo.
 
 ## Instalação
 
@@ -60,6 +61,14 @@ Cinco estágios, em sequência, cada um idempotente e com transação própria:
 Falha no estágio 3 não corrompe o que o 1 gravou: a rodada termina com
 `status = 'parcial'` e os avisos dizem onde doeu.
 
+**Dia antigo é `run --data`.** Não existe carga histórica, comando especial nem
+diretório de insumo: `daily_papers?date=` devolve qualquer data passada, e a
+coleta trata 14/08 igual a ontem. Um dia que ficou de fora entra com
+`python -m hfpapers run --data 2026-08-14`, pelos mesmos cinco estágios e com o
+mesmo veredito que qualquer outro paper receberia. O único dado que já veio de
+fora do pipeline é o vocabulário controlado, e ele hoje mora em
+`config/taxonomia_inicial.json` (`taxonomia exportar|carregar`).
+
 ## Comandos
 
 ```bash
@@ -67,17 +76,45 @@ python -m hfpapers run                        # pipeline completo do dia
 python -m hfpapers run --data 2026-08-25      # força uma data
 python -m hfpapers run --only coleta,export   # subconjunto de estágios
 python -m hfpapers run --dry-run              # estima custo, não chama LLM
-python -m hfpapers backfill --seed ./seed     # carga histórica (idempotente)
-python -m hfpapers backfill --seed ./seed --pular-llm
+python -m hfpapers run --force                # reclassifica quem já tem triagem
 python -m hfpapers export
-python -m hfpapers reclassificar --data 2026-08-25 [--paper 2608.23552]
+python -m hfpapers reclassificar --data 2026-08-25
+python -m hfpapers reclassificar --paper 2608.23552
+python -m hfpapers reclassificar --tudo                    # a base inteira, horas
+python -m hfpapers reclassificar --tudo --concorrencia 4   # 1 = sequencial, teto 8
 python -m hfpapers taxonomia listar
+python -m hfpapers taxonomia promover --rotulo "X" --tipo topico
 python -m hfpapers taxonomia fundir --de "X" --para "Y" --tipo topico
+python -m hfpapers taxonomia exportar [--destino config/taxonomia_inicial.json]
+python -m hfpapers taxonomia carregar [config/taxonomia_inicial.json]
 python -m hfpapers modelos listar
 python -m hfpapers custos --mes 2026-08       # quanto a LLM custou
 python -m hfpapers doutor [--sem-rede]        # chave, API, banco e pendências de triagem
 python -m hfpapers schema                     # DDL efetivo do banco
 ```
+
+`reclassificar` roda só o estágio 3 sobre papers já vistos, incrementando
+`revisao`. `--tudo` é exclusivo com `--data`/`--paper` — ou se varre a base
+inteira, ou se dirige a varredura — e nos três modos a rodada entra em
+`log_execucao`: rodada dirigida deixou de ser invisível para o `doutor` e para a
+trava de `run_id` do painel. Quando o Estágio B cai nas duas passadas de um
+paper, o comando imprime no fim a lista de `reclassificar --paper <id>` pronta
+para colar.
+
+`--concorrencia` mora no `reclassificar` e não no `run` de propósito: quem passa
+horas em chamada sequencial é a varredura da base inteira; a rodada diária são
+~30 papers e segue `llm.concorrencia` do `config.yaml` (padrão 1). O paralelismo
+é só do I/O do OpenRouter — toda escrita no banco continua na thread principal e
+na ordem original dos papers, então `--concorrencia 4` termina com o banco
+idêntico ao de `--concorrencia 1`. Valor fora da faixa 1–8 é cortado com aviso,
+não recusado (o porquê do teto está no `docs/adr-001-fora-de-escopo-do-mapa.md`).
+
+`taxonomia exportar` grava áreas e tópicos do banco (rótulo + definição, sem
+candidatos) no JSON versionado; `carregar` é o inverso, para banco vazio, e é
+idempotente — rótulo que já existe não é tocado. `promover` transforma um
+candidato de `taxonomia listar` em rótulo do vocabulário, usando a definição do
+próprio candidato: é o passo manual depois da reclassificação total, que roda com
+o vocabulário congelado.
 
 ### Papers que chegam pelo refresh
 
@@ -111,12 +148,42 @@ refresh é justamente quem grava o paper novo — em 04/09 os 5 pendentes nascer
 4 s depois da última triagem e 29 s antes do fim da rodada. O remédio que o
 aviso imprime é `run --only classificacao,export`.
 
-Contagem positiva também não basta: ela diz que **alguém** foi classificado,
-não que a base inteira foi varrida. O `backfill` trabalha só sobre o `seed/`
-(14/08 a 25/08) e entrava no corte acusando papers de setembro que nunca teve
-como alcançar — por isso ele fica de fora (`db.RUN_IDS_DIRIGIDOS`) e registra
-em `log_execucao` só as triagens que a própria execução gravou, não o retrato
-da tabela.
+Toda execução conta, sem lista de exceção. Não existe mais rodada dirigida
+invisível: `reclassificar` (com `--data`, `--paper` ou `--tudo`) abre e fecha
+linha em `log_execucao` como o `run`, e o que ela registra são as triagens que
+ela própria gravou, não o retrato da tabela. O preço disso é que uma rodada
+dirigida também pode virar o corte: `reclassificar --paper X` às 10h passa a ser
+a última execução que classificou alguém, e um pendente mais velho que 10h aparece
+como `aviso` embora aquela rodada nunca tenha olhado para ele. O aviso continua
+apontando o remédio certo (`run --only classificacao,export`); é um falso
+positivo de uma rodada, não um sintoma a investigar.
+
+### O que o `doutor` reprova
+
+`doutor` sai com código 1 se algum item for **erro**; aviso não bloqueia.
+
+| item | estado | quando |
+|---|---|---|
+| `regra_fora` | erro | há `fora` com `regra_fora` nula |
+| `vocabulario` | aviso | `dim_area` ou `dim_topico` sem linhas |
+| `triagem` | aviso | pendente que atravessou uma rodada de classificação |
+| `schema`, `integridade`, `chave`, `api_*` | erro | tabela faltando, FK violada, chave ausente, API fora |
+
+`fora` sem regra é **erro**, e não aviso, porque um descarte sem motivo não se
+explica no painel; o Estágio A e o Estágio B já recusam gravar um assim, então o
+que sobra é linha antiga e o conserto é um comando (`reclassificar --tudo`).
+Vocabulário vazio é só aviso: banco recém-criado passa por aí legitimamente, e a
+saída aponta `taxonomia carregar`.
+
+**Hoje o `doutor` sai com código 1 e isso é esperado**: 164 dos 309 `fora` da
+base (medido em 04/09/2026) são linhas antigas sem `regra_fora`, e o número só
+zera com a rodada da seção seguinte. Se você rodou o `doutor` e viu
+
+```
+[ERRO]  regra_fora   164 paper(s) 'fora' sem regra de descarte - rode `hfpapers reclassificar --tudo`
+```
+
+nada quebrou: a reclassificação total ainda não foi executada.
 
 ### Recuperação de lacuna
 
@@ -124,6 +191,49 @@ da tabela.
 publicação em aberto (feriado, falha, máquina desligada), coleta **todos** os
 dias faltantes na mesma rodada e registra `lacuna_recuperada: [datas]` nos avisos.
 Fim de semana vazio é normal e não é erro.
+
+## Reclassificação total (operação manual)
+
+A base tem papers classificados antes de `regra_fora` e `criterios_veredito`
+existirem. A rodada que os traz para o vocabulário vigente é **uma operação
+manual, feita uma vez** — não entra no agendamento e não roda sozinha. Em
+04/09/2026 ela **ainda não tinha sido executada**.
+
+Enquanto ela não roda: 164 `fora` sem regra, `doutor` com código 1, e o card
+"Por que o pipeline aprova" do painel mostra cobertura de critério baixa (em
+04/09/2026, 3 de 167 aprovados). Nada disso é falha.
+
+Custo: 482 papers pelos dois estágios. Sequencial, entre 8 h (estimativa da
+spec) e ~14 h (a conta do ADR com os tempos medidos por paper); com
+`--concorrencia 4`, entre 2 h e 3,5 h. Em dinheiro, ordem de US$ 1 a US$ 2 —
+`custos --mes` dá o valor real depois.
+
+```bash
+# 1. espere a rodada diária das 07:30 terminar (log_execucao com finalizado_em)
+# 2. a varredura, em terminal que sobreviva (nohup, tmux)
+python -m hfpapers reclassificar --tudo --concorrencia 4
+
+# 3. os papers que o Estágio B derrubou nas duas passadas: o próprio comando
+#    imprime a lista colável no fim
+python -m hfpapers reclassificar --paper 2608.23552
+
+# 4. o passo 2 imprime a conferência da rodada (zero triagens de outra rodada,
+#    zero papers sem triagem); o doutor confirma o zero `fora` sem regra
+python -m hfpapers doutor --sem-rede
+
+# 5. candidatos com quórum, à mão — a rodada total roda com o vocabulário
+#    congelado de propósito, senão os já classificados ficariam sem o rótulo novo
+python -m hfpapers taxonomia listar
+python -m hfpapers taxonomia promover --rotulo "..." --tipo topico
+
+# 6. publicar
+python -m hfpapers export && scripts/gerar_painel.sh --force
+```
+
+O painel só é regenerado no passo 6: **não há transição visível** para quem lê.
+Depois da rodada, todo paper que já tinha veredito passa a ter `revisao ≥ 2` (o
+pendente classificado ali pela primeira vez nasce com 1), e a distinção entre
+paper recente e paper importado deixa de existir também nos dados.
 
 ## Agendamento (macOS, launchd)
 
@@ -169,13 +279,15 @@ a vitrine para quem não vai abrir o Power BI.
 O desenho é o do Artifact **Painel Daily Papers**, que nasceu como artboard da
 Claude Design. Aquele arquivo só roda dentro do runtime do canvas;
 `scripts/painel_app.js` é o mesmo layout portado para JS de navegador — cinco
-seções (volume, vocabulário, votos, adoção, fichas), filtro cruzado por dia,
-veredito, área, tópico e organização. `gerar_painel.py` não desenha nada:
-extrai os dados de `marts/`, serializa em `DADOS` e embute o app.
+seções (01 volume e recência, 02 vocabulário e cruzamentos, 03 regras do corte,
+04 atenção e adoção, 05 por que passou), filtro cruzado por dia, veredito, área,
+tópico, organização, regra de descarte e critério de veredito. `gerar_painel.py`
+não desenha nada: extrai os dados de `marts/`, serializa em `DADOS` e embute o
+app.
 
 **O gatilho é dependência real, não horário chutado.** O estágio de export
 escreve `marts/_manifest.json` por último e de forma atômica (`os.replace`),
-depois dos 12 Parquet — então a mudança desse arquivo *é* o sinal de "pipeline
+depois dos 13 Parquet — então a mudança desse arquivo *é* o sinal de "pipeline
 terminou". O plist usa `WatchPaths` nele; medido, dispara ~1s após o export.
 
 Três defesas contra o disparo repetido ou perdido:
@@ -188,10 +300,51 @@ Três defesas contra o disparo repetido ou perdido:
   `WatchPaths` perder a notificação do `os.replace` (troca de inode). Se o
   gatilho já pegou, essa execução sai em no-op pela trava de `run_id`.
 
+### O que o painel mostra
+
+**Verde `#4ec07a` significa aprovado**, em todo o painel: a linha da taxa de
+aprovação, a escala de aprovação do heatmap e a cor da matriz de áreas. O
+amarelo (`ACCENT`) voltou a ser só link e destaque — ele já significou
+"aprovado" nesses três lugares e brigava com o próprio papel de chamar atenção.
+Estrito continua azul e amplo laranja na distribuição por veredito; a curva do
+voto é roxa, porque não é nenhuma dessas coisas.
+
+Na seção **03 · Regras do corte**, dois cards espelhados:
+
+- **Onde o pipeline corta** (Pareto) — motivos de descarte em ordem de volume,
+  cada barra rotulada "n · % dos descartados". A linha do acumulado saiu: com
+  seis regras ela era decorativa. A barra "regra não registrada" continua no
+  código mesmo tendendo a zero — categoria que some quando zera esconde o dia em
+  que ela deixar de ser zero.
+- **Por que o pipeline aprova** (card novo) — uma barra horizontal por critério
+  de veredito, empilhada por veredito do paper (estrito no verde escuro, amplo
+  no verde claro), com separador entre o bloco dos critérios de estrito e o dos
+  de amplo. A contagem é **por ocorrência**: paper com dois critérios entra nas
+  duas barras, e a soma passa do total de aprovados — o subtítulo diz isso e
+  mostra a cobertura de critério do recorte. Clicar numa barra filtra o painel
+  inteiro, como no Pareto.
+
+Na seção **02 · Vocabulário e cruzamentos**, o heatmap Tópico × tempo tem três
+vistas com **uma escala cada**, porque a vista troca a medida da célula e não só
+a ordem das linhas: `volume` (sequencial azul), `crescimento` (divergente —
+vermelho caiu, cinza estável, verde cresceu) e `aprovação` (sequencial verde). A
+matriz área primária × secundária virou matriz de bolhas: cor é a taxa de
+aprovação, tamanho é o total. Grande e verde é muito e muito aprovado; grande e
+cinza é muito e pouco.
+
+Na ficha do paper, a linha do veredito traz os critérios em português
+("ESTRITO · artefato aberto + benchmark"); quando há contraparte de fronteira,
+um selo ao lado diz `fronteira: quase <contraparte>` — linha antiga, gravada
+antes de a contraparte existir, mostra só "decisão de fronteira". Nenhuma
+justificativa é mais escondida pela origem do veredito: ou ela aparece, ou
+aparece o aviso de que o pipeline não registrou motivo (linha antiga) ou de que
+o Estágio B não concluiu.
+
 ### As duas abas
 
 **Janela** — os últimos 90 dias (`--dias N` muda), com o filtro cruzado e as
-cinco seções. Sem recorte o arquivo cresceria para sempre: entram ~28 papers/dia.
+cinco seções. Sem recorte o arquivo cresceria para sempre: entram ~30 papers por
+dia de publicação.
 
 **Registro histórico** — de cada trimestre já fora da janela, os **10 aprovados
 mais votados** com a ficha inteira e os **10 descartados mais votados** com a
@@ -220,8 +373,7 @@ Três coisas que essa aba **não** é, e vale ter escrito:
   Até lá o trimestre aparece marcado como *em consolidação*.
 
 Por isso ela é derivada dos Parquet a cada geração: sem tabela nova, sem estado
-em `data/estado/`, sem estágio novo no pipeline, sem chamada de LLM e sem
-requisição ao HF.
+em disco, sem estágio novo no pipeline, sem chamada de LLM e sem requisição ao HF.
 
 O corte da aba histórica vem de `refresh.janela_morna_dias`, **não** de `--dias`.
 É o ponto em que o pipeline para de atualizar os votos, então é onde um ranking
@@ -246,26 +398,39 @@ A mediana atinge o valor final **no dia +6** e o movimento residual acaba por
 volta do **dia +14** — tudo dentro da janela quente de 30 dias, com folga de ~6x
 até o corte de 90 dias. O maior salto tardio observado foi 286 → 339 votos.
 
+O card *Como o voto amadurece* responde a mesma pergunta com outra régua, e por
+isso dá outro número: ele marca o primeiro dia **medido** em que a mediana cruza
+**90%** do voto final, e em 04/09/2026 esse dia é o **+5** ("estabiliza por volta
+do dia +5"). A diferença para a tabela acima não é contradição: a tabela pergunta
+quando a mediana chega a 100%, e o card só desenha idades com pelo menos 5 papers
+medidos — hoje os dias +1 a +4 não têm essa amostra (o refresh não mede todo dia
+da primeira semana) e ficam sem ponto, então o dia +5 é o primeiro candidato
+depois do dia 0 (mediana 80,5%). Entram na curva só os papers com 14 dias ou mais
+de idade: 184 dos 482.
+
 ### Tamanho
 
 O peso vem do texto das fichas embutido em `DADOS`, não de HTML por card.
-Medido: **681 KB para 455 papers e 155 fichas**, dos quais 322 KB são fichas
-(~2,1 KB cada) e 196 KB são os papers (~440 B cada).
+Medido em 04/09/2026: **839 KB para 482 papers e 166 fichas**, dos quais 337 KB
+são fichas (~2,1 KB cada), 253 KB são os papers (~530 B cada) e 96 KB é a série
+de métricas.
 
 O custo por entrada do histórico é assimétrico de propósito — é o que permite as
 duas listas terem tamanhos diferentes:
 
 | Lista | Conteúdo | Por entrada | Por trimestre |
 |---|---|---|---|
-| 10 aprovados | ficha inteira (5 campos) | ~2,3 KB | ~23 KB |
-| 10 descartados | regra + justificativa | ~0,4 KB | ~4 KB |
+| 10 aprovados | ficha inteira (5 campos) | ~2,5 KB | ~25 KB |
+| 10 descartados | regra + justificativa | ~0,3 KB | ~3 KB |
 
-**~27 KB por trimestre, ~110 KB por ano** — contra os **~860 KB/mês** que a
-janela viva acumularia se não fosse recortada (os 455 papers de 21 dias corridos
-pesam 603 KB de payload). Se doer, `--dias` é o botão para girar.
+**~28 KB por trimestre, ~115 KB por ano** — contra os **~935 KB/mês** que a
+janela viva acumularia se não fosse recortada (os 482 papers de 22 dias corridos
+pesam 686 KB de payload). Se doer, `--dias` é o botão para girar. O custo do
+descartado é piso, não teto: metade dos dez de hoje ainda é linha antiga sem
+regra nem justificativa, e sobe quando a reclassificação total passar.
 
-Vale lembrar que `painel.html` é commitado e empurrado todo dia (168 KB
-comprimido, ~60 MB/ano de repositório): cada KB adicionado se multiplica por 365.
+Vale lembrar que `painel.html` é commitado e empurrado todo dia (222 KB
+comprimido, ~80 MB/ano de repositório): cada KB adicionado se multiplica por 365.
 Por isso o ranking desempata por `paper_id` — sem critério estável, dois papers
 empatados em votos trocariam de lugar entre rodadas e o commit diário ganharia
 diff sem significado.
@@ -327,6 +492,34 @@ Duas datas, separadas de propósito: `data_arxiv` (`paper.publishedAt`) e
 `data_hf_daily` (`paper.submittedOnDailyAt`). Elas divergem em 35 de 35 papers no
 lote de 25/08 — a operação diária é organizada pela segunda.
 
+### O que mudou para quem monta o Power BI
+
+Três coisas novas, todas já nos Parquet de `marts/`:
+
+- **`ponte_paper_criterio`** (`paper_id`, `criterio`) — os critérios que
+  sustentam o veredito de um aprovado, do enum de dez (cinco de estrito, cinco
+  de amplo; ver *Regras de classificação*). **É um-para-muitos**: um paper
+  aprovado pode se qualificar por mais de um critério (já há caso com dois), e
+  cruzar essa ponte com `dim_paper` **multiplica as linhas**. Contar papers pede
+  `DISTINCTCOUNT(paper_id)`; `COUNTROWS` conta ocorrências, que é outra medida
+  (legítima — é a que o card *Por que o pipeline aprova* do painel usa — mas não
+  é "quantos papers"). Descarte não tem critério: a tabela só traz aprovados.
+- **`fato_triagem[fronteira_contraparte]`** (texto, nulo sem fronteira) — quando
+  `decisao_fronteira` é verdadeira, guarda o que quase venceu: a regra de
+  descarte ou o critério do lado oposto ao veredito. Serve para achar as
+  decisões apertadas sem reabrir veredito nenhum.
+- **`fato_triagem[revisao]`** — quantas vezes o paper passou pela classificação
+  (1 na primeira, +1 a cada reclassificação). `revisao ≥ 2` é a marca da
+  reclassificação total: depois dela,
+  toda linha que já existia carrega essa marca, e a distinção entre paper
+  recente e paper importado some dos dados. Antes dela, `revisao = 1` em quase
+  todas as linhas (466 de 477 em 04/09/2026) — e é essa maioria que ainda pode
+  ter `regra_fora` nula.
+
+Não há `.pbix` no repositório: o Power BI lê os Parquet e o modelo vive fora do
+git (`docs/adr-001-fora-de-escopo-do-mapa.md`, decisão 2). Estas três colunas são
+o contrato; montar as visuais é trabalho manual no Desktop.
+
 ## Refresh escalonado
 
 Re-consultar `daily_papers?date=` de uma data antiga devolve as métricas
@@ -356,10 +549,14 @@ escrita atômica (`os.replace`) — pode rodar com o Power BI aberto.
 - `marts/_manifest.json` registra data/hora, `run_id` e a contagem de linhas de
   cada arquivo — é como conferir no Power BI que o dado é fresco.
 
+São 13 arquivos (um por tabela), `ponte_paper_criterio.parquet` incluído.
+
 No Power BI Desktop: Obter Dados → Parquet, apontar para `marts/`. Marcar
 `dim_calendario` como tabela de datas e relacionar
-`fato_metrica[data_snapshot] → dim_calendario[data]` e
-`fato_metrica[paper_id] → dim_paper[paper_id]`.
+`fato_metrica[data_snapshot] → dim_calendario[data]`,
+`fato_metrica[paper_id] → dim_paper[paper_id]` e
+`ponte_paper_criterio[paper_id] → dim_paper[paper_id]` (muitos-para-um, com a
+armadilha de contagem descrita em *Modelo de dados*).
 
 ## Regras de classificação
 
@@ -410,39 +607,13 @@ Três invariantes que os testes cobrem:
    métrica de saída, guardada em `fato_metrica` para você descobrir depois se
    prediz aprovação. A aba histórica do painel ordena por upvote, mas isso é
    exibição, não decisão: o veredito já foi dado e não é reaberto. A lista de
-   descartados existe justamente para medir a divergência — no lote atual, 14
+   descartados existe justamente para medir a divergência — no lote atual, 13
    dos 20 papers mais votados são `fora`.
 2. **O Padrão Extraído é escrito e testado antes do veredito.** A ordem das
    propriedades no schema do Estágio B é normativa.
 3. **A LLM não cria rótulo de área ou tópico.** O enum é injetado do banco;
    rótulo novo vira candidato em `tax_candidato` e só é promovido com 2 papers
    distintos e folga no teto.
-
-## Backfill
-
-`python -m hfpapers backfill --seed ./seed` (idempotente; a segunda execução não
-altera contagem nem chama LLM).
-
-A lista de trabalho é a **união de três fontes** — `hf-digest-estado.json`,
-`taxonomia.json > classificacoes` e os ids das fichas dos 8 digests. Só o estado
-produziria 241 papers e 82 fichas, e estaria errado: `2608.14577` tem ficha e
-classificação mas sumiu do estado. Resultado correto: **242 papers, 83 aprovados**,
-taxa de FORA histórica de 66%.
-
-Ao final, `relatorios/validacao_backfill.md` compara as fichas regeneradas com as
-83 históricas (mesmo veredito? mesma presença de Padrão Extraído? mesmo nome?).
-O relatório não corrige nada — é o instrumento para julgar se o prompt novo
-reproduz a qualidade do antigo.
-
-O veredito histórico não é reaberto pelo backfill: ele fica em `fato_triagem` como
-registro. O veredito que o Estágio B devolve na regeneração vai para
-`data/estado/vereditos_estagio_b.json`, e é dele que sai a comparação — sem esse
-registro o relatório compararia o histórico contra ele mesmo e daria sempre 100%
-de concordância.
-
-Por isso ele mora em `data/estado/` e não em `relatorios/`: é **entrada** de uma
-etapa seguinte, não artefato de leitura. Apagar `relatorios/` é inócuo (regenera);
-apagar `data/estado/` não quebra o relatório — faz ele mentir.
 
 ## Testes
 
@@ -461,19 +632,11 @@ src/hfpapers/
 ├── config.py       config.yaml + .env
 ├── db.py           conexão, migração, upserts idempotentes, calendário
 ├── schema.sql
-├── execucao.py     orquestra os 5 estágios e grava log_execucao
-├── digests.py      parser dos digests históricos (conjunto de validação)
-├── taxonomia.py    governança do vocabulário, promoção e fusão
+├── execucao.py     orquestra os 5 estágios, a reclassificação e log_execucao
+├── taxonomia.py    governança do vocabulário: promoção, fusão, export/carga
 ├── guardrails.py   avisos de volume
 ├── doutor.py       diagnóstico
-├── backfill/       carga histórica a partir de seed/ — um módulo por etapa
-│   ├── __init__.py     rodar(): a única coisa que conhece a ordem das etapas
-│   ├── tipos.py        ResultadoBackfill, ItemTrabalho, RUN_ID
-│   ├── lista.py        a união das três fontes do seed
-│   ├── hidratacao.py   busca cada paper no HF
-│   ├── importacao.py   triagem histórica + as 83 classificações curadas
-│   ├── regeneracao.py  Estágios A e B pelo pipeline novo + vereditos regenerados
-│   └── validacao.py    monta relatorios/validacao_backfill.md
+├── log.py          logging com corte de segredo
 ├── fontes/         hf_client.py (httpx, retry, rate limit) + modelos.py (pydantic)
 ├── llm/            cliente OpenRouter, schemas, estágios A e B
 └── estagios/       coleta, enriquecimento, classificação, refresh, export
@@ -483,10 +646,11 @@ scripts/
 ├── gerar_painel.py     monta relatorios/painel.html a partir dos Parquet
 └── painel_app.js       app do painel (porte do artboard da Claude Design)
 prompts/            regras versionadas
-seed/               insumos do backfill + conjunto de validação (versionado)
+config/             taxonomia_inicial.json — o vocabulário de bootstrap
+docs/               spec do mapa e ADRs
 marts/              ← o Power BI aponta para cá
-relatorios/         artefatos de leitura: painel.html, validacao_backfill.md
-data/               banco + estado/ (cache dos vereditos regenerados)
+relatorios/         artefatos de leitura: painel.html
+data/               o banco SQLite
 ```
 
 `relatorios/`, `marts/`, `data/` e `logs/` não são versionados. A diferença entre

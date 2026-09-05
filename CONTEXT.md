@@ -53,14 +53,22 @@ seguinte o repesca.
 _Avoid_: não classificado, sem veredito, falho
 
 **Revisão** (`revisao`):
-Quantas vezes o paper passou pelo pipeline além da primeira. Substitui a
-distinção "recente vs. backfill".
+Quantas vezes o paper passou pela classificação: 1 na primeira, +1 a cada
+reclassificação. Substitui a distinção "recente vs. backfill".
 _Avoid_: recentes, backfill, herdado
 
 **Reclassificação total**:
 A rodada única que passa todos os papers da base pelo pipeline de novo, com o
-vocabulário de critérios vigente. Depois dela, todo paper tem revisão ≥ 2.
+vocabulário de critérios vigente. Depois dela, toda triagem que já existia tem
+revisão ≥ 2. Roda com o vocabulário congelado: candidato novo é registrado, mas
+promovido só depois, à mão.
 _Avoid_: migração, backfill
+
+**Concorrência** (`llm.concorrencia`, `--concorrencia`):
+Quantas chamadas ao OpenRouter ficam no ar ao mesmo tempo dentro de uma rodada.
+Só o I/O é paralelo; a escrita no banco segue na thread principal e na ordem
+original dos papers, então o resultado não depende do valor.
+_Avoid_: paralelizar o pipeline, rodar duas rodadas ao mesmo tempo
 
 **Dia antigo**:
 Dia de publicação anterior ao início do pipeline (26/08/2026). Entra pelo mesmo
