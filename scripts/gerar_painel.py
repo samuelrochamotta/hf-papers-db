@@ -453,7 +453,6 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "da": iso(p.get("data_arxiv")),
             "v": veredito_p,
             "rf": t.get("regra_fora"),
-            "fr": 1 if t.get("decisao_fronteira") else 0,
             "art": t.get("tem_artefato_nomeado"),
             "a": area_primaria.get(pid),
             "as": areas_sec.get(pid, []),
@@ -472,10 +471,13 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         # cabecalho da decisao (issue #2): so os aprovados o renderizam, entao
         # so eles carregam `j`/`h` - a janela tem ~2500 papers e a maioria e
         # `fora`, e essa e a restricao de peso que a issue pede para respeitar.
-        # `cr`/`fc` seguem a mesma regra e pelo mesmo motivo: criterio de
-        # veredito so existe para quem foi aprovado.
+        # `cr`/`fc`/`fr` seguem a mesma regra e pelo mesmo motivo: criterio de
+        # veredito so existe para quem foi aprovado, e o selo de fronteira e
+        # desenhado pelo mesmo cabecalho - um `fr` num `fora` viajava em ~315
+        # papers da janela sem ninguem para le-lo.
         if veredito_p != "fora":
             entrada["j"], entrada["h"] = justificativa_exibivel(t)
+            entrada["fr"] = 1 if t.get("decisao_fronteira") else 0
             entrada.update(criterios_e_fronteira(t, criterios_por_paper.get(pid, [])))
         lista.append(entrada)
 

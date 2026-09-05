@@ -28,16 +28,25 @@
   var ACCENT = '#d9a441';
   var VERDE = '#4ec07a';
 
-  /* Dois tons do mesmo verde para o empilhamento por veredito do card "Por que
-     o pipeline aprova": rampa ordinal de uma cor so (estrito e o lado mais
-     forte, entao fica com o passo escuro). Validados com o
+  /* Passos escuro e claro da MESMA rampa de verde. Validados com o
      `validate_palette.js` da skill dataviz contra o fundo do card (#16191c),
      em modo ordinal: L monotona, ΔL >= 0.06, extremo claro a 4,16:1, e
-     ΔE 27 sob protanopia - a separacao nao depende de enxergar o verde.
-     O que separa os dois segmentos na tela e a fresta de 2px na cor do fundo,
-     nao um contorno: e a regra de marcas da skill. */
-  var VERDE_ESTRITO = '#2e8b57';
-  var VERDE_AMPLO = '#8fe0ae';
+     ΔE 27 sob protanopia - a separacao entre eles nao depende de enxergar o
+     verde. Sao passos da rampa, nao cores avulsas: mexer num deles e mexer na
+     rampa, e por isso o hex mora aqui uma vez so. */
+  var VERDE_ESCURO = '#2e8b57';
+  var VERDE_CLARO = '#8fe0ae';
+
+  /* Os dois papeis do passo claro, nomeados a parte de proposito: eles dizem
+     coisas diferentes em cards diferentes ("amplo" no empilhamento por
+     veredito, "cresceu" na escala divergente do heatmap) e nunca aparecem na
+     mesma escala - cada card tem a sua legenda. O valor coincidir e
+     intencional, e a indirecao e o que impede o acidente inverso: reestepar um
+     dos papeis (por CVD, por exemplo) sem perceber que mexeu no outro exige
+     trocar o alias aqui, de olho nos dois nomes. */
+  var VERDE_ESTRITO = VERDE_ESCURO;
+  var VERDE_AMPLO = VERDE_CLARO;
+  var VERDE_ALTA = VERDE_CLARO;
 
   /* Polos da escala divergente do heatmap (vista `crescimento`). O ticket pede
      vermelho = caiu, cinza = estavel, verde = cresceu; os TONS sao escolha
@@ -48,7 +57,6 @@
      mesmo par medido de novo da ΔE 24,3. O sinal tambem sai por escrito no
      tooltip, entao a cor nunca e o unico canal. */
   var VERMELHO_QUEDA = '#c94f4f';
-  var VERDE_ALTA = '#8fe0ae';
   var CINZA_ESTAVEL = '#6b7480';
   /* Fundo da celula vazia do heatmap e da matriz: e o zero das rampas, e nao o
      fundo do card - uma celula sem dado precisa se distinguir de uma celula
@@ -1050,7 +1058,11 @@
     function marca(c) { return 'display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: ' + c + ';'; }
     var tiles = [
       { rotulo: 'papers no recorte', valor: total, sufixo: 'de ' + todos.length, cor: '#f5f3ee', marca: marca('#4a5058'), nota: dias.length + ' dias de publicação cobertos' },
-      { rotulo: 'aprovados', valor: aprovados, sufixo: pct(aprovados, total) + '%', cor: '#6aa9ee', marca: marca('#3987e5'), nota: conta.estrito + ' estrito · ' + conta.amplo + ' amplo' },
+      // o numero e a marca em verde, nao no azul de estrito: o tile conta
+      // estrito MAIS amplo, e pinta-lo com a cor de um dos dois dizia que a
+      // metade laranja da conta nao estava ali. A decomposicao continua na nota
+      // de baixo, onde cada veredito aparece pelo nome.
+      { rotulo: 'aprovados', valor: aprovados, sufixo: pct(aprovados, total) + '%', cor: VERDE, marca: marca(VERDE), nota: conta.estrito + ' estrito · ' + conta.amplo + ' amplo' },
       { rotulo: 'fichas escritas', valor: comFicha, sufixo: 'de ' + aprovados, cor: '#f5f3ee', marca: marca('#d9a441'), nota: 'achado, padrão, implicação, exemplo, ressalva' },
       { rotulo: 'com repositório', valor: comCodigo, sufixo: pct(comCodigo, total) + '%', cor: '#f5f3ee', marca: marca('#4a5058'), nota: 'derivado de githubRepo não nulo' }
     ];
@@ -1784,6 +1796,15 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 720px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Onde o pipeline corta</div>' +
+            /* Este card tinha um alternador `quantidade | % dos descartados`,
+               removido junto com a linha do acumulado. Ele nao foi pedido pela
+               spec e a remocao e decisao desta implementacao: as duas vistas
+               diferiam so no denominador da largura (n/maior barra contra
+               n/total de descartes), que e reescalonamento monotono - a mesma
+               forma, outro tamanho - e o percentual que a vista `pct` existia
+               para mostrar agora esta impresso em toda barra pelo rotulo fixo
+               "n · X% dos descartados". Sobrava um chip que nao mudava nada
+               legivel. */
             '<div style="font-size: 12.5px; color: #8b8f96;">Motivos de descarte em ordem de volume. Clique numa regra para filtrar o painel inteiro. ' +
               '<span style="color: ' + (comRegra === totalDesc ? '#6d7178' : ACCENT) + ';">Cobertura de regra: ' + comRegra + ' de ' + totalDesc + ' descartes (' + pct(comRegra, totalDesc) + '%).</span></div>' +
           '</div>' +
@@ -1895,8 +1916,13 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 720px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Por que o pipeline aprova</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Um paper com dois critérios entra nos dois — a soma das barras passa dos ' +
-              aprovadosCrit.length + ' aprovados do recorte. Clique num critério para filtrar o painel inteiro. ' +
+            // A frase explica a REGRA de contagem e informa o total; nao afirma
+            // qual dos dois numeros e maior. A versao anterior dizia "a soma das
+            // barras passa dos N aprovados", o que so vale depois que a
+            // cobertura de criterio chegar perto de 100% - hoje ela e de 2% e o
+            // proprio grafico desmentia a frase tres linhas abaixo.
+            '<div style="font-size: 12.5px; color: #8b8f96;">Contagem por ocorrência: um paper com dois critérios entra nos dois, então a soma das barras não é o número de aprovados. ' +
+              aprovadosCrit.length + ' aprovados no recorte. Clique num critério para filtrar o painel inteiro. ' +
               '<span style="color: ' + (comCriterio === aprovadosCrit.length ? '#6d7178' : ACCENT) + ';">Cobertura de critério: ' +
               comCriterio + ' de ' + aprovadosCrit.length + ' aprovados (' + pct(comCriterio, aprovadosCrit.length) + '%).</span></div>' +
           '</div>' +

@@ -123,6 +123,27 @@ def test_descartado_nao_carrega_criterios(tmp_path, monkeypatch):
     assert "cr" not in dados["papers"][0]
 
 
+def test_descartado_nao_carrega_marca_de_fronteira(tmp_path, monkeypatch):
+    """`fr` e do cabecalho da decisao, que so os aprovados renderizam.
+
+    Um `fora` com `decisao_fronteira` existe (o veredito podia ter ido para o
+    outro lado), mas ninguem le esse campo nele: o selo sai de
+    `cabecalhoDecisao`, alcancavel so por aprovado, e a lista de descartados do
+    hall nem carrega `fr`. Fora do bloco dos aprovados ele viajava em ~315
+    papers da janela sem leitor.
+    """
+    dados = _montar(
+        tmp_path, monkeypatch,
+        [_paper("p1")],
+        [_triado("p1", "fora", regra_fora="fora_de_escopo", decisao_fronteira=True,
+                 fronteira_contraparte="benchmark")],
+        [],
+    )
+    entrada = dados["papers"][0]
+    assert "fr" not in entrada
+    assert "fc" not in entrada
+
+
 # ══════════════ contraparte da fronteira ══════════════
 
 def test_fronteira_carrega_a_contraparte(tmp_path, monkeypatch):
