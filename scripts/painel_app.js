@@ -20,7 +20,49 @@
 (function () {
   'use strict';
 
+  /* ACCENT e so link e destaque (ticket 04). Ele ja significou "aprovado" na
+     linha da taxa, no heatmap e na matriz - e por isso brigava com o proprio
+     papel de chamar atencao: metade do painel ficava amarela. Aprovado agora
+     tem cor propria, VERDE, e ela vale em todo lugar onde a medida e "quanto
+     passou". */
   var ACCENT = '#d9a441';
+  var VERDE = '#4ec07a';
+
+  /* Dois tons do mesmo verde para o empilhamento por veredito do card "Por que
+     o pipeline aprova": rampa ordinal de uma cor so (estrito e o lado mais
+     forte, entao fica com o passo escuro). Validados com o
+     `validate_palette.js` da skill dataviz contra o fundo do card (#16191c),
+     em modo ordinal: L monotona, ΔL >= 0.06, extremo claro a 4,16:1, e
+     ΔE 27 sob protanopia - a separacao nao depende de enxergar o verde.
+     O que separa os dois segmentos na tela e a fresta de 2px na cor do fundo,
+     nao um contorno: e a regra de marcas da skill. */
+  var VERDE_ESTRITO = '#2e8b57';
+  var VERDE_AMPLO = '#8fe0ae';
+
+  /* Polos da escala divergente do heatmap (vista `crescimento`). O ticket pede
+     vermelho = caiu, cinza = estavel, verde = cresceu; os TONS sao escolha
+     desta implementacao, porque o par obvio (#e66767 com #4ec07a) mede ΔE 4,8
+     sob deuteranopia - abaixo do piso 6 da skill, ou seja, dois cinzas iguais
+     para quem nao distingue vermelho de verde. Escurecer o vermelho e clarear
+     o verde poe a diferenca na LUMINANCIA, que a deuteranopia preserva: o
+     mesmo par medido de novo da ΔE 24,3. O sinal tambem sai por escrito no
+     tooltip, entao a cor nunca e o unico canal. */
+  var VERMELHO_QUEDA = '#c94f4f';
+  var VERDE_ALTA = '#8fe0ae';
+  var CINZA_ESTAVEL = '#6b7480';
+  /* Fundo da celula vazia do heatmap e da matriz: e o zero das rampas, e nao o
+     fundo do card - uma celula sem dado precisa se distinguir de uma celula
+     com o menor valor da escala. */
+  var FUNDO_CELULA = '#1a1d21';
+
+  /* Serie do card "Como o voto amadurece". Roxo por eliminacao deliberada:
+     azul e laranja sao estrito e amplo, cinza e `fora`, verde e aprovado e
+     amarelo e link - a curva do voto nao e nenhuma dessas coisas, e pintar ela
+     com uma delas sugeriria um recorte por veredito que o card justamente
+     deixou de fazer. O hex e o slot violeta do mesmo catalogo dark de
+     `camposFicha`. */
+  var ROXO_VOTO = '#9085e9';
+
   var COMPACTA = false;
 
   var root = document.getElementById('painel');
@@ -30,15 +72,16 @@
     aba: 'janela',
     diasSel: [], vereditos: [], areas: [], topicos: [], orgs: [],
     // recortes que so o grafico produz (nao ha menu para eles na barra de
-    // filtro): `regrasFora` vem do clique no Pareto, `areasSec` do clique na
+    // filtro): `regrasFora` vem do clique no Pareto, `criterios` do clique no
+    // card espelho dele ("Por que o pipeline aprova"), `areasSec` do clique na
     // matriz de cruzamento. Entram em `filtrados()` como qualquer dimensao.
-    regrasFora: [], areasSec: [],
+    regrasFora: [], criterios: [], areasSec: [],
     busca: '', ordem: 'votos', aberta: null,
     menu: null, buscaMenu: '',
     perSel: null, abertaH: null,
     // alternancias de desenho dentro de um card - nao recortam dado
-    vistaArea: 'dist', taxaDecomp: false, paretoModo: 'qtd',
-    heatOrd: 'volume', lagGrupo: 'veredito',
+    vistaArea: 'dist', taxaDecomp: false,
+    heatVista: 'volume', lagGrupo: 'veredito',
     // "mais" do cabecalho da decisao, por card aberto (chave: secao + id) -
     // um objeto, nao um id unico, porque o card da aba viva e o do hall podem
     // estar abertos ao mesmo tempo (abas diferentes, mesmo estado).
@@ -86,7 +129,114 @@
      vez de sumir da contagem, entao ele vira uma categoria de verdade. */
   var REGRA_NULA = '__sem-regra__';
   function chaveRegra(p) { return p.rf || REGRA_NULA; }
-  function rotuloRegra(k) { return k === REGRA_NULA ? 'regra não registrada' : k; }
+
+  /* ── enum → rótulo legível ──────────────────────────────────────────────
+     UM mapa para os tres vocabularios que o painel imprime: os 10 criterios de
+     veredito, as 6 regras de descarte e a categoria do nulo. Um so porque os
+     dois lugares que os exibem nao podem divergir - a linha do veredito da
+     ficha ("ESTRITO · artefato aberto + benchmark"), a contraparte de uma
+     decisao de fronteira (que pode ser criterio OU regra, por isso o mesmo
+     registro atende as duas) e as barras dos dois cards da secao 03.
+
+     Mora aqui, e nao em `gerar_painel.py`, porque o navegador e o unico
+     consumidor: serializar 16 strings dentro de `DADOS` as repetiria no
+     arquivo distribuido sem nenhum leitor em Python. Os ENUMS vem de
+     `src/hfpapers/llm/schemas.py` (REGRAS_FORA, CRITERIOS_ESTRITO,
+     CRITERIOS_AMPLO) - copiados de la, nao inventados; um enum novo que
+     aparecer sem entrada aqui sai como o proprio enum, feio mas honesto. */
+  var CRITERIOS_ESTRITO = [
+    'padrao_arquitetural', 'artefato_aberto', 'invalida_pratica',
+    'vulnerabilidade', 'tecnica_de_avaliacao'
+  ];
+  var CRITERIOS_AMPLO = [
+    'benchmark', 'panorama', 'framework_conceitual',
+    'principio_sem_o_como', 'exige_acesso_interno'
+  ];
+  var CRITERIOS = CRITERIOS_ESTRITO.concat(CRITERIOS_AMPLO);
+
+  var ROTULOS = {
+    // criterios de veredito (schemas.CRITERIOS_ESTRITO)
+    padrao_arquitetural: 'padrão arquitetural',
+    artefato_aberto: 'artefato aberto',
+    invalida_pratica: 'invalida prática corrente',
+    vulnerabilidade: 'vulnerabilidade',
+    tecnica_de_avaliacao: 'técnica de avaliação',
+    // (schemas.CRITERIOS_AMPLO)
+    benchmark: 'benchmark',
+    panorama: 'panorama',
+    framework_conceitual: 'framework conceitual',
+    principio_sem_o_como: 'princípio sem o como',
+    exige_acesso_interno: 'exige acesso interno',
+    // regras de descarte (schemas.REGRAS_FORA, na ordem de teste)
+    treino_ou_postreino: 'treino ou pós-treino',
+    geracao_de_midia: 'geração de mídia',
+    percepcao_robotica_embodied: 'percepção robótica / embodied',
+    relatorio_tecnico_de_modelo: 'relatório técnico de modelo',
+    fora_de_escopo: 'fora de escopo',
+    portabilidade_reprovada: 'portabilidade reprovada'
+  };
+  ROTULOS[REGRA_NULA] = 'regra não registrada';
+
+  function rotulo(k) {
+    return Object.prototype.hasOwnProperty.call(ROTULOS, k) ? ROTULOS[k] : String(k);
+  }
+  /* Lado do criterio, na ordem canonica do `schemas.py`. O grafico dos
+     aprovados separa os dois blocos por ela e a ficha lista os criterios nela -
+     um paper estrito le "artefato aberto + benchmark", nunca o contrario. */
+  function ordemCriterio(k) {
+    var i = CRITERIOS.indexOf(k);
+    return i < 0 ? CRITERIOS.length : i;
+  }
+  function criteriosOrdenados(lista) {
+    return (lista || []).slice().sort(function (a, b) {
+      return ordemCriterio(a) - ordemCriterio(b) || a.localeCompare(b);
+    });
+  }
+
+  /* Interpolacao de cor para as rampas sequenciais e divergentes dos mapas de
+     calor. Mistura sobre `FUNDO_CELULA` em vez de usar alfa: com alfa a celula
+     herdaria o que estiver atras dela (o card, a borda, outra celula) e a
+     mesma intensidade mudaria de cor conforme o lugar - numa rampa que E o
+     dado, isso e erro de leitura, nao detalhe. */
+  /* Aceita `#rrggbb` e o proprio `rgb(...)` que devolve: a escala divergente
+     mistura DUAS vezes (fundo → cinza neutro, depois neutro → polo), e sem
+     isso a segunda chamada recebia "rgb(" no lugar de um hex, `parseInt` dava
+     NaN e a celula saia transparente - o mapa inteiro ficava preto sem erro
+     nenhum no console. */
+  function rgbDe(c) {
+    if (c.charAt(0) === '#') {
+      return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+    }
+    return c.replace(/[^0-9,]/g, '').split(',').map(Number);
+  }
+  function mistura(a, b, t) {
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+    var ca = rgbDe(a), cb = rgbDe(b);
+    return 'rgb(' + ca.map(function (v, i) {
+      return Math.round(v + (cb[i] - v) * t);
+    }).join(',') + ')';
+  }
+  /* Piso da rampa sequencial: o menor valor presente ainda precisa se separar
+     da celula vazia, senao "pouco" e "nenhum" viram a mesma cor. */
+  function sequencial(cor, frac) { return mistura(FUNDO_CELULA, cor, 0.16 + frac * 0.84); }
+
+  /* Cor de uma taxa de aprovacao: cinza (nenhum passou) → verde (todos). A
+     rampa sai do cinza e nao do fundo porque aqui o zero e um valor medido,
+     nao ausencia de dado - "0% aprovado" precisa ser visivel. */
+  function corTaxa(taxa) { return mistura(CINZA_ESTAVEL, VERDE, taxa); }
+
+  /* Marcador da matriz de cruzamentos: tamanho = total, cor = taxa de
+     aprovacao. O diametro sai da RAIZ da fracao porque quem le compara area,
+     nao largura - escalar o diametro direto pelo valor triplicaria a mancha de
+     um cruzamento que so dobrou. Piso de 9px: abaixo disso o marcador some e
+     deixa de ter alvo de hover. */
+  var BOLHA_MIN = 9, BOLHA_MAX = 28;
+  function bolha(n, max, taxa) {
+    if (!n) return '';
+    var d = BOLHA_MIN + (BOLHA_MAX - BOLHA_MIN) * Math.sqrt(n / Math.max(1, max));
+    return '<span style="display: block; width: ' + d.toFixed(1) + 'px; height: ' + d.toFixed(1) + 'px; ' +
+      'border-radius: 50%; background: ' + corTaxa(taxa) + ';"></span>';
+  }
 
   /* `exceto` deixa uma ou mais dimensoes de fora: e o que mantem as outras
      opcoes de um seletor visiveis depois que ele ja filtrou (senao marcar a 2a
@@ -107,6 +257,10 @@
       // marcar uma regra e marcar um recorte de descartados: quem foi aprovado
       // nao tem regra nenhuma e nao pode entrar pela porta do nulo
       if (!livre('regrasFora') && s.regrasFora.length && (p.v !== 'fora' || s.regrasFora.indexOf(chaveRegra(p)) < 0)) return false;
+      // espelho exato da regra acima: criterio de veredito so existe para quem
+      // foi aprovado, entao marcar um criterio ja implica excluir os `fora`
+      if (!livre('criterios') && s.criterios.length &&
+        (p.v === 'fora' || !s.criterios.some(function (c) { return (p.cr || []).indexOf(c) >= 0; }))) return false;
       if (!livre('topicos') && s.topicos.length && !s.topicos.some(function (t) { return p.tp.indexOf(t) >= 0; })) return false;
       if (!livre('orgs') && s.orgs.length) {
         var chave = p.org || '__sem-org__';
@@ -145,16 +299,12 @@
   }
   function escondeTip() { return function () { elTip.style.display = 'none'; }; }
 
-  function mediana(xs) {
-    if (!xs.length) return 0;
-    var o = xs.slice().sort(function (a, b) { return a - b; });
-    var m = Math.floor(o.length / 2);
-    return o.length % 2 ? o[m] : Math.round((o[m - 1] + o[m]) / 2);
-  }
-  /* Quartil por interpolacao linear. `mediana` arredonda porque so mede votos;
-     P25 e P75 de amostra pequena caem entre dois valores, e arredondar a haste
-     de um box plot de defasagem em dias esconderia justamente a assimetria que
-     o grafico existe para mostrar. */
+  /* Quartil por interpolacao linear, usado tambem para a mediana (q = 0,5).
+     Havia uma `mediana` propria, que arredondava para inteiro porque so media
+     votos; ela saiu quando a curva de maturacao passou a medir PORCENTAGEM do
+     voto final - arredondar ali perderia o cruzamento dos 90% por menos de um
+     ponto, e no box plot da defasagem esconderia a assimetria que o grafico
+     existe para mostrar. */
   function quartil(xs, q) {
     if (!xs.length) return 0;
     var o = xs.slice().sort(function (a, b) { return a - b; });
@@ -420,9 +570,21 @@
     if (!p.v) return '';
 
     var corV = cor(p.v);
-    var selo = p.fr
-      ? '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">decisão de fronteira</span>'
-      : '';
+    /* A linha do veredito diz por que ele saiu como saiu: "ESTRITO · artefato
+       aberto + benchmark". Os criterios saem na ordem canonica do `schemas.py`
+       (estrito antes de amplo), nao na ordem em que o Parquet os devolveu. Um
+       aprovado de linha antiga nao tem criterio nenhum e a linha volta a ser
+       so o veredito - sem separador solto. */
+    var criterios = criteriosOrdenados(p.cr).map(rotulo).join(' + ');
+    var selo = '';
+    if (p.fc) {
+      // a contraparte pode ser um criterio ou uma regra de descarte - o mesmo
+      // mapa atende as duas, que e a razao de ele ser um so
+      selo = '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">fronteira: quase ' + esc(rotulo(p.fc)) + '</span>';
+    } else if (p.fr) {
+      // fronteira de linha antiga, gravada antes de a contraparte existir
+      selo = '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">decisão de fronteira</span>';
+    }
 
     var miolo;
     var aviso = avisoDecisao(p.h);
@@ -449,8 +611,11 @@
     }
 
     return '<div style="border-left: 2px solid ' + corV + '; padding: 1px 0 1px 16px; margin-bottom: 22px;">' +
-      '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">' +
+      '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">' +
         '<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: ' + corV + ';">POR QUE ' + esc(String(p.v).toUpperCase()) + '</span>' +
+        // o rotulo do criterio vai em tinta de texto, nao na cor do veredito:
+        // a cor ja foi dita pela palavra ao lado e pela barra da esquerda
+        (criterios ? '<span style="font-size: 12.5px; color: #a8a49b;">· ' + esc(criterios) + '</span>' : '') +
         selo +
       '</div>' +
       miolo +
@@ -651,7 +816,7 @@
           '<div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">' +
             '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-size: 13.5px; color: #ecebe6; border-bottom-color: rgba(236,235,230,0.18);">' + esc(p.t) + '</a>' +
             (p.rf
-              ? '<span style="font-size: 10.5px; font-family: \'IBM Plex Mono\', monospace; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">' + esc(p.rf) + '</span>'
+              ? '<span style="font-size: 10.5px; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">' + esc(rotulo(p.rf)) + '</span>'
               : '') +
             '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.org || '—') + ' · ' + diaCurto(p.d) + '</span>' +
           '</div>' +
@@ -758,18 +923,23 @@
        enquanto o painel so traz descartados - e clicar em `estrito` zeraria o
        recorte em silencio. O chip nao deixa de ser clicavel; so para de mentir. */
     var regraAtiva = s.regrasFora.length > 0;
+    // simetrico: um recorte por criterio ja implica aprovado, porque criterio
+    // de veredito so existe para quem passou
+    var criterioAtivo = s.criterios.length > 0;
     var chipsVeredito = ['estrito', 'amplo', 'fora'].map(function (v) {
       var on = s.vereditos.indexOf(v) >= 0;
       var n = todos.filter(function (p) { return p.v === v; }).length;
       var implicito = regraAtiva && v === 'fora' && !on;
-      var anulado = regraAtiva && v !== 'fora';
+      var anulado = (regraAtiva && v !== 'fora') || (criterioAtivo && v === 'fora');
       var extra = implicito
         ? ' border-style: dashed; border-color: ' + cor(v) + '; color: ' + corTexto(v) + ';'
         : (anulado ? ' opacity: 0.4;' : '');
       var dica = implicito
         ? ev('e', mostraTip('em vigor pelo filtro de regra', 'Uma regra de descarte só existe para quem saiu: o recorte já está restrito a fora.')) + ev('l', escondeTip())
         : (anulado
-          ? ev('e', mostraTip('zeraria o recorte', 'O filtro de regra já restringe a descartados; somar ' + v + ' não deixa nenhum paper de pé.')) + ev('l', escondeTip())
+          ? ev('e', mostraTip('zeraria o recorte', (regraAtiva
+              ? 'O filtro de regra já restringe a descartados; somar ' + v + ' não deixa nenhum paper de pé.'
+              : 'O filtro de critério já restringe a aprovados; somar fora não deixa nenhum paper de pé.'))) + ev('l', escondeTip())
           : '');
       return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' + ev('c', function () { alternaLista('vereditos', v); }) + dica +
         ' style="' + pill(on, cor(v)) + extra + '">' +
@@ -812,7 +982,8 @@
     // `regrasFora` e `areasSec` so entram pelo grafico: sem eles no resumo o
     // recorte ficaria invisivel e o "limpar" pareceria quebrado
     if (s.areasSec.length) ativos.push(s.areasSec.length === 1 ? 'sec: ' + s.areasSec[0] : s.areasSec.length + ' áreas secundárias');
-    if (s.regrasFora.length) ativos.push(s.regrasFora.length === 1 ? 'regra: ' + rotuloRegra(s.regrasFora[0]) : s.regrasFora.length + ' regras');
+    if (s.regrasFora.length) ativos.push(s.regrasFora.length === 1 ? 'regra: ' + rotulo(s.regrasFora[0]) : s.regrasFora.length + ' regras');
+    if (s.criterios.length) ativos.push(s.criterios.length === 1 ? 'critério: ' + rotulo(s.criterios[0]) : s.criterios.length + ' critérios');
     if (s.topicos.length) ativos.push(s.topicos.length === 1 ? s.topicos[0] : s.topicos.length + ' tópicos');
     if (s.orgs.length) ativos.push(s.orgs.length === 1 ? (s.orgs[0] === '__sem-org__' ? 'sem organização' : s.orgs[0]) : s.orgs.length + ' organizações');
     if (s.busca) ativos.push('"' + s.busca + '"');
@@ -843,7 +1014,7 @@
                 ev('i', function (e) { setState({ busca: e.target.value, aberta: null, justExp: {} }); }) +
                 ' placeholder="buscar título ou organização" style="font-family: \'Instrument Sans\', sans-serif; font-size: 13px; padding: 9px 14px 9px 36px; width: 268px; border: 1px solid #2b3138; border-radius: 100px; background: #1b1f23; color: #ecebe6; outline: none;">' +
             '</div>' +
-            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], areasSec: [], regrasFora: [], topicos: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
+            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], areasSec: [], regrasFora: [], criterios: [], topicos: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>limpar</span>' +
             '</div>' +
           '</div>' +
@@ -857,7 +1028,9 @@
               // a nota vem um tom abaixo do resto para o nome do veredito
               // subir: em #8b8f96 nos dois, o realce de `fora` era um no-op
               ? '<span style="font-size: 11.5px; color: #6d7178;">restrito a <span style="color: ' + corTexto('fora') + ';">fora</span> pelo filtro de regra</span>'
-              : '') +
+              : (criterioAtivo
+                ? '<span style="font-size: 11.5px; color: #6d7178;">restrito a <span style="color: ' + VERDE + ';">aprovados</span> pelo filtro de critério</span>'
+                : '')) +
           '</div>' +
         '</div>' +
         linhaFiltro('TEMA', zTema,
@@ -967,14 +1140,14 @@
       desenhoTaxa += poliLinha(serieTaxa.map(function (r) { return [r.x, 100 - (r.c.amplo / r.tot) * 100]; }), cor('amplo'), 1.2, '3 3');
     }
     if (mostraMM) desenhoTaxa += poliLinha(ptsTaxa('mm'), '#6d7178', 1.4, '5 4');
-    desenhoTaxa += poliLinha(ptsTaxa('taxa'), ACCENT, 2, null);
+    desenhoTaxa += poliLinha(ptsTaxa('taxa'), VERDE, 2, null);
 
     var celulasTaxa = dias.map(function (d) {
       var c = porDia[d];
       var r = null;
       serieTaxa.forEach(function (x) { if (x.d === d) r = x; });
       var ponto = r
-        ? '<span style="position: absolute; left: 50%; bottom: ' + (r.taxa * 100) + '%; width: ' + raioPonto + 'px; height: ' + raioPonto + 'px; margin-left: -' + (raioPonto / 2) + 'px; margin-bottom: -' + (raioPonto / 2) + 'px; border-radius: 50%; background: ' + ACCENT + '; border: 1px solid #0d0f11;"></span>'
+        ? '<span style="position: absolute; left: 50%; bottom: ' + (r.taxa * 100) + '%; width: ' + raioPonto + 'px; height: ' + raioPonto + 'px; margin-left: -' + (raioPonto / 2) + 'px; margin-bottom: -' + (raioPonto / 2) + 'px; border-radius: 50%; background: ' + VERDE + '; border: 1px solid #0d0f11;"></span>'
         : '';
       var l2 = r
         ? c.total + ' papers · ' + c.estrito + ' estrito (' + pct(c.estrito, c.total) + '%) · ' + c.amplo + ' amplo (' + pct(c.amplo, c.total) + '%) · ' + c.fora + ' fora'
@@ -994,9 +1167,9 @@
     }).join('');
 
     var legendaTaxa = [
-      { rot: '% aprovado', c: ACCENT, tracos: false },
+      { rot: '% aprovado', c: VERDE, tracos: false },
       { rot: 'média móvel 5d', c: '#6d7178', tracos: true }
-    ].filter(function (l) { return mostraMM || l.c === ACCENT; }).map(function (l) {
+    ].filter(function (l) { return mostraMM || l.c === VERDE; }).map(function (l) {
       return '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b; white-space: nowrap;">' +
         '<span style="display: inline-block; width: 14px; height: 0; border-top: 2px ' + (l.tracos ? 'dashed' : 'solid') + ' ' + l.c + ';"></span>' + l.rot + '</div>';
     }).join('');
@@ -1247,7 +1420,6 @@
         }
         var c = cruz[a + '\u0000' + b];
         var n = c ? c.n : 0;
-        var alfa = n ? 0.12 + (escalaLog(n, maxCruz) / 100) * 0.78 : 0;
         var marcada = s.areas.length === 1 && s.areas[0] === a && s.areasSec.length === 1 && s.areasSec[0] === b;
         return '<div' +
           ev('c', function () {
@@ -1258,9 +1430,9 @@
           ev('e', mostraTip(a + ' → ' + b, n ? n + ' papers · ' + (c.ap) + ' aprovados · ' + (n - c.ap) + ' descartados · ' + pct(c.ap, n) + '% aprovado' : 'nenhum paper neste cruzamento')) +
           ev('l', escondeTip()) +
           ' style="height: 34px; border-radius: 2px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: ' +
-          (n ? 'rgba(217,164,65,' + alfa.toFixed(3) + ')' : '#1a1d21') +
+          (marcada ? 'rgba(217,164,65,0.1)' : 'transparent') +
           '; border: 1px solid ' + (marcada ? ACCENT : 'transparent') + ';">' +
-          (n ? '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + (alfa > 0.55 ? '#14161a' : '#a8a49b') + ';">' + n + '</span>' : '') +
+          bolha(n, maxCruz, n ? c.ap / n : 0) +
           '</div>';
       }).join('');
       var onLinha = s.areas.length === 1 && s.areas[0] === a;
@@ -1272,6 +1444,30 @@
         '</div>' + celulas + '</div>';
     }).join('');
 
+    /* A matriz codifica duas medidas ao mesmo tempo, e nenhuma delas esta
+       escrita na celula - entao a chave de leitura e obrigatoria, nao enfeite:
+       sem ela "grande e cinza" nao significa nada. */
+    var legendaMatriz =
+      '<div style="display: flex; align-items: center; gap: 22px; flex-wrap: wrap; font-size: 11.5px; color: #a8a49b;">' +
+        '<div style="display: flex; align-items: center; gap: 8px;">' +
+          '<span style="color: #6d7178;">TAMANHO</span>' +
+          [1, Math.max(2, Math.round(maxCruz / 2)), maxCruz].filter(function (v, i, l) { return l.indexOf(v) === i; })
+            .map(function (v) {
+              return '<span style="display: inline-flex; align-items: center; gap: 4px;">' +
+                bolha(v, maxCruz, 0.5) +
+                '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #6d7178;">' + v + '</span></span>';
+            }).join('') +
+          '<span>papers no cruzamento</span>' +
+        '</div>' +
+        '<div style="display: flex; align-items: center; gap: 8px;">' +
+          '<span style="color: #6d7178;">COR</span>' +
+          '<span>0%</span>' +
+          '<span style="display: inline-block; width: 88px; height: 9px; border-radius: 100px; background: linear-gradient(to right, ' +
+            corTaxa(0) + ', ' + corTaxa(0.5) + ', ' + corTaxa(1) + ');"></span>' +
+          '<span>100% aprovado</span>' +
+        '</div>' +
+      '</div>';
+
     var vistaAreaCruz = s.vistaArea === 'cruz';
     out.push(
       '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 18px;">' +
@@ -1280,7 +1476,7 @@
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Área primária</div>' +
             '<div style="font-size: 12.5px; color: #8b8f96;">' +
               (vistaAreaCruz
-                ? 'Cada paper conta uma vez por área secundária. Clique numa célula para filtrar a combinação.' +
+                ? 'Tamanho = papers no cruzamento, cor = taxa de aprovação. Grande e verde: muitos e muito aprovados; grande e cinza: muitos e poucos. Cada paper conta uma vez por área secundária; clique para filtrar a combinação.' +
                   (semSec ? ' <span style="color: #6d7178;">' + semSec + ' sem área secundária ficam fora da matriz.</span>' : '')
                 : 'A LLM escolhe de uma lista fechada — nunca inventa rótulo. Clique para filtrar.') +
             '</div>' +
@@ -1292,7 +1488,7 @@
         '</div>' +
         (vistaAreaCruz
           ? (eixoAreas.length
-            ? '<div style="display: flex; flex-direction: column; gap: 3px;">' + cabMatriz + linhasMatriz + '</div>'
+            ? legendaMatriz + '<div style="display: flex; flex-direction: column; gap: 3px;">' + cabMatriz + linhasMatriz + '</div>'
             : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhuma área dentro deste recorte.</div>')
           : (barrasArea
             ? '<div style="display: flex; flex-direction: column; gap: 13px;">' + barrasArea + '</div>'
@@ -1310,7 +1506,7 @@
       // segunda-feira da semana: 1970-01-01 caiu numa quinta, dai o +3
       var chave = porSemana ? String(diaNum(d) - ((diaNum(d) + 3) % 7)) : d;
       if (!mapaPer[chave]) {
-        mapaPer[chave] = { k: chave, dias: [], total: 0, ap: 0, tp: {} };
+        mapaPer[chave] = { k: chave, dias: [], total: 0, ap: 0, tp: {}, tpAp: {} };
         periodos.push(mapaPer[chave]);
       }
       mapaPer[chave].dias.push(d);
@@ -1328,7 +1524,13 @@
       p.tp.forEach(function (t) {
         if (vistos[t]) return;
         vistos[t] = 1;
-        if (per) per.tp[t] = (per.tp[t] || 0) + 1;
+        if (per) {
+          per.tp[t] = (per.tp[t] || 0) + 1;
+          // aprovados do topico NAQUELE periodo: e o numerador da vista
+          // `aprovação`, que precisa ser por celula - a taxa da linha inteira
+          // ja esta na coluna % APR e nao diria nada novo pintada de novo
+          if (p.v !== 'fora') per.tpAp[t] = (per.tpAp[t] || 0) + 1;
+        }
         if (!linhaTop[t]) linhaTop[t] = { n: 0, ap: 0 };
         linhaTop[t].n++;
         if (p.v !== 'fora') linhaTop[t].ap++;
@@ -1343,14 +1545,14 @@
     }
     var MIN_TAXA_TOP = 5;
     var topsOrd = Object.keys(linhaTop).sort(function (x, y) {
-      if (s.heatOrd === 'crescimento') {
+      if (s.heatVista === 'crescimento') {
         // diferenca de PARTICIPACAO entre a metade recente e a antiga, nao de
         // contagem: o tamanho do lote diario varia demais para comparar cru
         var gx = participacao(x, meioPer, periodos.length) - participacao(x, 0, meioPer);
         var gy = participacao(y, meioPer, periodos.length) - participacao(y, 0, meioPer);
         return gy - gx || linhaTop[y].n - linhaTop[x].n;
       }
-      if (s.heatOrd === 'aprovacao') {
+      if (s.heatVista === 'aprovacao') {
         // topico de 1 paper aprovado nao pode liderar um ranking de taxa:
         // abaixo do minimo de amostra ele cai para o fim da lista
         var ex = linhaTop[x].n >= MIN_TAXA_TOP ? linhaTop[x].ap / linhaTop[x].n : -1;
@@ -1362,6 +1564,23 @@
     var LINHAS_HEAT = 12;
     var topsVisiveis = topsOrd.slice(0, LINHAS_HEAT);
 
+    /* ── as tres escalas do heatmap ─────────────────────────────────────────
+       A vista nao troca so a ordem das linhas: troca a MEDIDA da celula, e
+       cada medida tem a escala que o tipo dela pede (ticket 04).
+
+       `volume`     participacao do topico no lote — magnitude, entao sequencial
+                    de uma cor so (azul), do fundo ao cheio.
+       `crescimento` participacao do periodo MENOS a participacao media do
+                    topico na janela — tem sinal, entao divergente: vermelho
+                    abaixo, cinza em cima da media, verde acima. O ponto neutro
+                    e a media do proprio topico, nao zero; comparar topicos
+                    entre si nesta vista nao e a leitura (para isso ha `volume`).
+       `aprovação`  taxa de aprovacao do topico naquele periodo — magnitude de
+                    novo, e sequencial verde porque verde e aprovado.
+
+       Uma escala por vista e nao uma so para as tres: sao unidades diferentes
+       (fracao do lote, desvio com sinal, taxa), e uma rampa unica so poderia
+       estar certa para uma delas. */
     var maxPart = 0;
     topsVisiveis.forEach(function (t) {
       periodos.forEach(function (per) {
@@ -1371,6 +1590,86 @@
       });
     });
     if (maxPart <= 0) maxPart = 1;
+
+    // media do topico na janela inteira: o zero da escala divergente
+    var mediaTop = {};
+    topsVisiveis.forEach(function (t) { mediaTop[t] = participacao(t, 0, periodos.length); });
+    var maxDesvio = 0;
+    topsVisiveis.forEach(function (t) {
+      periodos.forEach(function (per) {
+        if (!per.total) return;
+        var dv = Math.abs((per.tp[t] || 0) / per.total - mediaTop[t]);
+        if (dv > maxDesvio) maxDesvio = dv;
+      });
+    });
+    if (maxDesvio <= 0) maxDesvio = 1;
+
+    /* Devolve {cor, dica} de uma celula na vista corrente. Periodo sem paper
+       nenhum e ausencia de dado nas tres vistas; celula zerada dentro de um
+       periodo cheio e ausencia de dado em `volume` e `aprovação` (nao ha o que
+       medir) mas e informacao em `crescimento` — o topico sumiu, e sumir e
+       cair. */
+    function celulaHeat(t, per) {
+      var n = per.tp[t] || 0;
+      var parte = per.total ? n / per.total : 0;
+      var rot = porSemana ? 'semana de ' + diaCurto(per.dias[0]) : diaCurto(per.dias[0]);
+      if (!per.total) return { cor: FUNDO_CELULA, l1: t + ' · ' + rot, l2: 'nenhum paper neste período' };
+      if (s.heatVista === 'crescimento') {
+        var dv = parte - mediaTop[t];
+        var pp = Math.round(dv * 1000) / 10;       // em pontos percentuais do lote
+        var frac = Math.abs(dv) / maxDesvio;
+        var neutro = mistura(FUNDO_CELULA, CINZA_ESTAVEL, 0.42);
+        return {
+          // sem piso, ao contrario da rampa sequencial: aqui o meio da escala e
+          // um valor de verdade ("ficou na media"), e um piso de saturacao
+          // pintaria de vermelho ou verde um desvio de um decimo de ponto - o
+          // mapa inteiro acenderia e nao sobraria nada de neutro para comparar
+          cor: mistura(neutro, dv > 0 ? VERDE_ALTA : VERMELHO_QUEDA, frac),
+          l1: t + ' · ' + rot,
+          // o sinal sai por escrito: a cor sozinha nao pode ser o unico canal
+          // que diz subiu ou caiu (vermelho e verde colidem sob deuteranopia)
+          l2: n + ' de ' + per.total + ' papers · ' + (pp > 0 ? '+' : '') + pp.toFixed(1) +
+            ' p.p. ' + (pp > 0 ? 'acima' : pp < 0 ? 'abaixo' : 'em cima') + ' da média do tópico (' +
+            (mediaTop[t] * 100).toFixed(1) + '%)'
+        };
+      }
+      if (s.heatVista === 'aprovacao') {
+        var nap = per.tpAp[t] || 0;
+        return {
+          cor: n ? sequencial(VERDE, nap / n) : FUNDO_CELULA,
+          l1: t + ' · ' + rot,
+          l2: n ? nap + ' de ' + n + ' aprovados · ' + pct(nap, n) + '% aprovado'
+            : 'o tópico não aparece neste período'
+        };
+      }
+      return {
+        cor: parte > 0 ? sequencial('#3987e5', parte / maxPart) : FUNDO_CELULA,
+        l1: t + ' · ' + rot,
+        l2: n + ' de ' + per.total + ' papers · ' + Math.round(parte * 100) + '% do lote'
+      };
+    }
+
+    /* Chave da escala, por vista. Obrigatoria: a mesma celula muda de
+       significado entre as tres, e sem a faixa ninguem sabe qual esta vendo. */
+    function rampa(paradas) {
+      return '<span style="display: inline-block; width: 96px; height: 9px; border-radius: 100px; background: linear-gradient(to right, ' +
+        paradas.join(', ') + ');"></span>';
+    }
+    var legendaHeat = (function () {
+      var neutro = mistura(FUNDO_CELULA, CINZA_ESTAVEL, 0.42);
+      var partes;
+      if (s.heatVista === 'crescimento') {
+        partes = ['caiu', rampa([mistura(neutro, VERMELHO_QUEDA, 1), neutro, mistura(neutro, VERDE_ALTA, 1)]), 'cresceu',
+          '<span style="color: #6d7178;">· ponto neutro = média do próprio tópico na janela</span>'];
+      } else if (s.heatVista === 'aprovacao') {
+        partes = ['0%', rampa([sequencial(VERDE, 0), sequencial(VERDE, 1)]), '100% aprovado no período'];
+      } else {
+        partes = ['0%', rampa([sequencial('#3987e5', 0), sequencial('#3987e5', 1)]),
+          Math.round(maxPart * 100) + '% do lote do período'];
+      }
+      return '<div style="display: flex; align-items: center; gap: 9px; font-size: 11.5px; color: #a8a49b; flex-wrap: wrap;">' +
+        partes.join('') + '</div>';
+    })();
 
     var colsHeat = 'grid-template-columns: 186px repeat(' + Math.max(1, periodos.length) + ', minmax(0, 1fr)) 46px 54px; gap: 2px;';
     // com muitas colunas o rotulo de cada uma se sobrepoe; um sim, um nao
@@ -1389,16 +1688,12 @@
       var on = s.topicos.indexOf(t) >= 0;
       var lt = linhaTop[t];
       var celulas = periodos.map(function (per) {
-        var n = per.tp[t] || 0;
-        var parte = per.total ? n / per.total : 0;
-        var alfa = parte > 0 ? 0.12 + (parte / maxPart) * 0.78 : 0;
-        var rot = porSemana ? 'semana de ' + diaCurto(per.dias[0]) : diaCurto(per.dias[0]);
+        var cel = celulaHeat(t, per);
         return '<div' +
           ev('c', function () { setState({ topicos: [t], diasSel: per.dias.slice(), aberta: null, justExp: {} }); }) +
-          ev('e', mostraTip(t + ' · ' + rot, per.total ? n + ' de ' + per.total + ' papers · ' + Math.round(parte * 100) + '% do lote' : 'nenhum paper neste período')) +
+          ev('e', mostraTip(cel.l1, cel.l2)) +
           ev('l', escondeTip()) +
-          ' style="height: 22px; border-radius: 2px; cursor: pointer; background: ' +
-          (parte > 0 ? 'rgba(217,164,65,' + alfa.toFixed(3) + ')' : '#1a1d21') + ';"></div>';
+          ' style="height: 22px; border-radius: 2px; cursor: pointer; background: ' + cel.cor + ';"></div>';
       }).join('');
       return '<div style="display: grid; ' + colsHeat + ' align-items: center;">' +
         '<div' + ev('c', function () { alternaLista('topicos', t); }) +
@@ -1416,19 +1711,25 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Tópico × tempo</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Intensidade = participação do tópico no lote do período. Clique na célula para filtrar tópico e período; no nome, só o tópico.' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">' +
+              (s.heatVista === 'crescimento'
+                ? 'Cor = quanto a participação do tópico no período se afasta da média dele na janela: vermelho abaixo, verde acima.'
+                : (s.heatVista === 'aprovacao'
+                  ? 'Cor = taxa de aprovação do tópico dentro daquele período.'
+                  : 'Cor = participação do tópico no lote do período.')) +
+              ' As linhas também são ordenadas pela vista. Clique na célula para filtrar tópico e período; no nome, só o tópico.' +
               (topsOrd.length > LINHAS_HEAT ? ' <span style="color: #6d7178;">Outros ' + (topsOrd.length - LINHAS_HEAT) + ' tópicos ficam fora do corte de ' + LINHAS_HEAT + ' linhas.</span>' : '') +
             '</div>' +
           '</div>' +
           '<div style="display: flex; align-items: center; gap: 9px; padding-top: 3px;">' +
-            '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">ORDENAR</span>' +
-            chipVista('volume', s.heatOrd === 'volume', function () { setState({ heatOrd: 'volume' }); }) +
-            chipVista('crescimento', s.heatOrd === 'crescimento', function () { setState({ heatOrd: 'crescimento' }); }) +
-            chipVista('aprovação', s.heatOrd === 'aprovacao', function () { setState({ heatOrd: 'aprovacao' }); }) +
+            '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">VISTA</span>' +
+            chipVista('volume', s.heatVista === 'volume', function () { setState({ heatVista: 'volume' }); }) +
+            chipVista('crescimento', s.heatVista === 'crescimento', function () { setState({ heatVista: 'crescimento' }); }) +
+            chipVista('aprovação', s.heatVista === 'aprovacao', function () { setState({ heatVista: 'aprovacao' }); }) +
           '</div>' +
         '</div>' +
         (linhasHeat
-          ? '<div style="display: flex; flex-direction: column; gap: 2px;">' + cabHeat + linhasHeat + '</div>'
+          ? legendaHeat + '<div style="display: flex; flex-direction: column; gap: 2px;">' + cabHeat + linhasHeat + '</div>'
           : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum tópico atribuído dentro deste recorte.</div>') +
       '</div>'
     );
@@ -1448,186 +1749,312 @@
     var comRegra = descartes.filter(function (p) { return !!p.rf; }).length;
     var maxRegra = Math.max.apply(null, regrasOrd.map(function (k) { return contaRegra[k]; }).concat([1]));
 
-    var acum = 0;
-    var linhasPareto = regrasOrd.map(function (k, i) {
+    var linhasPareto = regrasOrd.map(function (k) {
       var n = contaRegra[k];
       var parte = totalDesc ? (n / totalDesc) * 100 : 0;
-      acum += parte;
-      var acumAqui = acum;
       var on = s.regrasFora.indexOf(k) >= 0;
       var nulo = k === REGRA_NULA;
-      var largura = s.paretoModo === 'pct' ? parte : (n / maxRegra) * 100;
-      /* O acumulado nao e rotulado na linha, so no eixo e no tooltip: como a
-         curva chega perto de 100% nas ultimas regras, o numero cairia
-         exatamente sob o ponto dela e os dois brigariam pelo mesmo pixel. */
-      var valor = s.paretoModo === 'pct'
-        ? parte.toFixed(1) + '% <span style="color: #5f636a;">· ' + n + '</span>'
-        : n + ' <span style="color: #5f636a;">· ' + parte.toFixed(1) + '%</span>';
       /* O nulo nao e uma regra: e a cobertura que falta. Cinza em vez do azul
-         da serie, para nao ler como mais um motivo de descarte a estudar. */
+         da serie, para nao ler como mais um motivo de descarte a estudar.
+         Ele CONTINUA no codigo mesmo tendendo a zero (a regra virou
+         obrigatoria em todo `fora`): uma categoria que some quando zera
+         esconde o dia em que ela deixar de ser zero. */
       var corBarra = nulo ? '#4a5058' : (on ? ACCENT : '#3987e5');
       return '<div' +
         ev('c', function () { alternaLista('regrasFora', k); }) +
-        ev('e', mostraTip(rotuloRegra(k), n + ' descartes · ' + parte.toFixed(1) + '% dos descartados · acumulado ' + acumAqui.toFixed(1) + '%')) +
+        ev('e', mostraTip(rotulo(k), n + ' descartes · ' + parte.toFixed(1) + '% dos descartados')) +
         ev('l', escondeTip()) +
         ' style="display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; cursor: pointer;">' +
-        // rotulo e numero a esquerda, os dois: a metade direita da linha
-        // pertence a curva do acumulado, que termina em 100% justamente onde
-        // um texto alinhado a direita estaria
-        '<div style="display: flex; align-items: baseline; gap: 12px; max-width: 62%;">' +
-          '<span style="font-size: 13px; color: ' + (on ? ACCENT : (nulo ? '#8b8f96' : '#ecebe6')) + '; font-weight: ' + (on ? '600' : '400') + '; font-style: ' + (nulo ? 'italic' : 'normal') + '; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(rotuloRegra(k)) + '</span>' +
-          '<span style="flex: none; font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #8b8f96; white-space: nowrap;">' + valor + '</span>' +
+        // o rotulo agora ocupa a linha inteira: a metade direita pertencia a
+        // curva do acumulado, que saiu (com seis regras ela era decorativa e
+        // o numero dela nao era legivel sobre as barras)
+        '<div style="display: flex; align-items: baseline; gap: 12px;">' +
+          '<span style="font-size: 13px; color: ' + (on ? ACCENT : (nulo ? '#8b8f96' : '#ecebe6')) + '; font-weight: ' + (on ? '600' : '400') + '; font-style: ' + (nulo ? 'italic' : 'normal') + '; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(rotulo(k)) + '</span>' +
+          '<span style="flex: none; font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #8b8f96; white-space: nowrap;">' +
+            n + ' <span style="color: #5f636a;">· ' + parte.toFixed(1) + '% dos descartados</span></span>' +
         '</div>' +
         '<div style="height: 13px; background: #1d2226; border-radius: 2px; overflow: hidden;">' +
-          '<div class="bar" style="height: 100%; width: ' + largura + '%; min-width: 2px; background: ' + corBarra + '; border-radius: 2px;"></div>' +
+          '<div class="bar" style="height: 100%; width: ' + ((n / maxRegra) * 100) + '%; min-width: 2px; background: ' + corBarra + '; border-radius: 2px;"></div>' +
         '</div>' +
         '</div>';
     }).join('');
 
-    /* A linha acumulada percorre a mesma faixa horizontal das barras (0-100%
-       do card), so que na escala de percentual acumulado. O y de cada ponto
-       cai sobre a barra da regra porque as linhas tem altura igual - por isso
-       o rotulo mora DENTRO da linha, e nao numa coluna a esquerda: uma coluna
-       de rotulos encolheria a faixa das barras e a linha deixaria de bater. */
-    var nRegras = regrasOrd.length;
-    var acum2 = 0;
-    var ptsAcum = regrasOrd.map(function (k, i) {
-      acum2 += totalDesc ? (contaRegra[k] / totalDesc) * 100 : 0;
-      // 0,615 e onde a barra fica dentro da linha (rotulo 17px + fresta 6 +
-      // metade dos 13 da barra = 29,5, sobre os 48 da linha - 17+6+13+12 de
-      // padding): o ponto do acumulado precisa cair sobre a barra da propria
-      // regra, nao entre duas. As linhas tem altura igual porque o rotulo e
-      // `nowrap`, entao a fracao vale para todas.
-      return [acum2, ((i + 0.615) / Math.max(1, nRegras)) * 100];
+    out.push(
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 18px;">' +
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 720px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Onde o pipeline corta</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Motivos de descarte em ordem de volume. Clique numa regra para filtrar o painel inteiro. ' +
+              '<span style="color: ' + (comRegra === totalDesc ? '#6d7178' : ACCENT) + ';">Cobertura de regra: ' + comRegra + ' de ' + totalDesc + ' descartes (' + pct(comRegra, totalDesc) + '%).</span></div>' +
+          '</div>' +
+        '</div>' +
+        (linhasPareto
+          ? '<div>' + linhasPareto + '</div>'
+          : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum descarte dentro deste recorte.</div>') +
+      '</div>'
+    );
+
+    /* ── por que o pipeline aprova ──────────────────────────────────────────
+       O espelho do Pareto. Duas diferencas de leitura que o subtitulo precisa
+       dizer, porque nenhuma delas se ve no desenho:
+
+       1. A contagem e por OCORRENCIA. Um paper com dois criterios entra nas
+          duas barras, entao a soma das barras passa do total de aprovados -
+          o subtitulo traz esse total justamente para ninguem somar.
+       2. So os criterios de amplo tem barra de duas cores. Criterio de
+          estrito num paper implica veredito estrito (`veredito_dos_criterios`
+          em schemas.py), entao a barra dele e de uma cor so - e esta certo.
+          A divisao carrega informacao no outro lado: um `benchmark` que
+          acompanhou um `artefato_aberto` aparece em verde escuro. */
+    var selCrit = filtrados('criterios');
+    var aprovadosCrit = selCrit.filter(function (p) { return p.v !== 'fora'; });
+    var contaCrit = {};
+    var comCriterio = 0;
+    aprovadosCrit.forEach(function (p) {
+      var lista = p.cr || [];
+      if (lista.length) comCriterio++;
+      var vistos = {};
+      lista.forEach(function (k) {
+        if (vistos[k]) return;
+        vistos[k] = 1;
+        if (!contaCrit[k]) contaCrit[k] = { estrito: 0, amplo: 0, total: 0 };
+        if (p.v === 'estrito') contaCrit[k].estrito++; else contaCrit[k].amplo++;
+        contaCrit[k].total++;
+      });
     });
-    var marcasAcum = ptsAcum.map(function (pt) {
-      return '<span style="position: absolute; left: ' + pt[0] + '%; top: ' + pt[1] + '%; width: 7px; height: 7px; margin-left: -3.5px; margin-top: -3.5px; border-radius: 50%; background: ' + ACCENT + '; border: 1px solid #0d0f11;"></span>';
-    }).join('');
-    var gradeAcum = [25, 50, 75, 100].map(function (g) {
-      return '<line x1="' + g + '" y1="0" x2="' + g + '" y2="100" stroke="#1d2226" stroke-width="1" vector-effect="non-scaling-stroke"></line>';
+    var maxCrit = 1;
+    for (var kk in contaCrit) {
+      if (Object.prototype.hasOwnProperty.call(contaCrit, kk) && contaCrit[kk].total > maxCrit) maxCrit = contaCrit[kk].total;
+    }
+    function blocoCriterios(lista) {
+      return lista.filter(function (k) { return contaCrit[k]; })
+        .sort(function (x, y) { return contaCrit[y].total - contaCrit[x].total || ordemCriterio(x) - ordemCriterio(y); });
+    }
+    var critEstrito = blocoCriterios(CRITERIOS_ESTRITO);
+    var critAmplo = blocoCriterios(CRITERIOS_AMPLO);
+    // enum que o schema ganhou e este mapa ainda nao conhece: sai no fim, com
+    // o proprio enum como rotulo, em vez de desaparecer da contagem
+    var critOutros = blocoCriterios(Object.keys(contaCrit).filter(function (k) { return CRITERIOS.indexOf(k) < 0; }));
+
+    function barraCriterio(k) {
+      var c = contaCrit[k];
+      var on = s.criterios.indexOf(k) >= 0;
+      var partes = [
+        { v: 'estrito', n: c.estrito, cor: VERDE_ESTRITO },
+        { v: 'amplo', n: c.amplo, cor: VERDE_AMPLO }
+      ].filter(function (x) { return x.n > 0; });
+      var detalhe = partes.map(function (x) { return x.n + ' ' + x.v; }).join(' · ');
+      return '<div' +
+        ev('c', function () { alternaLista('criterios', k); }) +
+        ev('e', mostraTip(rotulo(k), c.total + ' aprovado(s) por este critério · ' + detalhe)) +
+        ev('l', escondeTip()) +
+        ' style="display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; cursor: pointer;">' +
+        '<div style="display: flex; align-items: baseline; gap: 12px;">' +
+          '<span style="font-size: 13px; color: ' + (on ? ACCENT : '#ecebe6') + '; font-weight: ' + (on ? '600' : '400') + '; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(rotulo(k)) + '</span>' +
+          '<span style="flex: none; font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #8b8f96; white-space: nowrap;">' +
+            c.total + ' <span style="color: #5f636a;">· ' + esc(detalhe) + '</span></span>' +
+        '</div>' +
+        // a fresta de 2px entre os segmentos e na cor do fundo da barra, nao um
+        // contorno: e o separador que a skill dataviz pede para empilhamento
+        '<div style="height: 13px; background: #1d2226; border-radius: 2px; overflow: hidden;">' +
+          '<div style="display: flex; gap: 2px; height: 100%; width: ' + ((c.total / maxCrit) * 100) + '%; min-width: 2px;">' +
+            partes.map(function (x) {
+              return '<div class="bar" style="flex: ' + x.n + '; background: ' + x.cor + '; border-radius: 2px;"></div>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+        '</div>';
+    }
+
+    // o separador fino que divide os dois blocos; o bloco de estrito vem
+    // primeiro porque estrito prevalece quando os lados se misturam
+    function tituloBloco(texto, primeiro) {
+      return '<div style="' + (primeiro ? '' : 'border-top: 1px solid #242a30; margin-top: 6px; padding-top: 14px; ') +
+        'font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #6d7178; padding-bottom: 10px;">' + texto + '</div>';
+    }
+    var barrasCriterio = '';
+    if (critEstrito.length) {
+      barrasCriterio += tituloBloco('CARACTERIZAM ESTRITO', true) + critEstrito.map(barraCriterio).join('');
+    }
+    if (critAmplo.length) {
+      barrasCriterio += tituloBloco('CARACTERIZAM AMPLO', !critEstrito.length) + critAmplo.map(barraCriterio).join('');
+    }
+    if (critOutros.length) {
+      barrasCriterio += tituloBloco('FORA DO VOCABULÁRIO DESTE PAINEL', !critEstrito.length && !critAmplo.length) +
+        critOutros.map(barraCriterio).join('');
+    }
+
+    var legendaCriterio = ['estrito', 'amplo'].map(function (v) {
+      return '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b; white-space: nowrap;">' +
+        '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: ' +
+        (v === 'estrito' ? VERDE_ESTRITO : VERDE_AMPLO) + ';"></span>' + v + '</div>';
     }).join('');
 
     out.push(
       '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 18px;">' +
         '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 720px;">' +
-            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Onde o pipeline corta</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Motivos de descarte em ordem de volume, com o percentual acumulado. Clique numa regra para filtrar o painel inteiro. ' +
-              '<span style="color: ' + (comRegra === totalDesc ? '#6d7178' : ACCENT) + ';">Cobertura de regra: ' + comRegra + ' de ' + totalDesc + ' descartes (' + pct(comRegra, totalDesc) + '%).</span></div>' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Por que o pipeline aprova</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Um paper com dois critérios entra nos dois — a soma das barras passa dos ' +
+              aprovadosCrit.length + ' aprovados do recorte. Clique num critério para filtrar o painel inteiro. ' +
+              '<span style="color: ' + (comCriterio === aprovadosCrit.length ? '#6d7178' : ACCENT) + ';">Cobertura de critério: ' +
+              comCriterio + ' de ' + aprovadosCrit.length + ' aprovados (' + pct(comCriterio, aprovadosCrit.length) + '%).</span></div>' +
           '</div>' +
-          '<div style="display: flex; align-items: center; gap: 9px; padding-top: 3px;">' +
-            chipVista('quantidade', s.paretoModo === 'qtd', function () { setState({ paretoModo: 'qtd' }); }) +
-            chipVista('% dos descartados', s.paretoModo === 'pct', function () { setState({ paretoModo: 'pct' }); }) +
-          '</div>' +
+          '<div style="display: flex; gap: 15px; padding-top: 5px;">' + legendaCriterio + '</div>' +
         '</div>' +
-        (linhasPareto
-          ? '<div style="position: relative;">' +
-              svgPlano(gradeAcum + poliLinha(ptsAcum, ACCENT, 1.6, null)) +
-              marcasAcum +
-              /* sem `position: relative` aqui: as barras e o SVG do acumulado
-                 sao irmaos de mesmo z-index, entao quem pinta por ultimo cobre
-                 - e posicionar as barras as jogava por cima da curva inteira */
-              '<div>' + linhasPareto + '</div>' +
-            '</div>' +
-            '<div style="border-top: 1px solid #242a30; padding-top: 6px;">' +
-              '<div style="position: relative; height: 14px;">' +
-                [0, 25, 50, 75, 100].map(function (g) {
-                  return '<span style="position: absolute; left: ' + g + '%; transform: translateX(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: ' + ACCENT + '; opacity: 0.75;">' + g + '%</span>';
-                }).join('') +
-              '</div>' +
-              // titulo do eixo em linha propria: sobreposto aos ticks ele
-              // cobriria justamente o 100%, que e onde a curva termina
-              '<div style="text-align: right; font-size: 10px; letter-spacing: 0.13em; color: ' + ACCENT + '; opacity: 0.75;">% ACUMULADO →</div>' +
-            '</div>'
-          : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum descarte dentro deste recorte.</div>') +
+        (barrasCriterio
+          ? '<div>' + barrasCriterio + '</div>'
+          : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum aprovado deste recorte tem critério de veredito registrado.</div>') +
       '</div>'
     );
 
     /* ══════════════ 04 · ATENÇÃO E ADOÇÃO ══════════════ */
     out.push(secao('04', 'Atenção e adoção'));
 
-    /* ── curva de maturação dos votos ───────────────────────────────────── */
-    /* A idade vem de `p.d` (data_hf_daily), nao do primeiro snapshot da serie.
-       Sao coisas diferentes: o refresh nao mede todo paper no dia em que ele
-       entra, entao "dias desde o primeiro snapshot" comeca o relogio em datas
-       diferentes para cada paper e achata a curva das primeiras 24 horas. */
+    /* ── como o voto amadurece ──────────────────────────────────────────────
+       Uma curva so, normalizada. A versao anterior sobrepunha tres faixas
+       P25–P75 (uma por veredito) em escala log, e nao dizia o que prometia: as
+       amostras por idade nao eram comparaveis - so paper velho chega ao dia 20,
+       entao o que subia era sobrevivencia, nao maturacao.
+
+       Aqui cada paper vale 100% do PROPRIO voto final e a pergunta fica uma so:
+       em quantos dias o voto para de se mexer? Tres decisoes sustentam isso:
+
+       - `voto final` = ultimo snapshot do paper. So entram papers com 14 dias
+         ou mais (`IDADE_FINAL`): abaixo disso "final" ainda esta subindo e o
+         paper diria que amadureceu quando so foi medido cedo.
+       - eixo y linear, 0 a 100%. Log aqui esconderia justamente o joelho da
+         curva, que e a resposta.
+       - a idade vem de `p.d` (data_hf_daily), nao do primeiro snapshot: o
+         refresh nao mede todo paper no dia em que ele entra, entao "dias desde
+         o primeiro snapshot" comeca o relogio em datas diferentes para cada
+         paper e achata as primeiras 24 horas. */
     var MIN_AMOSTRA = 5;
-    var acumulo = { estrito: {}, amplo: {}, fora: {} };
+    var IDADE_FINAL = 14;
+    // idade medida da geracao do painel, nao do relogio do navegador: o HTML e
+    // estatico e pode ser lido dias depois sem que os snapshots mudem
+    var hojeNum = diaNum(String(DADOS.gerado).slice(0, 10));
+
+    var acumulo = {};
+    var nMaduros = 0, nNovos = 0;
     sel.forEach(function (p) {
       var serie = DADOS.serie[p.id];
-      if (!serie || !acumulo[p.v]) return;
       var base = diaNum(p.d);
-      if (base === null) return;
+      if (!serie || !serie.length || base === null || hojeNum === null) return;
+      if (hojeNum - base < IDADE_FINAL) { nNovos++; return; }
+      var votoFinal = null;
+      for (var i = serie.length - 1; i >= 0; i--) {
+        if (serie[i][1] !== null && serie[i][1] !== undefined) { votoFinal = serie[i][1]; break; }
+      }
+      // sem voto medido, ou final zero: nao ha fracao a formar (e dividir por
+      // zero jogaria Infinity dentro da mediana)
+      if (!votoFinal) return;
+      nMaduros++;
       serie.forEach(function (m) {
         if (m[1] === null || m[1] === undefined) return;
         var idade = diaNum(m[0]) - base;
         // snapshot anterior ao HF Daily e dado torto: ele aparece na auditoria
         // da defasagem, nao como idade negativa nesta curva
         if (idade < 0) return;
-        if (!acumulo[p.v][idade]) acumulo[p.v][idade] = [];
-        acumulo[p.v][idade].push(m[1]);
+        if (!acumulo[idade]) acumulo[idade] = [];
+        acumulo[idade].push((m[1] / votoFinal) * 100);
       });
     });
 
     var idadeFim = -1;
-    ['estrito', 'amplo', 'fora'].forEach(function (v) {
-      for (var a in acumulo[v]) {
-        if (!Object.prototype.hasOwnProperty.call(acumulo[v], a)) continue;
-        if (acumulo[v][a].length >= MIN_AMOSTRA && +a > idadeFim) idadeFim = +a;
-      }
-    });
+    for (var ai in acumulo) {
+      if (!Object.prototype.hasOwnProperty.call(acumulo, ai)) continue;
+      if (acumulo[ai].length >= MIN_AMOSTRA && +ai > idadeFim) idadeFim = +ai;
+    }
 
-    var curvas = {}, maxVoto = 1;
-    ['estrito', 'amplo', 'fora'].forEach(function (v) {
-      curvas[v] = [];
-      for (var a = 0; a <= idadeFim; a++) {
-        var xs = acumulo[v][a] || [];
-        // abaixo do minimo a mediana daquela idade nao se sustenta - o ponto
-        // fica vazio e a linha quebra, em vez de interpolar o que falta
-        if (xs.length < MIN_AMOSTRA) { curvas[v].push(null); continue; }
-        var q3 = quartil(xs, 0.75);
-        if (q3 > maxVoto) maxVoto = q3;
-        curvas[v].push({ idade: a, n: xs.length, med: mediana(xs), q1: quartil(xs, 0.25), q3: q3 });
-      }
-    });
+    var curva = [];
+    for (var ic = 0; ic <= idadeFim; ic++) {
+      var xsc = acumulo[ic] || [];
+      // abaixo do minimo a mediana daquela idade nao se sustenta - o ponto fica
+      // vazio e a linha quebra, em vez de interpolar o que falta
+      if (xsc.length < MIN_AMOSTRA) { curva.push(null); continue; }
+      curva.push({
+        idade: ic, n: xsc.length,
+        // `quartil` e nao `mediana`: esta ultima arredonda para inteiro, o que
+        // aqui perderia o cruzamento dos 90% por menos de um ponto percentual
+        med: quartil(xsc, 0.5), q1: quartil(xsc, 0.25), q3: quartil(xsc, 0.75)
+      });
+    }
+    var diaEstavel = null;
+    curva.forEach(function (r) { if (diaEstavel === null && r && r.med >= 90) diaEstavel = r.idade; });
 
     function xIdade(a) { return idadeFim > 0 ? (a / idadeFim) * 100 : 50; }
-    function yVoto(v) { return 100 - escalaLog(v, maxVoto); }
+    // o clamp e so de desenho: um snapshot acima do proprio final significaria
+    // voto perdido entre medicoes, e a mediana dele continua no tooltip
+    function yPct(v) { return 100 - Math.max(0, Math.min(100, v)); }
 
     var desenhoMat = '';
-    ticksLog(maxVoto).forEach(function (v) {
-      desenhoMat += '<line x1="0" y1="' + yVoto(v) + '" x2="100" y2="' + yVoto(v) + '" stroke="#1d2226" stroke-width="1" vector-effect="non-scaling-stroke"></line>';
+    [0, 25, 50, 75, 100].forEach(function (g) {
+      desenhoMat += '<line x1="0" y1="' + yPct(g) + '" x2="100" y2="' + yPct(g) + '" stroke="#1d2226" stroke-width="1" vector-effect="non-scaling-stroke"></line>';
     });
-    ['fora', 'amplo', 'estrito'].forEach(function (v) {
-      trechos(curvas[v]).forEach(function (tr) {
-        if (tr.length < 2) return;
-        var cima = tr.map(function (r) { return [xIdade(r.idade), yVoto(r.q3)]; });
-        var baixo = tr.slice().reverse().map(function (r) { return [xIdade(r.idade), yVoto(r.q1)]; });
-        desenhoMat += poliArea(cima.concat(baixo), cor(v), 0.16);
-      });
+    // a referencia dos 90% e um tom acima da grade: e o patamar que a marca
+    // vertical esta anunciando, e sem ela a linha tracejada nao teria contra o
+    // que ser lida
+    desenhoMat += '<line x1="0" y1="' + yPct(90) + '" x2="100" y2="' + yPct(90) + '" stroke="#333a41" stroke-width="1" vector-effect="non-scaling-stroke"></line>';
+    trechos(curva).forEach(function (tr) {
+      if (tr.length < 2) return;
+      var cima = tr.map(function (r) { return [xIdade(r.idade), yPct(r.q3)]; });
+      var baixo = tr.slice().reverse().map(function (r) { return [xIdade(r.idade), yPct(r.q1)]; });
+      desenhoMat += poliArea(cima.concat(baixo), ROXO_VOTO, 0.16);
     });
-    ['fora', 'amplo', 'estrito'].forEach(function (v) {
-      trechos(curvas[v]).forEach(function (tr) {
-        desenhoMat += poliLinha(tr.map(function (r) { return [xIdade(r.idade), yVoto(r.med)]; }), cor(v), 2, null);
-      });
+    if (diaEstavel !== null) {
+      desenhoMat += poliLinha([[xIdade(diaEstavel), 0], [xIdade(diaEstavel), 100]], ROXO_VOTO, 1.4, '4 4');
+    }
+    /* Idade sozinha entre dois buracos - hoje o dia 0, porque o refresh nao
+       mede todo dia da primeira semana. Uma polilinha de um ponto so nao
+       desenha nada, e era justamente o ponto mais informativo do grafico
+       (dia 0: mediana ~80% do voto final) que sumia. Ele vira ponto com haste
+       P25–P75: mesma informacao da faixa, na unica forma que um x sozinho
+       comporta. O anel na cor do fundo e o que mantem o ponto legivel se a
+       linha passar por perto. */
+    trechos(curva).forEach(function (tr) {
+      if (tr.length >= 2) {
+        desenhoMat += poliLinha(tr.map(function (r) { return [xIdade(r.idade), yPct(r.med)]; }), ROXO_VOTO, 2, null);
+        return;
+      }
+      var r = tr[0];
+      desenhoMat += poliLinha([[xIdade(r.idade), yPct(r.q3)], [xIdade(r.idade), yPct(r.q1)]], ROXO_VOTO, 1.4, null);
     });
+    var pontosSoltos = trechos(curva).filter(function (tr) { return tr.length === 1; }).map(function (tr) {
+      var r = tr[0];
+      return '<span style="position: absolute; left: ' + xIdade(r.idade) + '%; top: ' + yPct(r.med) +
+        '%; width: 9px; height: 9px; margin-left: -4.5px; margin-top: -4.5px; border-radius: 50%; background: ' +
+        ROXO_VOTO + '; border: 2px solid #16191c; pointer-events: none;"></span>';
+    }).join('');
+
+    var marcaEstavel = '';
+    if (diaEstavel !== null) {
+      // perto da borda direita o rotulo vira para a esquerda da linha, senao
+      // ele sai do card - mesma regra dos rotulos da dispersao. A meia altura
+      // porque a curva vive colada no topo depois que cruza os 90%: la em cima
+      // o rotulo cairia em cima dela.
+      var xe = xIdade(diaEstavel);
+      var aEsquerda = xe > 62;
+      marcaEstavel = '<span style="position: absolute; ' +
+        (aEsquerda ? 'right: ' + (100 - xe) + '%; margin-right: 8px;' : 'left: ' + xe + '%; margin-left: 8px;') +
+        ' top: 48%; font-size: 11px; color: ' + ROXO_VOTO + '; white-space: nowrap; pointer-events: none;">estabiliza por volta do dia +' + diaEstavel + '</span>';
+    }
 
     var celulasMat = [];
     for (var im = 0; im <= idadeFim; im++) {
       (function (a) {
-        var partes = ['estrito', 'amplo', 'fora'].map(function (v) {
-          var r = curvas[v][a];
-          return r ? v + ' ' + r.med + ' (P25 ' + Math.round(r.q1) + '–P75 ' + Math.round(r.q3) + ', n ' + r.n + ')' : null;
-        }).filter(function (x) { return x; });
+        var r = curva[a];
         celulasMat.push('<div' +
-          ev('e', mostraTip('dia ' + a + ' desde o HF Daily', partes.length ? partes.join(' · ') : 'nenhum veredito com amostra suficiente')) +
+          ev('e', mostraTip('dia +' + a + ' desde o HF Daily',
+            r ? 'mediana ' + r.med.toFixed(0) + '% do voto final · P25 ' + r.q1.toFixed(0) + '–P75 ' + r.q3.toFixed(0) + '% · n ' + r.n
+              : 'menos de ' + MIN_AMOSTRA + ' papers medidos nesta idade')) +
           ev('l', escondeTip()) +
           ' style="flex: 1; height: 100%; cursor: pointer;"></div>');
       })(im);
     }
 
-    var eixoMatY = ticksLog(maxVoto).map(function (v) {
-      return '<span style="position: absolute; top: ' + yVoto(v) + '%; right: 0; transform: translateY(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #6d7178;">' + v + '</span>';
+    var eixoMatY = [0, 25, 50, 75, 100].map(function (v) {
+      return '<span style="position: absolute; top: ' + yPct(v) + '%; right: 0; transform: translateY(-50%); font-family: \'IBM Plex Mono\', monospace; font-size: 10.5px; color: #6d7178;">' + v + '%</span>';
     }).join('');
     var passoIdade = Math.max(1, passoEixo(Math.max(1, idadeFim), 6));
     var eixoMatX = '';
@@ -1658,23 +2085,32 @@
           '<span style="flex: none; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: ' + cor(r.p.v) + ';"></span>' +
           '<span style="font-size: 12px; color: #ecebe6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(r.p.t) + '</span>' +
         '</div>' +
-        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #4ec07a; padding-left: 15px;">+' + r.taxa.toFixed(1) + ' votos/dia</span>' +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + ROXO_VOTO + '; padding-left: 15px;">+' + r.taxa.toFixed(1) + ' votos/dia</span>' +
         '</div>';
     }).join('') || '<div style="font-size: 12px; color: #6d7178; padding: 20px 0;">Nenhum paper com dois snapshots e voto crescendo neste recorte.</div>';
 
-    var legendaMat = ['estrito', 'amplo', 'fora'].map(function (v) {
-      return '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b; white-space: nowrap;">' +
-        '<span style="display: inline-block; width: 14px; height: 0; border-top: 2px solid ' + cor(v) + ';"></span>' + v + '</div>';
-    }).join('');
+    /* Uma serie so, entao nao ha legenda de identidade a montar - o titulo ja
+       diz o que esta plotado. O que precisa de chave sao as duas MARCAS
+       (linha e faixa), que sao coisas diferentes desenhadas na mesma cor. */
+    var chaveMat =
+      '<div style="display: flex; gap: 15px; flex-wrap: wrap;">' +
+        '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b; white-space: nowrap;">' +
+          '<span style="display: inline-block; width: 14px; height: 0; border-top: 2px solid ' + ROXO_VOTO + ';"></span>mediana</div>' +
+        '<div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #a8a49b; white-space: nowrap;">' +
+          '<span style="display: inline-block; width: 14px; height: 9px; border-radius: 2px; background: ' + ROXO_VOTO + '29;"></span>P25–P75</div>' +
+      '</div>';
 
     out.push(
       '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 18px;">' +
         '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 700px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Como o voto amadurece</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Mediana de votos acumulados por dia desde o HF Daily, com a faixa P25–P75. Escala log; rótulos em votos reais. Só idades com pelo menos ' + MIN_AMOSTRA + ' papers observados.</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Cada paper vale 100% do próprio voto final — o último snapshot dele. ' +
+              'Entram os <span style="color: #ecebe6;">' + nMaduros + '</span> papers com ' + IDADE_FINAL + ' dias ou mais; ' +
+              (nNovos ? '<span style="color: #6d7178;">' + nNovos + ' mais novos ficam de fora, porque o final deles ainda está subindo.</span>' : '') +
+              ' Só idades com pelo menos ' + MIN_AMOSTRA + ' papers medidos.</div>' +
           '</div>' +
-          '<div style="display: flex; gap: 15px; padding-top: 5px;">' + legendaMat + '</div>' +
+          '<div style="padding-top: 5px;">' + chaveMat + '</div>' +
         '</div>' +
         '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 268px; gap: 26px;">' +
           (idadeFim >= 1
@@ -1683,6 +2119,8 @@
                   '<div style="position: relative; height: 232px;">' + eixoMatY + '</div>' +
                   '<div style="position: relative; height: 232px; border-left: 1px solid #333a41; border-bottom: 1px solid #333a41;">' +
                     svgPlano(desenhoMat) +
+                    pontosSoltos +
+                    marcaEstavel +
                     '<div style="position: absolute; inset: 0; display: flex;">' + celulasMat.join('') + '</div>' +
                   '</div>' +
                 '</div>' +
@@ -1700,7 +2138,7 @@
                linha. Dizer "amostra insuficiente" no segundo caso e falso. */
             : '<div style="padding: 90px 0; text-align: center; font-size: 12.5px; color: #6d7178;">' +
                 (idadeFim < 0
-                  ? 'Amostra insuficiente: nenhuma idade com ' + MIN_AMOSTRA + ' papers ou mais neste recorte.'
+                  ? 'Amostra insuficiente: nenhuma idade com ' + MIN_AMOSTRA + ' papers de ' + IDADE_FINAL + ' dias ou mais neste recorte.'
                   : 'Só o dia 0 reúne ' + MIN_AMOSTRA + ' papers ou mais neste recorte: uma idade sozinha não desenha curva.') +
               '</div>') +
           '<div style="display: flex; flex-direction: column; gap: 12px; border-left: 1px solid #242a30; padding-left: 22px;">' +
@@ -1720,10 +2158,6 @@
     var zeroStar = comRepo.filter(function (p) { return !p.gs; }).length;
     var maxU = Math.max.apply(null, comRepo.map(function (p) { return p.u; }).concat([1]));
     var maxG = Math.max.apply(null, comRepo.map(function (p) { return p.gs; }).concat([1]));
-    // idade medida da geracao do painel, nao do relogio do navegador: o HTML e
-    // estatico e pode ser lido dias depois sem que o numero de stars mude
-    var hojeNum = diaNum(String(DADOS.gerado).slice(0, 10));
-
     // rotulo permanente so nos extremos: os tres mais votados e os tres mais
     // estrelados. Rotular tudo cobriria a nuvem inteira de texto.
     var rotulados = {};

@@ -83,26 +83,42 @@ ORDINAL = {1: "1", 2: "2", 3: "3", 4: "4"}
 # esse prefixo para sempre. Nao remova so porque o produtor sumiu.
 PREFIXO_FALLBACK = "Estagio B falhou;"
 
+# Segunda rede pelo texto, mesmo espirito da primeira e pelo mesmo motivo:
+# linhas ja gravadas. A carga historica escrevia como `justificativa` um
+# carimbo de PROCEDENCIA ("Importado do historico (estado)"), nao um motivo -
+# em 2026-09-05 sao ~160 linhas assim no banco. Quem escrevia esse texto ja nao
+# existe no codigo, mas as linhas ficaram, e o painel e regenerado a cada rodada
+# diaria: sem esta rede o carimbo sairia sob "POR QUE ESTRITO" e o painel
+# mentiria sobre o que o pipeline avaliou.
+#
+# Rede para dado legado, e so isso: depois da reclassificacao total (secao 3 da
+# spec) toda linha tem `revisao >= 2` e justificativa escrita pelo pipeline,
+# e esta constante pode ser removida - conferir antes com
+# `SELECT COUNT(*) FROM fato_triagem WHERE justificativa LIKE 'Importado do historico%'`.
+PREFIXO_IMPORTADO = "Importado do historico"
+
 
 def justificativa_exibivel(triagem: dict) -> tuple[str, int]:
     """Decide o que o app pode mostrar como motivo da decisao.
 
     Retorna (texto, codigo): codigo 0 e o texto normal, 2 e justificativa de
     fallback do Estagio B (texto descartado, o app troca por aviso), 3 e
-    ausencia de texto - uma linha do pipeline com `justificativa` vazia, que
-    sem este codigo sairia como cabecalho oco (rotulo "POR QUE ESTRITO"/"POR
-    QUE AMPLO" sem corpo). As duas notas de honestidade da issue #2 passam por
-    aqui, para as duas listas (aprovados e descartados) nao divergirem na regra.
+    ausencia de texto exibivel - `justificativa` vazia, ou um carimbo de
+    procedencia legado no lugar do motivo. Sem o 3 esses casos sairiam como
+    cabecalho oco (rotulo "POR QUE ESTRITO"/"POR QUE AMPLO" sem corpo) ou,
+    pior, como frase que finge ser um motivo. Os dois codigos residuais sao a
+    mesma nota de honestidade da issue #2 para as duas listas (aprovados e
+    descartados), que assim nao divergem na regra.
 
-    O codigo 1 (veredito herdado, sem justificativa por paper) morreu com o
-    backfill: hoje todo veredito sai do pipeline. Os codigos nao foram
-    renumerados de proposito - `painel_app.js` le o mesmo contrato e um 2 que
-    virasse 1 mudaria o aviso de papers ja publicados.
+    O codigo 1 (paper sem justificativa propria, porque o veredito nao vinha do
+    pipeline) nao existe mais: hoje todo veredito sai do pipeline. Os codigos
+    nao foram renumerados de proposito - `painel_app.js` le o mesmo contrato e
+    um 2 que virasse 1 mudaria o aviso de papers ja publicados.
     """
     texto = triagem.get("justificativa") or ""
     if texto.startswith(PREFIXO_FALLBACK):
         return "", 2
-    if not texto:
+    if not texto or texto.startswith(PREFIXO_IMPORTADO):
         return "", 3
     return texto, 0
 
@@ -192,6 +208,27 @@ def periodo(d: dt.date) -> tuple[str, str, dt.date, dt.date]:
             ini, proximo - dt.timedelta(days=1))
 
 
+def criterios_e_fronteira(triagem: dict, criterios: list[str]) -> dict:
+    """Os dois campos que a linha do veredito da ficha precisa, para um aprovado.
+
+    `cr` sempre sai (lista vazia inclusive: aprovado de linha antiga, anterior a
+    `criterios_veredito`, existe e nao tem criterio nenhum); `fc` so quando ha
+    decisao de fronteira COM contraparte gravada, senao o app imprimiria
+    "fronteira: quase null". O selo generico de fronteira continua saindo pelo
+    `fr`, que e independente deste par.
+
+    Os enums nao viram rotulo aqui: o mapa enum -> portugues mora em
+    `painel_app.js`, que e o unico consumidor (a ficha e o grafico "por que o
+    pipeline aprova"). Um so mapa, do lado de quem desenha - traze-lo para ca
+    duplicaria 16 strings dentro de `DADOS` sem ninguem em Python para le-las.
+    """
+    extra: dict = {"cr": criterios}
+    contraparte = triagem.get("fronteira_contraparte")
+    if triagem.get("decisao_fronteira") and contraparte:
+        extra["fc"] = contraparte
+    return extra
+
+
 def por_voto(papers: list[dict]) -> list[dict]:
     """Ordena por upvotes desc, desempatando por paper_id.
 
@@ -210,6 +247,7 @@ def montar_hall(
     area_primaria: dict[str, str],
     topicos_por_paper: dict[str, list[str]],
     ultimo_voto: dict[str, str],
+    criterios_por_paper: dict[str, list[str]],
     *,
     corte: dt.date,
 ) -> list[dict]:
@@ -293,6 +331,7 @@ def montar_hall(
                 "j": j,
                 "h": h,
                 "fr": 1 if t.get("decisao_fronteira") else 0,
+                **criterios_e_fronteira(t, criterios_por_paper.get(pid, [])),
                 "ach": f.get("achado") or "",
                 "pn": f.get("padrao_nome") or "",
                 "pm": f.get("padrao_mecanismo") or "",
@@ -376,6 +415,18 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         if r["paper_id"] in ids_uteis:
             topicos_por_paper[r["paper_id"]].append(r["topico"])
 
+    # Criterios de veredito por paper. Ordenados e sem repeticao pelo mesmo
+    # motivo de `por_voto` desempatar: o painel e commitado todo dia e a ordem
+    # em que o Parquet devolve as linhas nao e garantida entre rodadas - sem
+    # isso o commit diario ganharia um diff que nao significa nada. A ordem
+    # alfabetica basta aqui: quem ordena para exibir e o app, que tem a lista
+    # canonica (estrito antes de amplo) do `schemas.py`.
+    criterios_brutos: dict[str, set[str]] = defaultdict(set)
+    for r in ler("ponte_paper_criterio"):
+        if r["paper_id"] in ids_uteis:
+            criterios_brutos[r["paper_id"]].add(r["criterio"])
+    criterios_por_paper = {pid: sorted(cs) for pid, cs in criterios_brutos.items()}
+
     # Uma passada so: a serie completa para quem esta na janela, e a data da
     # ultima medicao para quem esta no hall (o "votos em" que honra o
     # congelamento do refresh).
@@ -421,12 +472,16 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         # cabecalho da decisao (issue #2): so os aprovados o renderizam, entao
         # so eles carregam `j`/`h` - a janela tem ~2500 papers e a maioria e
         # `fora`, e essa e a restricao de peso que a issue pede para respeitar.
+        # `cr`/`fc` seguem a mesma regra e pelo mesmo motivo: criterio de
+        # veredito so existe para quem foi aprovado.
         if veredito_p != "fora":
             entrada["j"], entrada["h"] = justificativa_exibivel(t)
+            entrada.update(criterios_e_fronteira(t, criterios_por_paper.get(pid, [])))
         lista.append(entrada)
 
     hall = montar_hall(
         papers, triagem, fichas, area_primaria, topicos_por_paper, ultimo_voto,
+        criterios_por_paper,
         corte=corte_hall,
     )
 

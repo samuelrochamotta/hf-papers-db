@@ -17,7 +17,7 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
-from gerar_painel import PREFIXO_FALLBACK, justificativa_exibivel
+from gerar_painel import PREFIXO_FALLBACK, PREFIXO_IMPORTADO, justificativa_exibivel
 
 # Fixa e distante de "hoje" de proposito: os testes de `montar_dados` abaixo
 # nao podem depender do relogio da maquina que roda a suite. `JANELA_LONGA`
@@ -52,11 +52,54 @@ def test_chave_justificativa_ausente_tambem_e_codigo_tres():
 # ══════════════ procedencia nao decide mais nada ══════════════
 
 def test_run_id_nao_muda_o_codigo():
-    """O codigo 1 morreu com o backfill: todo veredito sai do pipeline, entao a
-    linha vale pelo texto que carrega, venha do `run_id` que vier."""
+    """O codigo 1 nao existe mais: todo veredito sai do pipeline, entao a linha
+    vale pelo texto que carrega, venha do `run_id` que vier."""
     triagem = {"run_id": "run-20260901-074155", "justificativa": "motivo forte"}
     assert justificativa_exibivel(triagem) == ("motivo forte", 0)
     assert justificativa_exibivel({**triagem, "justificativa": ""}) == ("", 3)
+
+
+# ══════════════ rede para a justificativa legada ══════════════
+#
+# O codigo 1 nao existe mais, mas as ~242 linhas antigas continuam no
+# banco - e ~160 delas tem como `justificativa` um carimbo de procedencia, nao
+# um motivo. Sem esta rede o painel imprimiria o carimbo sob "POR QUE ESTRITO"
+# e mentiria sobre o que o pipeline avaliou. O corte e pelo TEXTO, nao pelo
+# `run_id`: e o texto que esta gravado errado.
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "Importado do historico (digest, estado, taxonomia)",
+        "Importado do historico (estado)",
+    ],
+)
+def test_carimbo_de_procedencia_legado_e_codigo_tres(texto):
+    """Os dois literais que existem no banco em 2026-09-05, os dois cobertos.
+
+    Codigo 3 e nao 2 de proposito: 2 diz "o Estagio B nao concluiu", que seria
+    falso aqui - a linha nem passou pelo estagio. 3 e a ausencia de texto
+    exibivel, que e exatamente o caso, e o app ja sabe transforma-la num aviso
+    honesto em vez de um cabecalho oco.
+    """
+    assert justificativa_exibivel({"justificativa": texto}) == ("", 3)
+
+
+def test_o_prefixo_e_o_criterio_nao_o_literal_inteiro():
+    """Variacao de sufixo (outra combinacao de fontes) cai na mesma rede."""
+    assert justificativa_exibivel(
+        {"justificativa": PREFIXO_IMPORTADO + " (estado, taxonomia)"}
+    ) == ("", 3)
+
+
+def test_justificativa_de_verdade_que_menciona_importacao_passa():
+    """A rede e um prefixo, nao uma busca no meio do texto.
+
+    Um motivo legitimo pode falar de importacao ("O paper importa do historico
+    de agentes..."); so o carimbo COMECA com o literal.
+    """
+    texto = "O paper importa do historico de agentes um padrao que ja existia."
+    assert justificativa_exibivel({"justificativa": texto}) == (texto, 0)
 
 
 # ══════════════ os consumidores concordam (montar_dados) ══════════════

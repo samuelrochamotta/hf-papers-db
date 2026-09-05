@@ -55,7 +55,7 @@ def ficha(pid: str) -> dict:
     }
 
 
-def montar(papers, triagem, fichas=None, ultimo_voto=None, corte=CORTE):
+def montar(papers, triagem, fichas=None, ultimo_voto=None, corte=CORTE, criterios=None):
     return montar_hall(
         papers,
         triagem,
@@ -63,6 +63,7 @@ def montar(papers, triagem, fichas=None, ultimo_voto=None, corte=CORTE):
         {},          # area_primaria
         {},          # topicos_por_paper
         ultimo_voto or {},
+        criterios or {},
         corte=corte,
     )
 
