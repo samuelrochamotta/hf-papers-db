@@ -383,30 +383,38 @@ papers para o histórico.
 
 Congelar aos 90 dias não perde quase nada, e isso foi medido em `fato_metrica`
 (idade contada a partir de `data_hf_daily`, não do índice do snapshot — os
-snapshots não começam no dia da publicação):
+snapshots não começam no dia da publicação). Recalculado em 04/09/2026 sobre os
+184 papers com 14 dias ou mais de idade, tomando como valor do corte o último
+snapshot **até** aquele dia:
 
 | corte | mediana upvote/final | ainda crescem >10% depois |
 |---|---|---|
-| dia +2 | 0,89 | 58,6% |
-| dia +5 | 0,96 | 41,0% |
-| dia +7 | 1,00 | 26,5% |
-| dia +10 | 1,00 | 7,6% |
-| dia +14 | 1,00 | 0,7% |
+| dia +2 | 0,81 | 76,6% |
+| dia +5 | 0,83 | 70,1% |
+| dia +7 | 0,91 | 48,9% |
+| dia +10 | 1,00 | 17,4% |
+| dia +14 | 1,00 | 9,2% |
 | dia +18 | 1,00 | 0,0% |
 
-A mediana atinge o valor final **no dia +6** e o movimento residual acaba por
-volta do **dia +14** — tudo dentro da janela quente de 30 dias, com folga de ~6x
-até o corte de 90 dias. O maior salto tardio observado foi 286 → 339 votos.
+A mediana atinge o valor final **no dia +10** e o movimento residual acaba por
+volta do **dia +18** — ainda dentro da janela quente de 30 dias, com folga de ~5x
+até o corte de 90 dias. O maior salto tardio observado foi 286 → 340 votos, depois
+do dia +10.
 
-O card *Como o voto amadurece* responde a mesma pergunta com outra régua, e por
-isso dá outro número: ele marca o primeiro dia **medido** em que a mediana cruza
-**90%** do voto final, e em 04/09/2026 esse dia é o **+5** ("estabiliza por volta
-do dia +5"). A diferença para a tabela acima não é contradição: a tabela pergunta
-quando a mediana chega a 100%, e o card só desenha idades com pelo menos 5 papers
-medidos — hoje os dias +1 a +4 não têm essa amostra (o refresh não mede todo dia
-da primeira semana) e ficam sem ponto, então o dia +5 é o primeiro candidato
-depois do dia 0 (mediana 80,5%). Entram na curva só os papers com 14 dias ou mais
-de idade: 184 dos 482.
+Uma armadilha da tabela, que o dado atual expõe: **as idades +1 a +4 não têm
+snapshot nenhum** — o refresh não mede todo dia da primeira semana. As linhas
++2 e +5 não medem aqueles dias; elas carregam para frente o valor do dia 0
+(mediana 0,805), e é por isso que sobem tão devagar.
+
+O card *Como o voto amadurece* usa outra régua e por isso dá outro número: ele
+marca o primeiro dia **medido** em que a mediana cruza **90%** do voto final, e
+em 04/09/2026 esse dia é o **+5** ("estabiliza por volta do dia +5"). Não é
+contradição com a tabela: aqui a pergunta é quando a mediana chega a 90%, lá é
+quando chega a 100% (que também é o dia +10 na régua do card). O card só desenha
+idades com pelo menos 5 papers medidos — o subtítulo dele diz isso — então os
+dias +1 a +4 ficam sem ponto e o +5 é o primeiro candidato depois do dia 0, com a
+amostra que essa régua tem naquela idade: 26 papers no dia +5, contra 184 no dia
+0. Entram na curva só os papers com 14 dias ou mais: 184 dos 482.
 
 ### Tamanho
 
