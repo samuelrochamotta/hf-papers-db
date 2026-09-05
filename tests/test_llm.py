@@ -58,9 +58,12 @@ def _base(**over):
             "colapsa_em_generalidade": False,
             "aprovado": True,
         },
+        "criterios_veredito": ["padrao_arquitetural"],
         "veredito": "estrito",
+        "regra_fora": None,
         "justificativa_veredito": JUSTIFICATIVA_B,
         "decisao_fronteira": False,
+        "fronteira_contraparte": None,
         "ficha": {
             "achado": "a",
             "implicacao_pratica": "b",
@@ -108,9 +111,13 @@ def test_ordem_das_propriedades_do_estagio_b_e_normativa():
 # ── validacoes da secao 4.4 ─────────────────────────────────────────────────
 
 
+# Um `fora` coerente do Estagio B: sem ficha, sem criterio, com regra.
+FORA = dict(veredito="fora", ficha=None, criterios_veredito=[], regra_fora="treino_ou_postreino")
+
+
 def test_fora_exige_ficha_nula():
     with pytest.raises(ErroValidacao):
-        eb.validar(_base(veredito="fora", ficha={"achado": "a", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d"}))
+        eb.validar(_base(**{**FORA, "ficha": {"achado": "a", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d"}}))
 
 
 def test_aprovado_exige_ficha_completa():
@@ -134,7 +141,9 @@ def test_reprovado_na_portabilidade_tem_de_sair_fora():
     }
     with pytest.raises(ErroValidacao):
         eb.validar(_base(teste_portabilidade=reprovado))
-    eb.validar(_base(teste_portabilidade=reprovado, veredito="fora", ficha=None))
+    eb.validar(
+        _base(teste_portabilidade=reprovado, **{**FORA, "regra_fora": "portabilidade_reprovada"})
+    )
 
 
 def test_aprovado_incoerente_com_as_duas_falhas():

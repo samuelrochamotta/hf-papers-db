@@ -22,6 +22,8 @@ quando ele fecha.
 - Skills por padrão: `grilling` + `domain-modeling`. Ticket de gráfico consulta
   também `dataviz`. Ticket `prototype` de painel gera sempre com
   `scripts/gerar_painel.sh --force --destino <scratch>` — nunca publica.
+- 2026-09-04: o usuário autorizou **implementar o Estágio B direto** (ticket 07
+  pulado). Exceção pontual; o resto continua planejamento.
 - Execução não entra no mapa, com uma exceção autorizada: `task`/`prototype` que
   rode o prompt novo numa **amostra** de papers para julgar antes de travar.
   Custo não é argumento: A ≈ US$ 0,0004/paper, B ≈ US$ 0,001/paper
@@ -40,7 +42,8 @@ quando ele fecha.
 - [Cores e formas dos gráficos](issues/04-cores-e-formas-dos-graficos.md): heatmap com escala por vista, matriz de bolhas (cor = taxa, tamanho = total), verde = aprovado, Pareto sem linha acumulada.
 - [Como o voto amadurece](issues/05-como-o-voto-amadurece.md): vira curva única normalizada (% do voto final × idade), com o dia dos 90% marcado.
 - [Por que os 5 pendentes de 03/09 atravessaram a rodada de 04/09](issues/08-por-que-os-5-pendentes-atravessaram-a-rodada.md): latência esperada, não bug — nasceram pelo refresh (estágio 4) às 07:33:11, depois de o estágio 3 fechar às 07:33:07; nunca foram selecionados, entram na próxima varredura sem escopo; o corte do `doutor` (`finalizado_em`, pós-refresh) é um falso positivo latente.
-- [Enum de critérios estrito/amplo](issues/06-enum-de-criterios-estrito-amplo.md): 10 critérios (5 estrito, 5 amplo), `panorama` e `exige_acesso_interno` novos; código aberto é critério, não régua; prática corrente = o que o leitor faz hoje; fronteira só com critério do outro lado na lista.
+- [Enum de critérios estrito/amplo](issues/06-enum-de-criterios-estrito-amplo.md): 10 critérios (5 estrito, 5 amplo), `panorama` e `exige_acesso_interno` novos; código aberto é critério, não régua; prática corrente = o que o leitor faz hoje; fronteira fundamentada por `fronteira_contraparte` (regra ou critério do outro lado).
+- [Prototipar o Estágio B com critérios](issues/07-prototipar-o-estagio-b-com-criterios.md): pulado; implementação direta com `ponte_paper_criterio`, `fronteira_contraparte`, validação real em 6 papers, só backend.
 
 ## Not yet specified
 

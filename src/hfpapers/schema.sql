@@ -52,18 +52,27 @@ CREATE INDEX IF NOT EXISTS ix_metrica_data ON fato_metrica(data_snapshot);
 CREATE TABLE IF NOT EXISTS fato_triagem (
     paper_id                TEXT PRIMARY KEY REFERENCES dim_paper(paper_id),
     veredito                TEXT NOT NULL CHECK (veredito IN ('fora','amplo','estrito')),
-    regra_fora              TEXT,     -- qual regra da seção 6.1 disparou; NULL se aprovado
+    regra_fora              TEXT,     -- regra de descarte (§1 das regras, 6 rótulos); obrigatória em todo 'fora', NULL se aprovado
     justificativa           TEXT,
     tem_artefato_nomeado    INTEGER,  -- 0/1
     portabilidade_aprovada  INTEGER,  -- 0/1/NULL (NULL = não chegou a ser testada)
     portab_depende_nome     INTEGER,  -- 0/1/NULL — falha tipo 1
     portab_generalidade     INTEGER,  -- 0/1/NULL — falha tipo 2
     decisao_fronteira       INTEGER DEFAULT 0,  -- 1 se o modelo marcou como poderia ter ido para o outro lado
+    fronteira_contraparte   TEXT,     -- o que quase venceu (regra de descarte ou critério); NULL sem fronteira. Coluna adicionada por migração em db.migrar
     classificado_em         TIMESTAMP NOT NULL,
     run_id                  TEXT NOT NULL,
     revisao                 INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS ix_triagem_veredito ON fato_triagem(veredito);
+
+-- Critérios de veredito (§3 das regras): por que um aprovado é estrito ou amplo.
+-- Um paper pode ter vários; 'fora' não tem nenhum. Enum vive em llm/schemas.py.
+CREATE TABLE IF NOT EXISTS ponte_paper_criterio (
+    paper_id    TEXT NOT NULL REFERENCES dim_paper(paper_id),
+    criterio    TEXT NOT NULL,
+    PRIMARY KEY (paper_id, criterio)
+);
 
 -- ══════════════ DIMENSÃO: FICHA (só aprovados) ══════════════
 CREATE TABLE IF NOT EXISTS dim_ficha (

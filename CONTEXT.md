@@ -40,8 +40,10 @@ existe apoiado no nome próprio ou se colapsa em generalidade. Reprovar é
 descarte com regra `portabilidade_reprovada`.
 
 **Decisão de fronteira**:
-Veredito que poderia legitimamente ter ido para o outro lado. Mistura de
-critérios de estrito e amplo é o sinal típico.
+Veredito que poderia legitimamente ter ido para o outro lado — estrito↔amplo,
+ou aprovado↔fora. Sempre acompanhada da **contraparte**: a regra de descarte ou
+o critério que quase venceu.
+_Avoid_: caso limite, borderline
 
 ### Operação
 

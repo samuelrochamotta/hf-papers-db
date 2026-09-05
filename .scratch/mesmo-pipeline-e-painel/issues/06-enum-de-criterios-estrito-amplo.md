@@ -91,11 +91,25 @@ paper). Nomes rejeitados para `panorama`: `survey_ou_taxonomia`,
 
 - `criterios_veredito` é lista com ≥1 item. **Estrito prevalece**: um critério
   de estrito basta (ticket 03).
-- `decisao_fronteira` continua **declarada pelo modelo, mas fundamentada**: só
-  pode ser `true` se a lista contiver um critério do outro lado — o que quase
-  valeu. Dois lados na lista **não** obrigam fronteira (*SafeAtlas-VL* é modelo
-  aberto + benchmark e não é fronteira de nada). Hoje 36% dos aprovados são
-  fronteira sem regra; isso deve cair.
+- `decisao_fronteira` continua **declarada pelo modelo, mas fundamentada** por
+  um campo próprio, **`fronteira_contraparte`** — *o que quase venceu* —
+  obrigatório quando a flag é `true`, nulo caso contrário. O valor vem de um
+  enum unificado: as 6 regras de descarte ∪ os 10 critérios. Cobre as três
+  fronteiras: estrito↔amplo (contraparte é critério do outro lado),
+  aprovado→fora (contraparte é regra de descarte) e fora→aprovado (contraparte
+  é critério). *(Revisado em 2026-09-04: a versão anterior fundamentava só
+  com "critério do outro lado na lista", e isso deixava `fora` sem fronteira
+  possível.)*
+- A lista `criterios_veredito` é só **o que vale**; o "quase" mora na
+  contraparte. Dois lados na lista **não** obrigam fronteira (*SafeAtlas-VL* é
+  artefato aberto + benchmark e não é fronteira de nada).
+- Coerência cobrada em código: a contraparte tem que ser de lado **diferente**
+  do veredito. Se violar, refazer uma vez; se insistir, gravar como veio com
+  aviso `fronteira_incoerente:<paper_id>`. A flag **nunca** vira `false` pela
+  nossa mão.
+- O Estágio A continua sem fronteira: é "descarte primeiro, sem análise"; se
+  tem dúvida, deixa passar como `candidato`.
+- Hoje 36% dos aprovados são fronteira sem fundamento; isso deve cair.
 
 ### Rascunho do §3 novo de `prompts/regras_classificacao.md`
 
@@ -122,8 +136,9 @@ paper). Nomes rejeitados para `panorama`: `survey_ou_taxonomia`,
 > - **Treino como payload é FORA (regra 1). Acesso interno como pré-requisito
 >   de adoção é AMPLO** (`exige_acesso_interno`).
 >
-> `decisao_fronteira` só pode ser verdadeira se a lista contiver um critério do
-> outro lado. A **justificativa aplica o critério ao paper** ("AMPLO porque é
-> benchmark: mede X, não entrega Y"); não descreve o paper.
+> `decisao_fronteira` verdadeira exige `fronteira_contraparte`: a regra de
+> descarte ou o critério do outro lado que quase venceu. A **justificativa
+> aplica o critério ao paper** ("AMPLO porque é benchmark: mede X, não entrega
+> Y"); não descreve o paper.
 
-Próximo passo: [Prototipar o Estágio B com critérios](07-prototipar-o-estagio-b-com-criterios.md), agora desbloqueado.
+Próximo passo: [Prototipar o Estágio B com critérios](07-prototipar-o-estagio-b-com-criterios.md) — pulado a pedido do usuário; a implementação foi direto (ver o ticket).

@@ -54,11 +54,17 @@ def _semear(conn):
                 "paper_id": "2608.00001",
                 "veredito": "estrito",
                 "justificativa": "j",
+                "decisao_fronteira": 1,
+                "fronteira_contraparte": "benchmark",
                 "classificado_em": db.agora(),
                 "run_id": "t",
                 "revisao": 1,
             },
         )
+        for c in ("artefato_aberto", "benchmark"):
+            db.inserir_ignorando(
+                conn, "ponte_paper_criterio", {"paper_id": "2608.00001", "criterio": c}
+            )
         db.upsert_ficha(
             conn,
             {
@@ -84,6 +90,7 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
         "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
         "dim_area", "dim_topico", "ponte_paper_area", "ponte_paper_topico",
         "ponte_paper_keyword", "ponte_paper_autor", "dim_calendario", "fato_execucao",
+        "ponte_paper_criterio",
     }
     assert esperados <= set(r.arquivos)
     for nome in esperados:
@@ -92,6 +99,20 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
     manifest = json.loads((cfg.dir_marts / "_manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "run-teste"
     assert manifest["linhas"]["dim_paper"] == 1
+    assert manifest["linhas"]["ponte_paper_criterio"] == 2
+
+
+def test_ponte_paper_criterio_e_fronteira_contraparte_saem_no_parquet(conn, cfg):
+    _semear(conn)
+    export.rodar(conn, cfg, hoje=HOJE)
+    ponte = pq.read_table(cfg.dir_marts / "ponte_paper_criterio.parquet").to_pylist()
+    assert sorted(r["criterio"] for r in ponte) == ["artefato_aberto", "benchmark"]
+    assert {r["paper_id"] for r in ponte} == {"2608.00001"}
+    triagem = pq.read_table(cfg.dir_marts / "fato_triagem.parquet")
+    assert str(triagem.schema.field("fronteira_contraparte").type) == "string"
+    linha = triagem.to_pylist()[0]
+    assert linha["decisao_fronteira"] is True
+    assert linha["fronteira_contraparte"] == "benchmark"
 
 
 def test_datas_saem_como_date_nao_string(conn, cfg):

@@ -252,6 +252,7 @@ def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
                 "portab_depende_nome": _b(r["portab_depende_nome"]),
                 "portab_generalidade": _b(r["portab_generalidade"]),
                 "decisao_fronteira": _b(r["decisao_fronteira"]),
+                "fronteira_contraparte": r["fronteira_contraparte"],
                 "aprovado": r["veredito"] in ("amplo", "estrito"),
                 "classificado_em": _ts(r["classificado_em"]),
             }
@@ -268,6 +269,7 @@ def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
             ("portab_depende_nome", pa.bool_()),
             ("portab_generalidade", pa.bool_()),
             ("decisao_fronteira", pa.bool_()),
+            ("fronteira_contraparte", pa.string()),
             ("classificado_em", pa.timestamp("s")),
             ("run_id", pa.string()),
             ("revisao", pa.int32()),
@@ -375,6 +377,7 @@ _SCHEMAS_SIMPLES = {
         [("paper_id", pa.string()), ("area", pa.string()), ("is_primaria", pa.bool_())]
     ),
     "ponte_paper_topico": pa.schema([("paper_id", pa.string()), ("topico", pa.string())]),
+    "ponte_paper_criterio": pa.schema([("paper_id", pa.string()), ("criterio", pa.string())]),
     "ponte_paper_keyword": pa.schema([("paper_id", pa.string()), ("keyword", pa.string())]),
     "ponte_paper_autor": pa.schema(
         [

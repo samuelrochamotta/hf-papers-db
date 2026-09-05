@@ -145,11 +145,27 @@ def _gravar_triagem(
                 int(teste["colapsa_em_generalidade"]) if "colapsa_em_generalidade" in teste else None
             ),
             "decisao_fronteira": int(b.decisao_fronteira) if b else 0,
+            "fronteira_contraparte": b.fronteira_contraparte if b else None,
             "classificado_em": db.agora(),
             "run_id": run_id,
             "revisao": revisao,
         },
     )
+
+
+def _gravar_criterios(
+    conn: sqlite3.Connection, paper_id: str, criterios: Sequence[str]
+) -> None:
+    """Reescreve a ponte de criterios do paper - o mesmo gesto de
+    `taxonomia.aplicar_classificacao` com as pontes de area e topico: apaga o
+    que a classificacao anterior deixou e grava o de agora. `fora` grava ponte
+    vazia, entao um paper que era aprovado e caiu nao fica com criterio orfao
+    contradizendo o veredito."""
+    conn.execute("DELETE FROM ponte_paper_criterio WHERE paper_id = ?", (paper_id,))
+    for c in dict.fromkeys(criterios):
+        db.inserir_ignorando(
+            conn, "ponte_paper_criterio", {"paper_id": paper_id, "criterio": c}
+        )
 
 
 def _gravar_sucesso_b(
@@ -169,16 +185,23 @@ def _gravar_sucesso_b(
             conn,
             paper_id=paper_id,
             veredito=b.veredito,
-            regra_fora=a.regra_fora if b.veredito == "fora" else None,
+            # O Estagio A deixou passar (`candidato`, sem regra); quem descarta
+            # aqui e o B, e a regra e a dele - inclusive `portabilidade_reprovada`.
+            regra_fora=b.regra_fora if b.veredito == "fora" else None,
             justificativa=b.justificativa_veredito or a.justificativa,
             run_id=run_id,
             b=b,
         )
+        _gravar_criterios(conn, paper_id, b.criterios_veredito if b.aprovado else [])
         if b.aprovado and b.ficha:
             gravar_ficha(conn, paper_id, b.ficha, modelo=cfg.llm.estagio_b.modelo, run_id=run_id)
             res.fichas += 1
         elif not b.aprovado:
             conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper_id,))
+
+    # Avisos de fronteira (`fronteira_incoerente`, contraparte descartada) nao
+    # tornam a rodada parcial: o veredito foi dado; e o metadado que ficou torto.
+    res.avisos.extend(f"{aviso}:{paper_id}" for aviso in b.avisos)
 
     if b.veredito == "fora":
         res.fora += 1
@@ -274,6 +297,10 @@ def rodar(
                     justificativa=a.justificativa,
                     run_id=run_id,
                 )
+                # `--force` sobre um paper que era aprovado: criterios e ficha
+                # antigos nao podem sobreviver ao descarte.
+                _gravar_criterios(conn, paper.paper_id, [])
+                conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper.paper_id,))
             res.fora += 1
             continue
 

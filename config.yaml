@@ -24,11 +24,11 @@ llm:
   titulo_app: "hf-papers-db"
   timeout_s: 180            # teto por chamada; sem isso uma conexão pendurada trava a rodada
   estagio_a:
-    modelo: "z-ai/glm-5.3-flash"
+    modelo: "qwen/qwen3.8-flash"
     temperatura: 0.0
     max_tokens: 1200
   estagio_b:
-    modelo: "z-ai/glm-5.3-flash"
+    modelo: "qwen/qwen3.8-flash"
     temperatura: 0.2
     max_tokens: 8000
   provider:

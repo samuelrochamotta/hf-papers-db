@@ -64,14 +64,18 @@ class LLMComVeredito(LLMDuble):
         if self._veredito == "fora":
             dados = {
                 **RESPOSTA_B,
+                "criterios_veredito": [],
                 "veredito": "fora",
+                "regra_fora": "treino_ou_postreino",
                 "ficha": None,
                 "justificativa_veredito": (
-                    "Colapsa em generalidade: a frase do padrao seria verdadeira de qualquer sistema do mesmo tipo, entao o veredito tem de ser fora."
+                    "FORA pela regra treino_ou_postreino: o payload principal e uma receita de pos-treino, e o leitor-alvo nao treina modelo."
                 ),
             }
         else:
-            dados = {**RESPOSTA_B, "veredito": self._veredito}
+            # O veredito decorre dos criterios: amplo exige lista so de amplo.
+            criterios = ["benchmark"] if self._veredito == "amplo" else RESPOSTA_B["criterios_veredito"]
+            dados = {**RESPOSTA_B, "veredito": self._veredito, "criterios_veredito": criterios}
         if validar:
             validar(dados)
         uso = Uso(100, 50, 0.0001, 1)

@@ -316,10 +316,10 @@ a cada abertura de conexão — tudo `IF NOT EXISTS`):
 |---|---|
 | `dim_paper` | dimensão principal, 1 linha por paper (id base, sem sufixo de versão) |
 | `fato_metrica` | série temporal: 1 linha por paper por dia (upvotes, comentários, stars, artefatos) |
-| `fato_triagem` | veredito (`fora`/`amplo`/`estrito`) + teste de portabilidade |
+| `fato_triagem` | veredito (`fora`/`amplo`/`estrito`), regra de descarte, teste de portabilidade, fronteira e sua contraparte |
 | `dim_ficha` | os cinco campos da ficha, só para aprovados |
 | `dim_area`, `dim_topico`, `tax_candidato` | vocabulário controlado e candidatos |
-| `ponte_paper_*` | área, tópico, keyword, autor (muitos-para-muitos) |
+| `ponte_paper_*` | área, tópico, critério de veredito, keyword, autor (muitos-para-muitos) |
 | `log_execucao`, `log_llm` | operação, tokens e custo |
 | `dim_calendario` | inteligência temporal do Power BI |
 
@@ -366,10 +366,43 @@ No Power BI Desktop: Obter Dados → Parquet, apontar para `marts/`. Marcar
 As regras vivem em `prompts/`, versionadas — não embutidas em f-strings:
 
 - `prompts/regras_classificacao.md` — as regras normativas (FORA, teste de
-  portabilidade, estrito vs amplo, os cinco campos da ficha, guardrails);
+  portabilidade, critérios de estrito vs amplo, os cinco campos da ficha,
+  guardrails);
 - `prompts/estagio_a.md` — triagem barata + classificação taxonômica, com o
   vocabulário injetado do banco;
-- `prompts/estagio_b.md` — portabilidade, veredito e ficha.
+- `prompts/estagio_b.md` — portabilidade, critérios, veredito e ficha.
+
+O veredito é estruturado, não impressão:
+
+- **Todo `fora` tem exatamente uma regra de descarte** (`regra_fora`), a
+  primeira que bate nesta ordem: `treino_ou_postreino`, `geracao_de_midia`,
+  `percepcao_robotica_embodied`, `relatorio_tecnico_de_modelo`,
+  `fora_de_escopo`, `portabilidade_reprovada`. O Estágio A só emite as cinco de
+  conteúdo; a última é do Estágio B, que é quem aplica o teste.
+- **Todo aprovado tem ao menos um critério de veredito** (`criterios_veredito`,
+  gravados em `ponte_paper_criterio`), de um enum de dez — cinco de estrito
+  (`padrao_arquitetural`, `artefato_aberto`, `invalida_pratica`,
+  `vulnerabilidade`, `tecnica_de_avaliacao`) e cinco de amplo (`benchmark`,
+  `panorama`, `framework_conceitual`, `principio_sem_o_como`,
+  `exige_acesso_interno`). O veredito decorre da lista: qualquer critério de
+  estrito ⇒ estrito. A justificativa aplica o critério ao paper em vez de
+  descrevê-lo.
+- **Fronteira tem contraparte.** `decisao_fronteira` verdadeira exige
+  `fronteira_contraparte`: a regra ou o critério que quase venceu, de lado
+  diferente do veredito. Mistura de lados na lista não é fronteira.
+
+Quatro validações em código guardam isso (`llm/estagio_a.py`,
+`llm/estagio_b.py`), porque o JSON Schema garante forma, não coerência:
+
+1. `fora` sem regra ⇒ rejeitado, o modelo refaz; esgotadas as tentativas, o
+   paper fica pendente (nunca um `fora` sem motivo).
+2. aprovado sem critério ⇒ idem.
+3. veredito incoerente com a lista (critério de estrito com `amplo`, só amplo
+   com `estrito`, `fora` com critérios) ⇒ idem: veredito íntegro é essencial.
+4. fronteira sem contraparte, ou contraparte do mesmo lado ⇒ refaz **uma vez**;
+   se persistir, grava como veio com o aviso `fronteira_incoerente:<paper_id>`.
+   A flag nunca vira `false` pela nossa mão; contraparte sem fronteira é
+   descartada com aviso.
 
 Três invariantes que os testes cobrem:
 

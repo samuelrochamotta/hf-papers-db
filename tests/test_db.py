@@ -95,3 +95,56 @@ def test_transacao_faz_rollback(conn):
             db.upsert_paper(conn, _paper())
             raise RuntimeError("boom")
     assert db.contar(conn, "dim_paper") == 0
+
+
+# ── migracao de coluna ──────────────────────────────────────────────────────
+
+# A `fato_triagem` como era antes da coluna `fronteira_contraparte`.
+DDL_ANTIGA_FATO_TRIAGEM = """
+DROP TABLE fato_triagem;
+CREATE TABLE fato_triagem (
+    paper_id TEXT PRIMARY KEY REFERENCES dim_paper(paper_id),
+    veredito TEXT NOT NULL CHECK (veredito IN ('fora','amplo','estrito')),
+    regra_fora TEXT, justificativa TEXT, tem_artefato_nomeado INTEGER,
+    portabilidade_aprovada INTEGER, portab_depende_nome INTEGER, portab_generalidade INTEGER,
+    decisao_fronteira INTEGER DEFAULT 0,
+    classificado_em TIMESTAMP NOT NULL, run_id TEXT NOT NULL, revisao INTEGER NOT NULL DEFAULT 1
+);
+"""
+
+
+def test_migracao_acrescenta_fronteira_contraparte_em_banco_antigo(tmp_path):
+    """`CREATE TABLE IF NOT EXISTS` nao toca tabela existente: a coluna nova
+    precisa do ALTER TABLE de `db.migrar`, e ele tem de preservar as linhas."""
+    import sqlite3
+
+    caminho = tmp_path / "antigo.db"
+    db.conectar(caminho).close()            # schema atual, inclusive dim_paper
+    bruto = sqlite3.connect(caminho)
+    bruto.executescript(DDL_ANTIGA_FATO_TRIAGEM)
+    bruto.execute(
+        "INSERT INTO dim_paper (paper_id, titulo, primeiro_visto_em) "
+        "VALUES ('2608.1', 'T', '2026-08-25T09:00:00')"
+    )
+    bruto.execute(
+        "INSERT INTO fato_triagem (paper_id, veredito, classificado_em, run_id) "
+        "VALUES ('2608.1', 'amplo', '2026-08-25T09:00:00', 'r')"
+    )
+    bruto.commit()
+    bruto.close()
+
+    conn = db.conectar(caminho)
+    try:
+        assert "fronteira_contraparte" in db.colunas(conn, "fato_triagem")
+        row = conn.execute("SELECT veredito, fronteira_contraparte FROM fato_triagem").fetchone()
+        assert (row["veredito"], row["fronteira_contraparte"]) == ("amplo", None)
+        db.migrar(conn)   # segunda vez: idempotente, nao tenta ADD COLUMN de novo
+        assert db.colunas(conn, "fato_triagem").count("fronteira_contraparte") == 1
+        assert "ponte_paper_criterio" not in db.diagnostico_banco(conn)["tabelas_faltando"]
+    finally:
+        conn.close()
+
+
+def test_banco_novo_ja_nasce_com_a_coluna_e_a_ponte(conn):
+    assert "fronteira_contraparte" in db.colunas(conn, "fato_triagem")
+    assert db.contar(conn, "ponte_paper_criterio") == 0

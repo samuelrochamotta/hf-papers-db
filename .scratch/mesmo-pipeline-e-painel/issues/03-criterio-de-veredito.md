@@ -21,8 +21,9 @@ Que forma dá objetividade ao veredito?
   [Enum de critérios estrito/amplo](06-enum-de-criterios-estrito-amplo.md).
 - **Estrito prevalece**: basta um critério de estrito para o veredito ser
   estrito, porque a definição é "entrega artefato adotável" — se entrega,
-  entrega; o benchmark é contexto. Mistura de lados é permitida e é o sinal
-  natural para `decisao_fronteira`.
+  entrega; o benchmark é contexto. Mistura de lados é permitida e **não**
+  implica fronteira — fronteira é fundamentada por `fronteira_contraparte`
+  (ver [Enum de critérios](06-enum-de-criterios-estrito-amplo.md)).
 - A **justificativa aplica o critério** ao paper ("AMPLO porque é benchmark: mede
   X, não entrega Y"), em vez de descrever o paper.
 - No painel: a ficha mostra "AMPLO · benchmark + achado empírico", e entra o

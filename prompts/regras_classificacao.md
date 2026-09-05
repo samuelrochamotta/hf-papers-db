@@ -10,13 +10,22 @@ Um paper cai fora se o *payload principal* for:
 - método de treino ou pós-treino (destilação, RL, SFT, arquitetura de modelo);
 - geração de mídia (imagem, vídeo, 3D, áudio, mesh);
 - percepção, robótica, embodied, direção autônoma;
-- relatório técnico de modelo novo.
+- relatório técnico de modelo novo;
+- assunto fora do escopo: não é sobre LLM nem sobre engenharia de sistemas com
+  modelos de linguagem (econometria, ciência política, dataset de fala de baixo
+  nível, biologia sem modelo de linguagem…);
+- padrão que reprovou no teste de portabilidade (§2) — só o Estágio B pode
+  aplicar esta, porque só ele faz o teste.
 
 Esperado: **~70% do lote**. Abaixo de 50% indica critério frouxo.
 
-Os quatro rótulos de regra são, nesta ordem:
+Os seis rótulos de regra são, **nesta ordem de teste**:
 `treino_ou_postreino`, `geracao_de_midia`, `percepcao_robotica_embodied`,
-`relatorio_tecnico_de_modelo`.
+`relatorio_tecnico_de_modelo`, `fora_de_escopo`, `portabilidade_reprovada`.
+
+**Todo `fora` tem exatamente uma regra.** A primeira que bate na ordem basta:
+descarte é portão, não diagnóstico. Um paper de treino que também reprovaria na
+portabilidade é `treino_ou_postreino`. `fora` sem regra é resposta inválida.
 
 ## 2. Teste de portabilidade — o filtro que faz o trabalho
 
@@ -32,21 +41,68 @@ Escreva a frase do padrão **antes** de decidir estrito/amplo. Duas formas de re
    dado melhora o modelo". Se seria verdadeira de qualquer sistema do mesmo tipo,
    não veio do paper.
 
-Reprovou em qualquer um dos dois ⇒ **FORA**, independente do tipo de conteúdo.
+Reprovou em qualquer um dos dois ⇒ **FORA**, com a regra `portabilidade_reprovada`
+(a menos que uma regra de conteúdo anterior na ordem já tenha batido),
+independente do tipo de conteúdo.
 
 Caso frequente: o princípio de alto nível passa mas falta o "como" implementar.
-Nesse caso o paper fica em **AMPLO**, não some — e essa distinção é registrada na
-**Ressalva**, não no Padrão Extraído.
+Nesse caso o paper fica em **AMPLO**, com o critério `principio_sem_o_como`, não
+some — e essa distinção é registrada na **Ressalva**, não no Padrão Extraído.
 
-## 3. ESTRITO vs AMPLO
+## 3. ESTRITO vs AMPLO — por critério, não por impressão
 
-**ESTRITO** — muda uma decisão ou entrega artefato adotável por quem **não treina
-modelo**. Qualifica se for: padrão arquitetural descrito de forma reproduzível,
-biblioteca ou infraestrutura aberta, achado empírico que invalida prática corrente,
-vulnerabilidade explorável, ou técnica de avaliação transferível para outro domínio.
+O veredito de um aprovado é a consequência dos **critérios** que ele satisfaz.
+Liste todos que valem (um ou mais); o veredito segue a lista: **qualquer
+critério de estrito ⇒ estrito**; só critérios de amplo ⇒ amplo. A lista é só o
+que **vale** — o "quase" mora na contraparte da fronteira (abaixo).
 
-**AMPLO** — informa decisão mas não entrega o que adotar: benchmark, survey, relato
-de sistema em escala não reproduzível, framework conceitual sem instrumento.
+**ESTRITO** — entrega algo que o leitor adota sem treinar modelo:
+
+| critério | definição |
+|---|---|
+| `padrao_arquitetural` | desenho reproduzível pela descrição, sem depender do código dos autores |
+| `artefato_aberto` | biblioteca, modelo, dataset, checkpoint ou kernel aberto e usável |
+| `invalida_pratica` | achado empírico que contradiz algo que o leitor faz hoje |
+| `vulnerabilidade` | falha explorável com mecanismo descrito |
+| `tecnica_de_avaliacao` | método de avaliação ou diagnóstico transferível para outro domínio |
+
+**AMPLO** — informa a decisão, não entrega o que adotar:
+
+| critério | definição |
+|---|---|
+| `benchmark` | mede capacidade; o artefato é o instrumento de medida |
+| `panorama` | sistematiza o que já existe (survey, taxonomia), sem propor nem medir nada novo |
+| `framework_conceitual` | modelo mental sem instrumento |
+| `principio_sem_o_como` | o padrão passou no teste de portabilidade, mas o paper não diz como implementar |
+| `exige_acesso_interno` | técnica válida que pede ativações, engine de inferência, kernel ou retreino para ser adotada |
+
+Três réguas que decidem os casos difíceis:
+
+- **Código aberto é um critério, não a régua.** Padrão arquitetural reproduzível
+  pela descrição é estrito mesmo sem código dos autores — o leitor escreve o
+  código dele; o que precisa é o desenho.
+- **Prática corrente é o que o leitor plausivelmente faz hoje.** Só um achado
+  que contradiz isso é `invalida_pratica`; conclusão de benchmark sobre prática
+  que ainda não existe é contexto, e o paper fica `benchmark`. Quando usar
+  `invalida_pratica`, **nomeie a prática invalidada** na justificativa.
+- **Treino como payload é FORA (regra 1). Acesso interno como pré-requisito de
+  adoção é AMPLO** (`exige_acesso_interno`): achado sobre inferência que só roda
+  controlando a engine, o kernel ou as ativações informa, mas não entrega.
+
+Dois lados na lista (`artefato_aberto` + `benchmark`) dão estrito e **não**
+obrigam fronteira: se entrega, entrega; o benchmark é contexto.
+
+**Fronteira.** `decisao_fronteira` é verdadeira quando o veredito poderia
+legitimamente ter ido para o outro lado — estrito↔amplo, aprovado→fora ou
+fora→aprovado. Sempre acompanhada de **`fronteira_contraparte`**: a regra de
+descarte ou o critério que quase venceu, obrigatoriamente de lado **diferente**
+do veredito (estrito com contraparte `benchmark`; amplo com contraparte
+`padrao_arquitetural` ou `treino_ou_postreino`; fora com contraparte
+`exige_acesso_interno`). Sem fronteira, a contraparte é nula.
+
+**Justificativa.** A justificativa **aplica o critério ou a regra ao paper**
+("AMPLO porque é benchmark: mede X, não entrega Y"; "FORA por
+`treino_ou_postreino`: o payload é a receita de RL"); não descreve o paper.
 
 ## 4. Os cinco campos da ficha
 

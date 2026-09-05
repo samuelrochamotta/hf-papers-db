@@ -12,14 +12,22 @@ Duas tarefas, sempre as duas, mesmo quando o paper vai ser descartado:
 
 ## Triagem
 
-Marque `fora` quando o *payload principal* do paper for uma das quatro regras de
-descarte, e devolva em `regra_fora` qual delas disparou:
+Marque `fora` quando o *payload principal* do paper for uma das cinco regras de
+descarte, e devolva em `regra_fora` qual delas disparou — a **primeira** que bate,
+nesta ordem:
 
 - `treino_ou_postreino` — método de treino ou pós-treino: destilação, RL, SFT,
   arquitetura de modelo.
 - `geracao_de_midia` — imagem, vídeo, 3D, áudio, mesh.
 - `percepcao_robotica_embodied` — percepção, robótica, embodied, direção autônoma.
 - `relatorio_tecnico_de_modelo` — relatório técnico de um modelo novo.
+- `fora_de_escopo` — não é sobre LLM nem sobre engenharia de sistemas com modelos
+  de linguagem: econometria, ciência política, dataset de fala de baixo nível,
+  biologia sem modelo de linguagem.
+
+**Todo `fora` tem exatamente uma regra.** `fora` com `regra_fora` nulo é resposta
+inválida e volta para você refazer. Só uma regra, mesmo que mais de uma se
+aplique: descarte é portão, não diagnóstico.
 
 Marque `candidato` em qualquer outro caso. Na dúvida entre os dois, escolha
 `candidato`: o Estágio B tem contexto para decidir melhor, e o custo de deixar

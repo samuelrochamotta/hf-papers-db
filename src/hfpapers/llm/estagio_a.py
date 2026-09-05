@@ -14,7 +14,7 @@ from typing import Any, Optional
 
 from ..config import Config, config
 from . import prompts, schemas
-from .cliente import ClienteLLM, Uso
+from .cliente import ClienteLLM, ErroValidacao, Uso
 
 SISTEMA = (
     "Voce e um triador de papers de IA para engenheiros que usam modelos de "
@@ -89,12 +89,23 @@ class PaperEntrada:
 
 
 def validar(dados: dict[str, Any]) -> None:
-    """A unica regra do Estagio A que o schema nao consegue garantir sozinho.
+    """As duas regras do Estagio A que o schema nao consegue garantir sozinho.
 
-    A justificativa daqui e a que o painel exibe para os descartados, na aba
-    historica - o mesmo problema do campo gemeo do Estagio B, e por isso a mesma
-    rede: ver `schemas.validar_justificativa`.
+    1. Todo `fora` tem regra. O enum aceita `null` porque `candidato` exige
+       `null`, e o JSON Schema estrito nao expressa o condicional; sem a rede
+       aqui o modelo as vezes nem preenche a regra que existe (ticket 02:
+       `2609.01507` era treino e veio nulo). `ErroValidacao` volta ao modelo com
+       a mensagem; esgotadas as tentativas, `ErroLLM` deixa o paper pendente -
+       nunca um `fora` sem motivo.
+    2. A justificativa daqui e a que o painel exibe para os descartados, na
+       aba historica - o mesmo problema do campo gemeo do Estagio B, e por isso
+       a mesma rede: ver `schemas.validar_justificativa`.
     """
+    if dados.get("veredito_preliminar") == "fora" and not dados.get("regra_fora"):
+        raise ErroValidacao(
+            "veredito 'fora' exige regra_fora: informe a primeira regra de descarte "
+            "que bate, na ordem (" + ", ".join(schemas.REGRAS_FORA_CONTEUDO) + ")"
+        )
     schemas.validar_justificativa(dados.get("justificativa"), "justificativa")
 
 

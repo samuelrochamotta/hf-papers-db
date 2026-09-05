@@ -45,9 +45,12 @@ RESPOSTA_B = {
         "colapsa_em_generalidade": False,
         "aprovado": True,
     },
+    "criterios_veredito": ["padrao_arquitetural"],
     "veredito": "estrito",
-    "justificativa_veredito": "Entrega artefato adotavel por quem nao treina modelo: o padrao passou no teste de portabilidade e se sustenta fora do benchmark dos autores.",
+    "regra_fora": None,
+    "justificativa_veredito": "ESTRITO porque e padrao arquitetural: o contrato de preservar-e-estender e reproduzivel pela descricao, sem depender do codigo dos autores.",
     "decisao_fronteira": False,
+    "fronteira_contraparte": None,
     "ficha": {
         "achado": "a", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d",
     },

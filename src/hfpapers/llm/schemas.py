@@ -17,21 +17,70 @@ aviso no log; `validar_justificativa` explica por que ele nao derruba o paper.
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 from ..log import logger
 from .cliente import ErroValidacao
 
 log = logger("llm")
 
-REGRAS_FORA = [
+# Regras de descarte, na ordem de teste (secao 1 de `regras_classificacao.md`).
+# Todo `fora` tem exatamente uma; a primeira que bate basta. As cinco primeiras
+# sao de conteudo e servem aos dois estagios; `portabilidade_reprovada` e a
+# unica que so o Estagio B pode emitir, porque so ele aplica o teste.
+REGRAS_FORA_CONTEUDO = [
     "treino_ou_postreino",
     "geracao_de_midia",
     "percepcao_robotica_embodied",
     "relatorio_tecnico_de_modelo",
+    "fora_de_escopo",
 ]
+REGRA_PORTABILIDADE = "portabilidade_reprovada"
+REGRAS_FORA = [*REGRAS_FORA_CONTEUDO, REGRA_PORTABILIDADE]
 
 VEREDITOS = ["fora", "amplo", "estrito"]
+
+# Criterios de veredito (secao 3): por que um aprovado e estrito ou amplo. O
+# veredito decorre da lista - qualquer criterio de estrito ⇒ estrito - e a
+# coerencia entre os dois e cobrada em `estagio_b.validar`.
+CRITERIOS_ESTRITO = [
+    "padrao_arquitetural",
+    "artefato_aberto",
+    "invalida_pratica",
+    "vulnerabilidade",
+    "tecnica_de_avaliacao",
+]
+CRITERIOS_AMPLO = [
+    "benchmark",
+    "panorama",
+    "framework_conceitual",
+    "principio_sem_o_como",
+    "exige_acesso_interno",
+]
+CRITERIOS_VEREDITO = [*CRITERIOS_ESTRITO, *CRITERIOS_AMPLO]
+
+# O que quase venceu numa decisao de fronteira: regra de descarte ou criterio,
+# de lado diferente do veredito. `lado` e a funcao que diz de que lado cada
+# rotulo esta - a mesma para o veredito e para a contraparte.
+CONTRAPARTES_FRONTEIRA = [*REGRAS_FORA, *CRITERIOS_VEREDITO]
+
+
+def lado(rotulo: str) -> Optional[str]:
+    """Veredito para o qual um rotulo (regra ou criterio) puxa; None se desconhecido."""
+    if rotulo in REGRAS_FORA:
+        return "fora"
+    if rotulo in CRITERIOS_ESTRITO:
+        return "estrito"
+    if rotulo in CRITERIOS_AMPLO:
+        return "amplo"
+    return None
+
+
+def veredito_dos_criterios(criterios: Sequence[str]) -> Optional[str]:
+    """O veredito que a lista de criterios implica; None para lista vazia."""
+    if not criterios:
+        return None
+    return "estrito" if any(c in CRITERIOS_ESTRITO for c in criterios) else "amplo"
 
 # Piso da justificativa, nos dois estagios. Existe porque teto sem piso deixa
 # passar resposta degenerada - na migracao da issue #3 o paper 2608.06867
@@ -74,7 +123,9 @@ def schema_estagio_a(areas: Sequence[str], topicos: Sequence[str]) -> dict[str, 
         ],
         "properties": {
             "veredito_preliminar": {"type": "string", "enum": ["fora", "candidato"]},
-            "regra_fora": {"type": ["string", "null"], "enum": [*REGRAS_FORA, None]},
+            # So as regras de conteudo: `portabilidade_reprovada` exige o teste,
+            # que e do Estagio B.
+            "regra_fora": {"type": ["string", "null"], "enum": [*REGRAS_FORA_CONTEUDO, None]},
             "justificativa": {
                 "type": "string",
                 "minLength": PISO_JUSTIFICATIVA,
@@ -113,9 +164,12 @@ SCHEMA_ESTAGIO_B: dict[str, Any] = {
         "tem_artefato_nomeado",
         "padrao_extraido",
         "teste_portabilidade",
+        "criterios_veredito",
         "veredito",
+        "regra_fora",
         "justificativa_veredito",
         "decisao_fronteira",
+        "fronteira_contraparte",
         "ficha",
     ],
     "properties": {
@@ -139,13 +193,25 @@ SCHEMA_ESTAGIO_B: dict[str, Any] = {
                 "aprovado": {"type": "boolean"},
             },
         },
+        # Sem `minItems`: o piso e condicional (>= 1 so quando aprovado, vazio
+        # quando `fora`) e o JSON Schema estrito do provedor nao expressa isso.
+        # Quem cobra e `estagio_b.validar`.
+        "criterios_veredito": {
+            "type": "array",
+            "items": {"type": "string", "enum": CRITERIOS_VEREDITO},
+        },
         "veredito": {"type": "string", "enum": VEREDITOS},
+        "regra_fora": {"type": ["string", "null"], "enum": [*REGRAS_FORA, None]},
         "justificativa_veredito": {
             "type": "string",
             "minLength": PISO_JUSTIFICATIVA,
             "maxLength": TETO_JUSTIFICATIVA,
         },
         "decisao_fronteira": {"type": "boolean"},
+        "fronteira_contraparte": {
+            "type": ["string", "null"],
+            "enum": [*CONTRAPARTES_FRONTEIRA, None],
+        },
         "ficha": {
             "type": ["object", "null"],
             "additionalProperties": False,

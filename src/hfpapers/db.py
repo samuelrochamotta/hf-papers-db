@@ -33,6 +33,7 @@ NOMES_DIA_SEMANA = [
 TABELAS_ESPERADAS = [
     "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
     "dim_area", "dim_topico", "ponte_paper_area", "ponte_paper_topico",
+    "ponte_paper_criterio",
     "tax_candidato", "ponte_paper_keyword", "ponte_paper_autor",
     "log_execucao", "log_llm", "dim_calendario",
 ]
@@ -68,9 +69,31 @@ def abrir(cfg: Optional[Config] = None, **kwargs: Any) -> sqlite3.Connection:
     return conectar(cfg.caminho_banco, **kwargs)
 
 
+# Colunas acrescentadas a tabelas que ja existiam em bancos de producao.
+# `CREATE TABLE IF NOT EXISTS` nao toca uma tabela existente, entao a coluna
+# nova precisa de `ALTER TABLE` proprio; a DDL em schema.sql continua sendo a
+# fonte para banco criado do zero. Formato: (tabela, coluna, tipo SQL).
+COLUNAS_MIGRADAS = [
+    ("fato_triagem", "fronteira_contraparte", "TEXT"),
+]
+
+
 def migrar(conn: sqlite3.Connection) -> None:
-    """Aplica schema.sql. Idempotente: tudo la e IF NOT EXISTS."""
+    """Aplica schema.sql e as colunas de `COLUNAS_MIGRADAS`. Idempotente: tudo
+    la e IF NOT EXISTS, e a coluna so e adicionada quando falta."""
     conn.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
+    for tabela, coluna, tipo in COLUNAS_MIGRADAS:
+        _garantir_coluna(conn, tabela, coluna, tipo)
+
+
+def colunas(conn: sqlite3.Connection, tabela: str) -> list[str]:
+    return [r["name"] for r in conn.execute(f"PRAGMA table_info({tabela})")]
+
+
+def _garantir_coluna(conn: sqlite3.Connection, tabela: str, coluna: str, tipo: str) -> None:
+    if coluna in colunas(conn, tabela):
+        return
+    conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
 
 
 @contextmanager
