@@ -53,21 +53,25 @@ seguinte o repesca.
 _Avoid_: não classificado, sem veredito, falho
 
 **Revisão** (`revisao`):
-Quantas vezes o paper passou pela classificação: 1 na primeira, +1 a cada
-reclassificação. Substitui a distinção "recente vs. backfill".
+Quantas vezes o paper passou pela classificação: 0 na linha de veredito
+importado, que nunca passou; 1 na primeira passagem, +1 a cada reclassificação.
+Substitui a distinção "recente vs. backfill".
 _Avoid_: recentes, backfill, herdado
 
 **Reclassificação total**:
 A rodada única que passa todos os papers da base pelo pipeline de novo, com o
-vocabulário de critérios vigente. Depois dela, toda triagem que já existia tem
-revisão ≥ 2. Roda com o vocabulário congelado: candidato novo é registrado, mas
-promovido só depois, à mão.
-_Avoid_: migração, backfill
+vocabulário de critérios vigente. A marca dela é o `run_id` compartilhado por
+toda linha de `fato_triagem` — não `revisao`, que sobe 1 em cada linha e deixa a
+importada em 1. Roda com o vocabulário congelado: candidato novo é registrado,
+mas promovido só depois, à mão.
+_Avoid_: migração, backfill, "revisão ≥ 2"
 
 **Concorrência** (`llm.concorrencia`, `--concorrencia`):
 Quantas chamadas ao OpenRouter ficam no ar ao mesmo tempo dentro de uma rodada.
 Só o I/O é paralelo; a escrita no banco segue na thread principal e na ordem
-original dos papers, então o resultado não depende do valor.
+original dos papers, então a rodada **que completa** dá o mesmo banco em
+qualquer valor. A que estoura no meio, não: os workers vão adiante e deixam
+papers já pagos sem triagem.
 _Avoid_: paralelizar o pipeline, rodar duas rodadas ao mesmo tempo
 
 **Dia antigo**:

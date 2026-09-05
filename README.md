@@ -106,8 +106,18 @@ horas em chamada sequencial é a varredura da base inteira; a rodada diária sã
 ~30 papers e segue `llm.concorrencia` do `config.yaml` (padrão 1). O paralelismo
 é só do I/O do OpenRouter — toda escrita no banco continua na thread principal e
 na ordem original dos papers, então `--concorrencia 4` termina com o banco
-idêntico ao de `--concorrencia 1`. Valor fora da faixa 1–8 é cortado com aviso,
-não recusado (o porquê do teto está no `docs/adr-001-fora-de-escopo-do-mapa.md`).
+idêntico ao de `--concorrencia 1` **na rodada que completa**. Valor fora da faixa
+1–8 é cortado com aviso, não recusado (o porquê do teto está no
+`docs/adr-001-fora-de-escopo-do-mapa.md`).
+
+A ressalva importa porque a rodada total dura horas e pode cair no meio: **a
+varredura que estoura não é equivalente**. Os workers vão adiante da thread
+principal, então ficam papers já pagos que nunca chegam a ter triagem — medido
+com `--concorrencia 4`, 2 triagens gravadas contra 10 papers já em `log_llm`.
+Nenhuma linha se perde: o gasto desses papers está em `log_llm` e aparece em
+`hfpapers custos`, mas fica **fora** de `log_execucao.custo_usd`, que conta só o
+que virou triagem. Com `--concorrencia 1` nada é chamado adiante do paper que
+estoura.
 
 `taxonomia exportar` grava áreas e tópicos do banco (rótulo + definição, sem
 candidatos) no JSON versionado; `carregar` é o inverso, para banco vazio, e é
@@ -210,7 +220,10 @@ spec) e ~14 h (a conta do ADR com os tempos medidos por paper); com
 
 ```bash
 # 1. espere a rodada diária das 07:30 terminar (log_execucao com finalizado_em)
-# 2. a varredura, em terminal que sobreviva (nohup, tmux)
+# 2. a varredura, em terminal que sobreviva (nohup, tmux). Acima de
+#    --concorrencia 1, o Ctrl+C só age quando as chamadas em voo terminam (até
+#    ~18 min no pior caso): espere, não mate o processo — kill no meio de uma
+#    gravação é o único jeito de corromper esta rodada
 python -m hfpapers reclassificar --tudo --concorrencia 4
 
 # 3. os papers que o Estágio B derrubou nas duas passadas: o próprio comando
@@ -231,9 +244,13 @@ python -m hfpapers export && scripts/gerar_painel.sh --force
 ```
 
 O painel só é regenerado no passo 6: **não há transição visível** para quem lê.
-Depois da rodada, todo paper que já tinha veredito passa a ter `revisao ≥ 2` (o
-pendente classificado ali pela primeira vez nasce com 1), e a distinção entre
-paper recente e paper importado deixa de existir também nos dados.
+Depois da rodada, a distinção entre paper recente e paper importado deixa de
+existir também nos dados — e **a marca disso é o `run_id` compartilhado**, não
+`revisao`: toda linha de `fato_triagem` passa a trazer o `run_id` da rodada, que
+é justamente o critério de conclusão que o comando confere. `revisao` sobe 1 em
+cada linha, o que leva as 242 linhas importadas de 0 para 1 — filtrar por
+`revisao ≥ 2` deixaria de fora exatamente as linhas antigas que a rodada veio
+consertar.
 
 ## Agendamento (macOS, launchd)
 
@@ -383,9 +400,10 @@ papers para o histórico.
 
 Congelar aos 90 dias não perde quase nada, e isso foi medido em `fato_metrica`
 (idade contada a partir de `data_hf_daily`, não do índice do snapshot — os
-snapshots não começam no dia da publicação). Recalculado em 04/09/2026 sobre os
-184 papers com 14 dias ou mais de idade, tomando como valor do corte o último
-snapshot **até** aquele dia:
+snapshots não começam no dia da publicação). Recalculado em 04/09/2026 sobre a
+coorte de 185 papers com 14 dias ou mais de idade — 184 entram na conta, porque
+um deles tem voto final zero e não admite normalização —, tomando como valor do
+corte o último snapshot **até** aquele dia:
 
 | corte | mediana upvote/final | ainda crescem >10% depois |
 |---|---|---|
@@ -414,13 +432,14 @@ quando chega a 100% (que também é o dia +10 na régua do card). O card só des
 idades com pelo menos 5 papers medidos — o subtítulo dele diz isso — então os
 dias +1 a +4 ficam sem ponto e o +5 é o primeiro candidato depois do dia 0, com a
 amostra que essa régua tem naquela idade: 26 papers no dia +5, contra 184 no dia
-0. Entram na curva só os papers com 14 dias ou mais: 184 dos 482.
+0. A coorte é a mesma da tabela — 185 papers com 14 dias ou mais, dos quais 184
+com razão utilizável.
 
 ### Tamanho
 
 O peso vem do texto das fichas embutido em `DADOS`, não de HTML por card.
-Medido em 04/09/2026: **839 KB para 482 papers e 166 fichas**, dos quais 337 KB
-são fichas (~2,1 KB cada), 253 KB são os papers (~530 B cada) e 96 KB é a série
+Medido em 04/09/2026: **838 KB para 482 papers e 166 fichas**, dos quais 337 KB
+são fichas (~2,1 KB cada), 250 KB são os papers (~530 B cada) e 96 KB é a série
 de métricas.
 
 O custo por entrada do histórico é assimétrico de propósito — é o que permite as
@@ -431,14 +450,14 @@ duas listas terem tamanhos diferentes:
 | 10 aprovados | ficha inteira (5 campos) | ~2,5 KB | ~25 KB |
 | 10 descartados | regra + justificativa | ~0,3 KB | ~3 KB |
 
-**~28 KB por trimestre, ~115 KB por ano** — contra os **~935 KB/mês** que a
+**~28 KB por trimestre, ~115 KB por ano** — contra os **~932 KB/mês** que a
 janela viva acumularia se não fosse recortada (os 482 papers de 22 dias corridos
-pesam 686 KB de payload). Se doer, `--dias` é o botão para girar. O custo do
+pesam 683 KB de payload). Se doer, `--dias` é o botão para girar. O custo do
 descartado é piso, não teto: metade dos dez de hoje ainda é linha antiga sem
 regra nem justificativa, e sobe quando a reclassificação total passar.
 
-Vale lembrar que `painel.html` é commitado e empurrado todo dia (222 KB
-comprimido, ~80 MB/ano de repositório): cada KB adicionado se multiplica por 365.
+Vale lembrar que `painel.html` é commitado e empurrado todo dia (217 KB
+comprimido, ~77 MB/ano de repositório): cada KB adicionado se multiplica por 365.
 Por isso o ranking desempata por `paper_id` — sem critério estável, dois papers
 empatados em votos trocariam de lugar entre rodadas e o commit diário ganharia
 diff sem significado.
@@ -516,13 +535,17 @@ Três coisas novas, todas já nos Parquet de `marts/`:
   `decisao_fronteira` é verdadeira, guarda o que quase venceu: a regra de
   descarte ou o critério do lado oposto ao veredito. Serve para achar as
   decisões apertadas sem reabrir veredito nenhum.
-- **`fato_triagem[revisao]`** — quantas vezes o paper passou pela classificação
-  (1 na primeira, +1 a cada reclassificação). `revisao ≥ 2` é a marca da
-  reclassificação total: depois dela,
-  toda linha que já existia carrega essa marca, e a distinção entre paper
-  recente e paper importado some dos dados. Antes dela, `revisao = 1` em quase
-  todas as linhas (466 de 477 em 04/09/2026) — e é essa maioria que ainda pode
-  ter `regra_fora` nula.
+- **`fato_triagem[revisao]` e `fato_triagem[run_id]`** — `revisao` conta quantas
+  vezes o paper passou pela classificação: 1 na primeira, +1 a cada
+  reclassificação, e **0 nas linhas que entraram como veredito importado**, que
+  nunca passaram por ela. Distribuição em 04/09/2026: 242 linhas com 0 (as
+  importadas, todas de uma carga histórica só), 224 com 1, 9 com 2, 2 com 3 —
+  `revisao = 0` é o filtro que isola as antigas.
+  **A marca da reclassificação total é o `run_id`, não `revisao`**: depois dela
+  toda linha de `fato_triagem` carrega o mesmo `run_id`, e é essa a consulta que
+  fecha a rodada. Um filtro `revisao ≥ 2` erraria o alvo — as 242 importadas
+  chegam a 1, e é nelas que estão 159 dos 164 `fora` sem `regra_fora` (os outros
+  5 vêm de rodadas normais anteriores à regra obrigatória).
 
 Não há `.pbix` no repositório: o Power BI lê os Parquet e o modelo vive fora do
 git (`docs/adr-001-fora-de-escopo-do-mapa.md`, decisão 2). Estas três colunas são

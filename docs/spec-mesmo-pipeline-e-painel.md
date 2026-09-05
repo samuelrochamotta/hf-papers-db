@@ -113,7 +113,8 @@ e B ≈ 127 s por paper com o `qwen3.8-flash`: **8 a 10 horas**, ≈ US$ 1,0.
    só é regenerado aqui, por isso **não há transição visível**.
 
 Depois da rodada, todo paper tem `revisao ≥ 2`; a distinção recente/backfill
-deixa de existir nos dados, não só no código.
+deixa de existir nos dados, não só no código. *(A primeira metade desta frase
+está errada — ver a errata da §9; a marca da rodada é o `run_id`.)*
 
 ## 4. Painel
 
@@ -227,3 +228,25 @@ novo aparecer no código.
 
 Rubrica com pontuação; mudanças no Power BI além das colunas novas dos
 Parquet; concorrência no estágio 3 para encurtar a rodada total.
+
+## 9. Errata (pós-implementação, 05/09/2026)
+
+Duas correções de fato levantadas pela implementação. **Nenhuma decisão desta
+spec muda**; o que muda é uma afirmação que a medição desmentiu e um item que
+deixou de estar fora de escopo.
+
+- **§3 e §6 — "`revisao ≥ 2` como marca da rodada total" está errado.**
+  `classificacao._gravar_triagem` faz `revisao = (row["revisao"] + 1) if row
+  else 1`, e as 242 linhas de veredito importado (`run_id = 'backfill'`) estão
+  hoje em `revisao = 0` — nunca passaram pela classificação, coerente com a
+  definição do `CONTEXT.md`. A rodada total as leva a **1**, não a 2, e um
+  filtro `revisao ≥ 2` deixaria de fora justamente as linhas antigas que a
+  rodada veio consertar (valeria para 235 das 482 linhas). **A marca da
+  rodada é o `run_id` compartilhado** — que é o que a própria §2 já usa como
+  critério de conclusão e o que `execucao.conferir` implementa. O código está
+  certo; a frase da §3 é que estava errada. Distribuição medida em 04/09/2026:
+  242 linhas com `revisao = 0`, 224 com 1, 9 com 2, 2 com 3.
+- **§8 — "concorrência no estágio 3" foi revogada.** O item saiu de fora de
+  escopo e foi implementado; a decisão está no
+  `docs/adr-001-fora-de-escopo-do-mapa.md` (decisão 3), que também mantém fora
+  os outros dois itens da §8.
