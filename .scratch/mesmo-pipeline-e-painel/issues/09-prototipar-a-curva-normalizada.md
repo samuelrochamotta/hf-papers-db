@@ -1,7 +1,7 @@
 # Prototipar a curva normalizada
 
 Type: prototype
-Status: open
+Status: resolved
 Blocked by: —
 
 ## Question
@@ -18,3 +18,17 @@ Consultar `dataviz` antes de desenhar. Gerar sempre com
 
 Resolvido quando: o usuário olha o protótipo e aprova a forma, ou decide que
 o card sai (opção (c) da cartografia).
+
+## Answer
+
+(2026-09-04) **Protótipo pulado a pedido do usuário**; decidido em conversa.
+Preferências para a implementação:
+
+- **Voto final** = último snapshot do paper; só entram na curva papers com
+  idade ≥ 14 dias (hoje 185; cresce sozinho). Paper mais novo não tem "final".
+- **Uma faixa P25–P75** atrás da mediana, escala **linear 0–100%**. Nada de
+  log nem de faixas por veredito.
+- **Marca dos 90%**: linha vertical tracejada no primeiro dia em que a mediana
+  cruza 90%, rótulo "estabiliza por volta do dia +N".
+- A lista lateral "maior velocidade recente" **continua**.
+- Idade = dias desde `data_hf_daily`, como hoje.

@@ -23,7 +23,8 @@ quando ele fecha.
   também `dataviz`. Ticket `prototype` de painel gera sempre com
   `scripts/gerar_painel.sh --force --destino <scratch>` — nunca publica.
 - 2026-09-04: o usuário autorizou **implementar o Estágio B direto** (ticket 07
-  pulado). Exceção pontual; o resto continua planejamento.
+  pulado) e **pulou os protótipos de painel** (tickets 09 e 11), decidindo em
+  conversa e registrando preferências nos tickets.
 - Execução não entra no mapa, com uma exceção autorizada: `task`/`prototype` que
   rode o prompt novo numa **amostra** de papers para julgar antes de travar.
   Custo não é argumento: A ≈ US$ 0,0004/paper, B ≈ US$ 0,001/paper
@@ -47,6 +48,8 @@ quando ele fecha.
 - [Enum de critérios estrito/amplo](issues/06-enum-de-criterios-estrito-amplo.md): 10 critérios (5 estrito, 5 amplo), `panorama` e `exige_acesso_interno` novos; código aberto é critério, não régua; prática corrente = o que o leitor faz hoje; fronteira fundamentada por `fronteira_contraparte` (regra ou critério do outro lado).
 - [Prototipar o Estágio B com critérios](issues/07-prototipar-o-estagio-b-com-criterios.md): pulado; implementação direta com `ponte_paper_criterio`, `fronteira_contraparte`, validação real em 6 papers, só backend.
 - [Plano da reclassificação total](issues/10-plano-da-reclassificacao-total.md): os 482 de uma vez via `reclassificar --tudo` (8–10 h, sequencial), registrado em `log_execucao`, taxonomia congelada, falhas do B reprocessadas por `--paper`; painel só regenera no fim, sem transição; relatório pipeline × digest, `backfill` e `seed/` morrem (revisa *O que sobra do backfill*), vocabulário ganha bootstrap exportado do banco.
+- [Prototipar a curva normalizada](issues/09-prototipar-a-curva-normalizada.md): pulado; voto final = último snapshot de papers com idade ≥ 14 dias, uma faixa P25–P75 em escala linear, marca do dia em que a mediana cruza 90%, lista lateral fica.
+- [Gráfico "por que o pipeline aprova"](issues/11-grafico-por-que-o-pipeline-aprova.md): pulado; barras horizontais por critério empilhadas por veredito (verdes), contagem por ocorrência com total no subtítulo, ao lado do Pareto com clique-filtro; ficha mostra critérios legíveis e a contraparte da fronteira.
 
 ## Not yet specified
 
