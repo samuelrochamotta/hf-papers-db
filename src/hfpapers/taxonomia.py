@@ -109,8 +109,18 @@ def registrar_candidato(
     definicao: str,
     paper_id: str,
     cfg: Optional[ConfigTaxonomia] = None,
+    promover: bool = True,
 ) -> ResultadoCandidato:
-    """Acrescenta o paper ao candidato e promove quando houver quorum e folga."""
+    """Acrescenta o paper ao candidato e promove quando houver quorum e folga.
+
+    `promover=False` grava o candidato e a associacao com o paper, mas nao
+    promove nem com quorum e folga. E o modo da reclassificacao total
+    (`reclassificar --tudo`): promover no meio de uma rodada que varre a base
+    inteira deixaria os papers ja classificados sem o rotulo novo - eles
+    passaram pelo Estagio A com um vocabulario menor e ninguem volta para
+    reavalia-los. Com o vocabulario congelado, a promocao vira decisao manual
+    depois da rodada (`taxonomia listar`, `taxonomia promover`).
+    """
     cfg = cfg or ConfigTaxonomia()
     rotulo = (rotulo or "").strip()
     if not rotulo or tipo not in ("area", "topico"):
@@ -144,7 +154,7 @@ def registrar_candidato(
     )
 
     res = ResultadoCandidato(rotulo, tipo, papers)
-    if len(papers) < cfg.min_papers_novo_rotulo:
+    if not promover or len(papers) < cfg.min_papers_novo_rotulo:
         return res
 
     if _quantidade(conn, tipo) >= _teto(tipo, cfg):
@@ -155,7 +165,7 @@ def registrar_candidato(
         )
         return res
 
-    promover(conn, rotulo=rotulo, tipo=tipo, definicao=definicao)
+    _promover(conn, rotulo=rotulo, tipo=tipo, definicao=definicao)
     res.promovido = True
     log.info("candidato promovido a %s: %s", tipo, rotulo)
     return res
@@ -175,6 +185,58 @@ def promover(
         "UPDATE tax_candidato SET promovido = 1 WHERE rotulo = ? AND tipo = ?",
         (rotulo, tipo),
     )
+
+
+# `registrar_candidato` tem um parametro chamado `promover`, que sombreia a
+# funcao acima dentro do corpo dela; o alias e como ela continua chamavel la.
+_promover = promover
+
+
+def promover_candidato(
+    conn: sqlite3.Connection,
+    *,
+    rotulo: str,
+    tipo: str = "topico",
+    cfg: Optional[ConfigTaxonomia] = None,
+) -> dict[str, Any]:
+    """Promove a mao um candidato de `tax_candidato`, com a definicao dele.
+
+    Existe para o passo manual depois da reclassificacao total, onde a promocao
+    automatica fica desligada: o operador le `taxonomia listar` e decide, um a
+    um, quem vira vocabulario e quem devia ter sido fusao. Recusa - com
+    ValueError, como `fundir` - o rotulo que nao e candidato, o que ja e
+    vocabulario e o que esbarra no teto, porque nenhum dos tres tem conserto
+    dentro deste comando.
+    """
+    cfg = cfg or ConfigTaxonomia()
+    rotulo = (rotulo or "").strip()
+    if tipo not in ("area", "topico"):
+        raise ValueError(f"tipo invalido: {tipo} (use 'area' ou 'topico')")
+
+    tabela, coluna = _tabela(tipo)
+    if conn.execute(f"SELECT 1 FROM {tabela} WHERE {coluna} = ?", (rotulo,)).fetchone():
+        raise ValueError(f"'{rotulo}' ja e {tipo} do vocabulario - nada a promover")
+
+    row = conn.execute(
+        "SELECT definicao, papers FROM tax_candidato WHERE rotulo = ? AND tipo = ?",
+        (rotulo, tipo),
+    ).fetchone()
+    if not row:
+        raise ValueError(f"nao ha candidato a {tipo} com o rotulo '{rotulo}'")
+
+    quantidade, teto = _quantidade(conn, tipo), _teto(tipo, cfg)
+    if quantidade >= teto:
+        raise ValueError(
+            f"teto de {tipo} atingido ({quantidade}/{teto}) - funda dois rotulos "
+            "antes (`hfpapers taxonomia fundir`)"
+        )
+
+    definicao = row["definicao"] or ""
+    with db.transacao(conn):
+        _promover(conn, rotulo=rotulo, tipo=tipo, definicao=definicao)
+    papers = json.loads(row["papers"] or "[]")
+    log.info("candidato promovido a mao a %s: %s (%s papers)", tipo, rotulo, len(papers))
+    return {"rotulo": rotulo, "tipo": tipo, "definicao": definicao, "papers": len(papers)}
 
 
 # ── fusao (manual) ──────────────────────────────────────────────────────────

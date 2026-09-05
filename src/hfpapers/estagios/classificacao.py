@@ -242,7 +242,11 @@ def rodar(
     run_id: str,
     cfg: Optional[Config] = None,
     so_estagio_a: bool = False,
+    promover_taxonomia: bool = True,
 ) -> ResultadoClassificacao:
+    """`promover_taxonomia=False` congela o vocabulario durante a varredura: o
+    candidato e gravado, mas nenhum rotulo novo passa a valer no meio dela (ver
+    `taxonomia.registrar_candidato`). E o modo de `reclassificar --tudo`."""
     cfg = cfg or config()
     res = ResultadoClassificacao()
     if not papers:
@@ -281,6 +285,7 @@ def rodar(
                     definicao=a.candidato_novo_rotulo.get("definicao", ""),
                     paper_id=paper.paper_id,
                     cfg=cfg.taxonomia,
+                    promover=promover_taxonomia,
                 )
                 if c.rotulo:
                     res.candidatos_taxonomia.append(c.rotulo)

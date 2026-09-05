@@ -111,6 +111,9 @@ def checar_banco(cfg: Config) -> list[Item]:
     conn = db.abrir(cfg)
     try:
         diag = db.diagnostico_banco(conn)
+        fora_sem_regra = db.contar(
+            conn, "fato_triagem", "veredito = 'fora' AND regra_fora IS NULL"
+        )
     finally:
         conn.close()
 
@@ -134,6 +137,26 @@ def checar_banco(cfg: Config) -> list[Item]:
         itens.append(Item("integridade", ERRO, f"{diag['fk_violacoes']} violacoes de FK"))
     else:
         itens.append(Item("integridade", OK, f"integrity_check ok, journal={diag['journal_mode']}"))
+
+    # Toda regra de descarte e obrigatoria desde `bf3660c`, e o Estagio A e o
+    # Estagio B recusam o `fora` sem regra antes de gravar: o que sobra aqui e
+    # linha antiga, que a reclassificacao total apaga. Erro, e nao aviso,
+    # porque um `fora` sem regra nao explica a si mesmo no painel - e o
+    # conserto e um comando, nao uma investigacao.
+    if fora_sem_regra:
+        itens.append(
+            Item(
+                "regra_fora",
+                ERRO,
+                f"{fora_sem_regra} paper(s) 'fora' sem regra de descarte - "
+                "rode `hfpapers reclassificar --tudo`",
+                {"fora_sem_regra": fora_sem_regra},
+            )
+        )
+    else:
+        itens.append(
+            Item("regra_fora", OK, "todo 'fora' tem regra de descarte", {"fora_sem_regra": 0})
+        )
 
     resumo = ", ".join(
         f"{t}={n}" for t, n in diag["contagens"].items() if n

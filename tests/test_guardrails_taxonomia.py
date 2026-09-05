@@ -125,6 +125,23 @@ def test_teto_de_vocabulario_bloqueia_promocao(base):
     assert "Novo" not in taxonomia.topicos(base)
 
 
+def test_promover_false_registra_mas_nao_promove(base):
+    """Vocabulario congelado da reclassificacao total: o candidato acumula
+    papers, mas nenhum rotulo novo passa a valer no meio da rodada."""
+    cfg = CfgTax()
+    with db.transacao(base):
+        for pid in ("2608.00000", "2608.00001"):
+            r = taxonomia.registrar_candidato(
+                base, rotulo="Séries temporais", tipo="topico", definicao="d",
+                paper_id=pid, cfg=cfg, promover=False,
+            )
+    assert r.promovido is False
+    assert r.papers == ["2608.00000", "2608.00001"]
+    assert "Séries temporais" not in taxonomia.topicos(base)
+    # o candidato ficou gravado, com os dois papers: a promocao manual e possivel
+    assert db.contar(base, "tax_candidato", "rotulo = 'Séries temporais'") == 1
+
+
 def test_candidato_repetido_nao_duplica_paper(base):
     cfg = CfgTax(min_papers_novo_rotulo=5)
     with db.transacao(base):
@@ -151,6 +168,51 @@ def test_fusao_reescreve_pontes(base):
 def test_fusao_recusa_rotulo_inexistente(base):
     with pytest.raises(ValueError):
         taxonomia.fundir(base, de="Nao existe", para="Agentes de codificação", tipo="topico")
+
+
+# ── promocao manual ─────────────────────────────────────────────────────────
+
+
+def _candidato(base, rotulo="Séries temporais", papers=("2608.00000",), cfg=None):
+    cfg = cfg or CfgTax(min_papers_novo_rotulo=99)   # alto: nao promove sozinho
+    with db.transacao(base):
+        for pid in papers:
+            taxonomia.registrar_candidato(
+                base, rotulo=rotulo, tipo="topico",
+                definicao="Previsão sobre sequências indexadas no tempo.",
+                paper_id=pid, cfg=cfg,
+            )
+
+
+def test_promover_candidato_usa_a_definicao_do_candidato(base):
+    _candidato(base)
+    r = taxonomia.promover_candidato(base, rotulo="Séries temporais", tipo="topico")
+
+    assert "Séries temporais" in taxonomia.topicos(base)
+    assert r["papers"] == 1
+    definicoes = {t["rotulo"]: t["definicao"] for t in taxonomia.exportar(base)["topicos"]}
+    assert definicoes["Séries temporais"].startswith("Previsão")
+    # o candidato fica marcado como promovido, para `listar` nao repetir a oferta
+    assert db.contar(base, "tax_candidato", "promovido = 1") == 1
+
+
+def test_promover_candidato_recusa_rotulo_desconhecido(base):
+    with pytest.raises(ValueError, match="candidato"):
+        taxonomia.promover_candidato(base, rotulo="Nao existe", tipo="topico")
+
+
+def test_promover_candidato_recusa_rotulo_que_ja_e_vocabulario(base):
+    with pytest.raises(ValueError, match="ja"):
+        taxonomia.promover_candidato(base, rotulo="Agentes de codificação", tipo="topico")
+
+
+def test_promover_candidato_recusa_com_o_teto_batido(base):
+    _candidato(base)
+    with pytest.raises(ValueError, match="teto"):
+        taxonomia.promover_candidato(
+            base, rotulo="Séries temporais", tipo="topico", cfg=CfgTax(max_topicos=1)
+        )
+    assert "Séries temporais" not in taxonomia.topicos(base)
 
 
 # ── bootstrap do vocabulario (exportar / carregar) ──────────────────────────

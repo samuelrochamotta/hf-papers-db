@@ -38,6 +38,7 @@ class ResultadoRun:
     amplo: int = 0
     estrito: int = 0
     nao_classificados: int = 0
+    selecionados: int = 0
     fichas: int = 0
     refresh_papers: int = 0
     avisos: list[str] = field(default_factory=list)
@@ -52,6 +53,16 @@ class ResultadoRun:
     def taxa_fora(self) -> Optional[float]:
         total = self.fora + self.aprovados
         return self.fora / total if total else None
+
+    @property
+    def falhas_estagio_b(self) -> list[str]:
+        """Papers cujo Estagio B caiu nas duas passadas, na ordem em que caiu.
+
+        Sai dos avisos porque e la que `classificacao.rodar` os deixa; quem
+        chama nao precisa conhecer o formato `estagio_b_falhou:<paper_id>`.
+        """
+        marca = "estagio_b_falhou:"
+        return [a[len(marca):] for a in self.avisos if a.startswith(marca)]
 
 
 def novo_run_id(hoje: Optional[dt.datetime] = None) -> str:
@@ -148,6 +159,7 @@ def rodar(
                 data=data.isoformat() if data else None,
                 force=force,
             )
+            res.selecionados = len(pendentes)
             if pendentes:
                 llm = llm or ClienteLLM(cfg, conn=conn, run_id=run_id)
                 r = classificacao.rodar(conn, llm, pendentes, run_id=run_id, cfg=cfg)
@@ -202,6 +214,105 @@ def rodar(
             conn.close()
 
     return res
+
+
+# ── reclassificacao ─────────────────────────────────────────────────────────
+
+
+def reclassificar(
+    *,
+    cfg: Optional[Config] = None,
+    conn: Optional[sqlite3.Connection] = None,
+    ids: Optional[Sequence[str]] = None,
+    data: Optional[str] = None,
+    tudo: bool = False,
+    cliente_llm: Optional[ClienteLLM] = None,
+) -> ResultadoRun:
+    """Roda so o estagio 3 sobre papers que ja tem triagem, e registra a rodada.
+
+    Por que passa por aqui e nao chama `classificacao.rodar` direto: a rodada
+    precisa existir em `log_execucao`. Sem a linha, ela e invisivel para o
+    `doutor` (que corta as pendencias pela ultima execucao que classificou
+    alguem) e para a trava de `run_id` do painel. Vale para a rodada dirigida
+    (`--data`, `--paper`) tanto quanto para a total.
+
+    Os campos de coleta e refresh do `ResultadoRun` ficam zerados de proposito:
+    nenhum dos dois estagios roda aqui, e zero e a verdade, nao um buraco. Os
+    guardrails tambem nao rodam - eles calibram o volume de um dia coletado, e
+    dizer "volume atipico" de uma varredura de 482 papers seria ruido.
+
+    `tudo=True` congela o vocabulario (`promover_taxonomia=False`): ver
+    `taxonomia.registrar_candidato`.
+    """
+    cfg = cfg or config()
+    fechar_conn = conn is None
+    conn = conn or db.abrir(cfg)
+    run_id = novo_run_id()
+    res = ResultadoRun(run_id=run_id)
+    if data:
+        res.dias = [data]
+    aberta = False
+
+    try:
+        papers = classificacao.selecionar(
+            conn,
+            ids=None if tudo else ids,
+            data=None if tudo else data,
+            force=True,
+        )
+        res.selecionados = len(papers)
+        if not papers:
+            # Nenhuma linha em `log_execucao`: rodada que nao classificou
+            # ninguem nao serve de corte para o `doutor` e so poluiria o log.
+            res.status = "ok"
+            return res
+
+        llm = cliente_llm or ClienteLLM(cfg, conn=conn, run_id=run_id)
+        _abrir_execucao(conn, run_id)
+        aberta = True
+        r = classificacao.rodar(
+            conn, llm, papers, run_id=run_id, cfg=cfg, promover_taxonomia=not tudo
+        )
+        res.fora, res.amplo, res.estrito = r.fora, r.amplo, r.estrito
+        res.nao_classificados = r.nao_classificados
+        res.fichas = r.fichas
+        res.avisos.extend(r.avisos)
+        res.uso.somar(r.uso)
+        # Mesmo criterio de `rodar`: falha do Estagio A e do que a rodada nao
+        # deu conta; falha do Estagio B deixa o paper pendente, que e caminho
+        # previsto (e sai impresso para o operador repetir um a um).
+        res.status = (
+            "parcial" if any(a.startswith("estagio_a_falhou") for a in r.avisos) else "ok"
+        )
+        _fechar_execucao(conn, res)
+    except Exception:
+        res.status = "erro"
+        if aberta:
+            _fechar_execucao(conn, res)
+        raise
+    finally:
+        if fechar_conn:
+            conn.close()
+
+    return res
+
+
+def conferir(conn: sqlite3.Connection, run_id: str) -> dict[str, int]:
+    """Criterio de conclusao da reclassificacao total (spec, secao 2).
+
+    A rodada acabou quando nenhuma triagem sobrou com `run_id` de outra rodada
+    e nenhum paper esta sem triagem. Ler as duas contagens e mais barato do que
+    conferir a mao depois de oito horas de varredura.
+    """
+    return {
+        "outro_run_id": conn.execute(
+            "SELECT COUNT(*) AS n FROM fato_triagem WHERE run_id <> ?", (run_id,)
+        ).fetchone()["n"],
+        "sem_triagem": conn.execute(
+            "SELECT COUNT(*) AS n FROM dim_paper "
+            "WHERE paper_id NOT IN (SELECT paper_id FROM fato_triagem)"
+        ).fetchone()["n"],
+    }
 
 
 # ── dry-run ─────────────────────────────────────────────────────────────────

@@ -11,7 +11,15 @@ from __future__ import annotations
 import pytest
 
 from hfpapers import db
-from hfpapers.doutor import AVISO, OK, checar_pendencias, checar_vocabulario, rodar
+from hfpapers.doutor import (
+    AVISO,
+    ERRO,
+    OK,
+    checar_banco,
+    checar_pendencias,
+    checar_vocabulario,
+    rodar,
+)
 
 
 def _paper(conn, paper_id: str, visto: str) -> None:
@@ -33,12 +41,14 @@ def _triagem(
     *,
     run_id: str = "run-teste",
     quando: str = "2026-09-03T07:00:00",
+    regra_fora: str | None = "treino_ou_postreino",
 ) -> None:
     db.upsert_triagem(
         conn,
         {
             "paper_id": paper_id,
             "veredito": veredito,
+            "regra_fora": regra_fora if veredito == "fora" else None,
             "justificativa": "teste",
             "classificado_em": quando,
             "run_id": run_id,
@@ -301,7 +311,80 @@ def test_vocabulario_povoado_e_ok(cfg, base):
     assert item.dados == {"areas": 1, "topicos": 1}
 
 
+# ── `fora` sem regra de descarte ────────────────────────────────────────────
+
+
+def _item(itens, nome):
+    return {i.nome: i for i in itens}[nome]
+
+
+def test_fora_sem_regra_e_erro(cfg, base):
+    _paper(base, "2609.00001", "2026-09-03T07:00:00")
+    _paper(base, "2609.00002", "2026-09-03T07:00:00")
+    _triagem(base, "2609.00001", regra_fora=None)
+    _triagem(base, "2609.00002", regra_fora=None)
+    base.commit()
+
+    item = _item(checar_banco(cfg), "regra_fora")
+    assert item.estado == ERRO
+    assert item.dados == {"fora_sem_regra": 2}
+    assert "2" in item.detalhe
+    assert "reclassificar --tudo" in item.detalhe
+
+
+def test_todo_fora_com_regra_e_ok(cfg, base):
+    _paper(base, "2609.00001", "2026-09-03T07:00:00")
+    _triagem(base, "2609.00001")
+    _paper(base, "2609.00002", "2026-09-03T07:00:00")
+    _triagem(base, "2609.00002", "estrito")     # aprovado nao tem regra, e certo
+    base.commit()
+
+    item = _item(checar_banco(cfg), "regra_fora")
+    assert item.estado == OK
+    assert item.dados == {"fora_sem_regra": 0}
+
+
+def test_fora_sem_regra_bloqueia_o_doutor(cfg, base):
+    """Ate a rodada total passar, o `doutor` sai com codigo 1 - e o pedido."""
+    _paper(base, "2609.00001", "2026-09-03T07:00:00")
+    _triagem(base, "2609.00001", regra_fora=None)
+    base.commit()
+
+    erros = [i for i in rodar(cfg, sem_rede=True) if i.estado == ERRO]
+    assert [i.nome for i in erros] == ["regra_fora"]
+
+
 # ── integracao ──────────────────────────────────────────────────────────────
+
+
+def test_reclassificar_dirigido_vira_corte_de_pendencia(cfg, base):
+    """A rodada de `reclassificar` entra em `log_execucao` (spec, secao 2) e,
+    por isso, passa a valer como prova de que o pendente teve chance."""
+    from conftest import LLMDuble
+
+    from hfpapers import execucao
+
+    with db.transacao(base):
+        db.upsert_area(base, {"area": "Agentes & automação", "definicao": "d"})
+        db.upsert_topico(base, {"topico": "Agentes de codificação", "definicao": "d"})
+    _paper(base, "2609.00001", "2026-09-03T07:00:00")
+    _triagem(base, "2609.00001")
+    _paper(base, "2609.00002", "2026-09-03T07:00:00")    # pendente, e antigo
+    base.commit()
+
+    assert checar_pendencias(cfg).estado == OK           # sem rodada, sem corte
+
+    r = execucao.reclassificar(
+        cfg=cfg, conn=base, ids=["2609.00001"], cliente_llm=LLMDuble(base, cfg)
+    )
+    base.commit()
+
+    item = checar_pendencias(cfg)
+    assert item.estado == AVISO
+    assert item.dados["ids"] == ["2609.00002"]
+    assert item.dados["corte"] == base.execute(
+        "SELECT classificado_em AS c FROM fato_triagem WHERE run_id = ?", (r.run_id,)
+    ).fetchone()["c"]
 
 
 def test_rodar_inclui_a_checagem(cfg, base):

@@ -1,6 +1,7 @@
 """Pipeline ponta a ponta com HF e LLM dublados: idempotencia e dry-run."""
 
 import datetime as dt
+import json
 
 import httpx
 import pytest
@@ -141,22 +142,26 @@ def test_dry_run_nao_grava_nem_gasta_token(cfg, base, daily_bruto):
     assert db.contar(base, "log_llm") == 0
 
 
+class LLMComCandidato(LLMDuble):
+    """Todo Estagio A propoe o mesmo rotulo novo - o quorum de 2 papers cai
+    na segunda chamada."""
+
+    def chamar(self, *, etapa, **kw):
+        r = super().chamar(etapa=etapa, **kw)
+        if etapa == "estagio_a":
+            r.dados = {
+                **r.dados,
+                "candidato_novo_rotulo": {
+                    "rotulo": "Séries temporais",
+                    "tipo": "topico",
+                    "definicao": "Previsão sobre sequências indexadas no tempo.",
+                },
+            }
+        return r
+
+
 @respx.mock
 def test_candidato_de_taxonomia_e_registrado(cfg, base, daily_bruto, paper_bruto):
-    class LLMComCandidato(LLMDuble):
-        def chamar(self, *, etapa, **kw):
-            r = super().chamar(etapa=etapa, **kw)
-            if etapa == "estagio_a":
-                r.dados = {
-                    **r.dados,
-                    "candidato_novo_rotulo": {
-                        "rotulo": "Séries temporais",
-                        "tipo": "topico",
-                        "definicao": "Previsão sobre sequências indexadas no tempo.",
-                    },
-                }
-            return r
-
     respx.get("https://huggingface.co/api/daily_papers").mock(
         return_value=httpx.Response(200, json=daily_bruto[:2])
     )
@@ -168,3 +173,116 @@ def test_candidato_de_taxonomia_e_registrado(cfg, base, daily_bruto, paper_bruto
 
     # dois papers distintos citaram o mesmo rotulo -> promovido
     assert "Séries temporais" in taxonomia.topicos(base)
+
+
+# ── reclassificar ───────────────────────────────────────────────────────────
+
+
+def _papers(conn, n=3, dia="2026-08-25"):
+    """Papers crus, sem passar pela coleta: o que `reclassificar` precisa e uma
+    linha em `dim_paper`, nao uma rodada inteira dublada."""
+    with db.transacao(conn):
+        for i in range(n):
+            db.upsert_paper(
+                conn,
+                {
+                    "paper_id": f"2608.0000{i}",
+                    "titulo": f"Paper {i}",
+                    "abstract": "Um resumo qualquer, longo o bastante para o prompt. " * 3,
+                    "data_hf_daily": dia,
+                    "primeiro_visto_em": "2026-08-25T07:30:00",
+                },
+            )
+
+
+def test_reclassificar_tudo_registra_a_rodada_em_log_execucao(cfg, base):
+    _papers(base, 3)
+    r = execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg))
+
+    assert r.selecionados == 3
+    assert r.fora + r.amplo + r.estrito == 3
+    assert r.status == "ok"
+
+    linha = base.execute(
+        "SELECT * FROM log_execucao WHERE run_id = ?", (r.run_id,)
+    ).fetchone()
+    assert linha is not None
+    assert linha["finalizado_em"] is not None
+    assert linha["status"] == "ok"
+    assert (linha["qtd_fora"], linha["qtd_amplo"], linha["qtd_estrito"]) == (
+        r.fora, r.amplo, r.estrito,
+    )
+    assert linha["taxa_fora"] == pytest.approx(r.fora / 3)
+    # nada de coleta nem de refresh aconteceu: os campos ficam zerados, nao herdados
+    assert (linha["qtd_coletados"], linha["qtd_novos"], linha["qtd_refresh"]) == (0, 0, 0)
+    # e a triagem carrega o run_id da rodada, que e o que o painel trava
+    assert db.contar(base, "fato_triagem", "run_id = ?", (r.run_id,)) == 3
+
+
+def test_reclassificar_dirigido_tambem_registra_a_rodada(cfg, base):
+    """`--data` e `--paper` deixam de ser invisiveis para o doutor."""
+    _papers(base, 3)
+    r = execucao.reclassificar(
+        cfg=cfg, conn=base, ids=["2608.00000"], cliente_llm=LLMDuble(base, cfg)
+    )
+    assert r.selecionados == 1
+    assert db.contar(base, "log_execucao", "run_id = ?", (r.run_id,)) == 1
+
+
+def test_reclassificar_sem_alvo_nao_abre_execucao(cfg, base):
+    """Base sem paper nenhum: nada a fazer e nenhuma linha de rodada vazia."""
+    r = execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg))
+    assert r.selecionados == 0
+    assert db.contar(base, "log_execucao") == 0
+
+
+def test_reclassificar_tudo_congela_a_taxonomia(cfg, base):
+    """Promover no meio da varredura deixaria sem o rotulo novo justamente quem
+    ja passou - o candidato fica gravado, a promocao e manual depois."""
+    _papers(base, 3)
+    execucao.reclassificar(
+        cfg=cfg, conn=base, tudo=True, cliente_llm=LLMComCandidato(base, cfg)
+    )
+
+    assert "Séries temporais" not in taxonomia.topicos(base)
+    candidato = base.execute(
+        "SELECT papers, promovido FROM tax_candidato WHERE rotulo = 'Séries temporais'"
+    ).fetchone()
+    assert candidato["promovido"] == 0
+    assert len(json.loads(candidato["papers"])) == 3
+
+
+def test_reclassificar_dirigido_continua_promovendo(cfg, base):
+    """So `--tudo` congela: a rodada dirigida e pequena e segue a regra diaria."""
+    _papers(base, 3)
+    execucao.reclassificar(
+        cfg=cfg, conn=base, data="2026-08-25", cliente_llm=LLMComCandidato(base, cfg)
+    )
+    assert "Séries temporais" in taxonomia.topicos(base)
+
+
+def test_reclassificar_lista_os_papers_que_o_estagio_b_derrubou(cfg, base):
+    """A lista impressa no fim da rodada sai daqui: e o que o operador cola de
+    volta em `reclassificar --paper`."""
+    _papers(base, 3)
+    r = execucao.reclassificar(
+        cfg=cfg, conn=base, tudo=True, cliente_llm=LLMQuebrado(base, cfg)
+    )
+
+    assert r.falhas_estagio_b == ["2608.00002"]     # 1 dos 3 chega ao Estagio B
+    assert r.nao_classificados == 1
+    assert db.contar(base, "fato_triagem") == 2     # os dois `fora` do Estagio A
+
+
+def test_conferir_le_o_criterio_de_conclusao_da_rodada(cfg, base):
+    _papers(base, 3)
+    r = execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg))
+    assert execucao.conferir(base, r.run_id) == {"outro_run_id": 0, "sem_triagem": 0}
+
+    # um paper novo que ninguem classificou, e uma triagem de outra rodada
+    _papers(base, 4)
+    base.execute(
+        "UPDATE fato_triagem SET run_id = 'run-velha' WHERE paper_id = '2608.00000'"
+    )
+    base.commit()
+    assert execucao.conferir(base, r.run_id) == {"outro_run_id": 1, "sem_triagem": 1}

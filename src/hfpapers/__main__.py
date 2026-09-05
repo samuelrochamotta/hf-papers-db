@@ -11,8 +11,8 @@ import typer
 
 from . import db, doutor as doutor_mod, execucao, log, taxonomia as mod_tax
 from .config import config
-from .estagios import classificacao, export as mod_export
-from .llm.cliente import ClienteLLM, catalogo_modelos, suporta_saida_estruturada
+from .estagios import export as mod_export
+from .llm.cliente import catalogo_modelos, suporta_saida_estruturada
 
 app = typer.Typer(
     add_completion=False,
@@ -125,30 +125,58 @@ def export() -> None:
 def reclassificar(
     data: Optional[str] = typer.Option(None, "--data", help="Reclassifica um dia inteiro."),
     paper: Optional[str] = typer.Option(None, "--paper", help="Reclassifica um paper."),
+    tudo: bool = typer.Option(
+        False, "--tudo", help="Reclassifica a base inteira (rodada total, horas)."
+    ),
 ) -> None:
-    """Roda a classificacao de novo, incrementando `revisao`."""
+    """Roda a classificacao de novo, incrementando `revisao`.
+
+    `--tudo` e exclusivo com `--data`/`--paper`: ou se varre a base inteira, ou
+    se dirige a varredura. A rodada entra em `log_execucao` nos tres casos.
+    """
     cfg = _preparar()
-    if not data and not paper:
-        typer.echo("informe --data ou --paper")
+    if tudo and (data or paper):
+        typer.echo("--tudo nao combina com --data nem --paper")
+        raise typer.Exit(code=2)
+    if not tudo and not data and not paper:
+        typer.echo("informe --tudo, --data ou --paper")
         raise typer.Exit(code=2)
 
     conn = db.abrir(cfg)
     try:
-        papers = classificacao.selecionar(
-            conn, ids=[paper] if paper else None, data=data, force=True
+        r = execucao.reclassificar(
+            cfg=cfg, conn=conn, ids=[paper] if paper else None, data=data, tudo=tudo
         )
-        if not papers:
+        if not r.selecionados:
             typer.echo("nada a reclassificar")
-            raise typer.Exit(code=0)
-        run_id = execucao.novo_run_id()
-        cliente = ClienteLLM(cfg, conn=conn, run_id=run_id)
-        r = classificacao.rodar(conn, cliente, papers, run_id=run_id, cfg=cfg)
+            return
+
+        typer.echo(f"\nrun_id: {r.run_id}  status: {r.status}  ({r.selecionados} papers)")
         typer.echo(
             f"fora {r.fora} | amplo {r.amplo} | estrito {r.estrito} | fichas {r.fichas} | "
             f"pendentes {r.nao_classificados} | US$ {r.uso.custo_usd:.4f}"
         )
         for aviso in r.avisos:
             typer.echo(f"  [aviso] {aviso}")
+
+        # O Estagio B caiu nas duas passadas nestes papers: eles ficaram sem
+        # linha nova. A lista sai colavel de proposito - repetir um a um e o
+        # passo 3 da rodada total (spec, secao 3).
+        if r.falhas_estagio_b:
+            typer.echo(
+                f"\n{len(r.falhas_estagio_b)} paper(s) sem veredito novo "
+                "(Estagio B falhou nas duas passadas) - rode:"
+            )
+            for pid in r.falhas_estagio_b:
+                typer.echo(f"  python -m hfpapers reclassificar --paper {pid}")
+
+        if tudo:
+            c = execucao.conferir(conn, r.run_id)
+            fim = "rodada completa" if not any(c.values()) else "ainda falta"
+            typer.echo(
+                f"\nconferencia ({fim}): {c['outro_run_id']} triagem(ns) de outra rodada, "
+                f"{c['sem_triagem']} paper(s) sem triagem"
+            )
     finally:
         conn.close()
 
@@ -176,6 +204,29 @@ def taxonomia_listar() -> None:
     for c in dados["candidatos"]:
         marca = "promovido" if c["promovido"] else f"{len(c['papers'])} paper(s)"
         typer.echo(f"  [{c['tipo']}] {c['rotulo']} — {marca}")
+
+
+@app_tax.command("promover")
+def taxonomia_promover(
+    rotulo: str = typer.Option(..., "--rotulo", help="Rotulo do candidato a promover."),
+    tipo: str = typer.Option("topico", "--tipo", help="area | topico"),
+) -> None:
+    """Promove um candidato de `taxonomia listar` a rotulo do vocabulario.
+
+    A definicao vem do proprio candidato. Operacao manual, por desenho - e o
+    passo depois da reclassificacao total, que roda com o vocabulario
+    congelado.
+    """
+    cfg = _preparar()
+    conn = db.abrir(cfg)
+    try:
+        r = mod_tax.promover_candidato(conn, rotulo=rotulo, tipo=tipo, cfg=cfg.taxonomia)
+    except ValueError as e:
+        typer.echo(str(e))
+        raise typer.Exit(code=2)
+    finally:
+        conn.close()
+    typer.echo(f"'{r['rotulo']}' agora e {r['tipo']} ({r['papers']} paper(s) o citaram)")
 
 
 @app_tax.command("fundir")
