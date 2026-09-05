@@ -171,9 +171,12 @@ def registrar_candidato(
     return res
 
 
-def promover(
+def _promover(
     conn: sqlite3.Connection, *, rotulo: str, tipo: str, definicao: str
 ) -> None:
+    """Grava o rotulo no vocabulario. Privada: quem promove entra por
+    `registrar_candidato` (automatico) ou `promover_candidato` (a mao), que sao
+    os dois que sabem checar quorum, teto e duplicata."""
     tabela, coluna = _tabela(tipo)
     db.upsert(
         conn,
@@ -185,11 +188,6 @@ def promover(
         "UPDATE tax_candidato SET promovido = 1 WHERE rotulo = ? AND tipo = ?",
         (rotulo, tipo),
     )
-
-
-# `registrar_candidato` tem um parametro chamado `promover`, que sombreia a
-# funcao acima dentro do corpo dela; o alias e como ela continua chamavel la.
-_promover = promover
 
 
 def promover_candidato(

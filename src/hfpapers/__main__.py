@@ -248,17 +248,30 @@ def taxonomia_fundir(
     typer.echo(f"'{de}' -> '{para}': {r['papers_no_destino']} papers no destino")
 
 
-TAXONOMIA_INICIAL = Path("config/taxonomia_inicial.json")
+TAXONOMIA_INICIAL = "config/taxonomia_inicial.json"
+
+
+def _taxonomia_inicial(cfg, informado: Optional[Path]) -> Path:
+    """O padrao e o arquivo versionado do projeto, nao um homonimo no CWD.
+
+    Resolver contra `cfg.raiz` e o que o resto do projeto faz (`config._abs`).
+    Com o caminho relativo ao diretorio corrente, `exportar` rodado de fora da
+    raiz criava um `config/` novo la e gravava nele em silencio - o operador
+    achava ter atualizado o arquivo do git - e `carregar` reclamava de arquivo
+    inexistente.
+    """
+    return informado if informado else cfg.raiz / TAXONOMIA_INICIAL
 
 
 @app_tax.command("exportar")
 def taxonomia_exportar(
-    destino: Path = typer.Option(
-        TAXONOMIA_INICIAL, "--destino", help="Arquivo JSON de saida."
+    destino: Optional[Path] = typer.Option(
+        None, "--destino", help=f"Arquivo JSON de saida (padrao: {TAXONOMIA_INICIAL})."
     ),
 ) -> None:
     """Grava areas e topicos do banco num JSON versionavel. Candidatos nao entram."""
     cfg = _preparar()
+    destino = _taxonomia_inicial(cfg, destino)
     conn = db.abrir(cfg)
     try:
         dados = mod_tax.exportar(conn)
@@ -276,12 +289,13 @@ def taxonomia_exportar(
 
 @app_tax.command("carregar")
 def taxonomia_carregar(
-    arquivo: Path = typer.Argument(
-        TAXONOMIA_INICIAL, help="JSON gerado por `taxonomia exportar`."
+    arquivo: Optional[Path] = typer.Argument(
+        None, help=f"JSON gerado por `taxonomia exportar` (padrao: {TAXONOMIA_INICIAL})."
     ),
 ) -> None:
     """Repoe o vocabulario num banco vazio. Idempotente: rotulo existente nao e tocado."""
     cfg = _preparar()
+    arquivo = _taxonomia_inicial(cfg, arquivo)
     if not arquivo.exists():
         typer.echo(f"arquivo inexistente: {arquivo}")
         raise typer.Exit(code=2)

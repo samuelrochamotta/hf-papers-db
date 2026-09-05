@@ -184,8 +184,10 @@ def checar_vocabulario(cfg: Config) -> Item:
     return Item(
         "vocabulario",
         AVISO,
-        f"{falta} sem linhas - rode "
-        "`hfpapers taxonomia carregar config/taxonomia_inicial.json`",
+        # sem o caminho: o comando ja tem por padrao o arquivo versionado do
+        # projeto, e escrever um caminho relativo aqui convida a rodar de outro
+        # diretorio e carregar (ou criar) o arquivo errado
+        f"{falta} sem linhas - rode `hfpapers taxonomia carregar`",
         dados,
     )
 

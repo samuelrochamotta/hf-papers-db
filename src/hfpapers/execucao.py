@@ -228,7 +228,12 @@ def reclassificar(
     tudo: bool = False,
     cliente_llm: Optional[ClienteLLM] = None,
 ) -> ResultadoRun:
-    """Roda so o estagio 3 sobre papers que ja tem triagem, e registra a rodada.
+    """Roda so o estagio 3, sobre papers ja vistos, e registra a rodada.
+
+    A selecao e `force=True`: leva quem ja tem triagem (o caso comum) e tambem
+    o pendente que ficou sem linha, que e o que faz o criterio de conclusao da
+    rodada total fechar em "zero papers sem triagem".
+
 
     Por que passa por aqui e nao chama `classificacao.rodar` direto: a rodada
     precisa existir em `log_execucao`. Sem a linha, ela e invisivel para o

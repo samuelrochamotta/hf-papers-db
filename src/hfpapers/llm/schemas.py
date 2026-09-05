@@ -112,7 +112,7 @@ def schema_estagio_a(areas: Sequence[str], topicos: Sequence[str]) -> dict[str, 
     topicos = list(topicos)
     if not areas or not topicos:
         raise ValueError(
-            "vocabulario vazio: rode `hfpapers taxonomia carregar config/taxonomia_inicial.json`"
+            "vocabulario vazio: rode `hfpapers taxonomia carregar`"
         )
     return {
         "type": "object",

@@ -350,8 +350,9 @@ def test_fora_sem_regra_bloqueia_o_doutor(cfg, base):
     _triagem(base, "2609.00001", regra_fora=None)
     base.commit()
 
-    erros = [i for i in rodar(cfg, sem_rede=True) if i.estado == ERRO]
-    assert [i.nome for i in erros] == ["regra_fora"]
+    # so o item sob teste: `chave` e `api_*` dependem do ambiente de quem roda
+    itens = {i.nome: i for i in rodar(cfg, sem_rede=True)}
+    assert itens["regra_fora"].estado == ERRO
 
 
 # ── integracao ──────────────────────────────────────────────────────────────
@@ -396,3 +397,7 @@ def test_rodar_inclui_a_checagem(cfg, base):
     assert itens["triagem"].estado == AVISO
     # a pendencia avisa, mas nao bloqueia: `erro` e so para o que impede rodar
     assert not [i for i in itens.values() if i.estado == "erro" and i.nome == "triagem"]
+    # a fiacao dos outros dois checks tambem passa por aqui: sem esta linha,
+    # apagar a chamada de `checar_vocabulario` em `rodar` nao quebraria nada
+    assert itens["vocabulario"].estado == AVISO      # base de teste sem vocabulario
+    assert itens["regra_fora"].estado == OK          # e sem `fora` sem regra
