@@ -34,8 +34,17 @@ log = logger("llm")
 # somam no mesmo `self.uso` e no mesmo buffer de `log_llm`. Ser do modulo, e
 # nao da instancia, e deliberado - `somente_precos` e os dubles de teste montam
 # o objeto sem passar por `__init__`, e uma trava global dispensa a pergunta
-# "esta instancia tem trava?". Nao ha contencao a economizar: o que ela protege
-# sao secoes de microssegundos (somar quatro inteiros, empilhar um dict).
+# "esta instancia tem trava?".
+#
+# Quase tudo que ela protege sao secoes de microssegundos (somar quatro
+# inteiros, empilhar um dict). A excecao sao `precos` e `parametros`: eles
+# fazem um `httpx.get` cada, com `timeout=30 s`, e sao preenchidos sob a trava
+# de proposito - assim o catalogo e buscado uma vez, e nao uma por thread. O
+# preco disso e que o primeiro lote de uma rodada concorrente pode ficar
+# serializado por ate ~60 s enquanto a primeira thread busca os dois catalogos.
+# E o negocio certo (uma busca em vez de oito), mas nao e uma secao curta -
+# quem for mexer aqui precisa saber.
+#
 # `RLock` porque `_contabilizar` chama `self.preco`, que tambem a toma.
 _TRAVA = threading.RLock()
 

@@ -135,7 +135,9 @@ def reclassificar(
         help=(
             "Chamadas simultaneas ao OpenRouter "
             f"(1 = sequencial, teto {classificacao.CONCORRENCIA_MAXIMA}). "
-            "Padrao: llm.concorrencia do config.yaml."
+            "Padrao: llm.concorrencia do config.yaml. "
+            "Acima de 1, Ctrl+C so age quando as chamadas em voo terminam "
+            "(ate ~18 min no pior caso) - espere, nao mate o processo."
         ),
     ),
 ) -> None:

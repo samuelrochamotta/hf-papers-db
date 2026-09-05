@@ -12,17 +12,25 @@ unico chamador que a expoe na linha de comando.
 """
 
 import pytest
-from conftest import LLMDuble
+from test_classificacao_concorrencia import LLMConcorrente
 
 from hfpapers import db, doutor, execucao
 from hfpapers.estagios import classificacao
 from hfpapers.llm.estagio_a import PaperEntrada
 
-
 EXPLODE_EM = "2608.00002"  # o terceiro do lote: dois passam antes
 
 
-class LLMExplode(LLMDuble):
+def _duble(conn, cfg):
+    """`LLMConcorrente`, e nao o `LLMDuble` do conftest, em todo teste que roda
+    com concorrencia > 1: o do conftest conta chamadas por `len(self.chamadas)`
+    e soma `self.uso` sem trava, o que e corrida assim que ha thread. Passaria
+    hoje porque estas assercoes nao olham `uso`, mas seria uma armadilha para a
+    proxima assercao que olhar."""
+    return LLMConcorrente(conn, cfg, atraso=0.005)
+
+
+class LLMExplode(LLMConcorrente):
     """Classifica normalmente ate chegar em `explode_em`, e entao estoura.
 
     Pelo `paper_id`, e nao por contagem de chamadas: sob concorrencia a ordem
@@ -36,7 +44,7 @@ class LLMExplode(LLMDuble):
     """
 
     def __init__(self, conn, cfg, *, explode_em=EXPLODE_EM):
-        super().__init__(conn, cfg, um_a_cada=1)
+        super().__init__(conn, cfg, atraso=0.005)
         self.explode_em = explode_em
 
     def chamar(self, *, etapa, paper_id=None, **kw):
@@ -124,16 +132,23 @@ def test_rodada_que_estourou_serve_de_corte_para_o_doutor(cfg, base):
 # ── passagem da concorrencia ────────────────────────────────────────────────
 
 
-def test_reclassificar_usa_a_concorrencia_do_config_por_padrao(cfg, base, monkeypatch):
+def _espiar_concorrencia(monkeypatch) -> list:
+    """Anota a concorrencia com que `classificacao.rodar` foi chamada, sem
+    impedir a rodada de acontecer de verdade."""
     pedidos = []
     real = classificacao.rodar
     monkeypatch.setattr(
         classificacao, "rodar",
         lambda *a, **kw: (pedidos.append(kw.get("concorrencia")), real(*a, **kw))[1],
     )
+    return pedidos
+
+
+def test_reclassificar_usa_a_concorrencia_do_config_por_padrao(cfg, base, monkeypatch):
+    pedidos = _espiar_concorrencia(monkeypatch)
     cfg.llm.concorrencia = 3
 
-    execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg))
+    execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=_duble(base, cfg))
 
     assert pedidos == [3]
 
@@ -141,16 +156,58 @@ def test_reclassificar_usa_a_concorrencia_do_config_por_padrao(cfg, base, monkey
 def test_flag_sobrepoe_o_config(cfg, base, monkeypatch):
     """`--concorrencia` existe justamente para a rodada total pedir mais do que
     o padrao conservador do arquivo."""
-    pedidos = []
-    real = classificacao.rodar
-    monkeypatch.setattr(
-        classificacao, "rodar",
-        lambda *a, **kw: (pedidos.append(kw.get("concorrencia")), real(*a, **kw))[1],
-    )
+    pedidos = _espiar_concorrencia(monkeypatch)
     cfg.llm.concorrencia = 1
 
     execucao.reclassificar(
-        cfg=cfg, conn=base, tudo=True, concorrencia=6, cliente_llm=LLMDuble(base, cfg)
+        cfg=cfg, conn=base, tudo=True, concorrencia=6, cliente_llm=_duble(base, cfg)
     )
 
     assert pedidos == [6]
+
+
+# ── a rodada diaria ─────────────────────────────────────────────────────────
+#
+# `execucao.rodar` e a que nao pode regredir: e ela que roda todo dia as 07:30,
+# sozinha. Os testes acima cobrem so `reclassificar`.
+
+
+def test_rodada_diaria_usa_a_concorrencia_do_config(cfg, base, monkeypatch):
+    """A rodada diaria nao tem flag: o unico jeito de mudar a concorrencia dela
+    e o `config.yaml`, e o padrao de la e 1."""
+    pedidos = _espiar_concorrencia(monkeypatch)
+    cfg.llm.concorrencia = 2
+
+    execucao.rodar(
+        cfg=cfg, conn=base, apenas=["classificacao"], cliente_llm=_duble(base, cfg)
+    )
+
+    assert pedidos == [2]
+
+
+def test_rodada_diaria_por_padrao_e_sequencial(cfg, base, monkeypatch):
+    """O padrao de `Config` - o que vale quando o `config.yaml` some - continua
+    sendo 1. E o caminho sem thread nenhuma."""
+    pedidos = _espiar_concorrencia(monkeypatch)
+
+    execucao.rodar(
+        cfg=cfg, conn=base, apenas=["classificacao"], cliente_llm=_duble(base, cfg)
+    )
+
+    assert pedidos == [1]
+
+
+def test_rodada_diaria_guarda_o_que_alcancou_antes_do_estouro(cfg, base):
+    """O mesmo conserto do `reclassificar`, na rodada que roda sozinha: se a
+    classificacao estoura, `log_execucao` fecha com as contagens reais e
+    `status='erro'` - nao com zeros depois de ter gravado triagem."""
+    llm = LLMExplode(base, cfg)
+
+    with pytest.raises(RuntimeError):
+        execucao.rodar(cfg=cfg, conn=base, apenas=["classificacao"], cliente_llm=llm)
+
+    linha = base.execute("SELECT * FROM log_execucao ORDER BY iniciado_em").fetchone()
+    assert linha["status"] == "erro"
+    assert linha["qtd_fora"] + linha["qtd_amplo"] + linha["qtd_estrito"] == 2
+    assert linha["custo_usd"] > 0
+    assert db.contar(base, "fato_triagem") == 2

@@ -61,8 +61,9 @@ Duas restrições moldaram o desenho:
 - **O paralelismo é só do I/O do OpenRouter.** Toda escrita no banco continua
   na thread principal e na ordem original dos papers. `registrar_candidato`
   acumula quórum e promove: drenar por ordem de chegada daria vocabulário
-  diferente a cada rodada. Uma rodada com `concorrencia=4` termina com o banco
-  idêntico ao de `concorrencia=1` — inclusive a ordem das linhas de `log_llm`.
+  diferente a cada rodada. Numa rodada **que completa**, `concorrencia=4`
+  termina com o banco idêntico ao de `concorrencia=1` — inclusive a ordem das
+  linhas de `log_llm`. Numa rodada que estoura no meio, não: ver *Consequências*.
 - **`concorrencia == 1` é o caminho de hoje, letra por letra**: sequencial, sem
   pool, sem thread. A rodada diária são ~30 papers e não ganha nada com
   paralelismo, enquanto a rajada é o modo de falha real do provedor.
@@ -85,6 +86,19 @@ rodá-la mais devagar.
   `reclassificar --tudo --concorrencia 4` — de uma noite para uma manhã.
 - A rodada diária não mudou de comportamento: mesma sequência, mesmas
   gravações, mesma conta.
+- **Rodada que estoura no meio gasta mais do que aproveita.** Os workers vão
+  adiante da thread principal, então quando a varredura cai há papers já pagos
+  que nunca virão a ter triagem: medido com `concorrencia=4` e um paper travado,
+  2 triagens gravadas contra 10 papers já em `log_llm`. Com `concorrencia=1`
+  isso não acontece — nada é chamado adiante do paper que estoura. Nenhuma linha
+  se perde: o gasto desses papers fica em `log_llm` (e portanto em
+  `hfpapers custos`), mas **fora** de `res.uso` e de `log_execucao.custo_usd`,
+  que contam só o que virou triagem. No pior caso são ~US$ 0,04; limitar o
+  adiantamento custaria código para economizar isso.
+- Acima de `concorrencia=1`, **Ctrl+C não devolve o terminal na hora**: espera
+  as chamadas em voo, no pior caso ~18 min. É inerente ao `concurrent.futures`.
+  Matar o processo no lugar de esperar arrisca interromper uma gravação — o
+  help do `--concorrencia` avisa.
 - De brinde, `classificacao.rodar` passou a aceitar o acumulador de quem chama:
   varredura que estoura no meio não fecha mais `log_execucao` com zeros depois
   de horas de trabalho.

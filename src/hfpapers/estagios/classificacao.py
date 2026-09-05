@@ -508,6 +508,14 @@ def _varrer_paralelo(
             # `llm.timeout_s`) precisam terminar antes de o buffer fechar: com
             # ele fechado, `_registrar` gravaria no banco a partir de uma thread
             # que nao e a dona da conexao.
+            #
+            # Consequencia para quem opera: um Ctrl+C no meio de uma rodada
+            # longa nao devolve o terminal na hora - ele espera as chamadas em
+            # voo, no pior caso `llm.retry.tentativas` x `llm.timeout_s` mais o
+            # backoff (~9 min por estagio, ~18 min se estiver no Estagio B).
+            # E inerente ao `concurrent.futures`; matar o processo no lugar de
+            # esperar arrisca interromper uma gravacao. O help do
+            # `--concorrencia` avisa.
             pool.shutdown(wait=True, cancel_futures=True)
 
 
