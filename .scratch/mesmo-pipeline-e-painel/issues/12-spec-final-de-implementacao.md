@@ -1,7 +1,7 @@
 # Spec final de implementação
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: —
 
 ## Question
@@ -15,3 +15,13 @@ visíveis) → `doutor` (regra nula passa a ser erro) → README e CONTEXT.md.
 
 Resolvido quando: a spec existe como arquivo no repositório, cada item aponta
 o ticket que o decidiu, e alguém pode implementar sem reabrir discussão.
+
+## Answer
+
+(2026-09-04) Escrita em **`docs/spec-mesmo-pipeline-e-painel.md`**: oito
+seções — o que já está implementado (commits `bf3660c`, `6e9ba5e`), remoção
+do backfill/seed com bootstrap do vocabulário, `reclassificar --tudo`, a
+rodada total como checklist de operação, painel card a card com o mapa
+enum → rótulo, `doutor`, README/CONTEXT.md, critérios de aceite. Cada item
+cita o ticket que o decidiu. Nada ficou em aberto. Com ela, o mapa chegou ao
+destino.

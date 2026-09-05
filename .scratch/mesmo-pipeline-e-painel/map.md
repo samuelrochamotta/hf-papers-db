@@ -50,10 +50,11 @@ quando ele fecha.
 - [Plano da reclassificação total](issues/10-plano-da-reclassificacao-total.md): os 482 de uma vez via `reclassificar --tudo` (8–10 h, sequencial), registrado em `log_execucao`, taxonomia congelada, falhas do B reprocessadas por `--paper`; painel só regenera no fim, sem transição; relatório pipeline × digest, `backfill` e `seed/` morrem (revisa *O que sobra do backfill*), vocabulário ganha bootstrap exportado do banco.
 - [Prototipar a curva normalizada](issues/09-prototipar-a-curva-normalizada.md): pulado; voto final = último snapshot de papers com idade ≥ 14 dias, uma faixa P25–P75 em escala linear, marca do dia em que a mediana cruza 90%, lista lateral fica.
 - [Gráfico "por que o pipeline aprova"](issues/11-grafico-por-que-o-pipeline-aprova.md): pulado; barras horizontais por critério empilhadas por veredito (verdes), contagem por ocorrência com total no subtítulo, ao lado do Pareto com clique-filtro; ficha mostra critérios legíveis e a contraparte da fronteira.
+- [Spec final de implementação](issues/12-spec-final-de-implementacao.md): escrita em `docs/spec-mesmo-pipeline-e-painel.md`; **destino alcançado**, mapa encerrado em 2026-09-04.
 
 ## Not yet specified
 
-(vazio — a spec final graduou para o ticket *Spec final de implementação*;
+(vazio — mapa encerrado; a spec final graduou para o ticket *Spec final de implementação*;
 o relatório pipeline × digest e a transição do painel fecharam no *Plano da
 reclassificação total*: o primeiro morre, a segunda não existe.)
 
