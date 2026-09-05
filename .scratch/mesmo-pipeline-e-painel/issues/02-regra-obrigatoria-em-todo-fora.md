@@ -32,3 +32,13 @@ fala), `2608.28695` (generalidade + percepção), `2608.27509` (ciência
 política), `2608.29669` (econometria), `2609.01507` (treino, mas o modelo
 deixou nulo), `2609.04034` (mídia, idem) — os dois últimos mostram que sem a
 exigência no schema o modelo às vezes nem preenche a regra que existe.
+
+### Adendo (2026-09-04)
+
+**Exceção do componente adotável**, no Estágio A: `treino_ou_postreino` e
+`relatorio_tecnico_de_modelo` não valem quando o paper libera componente pronto
+para quem não treina (guard model, classificador, reranker, embedder, dataset
+de avaliação) — passa como candidato e o B decide entre `artefato_aberto` e
+fora. Relatório de modelo de fronteira continua fora. Caso: *SafeAtlas-VL*
+morria no portão por treino; com a exceção, estrito · `artefato_aberto` +
+`benchmark`, sem fronteira.

@@ -27,6 +27,14 @@ Os seis rótulos de regra são, **nesta ordem de teste**:
 descarte é portão, não diagnóstico. Um paper de treino que também reprovaria na
 portabilidade é `treino_ou_postreino`. `fora` sem regra é resposta inválida.
 
+**Exceção: componente adotável por quem não treina.** `treino_ou_postreino` e
+`relatorio_tecnico_de_modelo` **não** valem quando o paper libera um componente
+pronto para quem não treina — guard model, classificador, reranker, embedder,
+dataset de avaliação. A regra de treino existe para cortar "como treinar", não
+"aqui está um modelo para você usar". Esse paper passa como candidato e o
+Estágio B decide entre `artefato_aberto` e fora. Relatório de modelo de
+fronteira (Llama, GPT, Gemini…) continua fora: não é componente, é o modelo.
+
 ## 2. Teste de portabilidade — o filtro que faz o trabalho
 
 Só se aplica quando o paper propõe ou usa **framework, sistema ou ferramenta com
@@ -88,6 +96,11 @@ Três réguas que decidem os casos difíceis:
 - **Treino como payload é FORA (regra 1). Acesso interno como pré-requisito de
   adoção é AMPLO** (`exige_acesso_interno`): achado sobre inferência que só roda
   controlando a engine, o kernel ou as ativações informa, mas não entrega.
+  **`exige_acesso_interno` é excludente**: se a adoção exige acesso interno,
+  nenhum critério de estrito vale ao mesmo tempo — estrito é "adota sem treinar
+  e sem acesso interno". Um padrão "reproduzível pela descrição, mas que exige
+  modificar o motor de inferência" é `exige_acesso_interno`, não
+  `padrao_arquitetural`.
 
 Dois lados na lista (`artefato_aberto` + `benchmark`) dão estrito e **não**
 obrigam fronteira: se entrega, entrega; o benchmark é contexto.
@@ -98,7 +111,9 @@ fora→aprovado. Sempre acompanhada de **`fronteira_contraparte`**: a regra de
 descarte ou o critério que quase venceu, obrigatoriamente de lado **diferente**
 do veredito (estrito com contraparte `benchmark`; amplo com contraparte
 `padrao_arquitetural` ou `treino_ou_postreino`; fora com contraparte
-`exige_acesso_interno`). Sem fronteira, a contraparte é nula.
+`exige_acesso_interno`). Sem fronteira, a contraparte é nula. A contraparte
+**não está** em `criterios_veredito`: a lista é o que vale, a contraparte é o
+que quase valeu — o mesmo rótulo não pode ser os dois.
 
 **Justificativa.** A justificativa **aplica o critério ou a regra ao paper**
 ("AMPLO porque é benchmark: mede X, não entrega Y"; "FORA por

@@ -142,3 +142,15 @@ paper). Nomes rejeitados para `panorama`: `survey_ou_taxonomia`,
 > Y"); não descreve o paper.
 
 Próximo passo: [Prototipar o Estágio B com critérios](07-prototipar-o-estagio-b-com-criterios.md) — pulado a pedido do usuário; a implementação foi direto (ver o ticket).
+
+### Adendo (2026-09-04, depois da validação real)
+
+Duas réguas a mais, decididas sobre as divergências do ticket 07:
+
+- **`exige_acesso_interno` é excludente**: não coexiste com critério de estrito
+  (estrito = "adota sem treinar e sem acesso interno"). Validação em código,
+  mesmo tratamento do veredito incoerente. Caso: *Control Their Own Attention*
+  veio estrito com `padrao_arquitetural` + `exige_acesso_interno`; com a regra,
+  amplo · `exige_acesso_interno`.
+- **A contraparte não está na lista**: a lista é o que vale, a contraparte é o
+  que quase valeu. Validação em código, mesmo tratamento da fronteira incoerente.

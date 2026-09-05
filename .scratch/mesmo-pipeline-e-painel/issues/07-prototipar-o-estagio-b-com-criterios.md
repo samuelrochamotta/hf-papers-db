@@ -79,3 +79,16 @@ no Estágio A?
 **Operacional.** O `qwen3.8-flash` raciocina antes de responder: o Estágio A
 truncou em 1200 tokens em **todos** os 6 papers (8 retentativas). O teto de
 `estagio_a.max_tokens` deveria subir para 2400.
+
+### Fechamento (2026-09-04, 21:18)
+
+Com as três decisões do usuário (excludente, contraparte fora da lista, exceção
+do componente adotável; `estagio_a.max_tokens` 1200 → 2400), os dois
+divergentes foram reclassificados:
+
+| paper | resultado | justificativa |
+|---|---|---|
+| Control Their Own Attention | **amplo** · `exige_acesso_interno`, sem fronteira | "AMPLO porque exige acesso interno: …modificar o parsing do KV cache no motor de inferência, não sendo adotável apenas via API" |
+| SafeAtlas-VL | **estrito** · `artefato_aberto` + `benchmark`, sem fronteira | "ESTRITO por artefato aberto: entrega dataset, benchmark e modelos de guarda treinados…" |
+
+6/6 conforme o esperado. Estágio A sem truncamento com 2400. Testes: 250.

@@ -29,6 +29,13 @@ nesta ordem:
 inválida e volta para você refazer. Só uma regra, mesmo que mais de uma se
 aplique: descarte é portão, não diagnóstico.
 
+**Exceção às duas primeiras regras:** se o paper libera um **componente pronto
+para quem não treina** — guard model, classificador, reranker, embedder, dataset
+de avaliação — `treino_ou_postreino` e `relatorio_tecnico_de_modelo` não valem,
+mesmo que o payload descreva como ele foi treinado. Marque `candidato`: o
+Estágio B decide se o artefato é adotável. Relatório de modelo de fronteira
+(Llama, GPT, Gemini…) não é componente e continua fora.
+
 Marque `candidato` em qualquer outro caso. Na dúvida entre os dois, escolha
 `candidato`: o Estágio B tem contexto para decidir melhor, e o custo de deixar
 passar é baixo. `regra_fora` deve ser `null` quando o veredito é `candidato`.

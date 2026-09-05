@@ -144,6 +144,19 @@ def test_fora_com_criterios_e_rejeitado():
         eb.validar(_fora(criterios_veredito=["benchmark"]))
 
 
+def test_exige_acesso_interno_exclui_criterio_de_estrito():
+    """Control Their Own Attention (04/09): o modelo listou `exige_acesso_interno`
+    e `padrao_arquitetural`, estrito prevaleceu e a justificativa se contradisse.
+    Estrito e "adota sem acesso interno", entao os dois nao coexistem."""
+    with pytest.raises(ErroValidacao, match="exclui criterio de estrito"):
+        eb.validar(_b(criterios_veredito=["exige_acesso_interno", "padrao_arquitetural"]))
+
+
+def test_exige_acesso_interno_sozinho_ou_com_amplo_passa():
+    eb.validar(_amplo(criterios_veredito=["exige_acesso_interno"]))
+    eb.validar(_amplo(criterios_veredito=["exige_acesso_interno", "benchmark"]))
+
+
 def test_mistura_de_lados_e_estrito_e_nao_obriga_fronteira():
     """SafeAtlas-VL: artefato aberto + benchmark, estrito, sem fronteira."""
     eb.validar(_b(criterios_veredito=["artefato_aberto", "benchmark"]))
@@ -154,6 +167,18 @@ def test_mistura_de_lados_e_estrito_e_nao_obriga_fronteira():
 
 def test_fronteira_sem_contraparte_e_incoerente():
     assert eb.incoerencia_de_fronteira(_b(decisao_fronteira=True)) is not None
+
+
+def test_contraparte_dentro_da_lista_e_incoerente():
+    """A lista e o que vale, a contraparte e o que quase valeu: o mesmo rotulo
+    nao pode ser os dois (caso real de 04/09, contraparte `exige_acesso_interno`
+    com o proprio `exige_acesso_interno` na lista)."""
+    dados = _b(
+        criterios_veredito=["padrao_arquitetural", "benchmark"],
+        decisao_fronteira=True,
+        fronteira_contraparte="benchmark",
+    )
+    assert "esta em criterios_veredito" in eb.incoerencia_de_fronteira(dados)
 
 
 @pytest.mark.parametrize(

@@ -183,6 +183,20 @@ def validar(dados: dict[str, Any]) -> None:
                 f"veredito '{veredito}' exige ao menos um criterio em criterios_veredito "
                 "(" + ", ".join(schemas.CRITERIOS_VEREDITO) + ")"
             )
+        # `exige_acesso_interno` e excludente (ticket 06, revisao de 04/09):
+        # estrito e "adota sem treinar e sem acesso interno", entao nao pode
+        # coexistir com criterio de estrito. Sem esta regra o modelo lista os
+        # dois, estrito prevalece e a justificativa se contradiz ("reproduzivel
+        # pela descricao, mas exige modificar o motor de inferencia").
+        if schemas.CRITERIO_ACESSO_INTERNO in criterios:
+            estritos_junto = [c for c in criterios if c in schemas.CRITERIOS_ESTRITO]
+            if estritos_junto:
+                raise ErroValidacao(
+                    f"'{schemas.CRITERIO_ACESSO_INTERNO}' exclui criterio de estrito "
+                    f"({', '.join(estritos_junto)}): se a adocao exige acesso interno, o "
+                    "leitor nao adota - ou o acesso interno nao e pre-requisito e sai da "
+                    "lista, ou o criterio de estrito nao vale"
+                )
         implicado = schemas.veredito_dos_criterios(criterios)
         if implicado != veredito:
             estritos = [c for c in criterios if c in schemas.CRITERIOS_ESTRITO]
@@ -228,6 +242,11 @@ def incoerencia_de_fronteira(dados: dict[str, Any]) -> Optional[str]:
         return (
             f"fronteira_contraparte '{contraparte}' e do mesmo lado do veredito "
             f"'{veredito}': a contraparte e o que quase venceu, do outro lado"
+        )
+    if contraparte in _criterios(dados):
+        return (
+            f"fronteira_contraparte '{contraparte}' esta em criterios_veredito: a lista "
+            "e o que vale, a contraparte e o que quase valeu - o mesmo rotulo nao e os dois"
         )
     return None
 

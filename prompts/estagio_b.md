@@ -98,6 +98,11 @@ Três réguas para os casos difíceis:
 - **Treino como payload é FORA (`treino_ou_postreino`). Acesso interno como
   pré-requisito de adoção é AMPLO (`exige_acesso_interno`).** Um achado sobre
   inferência que só roda controlando a engine informa, mas não entrega.
+  **`exige_acesso_interno` é excludente**: se ele vale, nenhum critério de
+  estrito vale junto — estrito é "adota sem treinar e sem acesso interno". Um
+  padrão "reproduzível pela descrição, mas que exige modificar o motor de
+  inferência" é `exige_acesso_interno`, não `padrao_arquitetural`. Lista com
+  os dois é resposta inválida e volta para você refazer.
 
 ### 4.2 `veredito` — decorre da lista
 
@@ -148,7 +153,9 @@ outro lado — estrito↔amplo, aprovado→fora ou fora→aprovado. Quando `true
 `benchmark`; amplo com contraparte `padrao_arquitetural` ou
 `treino_ou_postreino`; fora com contraparte `exige_acesso_interno`). Quando
 `false`, a contraparte é `null`. Dois lados em `criterios_veredito` **não**
-obrigam fronteira: fronteira é o "quase", não a mistura.
+obrigam fronteira: fronteira é o "quase", não a mistura. E a contraparte **não
+pode estar** em `criterios_veredito` — a lista é o que vale, a contraparte é o
+que quase valeu; o mesmo rótulo não é os dois.
 
 ## 5. `ficha` — obrigatória para `amplo` e `estrito`, `null` para `fora`
 

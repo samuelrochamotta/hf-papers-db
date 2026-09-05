@@ -50,6 +50,9 @@ CRITERIOS_ESTRITO = [
     "vulnerabilidade",
     "tecnica_de_avaliacao",
 ]
+# Excludente: nao coexiste com criterio de estrito (ver estagio_b.validar).
+CRITERIO_ACESSO_INTERNO = "exige_acesso_interno"
+
 CRITERIOS_AMPLO = [
     "benchmark",
     "panorama",
