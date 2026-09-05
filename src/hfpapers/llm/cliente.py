@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterator, Optional
 
 import httpx
 from openai import OpenAI
@@ -26,6 +28,20 @@ from ..config import Config, ambiente, config
 from ..log import logger
 
 log = logger("llm")
+
+# Uma trava so, do modulo, para todos os clientes. Ela existe por causa do
+# estagio 3 com `llm.concorrencia > 1`: varias chamadas rodam em threads e
+# somam no mesmo `self.uso` e no mesmo buffer de `log_llm`. Ser do modulo, e
+# nao da instancia, e deliberado - `somente_precos` e os dubles de teste montam
+# o objeto sem passar por `__init__`, e uma trava global dispensa a pergunta
+# "esta instancia tem trava?". Nao ha contencao a economizar: o que ela protege
+# sao secoes de microssegundos (somar quatro inteiros, empilhar um dict).
+# `RLock` porque `_contabilizar` chama `self.preco`, que tambem a toma.
+_TRAVA = threading.RLock()
+
+# Sentinela de `drenar_registros`: drenar o buffer inteiro, e nao so as linhas
+# de um paper. `None` nao serve - e `paper_id` legitimo de chamada sem paper.
+_TODOS = object()
 
 
 class ErroLLM(RuntimeError):
@@ -125,6 +141,11 @@ def tabela_parametros(cfg: Optional[Config] = None) -> dict[str, set[str]]:
 
 
 class ClienteLLM:
+    # Default de classe, nao so de `__init__`: dubles de teste e clientes
+    # montados por `__new__` tambem precisam responder "nao estou bufferizando".
+    # Ligar o buffer atribui uma lista *na instancia*, sem vazar entre elas.
+    _buffer: Optional[list[dict]] = None
+
     def __init__(
         self,
         cfg: Optional[Config] = None,
@@ -141,6 +162,7 @@ class ClienteLLM:
         self.uso = Uso()
         self._precos = precos
         self._parametros = parametros
+        self._buffer: Optional[list[dict]] = None
 
         if cliente is not None:
             self.openai = cliente
@@ -176,6 +198,7 @@ class ClienteLLM:
         obj.uso = Uso()
         obj._precos = precos
         obj._parametros = {}
+        obj._buffer = None
         obj.openai = None  # type: ignore[assignment]
         return obj
 
@@ -183,26 +206,31 @@ class ClienteLLM:
 
     @property
     def precos(self) -> dict[str, Preco]:
-        if self._precos is None:
-            try:
-                self._precos = tabela_precos(self.cfg)
-            except Exception as e:  # noqa: BLE001 - custo desconhecido nao trava a rodada
-                log.warning("tabela de precos indisponivel: %s", type(e).__name__)
-                self._precos = {}
-        return self._precos
+        # Sob a trava porque o preenchimento e preguicoso: com concorrencia > 1,
+        # a primeira chamada de cada thread cairia aqui ao mesmo tempo e faria
+        # N requisicoes ao catalogo em vez de uma.
+        with _TRAVA:
+            if self._precos is None:
+                try:
+                    self._precos = tabela_precos(self.cfg)
+                except Exception as e:  # noqa: BLE001 - custo desconhecido nao trava a rodada
+                    log.warning("tabela de precos indisponivel: %s", type(e).__name__)
+                    self._precos = {}
+            return self._precos
 
     def preco(self, modelo: str) -> Preco:
         return self.precos.get(modelo, Preco())
 
     @property
     def parametros(self) -> dict[str, set[str]]:
-        if self._parametros is None:
-            try:
-                self._parametros = tabela_parametros(self.cfg)
-            except Exception as e:  # noqa: BLE001
-                log.warning("catalogo de parametros indisponivel: %s", type(e).__name__)
-                self._parametros = {}
-        return self._parametros
+        with _TRAVA:  # mesmo motivo de `precos`
+            if self._parametros is None:
+                try:
+                    self._parametros = tabela_parametros(self.cfg)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("catalogo de parametros indisponivel: %s", type(e).__name__)
+                    self._parametros = {}
+            return self._parametros
 
     def aceita(self, modelo: str, parametro: str) -> bool:
         """Sem catalogo, assume que aceita - o retry cuida do resto."""
@@ -321,9 +349,64 @@ class ClienteLLM:
         u = getattr(resposta, "usage", None)
         entrada = int(getattr(u, "prompt_tokens", 0) or 0)
         saida = int(getattr(u, "completion_tokens", 0) or 0)
-        uso = Uso(entrada, saida, self.preco(modelo).custo(entrada, saida), 1)
-        self.uso.somar(uso)
+        with _TRAVA:  # `self.uso` e acumulador compartilhado entre as threads
+            uso = Uso(entrada, saida, self.preco(modelo).custo(entrada, saida), 1)
+            self.uso.somar(uso)
         return uso
+
+    # ── registro em `log_llm` ───────────────────────────────────────────────
+    #
+    # O paralelismo do estagio 3 e so do I/O do OpenRouter: nenhuma thread
+    # trabalhadora toca o banco. Quando `registros_adiados` esta ativo,
+    # `_registrar` empilha a linha num buffer e quem a grava e a thread
+    # principal, em `drenar_registros`.
+    #
+    # Por que assim e nao com `check_same_thread=False` + trava na conexao: a
+    # conexao do projeto e aberta com `isolation_level=None` e transacao
+    # explicita (`db.transacao`). Um INSERT disparado por uma thread enquanto a
+    # principal esta entre o BEGIN e o COMMIT de uma gravacao de triagem entra
+    # naquela transacao alheia - e some no ROLLBACK se ela falhar. Uma trava na
+    # conexao nao resolve isso: teria de cobrir a transacao inteira da thread
+    # principal, o que serializaria justamente o que se quer paralelo. Buffer e
+    # a rota que nao esconde esse risco.
+
+    @contextmanager
+    def registros_adiados(self) -> Iterator[None]:
+        """Enquanto ativo, `log_llm` vai para um buffer em vez do banco.
+
+        Ao sair, o que sobrou e drenado - inclusive quando a saida e por
+        excecao, para que uma rodada interrompida nao perca a contabilidade das
+        chamadas que ja pagou.
+        """
+        with _TRAVA:
+            self._buffer = []
+        try:
+            yield
+        finally:
+            self.drenar_registros()
+            with _TRAVA:
+                self._buffer = None
+
+    def drenar_registros(self, paper_id: Any = _TODOS) -> int:
+        """Grava as linhas empilhadas. **So a thread principal chama.**
+
+        Drenar por paper, e nao o buffer inteiro de uma vez, e o que mantem
+        `log_llm` deterministico: as linhas saem na ordem original dos papers,
+        e nao na ordem em que as threads terminaram. Dentro de um paper a ordem
+        ja e a das chamadas, porque um paper e sempre de uma thread so.
+        """
+        with _TRAVA:
+            buffer = self._buffer
+            if not buffer:
+                return 0
+            if paper_id is _TODOS:
+                linhas, self._buffer = buffer, []
+            else:
+                linhas = [x for x in buffer if x["paper_id"] == paper_id]
+                self._buffer = [x for x in buffer if x["paper_id"] != paper_id]
+        for linha in linhas:
+            db.registrar_llm(self.conn, linha)
+        return len(linhas)
 
     def _registrar(
         self,
@@ -337,22 +420,24 @@ class ClienteLLM:
     ) -> None:
         if self.conn is None:
             return
-        db.registrar_llm(
-            self.conn,
-            {
-                "run_id": self.run_id,
-                "paper_id": paper_id,
-                "etapa": etapa,
-                "modelo": modelo,
-                "tokens_entrada": uso.tokens_entrada,
-                "tokens_saida": uso.tokens_saida,
-                "custo_usd": uso.custo_usd,
-                "latencia_ms": latencia_ms,
-                "tentativas": tentativa,
-                "erro": erro,
-                "criado_em": db.agora(),
-            },
-        )
+        linha = {
+            "run_id": self.run_id,
+            "paper_id": paper_id,
+            "etapa": etapa,
+            "modelo": modelo,
+            "tokens_entrada": uso.tokens_entrada,
+            "tokens_saida": uso.tokens_saida,
+            "custo_usd": uso.custo_usd,
+            "latencia_ms": latencia_ms,
+            "tentativas": tentativa,
+            "erro": erro,
+            "criado_em": db.agora(),
+        }
+        with _TRAVA:
+            if self._buffer is not None:
+                self._buffer.append(linha)
+                return
+        db.registrar_llm(self.conn, linha)
 
 
 # ── estimativa de custo (--dry-run) ─────────────────────────────────────────

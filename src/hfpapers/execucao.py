@@ -65,6 +65,23 @@ class ResultadoRun:
         return [a[len(marca):] for a in self.avisos if a.startswith(marca)]
 
 
+def _absorver(res: ResultadoRun, parcial: classificacao.ResultadoClassificacao) -> None:
+    """Passa para o `ResultadoRun` o que a classificacao acumulou ate agora.
+
+    Chamada no `finally` da classificacao, e nao depois do `return` dela, para
+    que valha tambem quando a varredura estoura no meio: as triagens ja gravadas
+    sao fato no banco, e `log_execucao` tem de refletir isso. Fechar a execucao
+    com `qtd_fora = qtd_amplo = qtd_estrito = 0` depois de horas de varredura
+    perde a contagem e ainda faz `doutor.checar_pendencias` descartar a rodada
+    como corte - ele so considera execucao que classificou alguem.
+    """
+    res.fora, res.amplo, res.estrito = parcial.fora, parcial.amplo, parcial.estrito
+    res.nao_classificados = parcial.nao_classificados
+    res.fichas = parcial.fichas
+    res.avisos.extend(parcial.avisos)
+    res.uso.somar(parcial.uso)
+
+
 def novo_run_id(hoje: Optional[dt.datetime] = None) -> str:
     return (hoje or dt.datetime.now()).strftime("run-%Y%m%d-%H%M%S")
 
@@ -162,13 +179,19 @@ def rodar(
             res.selecionados = len(pendentes)
             if pendentes:
                 llm = llm or ClienteLLM(cfg, conn=conn, run_id=run_id)
-                r = classificacao.rodar(conn, llm, pendentes, run_id=run_id, cfg=cfg)
-                res.fora, res.amplo, res.estrito = r.fora, r.amplo, r.estrito
-                res.nao_classificados = r.nao_classificados
-                res.fichas = r.fichas
-                res.avisos.extend(r.avisos)
-                res.uso.somar(r.uso)
-                falhou = falhou or any(a.startswith("estagio_a_falhou") for a in r.avisos)
+                parcial = classificacao.ResultadoClassificacao()
+                try:
+                    # A rodada diaria fica com a concorrencia do config (padrao
+                    # 1, sequencial): sao ~30 papers, nao ha rodada a encurtar,
+                    # e o que ela quer e nao dar rajada no provedor. Quem pede
+                    # concorrencia na linha de comando e `reclassificar`.
+                    classificacao.rodar(
+                        conn, llm, pendentes, run_id=run_id, cfg=cfg,
+                        concorrencia=cfg.llm.concorrencia, res=parcial,
+                    )
+                finally:
+                    _absorver(res, parcial)
+                falhou = falhou or any(a.startswith("estagio_a_falhou") for a in res.avisos)
             else:
                 log.info("nada a classificar (tudo ja tem triagem)")
 
@@ -226,6 +249,7 @@ def reclassificar(
     ids: Optional[Sequence[str]] = None,
     data: Optional[str] = None,
     tudo: bool = False,
+    concorrencia: Optional[int] = None,
     cliente_llm: Optional[ClienteLLM] = None,
 ) -> ResultadoRun:
     """Roda so o estagio 3, sobre papers ja vistos, e registra a rodada.
@@ -248,6 +272,10 @@ def reclassificar(
 
     `tudo=True` congela o vocabulario (`promover_taxonomia=False`): ver
     `taxonomia.registrar_candidato`.
+
+    `concorrencia=None` usa a do `config.yaml` (padrao 1). E aqui que ela
+    importa: a rodada total sao ~482 papers de chamada sequencial, e este e o
+    unico chamador que pede a base inteira de uma vez.
     """
     cfg = cfg or config()
     fechar_conn = conn is None
@@ -275,19 +303,21 @@ def reclassificar(
         llm = cliente_llm or ClienteLLM(cfg, conn=conn, run_id=run_id)
         _abrir_execucao(conn, run_id)
         aberta = True
-        r = classificacao.rodar(
-            conn, llm, papers, run_id=run_id, cfg=cfg, promover_taxonomia=not tudo
-        )
-        res.fora, res.amplo, res.estrito = r.fora, r.amplo, r.estrito
-        res.nao_classificados = r.nao_classificados
-        res.fichas = r.fichas
-        res.avisos.extend(r.avisos)
-        res.uso.somar(r.uso)
+        parcial = classificacao.ResultadoClassificacao()
+        try:
+            classificacao.rodar(
+                conn, llm, papers, run_id=run_id, cfg=cfg,
+                promover_taxonomia=not tudo,
+                concorrencia=cfg.llm.concorrencia if concorrencia is None else concorrencia,
+                res=parcial,
+            )
+        finally:
+            _absorver(res, parcial)
         # Mesmo criterio de `rodar`: falha do Estagio A e do que a rodada nao
         # deu conta; falha do Estagio B deixa o paper pendente, que e caminho
         # previsto (e sai impresso para o operador repetir um a um).
         res.status = (
-            "parcial" if any(a.startswith("estagio_a_falhou") for a in r.avisos) else "ok"
+            "parcial" if any(a.startswith("estagio_a_falhou") for a in res.avisos) else "ok"
         )
         _fechar_execucao(conn, res)
     except Exception:

@@ -11,6 +11,7 @@ import typer
 
 from . import db, doutor as doutor_mod, execucao, log, taxonomia as mod_tax
 from .config import config
+from .estagios import classificacao
 from .estagios import export as mod_export
 from .llm.cliente import catalogo_modelos, suporta_saida_estruturada
 
@@ -128,11 +129,23 @@ def reclassificar(
     tudo: bool = typer.Option(
         False, "--tudo", help="Reclassifica a base inteira (rodada total, horas)."
     ),
+    concorrencia: Optional[int] = typer.Option(
+        None,
+        "--concorrencia",
+        help=(
+            "Chamadas simultaneas ao OpenRouter "
+            f"(1 = sequencial, teto {classificacao.CONCORRENCIA_MAXIMA}). "
+            "Padrao: llm.concorrencia do config.yaml."
+        ),
+    ),
 ) -> None:
     """Roda a classificacao de novo, incrementando `revisao`.
 
     `--tudo` e exclusivo com `--data`/`--paper`: ou se varre a base inteira, ou
     se dirige a varredura. A rodada entra em `log_execucao` nos tres casos.
+
+    `--concorrencia` mora aqui e nao no `run` de proposito: e a rodada total
+    que passa horas em chamada sequencial. A rodada diaria segue o config.
     """
     cfg = _preparar()
     if tudo and (data or paper):
@@ -145,7 +158,8 @@ def reclassificar(
     conn = db.abrir(cfg)
     try:
         r = execucao.reclassificar(
-            cfg=cfg, conn=conn, ids=[paper] if paper else None, data=data, tudo=tudo
+            cfg=cfg, conn=conn, ids=[paper] if paper else None, data=data, tudo=tudo,
+            concorrencia=concorrencia,
         )
         if not r.selecionados:
             typer.echo("nada a reclassificar")

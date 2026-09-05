@@ -23,6 +23,11 @@ llm:
   referer: "https://github.com/samuelrochamotta/hf-papers-db"
   titulo_app: "hf-papers-db"
   timeout_s: 180            # teto por chamada; sem isso uma conexão pendurada trava a rodada
+  # chamadas simultâneas no estágio 3. Padrão 1 (sequencial, o caminho de
+  # sempre): a rodada diária são ~30 papers e não ganha nada com paralelismo,
+  # e rajada é o que dispara o 429/404 da issue #1. Quem precisa é a
+  # reclassificação total: `reclassificar --tudo --concorrencia 4`. Teto: 8.
+  concorrencia: 1
   estagio_a:
     modelo: "qwen/qwen3.8-flash"
     temperatura: 0.0

@@ -19,14 +19,21 @@ porque nada e apagado nem sobrescrito no caminho de falha.
 Nao ha teto de retentativas entre rodadas: um paper que falhe sempre volta
 para a fila do dia seguinte. E o `doutor` que vigia o pendente que atravessou
 uma rodada sem se resolver (`aviso`, nao `erro`) - ver `doutor.py`.
+
+Concorrencia (`concorrencia > 1`): o que roda em thread e **so** a chamada ao
+OpenRouter. Toda escrita no banco continua na thread principal e na ordem
+original dos papers - ver `_varrer_paralelo`. Com `concorrencia == 1` nem
+existe thread: o caminho e o sequencial de sempre, letra por letra, que e o da
+rodada diaria.
 """
 
 from __future__ import annotations
 
 import sqlite3
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 from .. import db, taxonomia
 from ..config import Config, config
@@ -43,6 +50,32 @@ log = logger("classificacao")
 # antes de retentar no fim do estagio da tempo do rate limit ou do roteamento
 # se recuperarem, em vez de bater na mesma janela de instabilidade.
 _MULTIPLICADOR_BACKOFF_SEGUNDA_PASSADA = 4
+
+# Teto de chamadas simultaneas ao OpenRouter. Oito porque o modo de falha real
+# do provedor e a rajada, nao o volume: a issue #1 registra 404 de roteamento,
+# 429 e timeout em sequencia curta, e cada uma dessas custa o retry interno de
+# `ClienteLLM.chamar` mais, no Estagio B, uma segunda passada inteira. Acima
+# disso o tempo devolvido pelo paralelismo comeca a voltar como retentativa, e
+# a unica operacao que precisa de concorrencia - a reclassificacao total - ja
+# cai de uma noite para menos de duas horas com 8 (ver o ADR 001). Nada acima
+# disso valeria o risco. Valor fora da faixa nao derruba a
+# rodada: `normalizar_concorrencia` corta com aviso, porque abortar uma
+# varredura de horas por causa de um digito e pior que roda-la mais devagar.
+CONCORRENCIA_MAXIMA = 8
+
+
+def normalizar_concorrencia(valor: int) -> int:
+    """Prende o pedido na faixa [1, CONCORRENCIA_MAXIMA], avisando se cortou."""
+    n = int(valor)
+    if n < 1:
+        log.warning("concorrencia %s invalida; usando 1 (sequencial)", valor)
+        return 1
+    if n > CONCORRENCIA_MAXIMA:
+        log.warning(
+            "concorrencia %s acima do teto; usando %s", valor, CONCORRENCIA_MAXIMA
+        )
+        return CONCORRENCIA_MAXIMA
+    return n
 
 
 @dataclass
@@ -234,6 +267,317 @@ def gravar_ficha(
 # ── estagio ─────────────────────────────────────────────────────────────────
 
 
+def _entrada_b(paper: ea.PaperEntrada, a: ea.ResultadoA) -> ea.PaperEntrada:
+    """A entrada do Estagio B: o paper mais o que o Estagio A decidiu. Funcao
+    pura - por isso a thread trabalhadora pode monta-la sozinha."""
+    return ea.PaperEntrada(
+        paper_id=paper.paper_id,
+        titulo=paper.titulo,
+        abstract=paper.abstract,
+        keywords=paper.keywords,
+        ai_summary=paper.ai_summary,
+        area_primaria=a.area_primaria,
+        topicos=a.topicos,
+    )
+
+
+def _aplicar_estagio_a(
+    conn: sqlite3.Connection,
+    paper: ea.PaperEntrada,
+    a: ea.ResultadoA,
+    *,
+    run_id: str,
+    cfg: Config,
+    promover_taxonomia: bool,
+    so_estagio_a: bool,
+    res: ResultadoClassificacao,
+) -> bool:
+    """Grava o que o Estagio A decidiu; devolve se o paper segue para o B.
+
+    Sai do laco porque as duas varreduras (sequencial e paralela) precisam
+    gravar exatamente a mesma coisa, na mesma ordem: e o que faz uma rodada com
+    `concorrencia=4` terminar com o banco identico ao de `concorrencia=1`. **So
+    a thread principal chama.**
+    """
+    with db.transacao(conn):
+        taxonomia.aplicar_classificacao(
+            conn,
+            paper.paper_id,
+            area_primaria=a.area_primaria,
+            areas_secundarias=a.areas_secundarias,
+            topicos_paper=a.topicos,
+            cfg=cfg.taxonomia,
+        )
+        if a.candidato_novo_rotulo:
+            c = taxonomia.registrar_candidato(
+                conn,
+                rotulo=a.candidato_novo_rotulo.get("rotulo", ""),
+                tipo=a.candidato_novo_rotulo.get("tipo", "topico"),
+                definicao=a.candidato_novo_rotulo.get("definicao", ""),
+                paper_id=paper.paper_id,
+                cfg=cfg.taxonomia,
+                promover=promover_taxonomia,
+            )
+            if c.rotulo:
+                res.candidatos_taxonomia.append(c.rotulo)
+            if c.aviso:
+                res.avisos.append(c.aviso)
+
+    if not a.candidato:
+        with db.transacao(conn):
+            _gravar_triagem(
+                conn,
+                paper_id=paper.paper_id,
+                veredito="fora",
+                regra_fora=a.regra_fora,
+                justificativa=a.justificativa,
+                run_id=run_id,
+            )
+            # `--force` sobre um paper que era aprovado: criterios e ficha
+            # antigos nao podem sobreviver ao descarte.
+            _gravar_criterios(conn, paper.paper_id, [])
+            conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper.paper_id,))
+        res.fora += 1
+        return False
+
+    if so_estagio_a:
+        res.pulados += 1
+        return False
+
+    return True
+
+
+def _falhou_estagio_a(res: ResultadoClassificacao, paper_id: str, e: Exception) -> None:
+    log.error("estagio A falhou em %s: %s", paper_id, e)
+    res.avisos.append(f"estagio_a_falhou:{paper_id}")
+    res.pulados += 1
+
+
+def _adiar_estagio_b(
+    falhas_b: list[tuple[ea.ResultadoA, ea.PaperEntrada]],
+    a: ea.ResultadoA,
+    entrada_b: ea.PaperEntrada,
+    e: Exception,
+) -> None:
+    """Infraestrutura, nao veredito (issue #1): nada e gravado agora. O paper
+    fica sem linha em `fato_triagem` - pendente - e entra na segunda passada,
+    no fim da varredura deste estagio."""
+    log.warning("estagio B falhou em %s (1a passada): %s", entrada_b.paper_id, e)
+    falhas_b.append((a, entrada_b))
+
+
+def _varrer_sequencial(
+    conn: sqlite3.Connection,
+    cliente: ClienteLLM,
+    papers: Sequence[ea.PaperEntrada],
+    vocab: ea.Vocabulario,
+    *,
+    run_id: str,
+    cfg: Config,
+    so_estagio_a: bool,
+    promover_taxonomia: bool,
+    res: ResultadoClassificacao,
+    falhas_b: list[tuple[ea.ResultadoA, ea.PaperEntrada]],
+) -> None:
+    """O caminho de sempre, e o da rodada diaria: um paper por vez, A e B
+    intercalados com as gravacoes dele. Nenhuma thread, nenhum buffer - e o que
+    garante que ligar a concorrencia nao mexeu em quem nao a pediu."""
+    for paper in papers:
+        try:
+            a = ea.classificar(cliente, paper, vocab, cfg=cfg)
+        except ErroLLM as e:
+            _falhou_estagio_a(res, paper.paper_id, e)
+            continue
+        res.uso.somar(a.uso)
+
+        if not _aplicar_estagio_a(
+            conn, paper, a, run_id=run_id, cfg=cfg,
+            promover_taxonomia=promover_taxonomia, so_estagio_a=so_estagio_a, res=res,
+        ):
+            continue
+
+        entrada_b = _entrada_b(paper, a)
+        try:
+            b = eb.avaliar(cliente, entrada_b, cfg=cfg)
+        except ErroLLM as e:
+            _adiar_estagio_b(falhas_b, a, entrada_b, e)
+            continue
+
+        res.uso.somar(b.uso)
+        _gravar_sucesso_b(
+            conn, paper_id=paper.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+        )
+
+
+# Devolvido por `_tarefa_paper`: o Estagio A, a entrada do B (None quando o
+# paper nao chega la) e o resultado do B - ou o `ErroLLM` dele **como valor**,
+# porque quem decide o que fazer com a falha e a thread principal, na ordem.
+_Tarefa = tuple[ea.ResultadoA, Optional[ea.PaperEntrada], Union[eb.ResultadoB, ErroLLM, None]]
+
+
+def _tarefa_paper(
+    cliente: ClienteLLM,
+    paper: ea.PaperEntrada,
+    vocab: ea.Vocabulario,
+    cfg: Config,
+    so_estagio_a: bool,
+) -> _Tarefa:
+    """O que roda na thread trabalhadora: as chamadas ao OpenRouter, e nada
+    mais. Nao toca o banco - nem para gravar `log_llm`, que o cliente esta
+    empilhando em buffer (ver `ClienteLLM.registros_adiados`).
+
+    `ErroLLM` do Estagio A sobe pelo `Future`, porque sem `a` nao ha tupla a
+    devolver; o do Estagio B volta como valor, junto do `a` que ja custou uma
+    chamada e nao pode ser jogado fora.
+    """
+    a = ea.classificar(cliente, paper, vocab, cfg=cfg)
+    if not a.candidato or so_estagio_a:
+        return a, None, None
+    entrada_b = _entrada_b(paper, a)
+    try:
+        return a, entrada_b, eb.avaliar(cliente, entrada_b, cfg=cfg)
+    except ErroLLM as e:
+        return a, entrada_b, e
+
+
+def _varrer_paralelo(
+    conn: sqlite3.Connection,
+    cliente: ClienteLLM,
+    papers: Sequence[ea.PaperEntrada],
+    vocab: ea.Vocabulario,
+    *,
+    run_id: str,
+    cfg: Config,
+    so_estagio_a: bool,
+    promover_taxonomia: bool,
+    concorrencia: int,
+    res: ResultadoClassificacao,
+    falhas_b: list[tuple[ea.ResultadoA, ea.PaperEntrada]],
+) -> None:
+    """Mesma varredura, com ate `concorrencia` chamadas no ar.
+
+    O paralelismo e do paper inteiro (A e depois B, na mesma thread), e nao de
+    um estagio por vez: o Estagio B e o caro (~127 s contra ~65 s) e so ~30% do
+    lote chega la, entao paralelizar A e B em lotes separados deixaria a maior
+    parte do tempo com quase todas as threads ociosas.
+
+    **A ordem e a mesma de `_varrer_sequencial`** porque os `Future` sao
+    drenados na ordem em que foram submetidos - a de `papers` - e toda gravacao
+    acontece aqui, na thread principal. Isso nao e enfeite: `registrar_candidato`
+    acumula quorum e promove, entao drenar por ordem de chegada daria
+    vocabulario diferente a cada rodada. `log_llm` segue a mesma regra, drenado
+    paper a paper (ver `drenar_registros`).
+    """
+    with cliente.registros_adiados():
+        pool = ThreadPoolExecutor(max_workers=concorrencia, thread_name_prefix="estagio3")
+        try:
+            futuros: list[Future[_Tarefa]] = [
+                pool.submit(_tarefa_paper, cliente, p, vocab, cfg, so_estagio_a)
+                for p in papers
+            ]
+            for paper, futuro in zip(papers, futuros):
+                try:
+                    a, entrada_b, b = futuro.result()
+                except ErroLLM as e:
+                    _falhou_estagio_a(res, paper.paper_id, e)
+                    continue
+                finally:
+                    cliente.drenar_registros(paper.paper_id)
+
+                res.uso.somar(a.uso)
+                if not _aplicar_estagio_a(
+                    conn, paper, a, run_id=run_id, cfg=cfg,
+                    promover_taxonomia=promover_taxonomia, so_estagio_a=so_estagio_a,
+                    res=res,
+                ):
+                    continue
+                assert entrada_b is not None  # `_aplicar_estagio_a` so aprova quem tem B
+                if isinstance(b, ErroLLM):
+                    _adiar_estagio_b(falhas_b, a, entrada_b, b)
+                    continue
+
+                res.uso.somar(b.uso)
+                _gravar_sucesso_b(
+                    conn, paper_id=paper.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+                )
+        finally:
+            # `cancel_futures` porque, se a varredura estourou no meio, esperar
+            # as centenas de tarefas ainda na fila custaria as horas que a
+            # concorrencia veio economizar. `wait=True` porque as que ja estao
+            # no ar (no maximo `concorrencia`, cada uma limitada por
+            # `llm.timeout_s`) precisam terminar antes de o buffer fechar: com
+            # ele fechado, `_registrar` gravaria no banco a partir de uma thread
+            # que nao e a dona da conexao.
+            pool.shutdown(wait=True, cancel_futures=True)
+
+
+def _segunda_passada(
+    conn: sqlite3.Connection,
+    cliente: ClienteLLM,
+    falhas_b: Sequence[tuple[ea.ResultadoA, ea.PaperEntrada]],
+    *,
+    run_id: str,
+    cfg: Config,
+    concorrencia: int,
+    res: ResultadoClassificacao,
+) -> None:
+    """A segunda chance do Estagio B, com o backoff maior do cabecalho do
+    modulo. Uma espera para o lote inteiro, nao uma por paper - e depois dela o
+    lote e retentado com a mesma concorrencia da varredura."""
+    espera = cfg.llm.retry.backoff_inicial_s * _MULTIPLICADOR_BACKOFF_SEGUNDA_PASSADA
+    log.warning(
+        "segunda passada do estagio B: %s paper(s), espera de %ss", len(falhas_b), espera
+    )
+    time.sleep(espera)
+
+    if concorrencia == 1:
+        for a, entrada_b in falhas_b:
+            try:
+                b = eb.avaliar(cliente, entrada_b, cfg=cfg)
+            except ErroLLM as e:
+                _falhou_de_vez_estagio_b(res, entrada_b.paper_id, e)
+                continue
+            res.uso.somar(b.uso)
+            _gravar_sucesso_b(
+                conn, paper_id=entrada_b.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+            )
+        return
+
+    with cliente.registros_adiados():
+        pool = ThreadPoolExecutor(max_workers=concorrencia, thread_name_prefix="estagio3b")
+        try:
+            futuros = [
+                pool.submit(eb.avaliar, cliente, entrada_b, cfg=cfg)
+                for _, entrada_b in falhas_b
+            ]
+            for (a, entrada_b), futuro in zip(falhas_b, futuros):
+                try:
+                    b = futuro.result()
+                except ErroLLM as e:
+                    _falhou_de_vez_estagio_b(res, entrada_b.paper_id, e)
+                    continue
+                finally:
+                    cliente.drenar_registros(entrada_b.paper_id)
+
+                res.uso.somar(b.uso)
+                _gravar_sucesso_b(
+                    conn, paper_id=entrada_b.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+                )
+        finally:
+            pool.shutdown(wait=True, cancel_futures=True)
+
+
+def _falhou_de_vez_estagio_b(
+    res: ResultadoClassificacao, paper_id: str, e: Exception
+) -> None:
+    """Falhou de novo mesmo com a folga extra: paper continua pendente (linha
+    nova) ou intacto (linha de `--force`) - o aviso e o unico rastro, para o
+    `doutor` vigiar na proxima rodada se a fila nao se resolver sozinha."""
+    log.error("estagio B falhou em %s (2a passada): %s", paper_id, e)
+    res.avisos.append(f"estagio_b_falhou:{paper_id}")
+    res.nao_classificados += 1
+
+
 def rodar(
     conn: sqlite3.Connection,
     cliente: ClienteLLM,
@@ -243,123 +587,54 @@ def rodar(
     cfg: Optional[Config] = None,
     so_estagio_a: bool = False,
     promover_taxonomia: bool = True,
+    concorrencia: int = 1,
+    res: Optional[ResultadoClassificacao] = None,
 ) -> ResultadoClassificacao:
     """`promover_taxonomia=False` congela o vocabulario durante a varredura: o
     candidato e gravado, mas nenhum rotulo novo passa a valer no meio dela (ver
-    `taxonomia.registrar_candidato`). E o modo de `reclassificar --tudo`."""
+    `taxonomia.registrar_candidato`). E o modo de `reclassificar --tudo`.
+
+    `concorrencia` e quantas chamadas ao OpenRouter podem estar no ar. Com 1 -
+    o padrao, e o que a rodada diaria usa - o caminho e o sequencial de sempre.
+    Acima disso, so o I/O e paralelo; ver `_varrer_paralelo`.
+
+    `res` deixa quem chama **ser dono do acumulador**. Sem isso as contagens so
+    existiriam no retorno, e uma varredura que estourasse no meio - depois de
+    ja ter gravado centenas de triagens - devolveria zeros para `log_execucao`,
+    fazendo a rodada parecer que nao classificou ninguem (e o `doutor`
+    recusa-la como corte de pendencias). Passando o objeto, o que foi contado
+    ate o estouro fica com quem chamou, porque e a mesma referencia.
+    """
     cfg = cfg or config()
-    res = ResultadoClassificacao()
+    res = res if res is not None else ResultadoClassificacao()
     if not papers:
         return res
 
+    concorrencia = normalizar_concorrencia(concorrencia)
     vocab = ea.carregar_vocabulario(conn)
     # papers cujo Estagio B falhou na primeira passada; guardamos `a` (para
     # nao repetir o Estagio A) e `entrada_b` ja montada, de onde tambem sai o
     # `paper_id` - nao ha motivo para carregar o `PaperEntrada` original.
     falhas_b: list[tuple[ea.ResultadoA, ea.PaperEntrada]] = []
 
-    for paper in papers:
-        try:
-            a = ea.classificar(cliente, paper, vocab, cfg=cfg)
-        except ErroLLM as e:
-            log.error("estagio A falhou em %s: %s", paper.paper_id, e)
-            res.avisos.append(f"estagio_a_falhou:{paper.paper_id}")
-            res.pulados += 1
-            continue
-        res.uso.somar(a.uso)
-
-        with db.transacao(conn):
-            taxonomia.aplicar_classificacao(
-                conn,
-                paper.paper_id,
-                area_primaria=a.area_primaria,
-                areas_secundarias=a.areas_secundarias,
-                topicos_paper=a.topicos,
-                cfg=cfg.taxonomia,
-            )
-            if a.candidato_novo_rotulo:
-                c = taxonomia.registrar_candidato(
-                    conn,
-                    rotulo=a.candidato_novo_rotulo.get("rotulo", ""),
-                    tipo=a.candidato_novo_rotulo.get("tipo", "topico"),
-                    definicao=a.candidato_novo_rotulo.get("definicao", ""),
-                    paper_id=paper.paper_id,
-                    cfg=cfg.taxonomia,
-                    promover=promover_taxonomia,
-                )
-                if c.rotulo:
-                    res.candidatos_taxonomia.append(c.rotulo)
-                if c.aviso:
-                    res.avisos.append(c.aviso)
-
-        if not a.candidato:
-            with db.transacao(conn):
-                _gravar_triagem(
-                    conn,
-                    paper_id=paper.paper_id,
-                    veredito="fora",
-                    regra_fora=a.regra_fora,
-                    justificativa=a.justificativa,
-                    run_id=run_id,
-                )
-                # `--force` sobre um paper que era aprovado: criterios e ficha
-                # antigos nao podem sobreviver ao descarte.
-                _gravar_criterios(conn, paper.paper_id, [])
-                conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper.paper_id,))
-            res.fora += 1
-            continue
-
-        if so_estagio_a:
-            res.pulados += 1
-            continue
-
-        entrada_b = ea.PaperEntrada(
-            paper_id=paper.paper_id,
-            titulo=paper.titulo,
-            abstract=paper.abstract,
-            keywords=paper.keywords,
-            ai_summary=paper.ai_summary,
-            area_primaria=a.area_primaria,
-            topicos=a.topicos,
+    if concorrencia == 1:
+        _varrer_sequencial(
+            conn, cliente, papers, vocab, run_id=run_id, cfg=cfg,
+            so_estagio_a=so_estagio_a, promover_taxonomia=promover_taxonomia,
+            res=res, falhas_b=falhas_b,
         )
-        try:
-            b = eb.avaliar(cliente, entrada_b, cfg=cfg)
-        except ErroLLM as e:
-            # Infraestrutura, nao veredito (issue #1): nada e gravado agora.
-            # O paper fica sem linha em `fato_triagem` - pendente - e entra na
-            # segunda passada, no fim da varredura deste estagio.
-            log.warning("estagio B falhou em %s (1a passada): %s", entrada_b.paper_id, e)
-            falhas_b.append((a, entrada_b))
-            continue
-
-        res.uso.somar(b.uso)
-        _gravar_sucesso_b(
-            conn, paper_id=paper.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+    else:
+        _varrer_paralelo(
+            conn, cliente, papers, vocab, run_id=run_id, cfg=cfg,
+            so_estagio_a=so_estagio_a, promover_taxonomia=promover_taxonomia,
+            concorrencia=concorrencia, res=res, falhas_b=falhas_b,
         )
 
     if falhas_b:
-        espera = cfg.llm.retry.backoff_inicial_s * _MULTIPLICADOR_BACKOFF_SEGUNDA_PASSADA
-        log.warning(
-            "segunda passada do estagio B: %s paper(s), espera de %ss", len(falhas_b), espera
+        _segunda_passada(
+            conn, cliente, falhas_b, run_id=run_id, cfg=cfg,
+            concorrencia=concorrencia, res=res,
         )
-        time.sleep(espera)
-        for a, entrada_b in falhas_b:
-            try:
-                b = eb.avaliar(cliente, entrada_b, cfg=cfg)
-            except ErroLLM as e:
-                # Falhou de novo mesmo com a folga extra: paper continua
-                # pendente (linha nova) ou intacto (linha de `--force`) - o
-                # aviso e o unico rastro, para o `doutor` vigiar na proxima
-                # rodada se a fila nao se resolver sozinha.
-                log.error("estagio B falhou em %s (2a passada): %s", entrada_b.paper_id, e)
-                res.avisos.append(f"estagio_b_falhou:{entrada_b.paper_id}")
-                res.nao_classificados += 1
-                continue
-
-            res.uso.somar(b.uso)
-            _gravar_sucesso_b(
-                conn, paper_id=entrada_b.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
-            )
 
     log.info(
         "classificacao: %s fora, %s amplo, %s estrito, %s fichas, %s pendentes, US$ %.4f",

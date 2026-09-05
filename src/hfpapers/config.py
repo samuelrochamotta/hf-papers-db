@@ -84,6 +84,14 @@ class LLM(BaseModel):
     referer: str = "https://github.com/samuelrochamotta/hf-papers-db"
     titulo_app: str = "hf-papers-db"
     timeout_s: float = 180
+    # Quantas chamadas ao OpenRouter podem estar no ar ao mesmo tempo no
+    # estagio 3. O padrao e 1 - sequencial, o caminho de sempre - porque a
+    # rodada diaria classifica ~30 papers e nao ganha nada com paralelismo,
+    # enquanto a rajada aumenta a chance do 429/404 da issue #1. Quem precisa
+    # de concorrencia e a reclassificacao total, que a pede na linha de
+    # comando (`reclassificar --concorrencia N`). Teto em
+    # `classificacao.CONCORRENCIA_MAXIMA`.
+    concorrencia: int = 1
     estagio_a: EstagioLLM = EstagioLLM()
     estagio_b: EstagioLLM = EstagioLLM(temperatura=0.2, max_tokens=3000)
     provider: ProviderLLM = ProviderLLM()
