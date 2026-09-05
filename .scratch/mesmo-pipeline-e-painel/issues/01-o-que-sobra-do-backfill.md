@@ -26,3 +26,11 @@ Consequências: `run_id='backfill'` deixa de existir em `fato_triagem`;
 `db.RUN_IDS_DIRIGIDOS` e o código de "veredito herdado" do painel
 (`gerar_painel.py: justificativa_exibivel`, código 1) viram código morto a
 remover; `data/estado/vereditos_estagio_b.json` perde a razão de existir.
+
+### Adendo (2026-09-04, ticket *Plano da reclassificação total*)
+
+Revisado: o `backfill` **não vira carga — morre**, e o `seed/` sai do
+repositório. Motivo: a API diária do HF devolve os dias antigos e `run --data`
+já os coleta; o relatório pipeline × digest morreu junto com sua pergunta. O
+vocabulário de áreas/tópicos ganha um arquivo de bootstrap exportado do banco.
+Detalhe no ticket 10, resposta 6.

@@ -30,6 +30,8 @@ quando ele fecha.
   (`glm-5.3-flash`); reclassificar tudo ≈ US$ 0,5.
 - Env: conda `digest-hf` (`/opt/miniconda3/envs/digest-hf/bin/python`).
 - Idioma de tudo (tickets, prompts, painel): português.
+- `proposta_graficos_painel.md` foi apagado do working tree em 2026-09-04 (não
+  pelo mapa); os tickets 04/05 já carregam o que dele importava.
 - Fatos de partida (2026-09-04): 482 papers, 477 triagens; 242 com veredito
   herdado do digest (`run_id='backfill'`); 6 `fora` de rodadas normais sem
   regra; 5 papers de 03/09 pendentes depois de duas rodadas.
@@ -44,25 +46,20 @@ quando ele fecha.
 - [Por que os 5 pendentes de 03/09 atravessaram a rodada de 04/09](issues/08-por-que-os-5-pendentes-atravessaram-a-rodada.md): latência esperada, não bug — nasceram pelo refresh (estágio 4) às 07:33:11, depois de o estágio 3 fechar às 07:33:07; nunca foram selecionados, entram na próxima varredura sem escopo; o corte do `doutor` (`finalizado_em`, pós-refresh) é um falso positivo latente.
 - [Enum de critérios estrito/amplo](issues/06-enum-de-criterios-estrito-amplo.md): 10 critérios (5 estrito, 5 amplo), `panorama` e `exige_acesso_interno` novos; código aberto é critério, não régua; prática corrente = o que o leitor faz hoje; fronteira fundamentada por `fronteira_contraparte` (regra ou critério do outro lado).
 - [Prototipar o Estágio B com critérios](issues/07-prototipar-o-estagio-b-com-criterios.md): pulado; implementação direta com `ponte_paper_criterio`, `fronteira_contraparte`, validação real em 6 papers, só backend.
+- [Plano da reclassificação total](issues/10-plano-da-reclassificacao-total.md): os 482 de uma vez via `reclassificar --tudo` (8–10 h, sequencial), registrado em `log_execucao`, taxonomia congelada, falhas do B reprocessadas por `--paper`; painel só regenera no fim, sem transição; relatório pipeline × digest, `backfill` e `seed/` morrem (revisa *O que sobra do backfill*), vocabulário ganha bootstrap exportado do banco.
 
 ## Not yet specified
 
-- **A spec final de implementação** — ordem das mudanças (schema → prompts →
-  reclassificação → painel), o que muda em `doutor` (regra nula passa a ser erro,
-  não aviso), o que o README e o CONTEXT.md precisam dizer depois. Só se escreve
-  depois que o enum de critérios e o plano da reclassificação fecharem.
-- **O relatório de validação pipeline × digest** depois que o veredito do digest
-  não estiver mais na `fato_triagem`: de onde lê cada lado, o que compara, se
-  continua sendo gerado pelo `backfill` ou vira comando próprio.
-- **A transição do painel** enquanto a reclassificação em massa roda: se os
-  482 vão de uma vez, o painel fica um instante sem triagem nenhuma; se vai em
-  lotes, há dias com dois vocabulários de critério. Depende do plano da
-  reclassificação.
+(vazio — a spec final graduou para o ticket *Spec final de implementação*;
+o relatório pipeline × digest e a transição do painel fecharam no *Plano da
+reclassificação total*: o primeiro morre, a segunda não existe.)
 
 ## Out of scope
 
 - Rubrica com pontuação para estrito/amplo — descartada na cartografia
   (2026-09-04): troca um julgamento por cinco e não deixa a escolha auditável;
   o enum de critérios faz esse papel.
+- Concorrência no estágio 3 (para encurtar as 8–10 h da rodada total) — ganho
+  de engenharia sem decisão pendente; se quiser, é esforço próprio.
 - Power BI: nenhuma mudança nos Parquet além das colunas novas que a
   `fato_triagem` ganhar; medidas DAX não entram.

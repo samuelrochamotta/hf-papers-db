@@ -55,12 +55,18 @@ _Avoid_: não classificado, sem veredito, falho
 **Revisão** (`revisao`):
 Quantas vezes o paper passou pelo pipeline além da primeira. Substitui a
 distinção "recente vs. backfill".
-_Avoid_: recentes, backfill (para se referir a papers — backfill é só a carga
-do seed)
+_Avoid_: recentes, backfill, herdado
 
-**Backfill**:
-A carga dos papers do `seed/` (lista + hidratação do HF). Não classifica.
+**Reclassificação total**:
+A rodada única que passa todos os papers da base pelo pipeline de novo, com o
+vocabulário de critérios vigente. Depois dela, todo paper tem revisão ≥ 2.
+_Avoid_: migração, backfill
+
+**Dia antigo**:
+Dia de publicação anterior ao início do pipeline (26/08/2026). Entra pelo mesmo
+caminho de qualquer dia: coleta por data. Não há carga especial.
+_Avoid_: backfill, seed
 
 **Digest**:
-Os oito resumos de agosto/2026 em `seed/digests/`. Conjunto de validação do
-prompt, comparado ao veredito do pipeline no relatório `validacao_backfill.md`.
+Os resumos diários de agosto/2026 produzidos antes do pipeline. Dado histórico,
+sem leitor no código; não é régua de nada.
