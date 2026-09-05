@@ -1,0 +1,134 @@
+{
+  "areas": [
+    {
+      "rotulo": "Agentes & automação",
+      "definicao": "Sistemas que decidem e agem em vários passos: laços de agente, harness, uso de ferramentas, orquestração e autonomia delimitada."
+    },
+    {
+      "rotulo": "Avaliação & confiabilidade",
+      "definicao": "Como se mede se a saída presta: benchmark, LLM avaliador, verificação, calibração de confiança e supervisão de sistemas que erram."
+    },
+    {
+      "rotulo": "Dados & previsão",
+      "definicao": "Trabalho sobre dados tabulares e séries: geração sintética, previsão numérica, eventos raros e qualidade do conjunto de treino."
+    },
+    {
+      "rotulo": "Eficiência & custo de inferência",
+      "definicao": "Fazer o mesmo trabalho gastando menos: tokens, latência, FLOPs, roteamento entre modelos e alocação de orçamento em tempo de execução."
+    },
+    {
+      "rotulo": "Engenharia de software",
+      "definicao": "Produção e manutenção de código: refatoração, invariantes arquiteturais, especificação, revisão, regressão e processo de desenvolvimento."
+    },
+    {
+      "rotulo": "Memória & contexto",
+      "definicao": "Como o sistema guarda, recupera e reaproveita informação ao longo do tempo ou de um acervo: memória de longo prazo, RAG e ponderação de fontes."
+    },
+    {
+      "rotulo": "Multimodal & percepção",
+      "definicao": "Entrada que não é texto: imagem, vídeo, áudio, fala e a combinação delas com linguagem."
+    },
+    {
+      "rotulo": "Segurança & robustez",
+      "definicao": "Ataque, defesa e falha sob adversário ou entrada hostil: vulnerabilidade explorável, manipulação, mitigação e conteúdo enganoso."
+    },
+    {
+      "rotulo": "Treino & pós-treino",
+      "definicao": "Métodos de treino ou pós-treino de modelos: destilação, RL, SFT, ajuste de arquitetura e alinhamento por recompensa."
+    }
+  ],
+  "topicos": [
+    {
+      "rotulo": "Agentes de codificação",
+      "definicao": "Agente que lê e escreve código de produção."
+    },
+    {
+      "rotulo": "Ataque adversarial",
+      "definicao": "Entrada construída para induzir erro ou vantagem indevida no sistema."
+    },
+    {
+      "rotulo": "Busca & RAG",
+      "definicao": "Recuperação de trechos de um acervo para fundamentar a resposta."
+    },
+    {
+      "rotulo": "Busca & otimização automática",
+      "definicao": "Máquina procurando a própria solução num espaço de candidatas, sem desenho manual."
+    },
+    {
+      "rotulo": "Calibração & confiança",
+      "definicao": "Quanto a confiança declarada (ou implícita) do modelo corresponde ao acerto real."
+    },
+    {
+      "rotulo": "Dados sintéticos",
+      "definicao": "Dados gerados artificialmente para treinar ou avaliar."
+    },
+    {
+      "rotulo": "Defesa & mitigação",
+      "definicao": "Contramedida proposta contra uma falha ou ataque descrito."
+    },
+    {
+      "rotulo": "Descoberta científica",
+      "definicao": "IA conduzindo investigação científica de ponta a ponta."
+    },
+    {
+      "rotulo": "Especificação & verificação",
+      "definicao": "Escrever o comportamento alvo antes e auditar o artefato contra ele."
+    },
+    {
+      "rotulo": "LLM como avaliador",
+      "definicao": "Modelo de linguagem julgando, pontuando ou triando a saída de alguém."
+    },
+    {
+      "rotulo": "Memória de longo prazo",
+      "definicao": "Guardar e reusar o que aconteceu em interações anteriores."
+    },
+    {
+      "rotulo": "Multimodal & visão",
+      "definicao": "Processamento de imagem ou vídeo junto com linguagem."
+    },
+    {
+      "rotulo": "Otimização de harness & prompt",
+      "definicao": "Melhorar o desempenho mexendo no andaime em volta do modelo, não no modelo."
+    },
+    {
+      "rotulo": "Personalização",
+      "definicao": "Comportamento condicionado ao usuário específico."
+    },
+    {
+      "rotulo": "Poda & compressão de tokens",
+      "definicao": "Descartar parte da entrada ou da geração preservando o resultado."
+    },
+    {
+      "rotulo": "Previsão de eventos extremos",
+      "definicao": "Prever a cauda da distribuição: falha rara, pico, evento improvável."
+    },
+    {
+      "rotulo": "Raciocínio & test-time compute",
+      "definicao": "Como o modelo gasta computação pensando antes de responder."
+    },
+    {
+      "rotulo": "Redução de custo",
+      "definicao": "O paper reporta economia mensurável de token, tempo ou dinheiro."
+    },
+    {
+      "rotulo": "Roteamento de modelos",
+      "definicao": "Escolher qual modelo atende cada requisição."
+    },
+    {
+      "rotulo": "Sistemas multiagente",
+      "definicao": "Vários agentes deliberando, negociando ou dividindo trabalho entre si — inclui a segurança de delegação entre eles."
+    },
+    {
+      "rotulo": "Validado em benchmark",
+      "definicao": "O achado vem com número medido em benchmark público, não só argumento."
+    },
+    {
+      "rotulo": "Verificação de fontes & citações",
+      "definicao": "Checar se a fonte citada de fato sustenta a afirmação atribuída a ela."
+    },
+    {
+      "rotulo": "Áudio & fala",
+      "definicao": "Entrada sonora: voz, gravação, sinal acústico."
+    }
+  ]
+}

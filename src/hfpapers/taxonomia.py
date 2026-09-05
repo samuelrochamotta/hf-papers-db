@@ -211,39 +211,61 @@ def fundir(conn: sqlite3.Connection, *, de: str, para: str, tipo: str) -> dict[s
     return {"papers_no_destino": int(movidos)}
 
 
-# ── carga do seed ───────────────────────────────────────────────────────────
+# ── bootstrap do vocabulario ────────────────────────────────────────────────
+#
+# O vocabulario vivo mora no banco, e o banco nao esta versionado. `exportar` o
+# retrata num JSON que entra no git (`config/taxonomia_inicial.json`) e
+# `carregar` o repoe num banco novo - e so isso: nao e migracao nem sincronia.
+# Candidato nao entra no arquivo porque candidato e fila de promocao, estado de
+# uma base especifica, e nao vocabulario vigente.
 
 
-def carregar_seed(conn: sqlite3.Connection, dados: dict[str, Any]) -> dict[str, int]:
-    """`taxonomia.json` -> dim_area / dim_topico / tax_candidato.
+def exportar(conn: sqlite3.Connection) -> dict[str, Any]:
+    """dim_area / dim_topico -> dicionario serializavel (rotulo e definicao).
 
-    O seed e autoritativo: os limites e definicoes vem dele.
+    `desde` fica de fora de proposito: num banco novo a data em que o rotulo
+    passou a valer e a da carga, nao a do banco de origem.
     """
-    n_areas = n_topicos = n_cand = 0
-    for a in dados.get("areas", []):
-        db.upsert_area(
-            conn, {"area": a["nome"], "definicao": a["definicao"], "desde": a.get("desde")}
-        )
-        n_areas += 1
-    for t in dados.get("topicos", []):
-        db.upsert_topico(
-            conn, {"topico": t["nome"], "definicao": t["definicao"], "desde": t.get("desde")}
-        )
-        n_topicos += 1
-    for c in dados.get("candidatos", []):
-        db.upsert_candidato(
-            conn,
-            {
-                "rotulo": c["rotulo"],
-                "tipo": c["tipo"],
-                "definicao": c["definicao"],
-                "papers": json.dumps(c.get("papers", []), ensure_ascii=False),
-                "promovido": 0,
-                "criado_em": db.agora(),
-            },
-        )
-        n_cand += 1
-    return {"areas": n_areas, "topicos": n_topicos, "candidatos": n_cand}
+    return {
+        "areas": [
+            {"rotulo": r["area"], "definicao": r["definicao"] or ""}
+            for r in conn.execute("SELECT area, definicao FROM dim_area ORDER BY area")
+        ],
+        "topicos": [
+            {"rotulo": r["topico"], "definicao": r["definicao"] or ""}
+            for r in conn.execute("SELECT topico, definicao FROM dim_topico ORDER BY topico")
+        ],
+    }
+
+
+def carregar(conn: sqlite3.Connection, dados: dict[str, Any]) -> dict[str, int]:
+    """Inverso de `exportar`, para banco sem vocabulario. Idempotente.
+
+    Rotulo que ja existe nao e tocado: a definicao viva do banco ganha da do
+    arquivo, que e um retrato de outro momento. Por isso `INSERT OR IGNORE` e
+    nao upsert - rodar duas vezes nao muda nada e nao desfaz fusao nenhuma.
+    """
+    desde = db.hoje().isoformat()
+    contagem = {"areas": 0, "topicos": 0, "ja_existiam": 0}
+    for chave, tabela, coluna in (
+        ("areas", "dim_area", "area"),
+        ("topicos", "dim_topico", "topico"),
+    ):
+        for item in dados.get(chave) or []:
+            rotulo = (item.get("rotulo") or "").strip()
+            if not rotulo:
+                log.warning("entrada sem rotulo ignorada em %s", chave)
+                continue
+            entrou = db.inserir_ignorando(
+                conn,
+                tabela,
+                {coluna: rotulo, "definicao": item.get("definicao") or "", "desde": desde},
+            )
+            if entrou:
+                contagem[chave] += 1
+            else:
+                contagem["ja_existiam"] += 1
+    return contagem
 
 
 def listar(conn: sqlite3.Connection, cfg: Optional[ConfigTaxonomia] = None) -> dict[str, Any]:

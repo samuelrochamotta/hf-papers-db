@@ -142,6 +142,31 @@ def checar_banco(cfg: Config) -> list[Item]:
     return itens
 
 
+def checar_vocabulario(cfg: Config) -> Item:
+    """Banco sem area ou sem topico nao classifica: `schema_estagio_a` recusa o
+    enum vazio antes da primeira chamada. Aviso, e nao erro, porque o banco
+    recem-criado passa por aqui legitimamente - o conserto e uma linha."""
+    conn = db.abrir(cfg)
+    try:
+        n_areas = db.contar(conn, "dim_area")
+        n_topicos = db.contar(conn, "dim_topico")
+    finally:
+        conn.close()
+
+    dados = {"areas": n_areas, "topicos": n_topicos}
+    if n_areas and n_topicos:
+        return Item("vocabulario", OK, f"{n_areas} areas, {n_topicos} topicos", dados)
+
+    falta = " e ".join(n for n, q in (("dim_area", n_areas), ("dim_topico", n_topicos)) if not q)
+    return Item(
+        "vocabulario",
+        AVISO,
+        f"{falta} sem linhas - rode "
+        "`hfpapers taxonomia carregar config/taxonomia_inicial.json`",
+        dados,
+    )
+
+
 def checar_pendencias(cfg: Config) -> Item:
     """Papers sem veredito - e se a repescagem ja teve chance de pega-los.
 
@@ -157,11 +182,6 @@ def checar_pendencias(cfg: Config) -> Item:
     pegou. O corte e a ultima execucao que classificou alguem; uma rodada que
     nao classificou nada pode nem ter rodado o estagio 3 (`--only export`),
     entao nao serve de prova de que houve chance.
-
-    Contagem positiva tambem nao basta: ela diz que alguem foi classificado,
-    nao que a base inteira foi varrida. O backfill trabalha so sobre o `seed/`
-    e entrava no corte acusando papers que ele nunca teve como alcancar - por
-    isso as execucoes dirigidas (`db.RUN_IDS_DIRIGIDOS`) ficam de fora.
 
     O instante do corte e o fim do estagio 3 dessa execucao - o ultimo
     `classificado_em` que ela gravou - e nao `finalizado_em`. `finalizado_em`
@@ -187,16 +207,13 @@ def checar_pendencias(cfg: Config) -> Item:
             total = db.contar(conn, "dim_paper")
             return Item("triagem", OK, f"{total} papers, todos com veredito", {"pendentes": 0})
 
-        marcas = ", ".join("?" for _ in db.RUN_IDS_DIRIGIDOS)
         row = conn.execute(
             "SELECT e.run_id, e.finalizado_em, "
             "(SELECT MAX(t.classificado_em) FROM fato_triagem t WHERE t.run_id = e.run_id) AS fim_estagio_3 "
             "FROM log_execucao e "
             "WHERE e.finalizado_em IS NOT NULL "
             "AND COALESCE(e.qtd_fora,0) + COALESCE(e.qtd_amplo,0) + COALESCE(e.qtd_estrito,0) > 0 "
-            f"AND e.run_id NOT IN ({marcas}) "
-            "ORDER BY e.finalizado_em DESC LIMIT 1",
-            db.RUN_IDS_DIRIGIDOS,
+            "ORDER BY e.finalizado_em DESC LIMIT 1"
         ).fetchone()
     finally:
         conn.close()
@@ -242,5 +259,6 @@ def rodar(cfg: Optional[Config] = None, *, sem_rede: bool = False) -> list[Item]
         itens.append(checar_hf(cfg))
         itens.append(checar_openrouter(cfg))
     itens.extend(checar_banco(cfg))
+    itens.append(checar_vocabulario(cfg))
     itens.append(checar_pendencias(cfg))
     return itens

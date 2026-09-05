@@ -13,7 +13,6 @@ import datetime as dt
 import pytest
 from gerar_painel import (
     PREFIXO_FALLBACK,
-    RUN_ID_BACKFILL,
     TOPO_APROVADOS,
     TOPO_DESCARTADOS,
     montar_hall,
@@ -260,15 +259,6 @@ def test_aprovado_sem_decisao_fronteira_marca_fr_zero():
     assert entrada["fr"] == 0
 
 
-def test_aprovado_com_veredito_herdado_do_backfill_troca_justificativa_por_aviso():
-    p = paper("p1", dt.date(2026, 7, 1), 10)
-    triagem = {"p1": triado("estrito", run_id=RUN_ID_BACKFILL, justificativa="texto do digest antigo")}
-    entrada = montar([p], triagem)[0]["ap"][0]
-
-    assert entrada["j"] == ""
-    assert entrada["h"] == 1
-
-
 def test_aprovado_com_justificativa_de_fallback_do_estagio_b_vira_aviso():
     """Caso concreto: `estagios/classificacao.py` grava `veredito="amplo"` com esse prefixo
     quando o Estagio B falha, e a linha continua entrando no ranking dos aprovados."""
@@ -310,16 +300,6 @@ def test_descartado_carrega_regra_e_justificativa():
     assert entrada["h"] == 0
     # o descartado nao carrega ficha: e o que mantem a lista em ~0,7 KB por entrada
     assert "ach" not in entrada
-
-
-def test_carimbo_do_backfill_nao_vira_justificativa():
-    """Veredito herdado do backfill (`run_id == "backfill"`) nao vira justificativa exibida."""
-    p = paper("p1", dt.date(2026, 7, 1), 300)
-    triagem = {"p1": triado("fora", run_id=RUN_ID_BACKFILL, justificativa="texto do digest antigo")}
-    entrada = montar([p], triagem)[0]["de"][0]
-
-    assert entrada["h"] == 1
-    assert entrada["j"] == ""
 
 
 def test_descartado_com_justificativa_de_fallback_do_estagio_b_vira_aviso():

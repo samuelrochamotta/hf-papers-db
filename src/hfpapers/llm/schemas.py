@@ -111,7 +111,9 @@ def schema_estagio_a(areas: Sequence[str], topicos: Sequence[str]) -> dict[str, 
     areas = list(areas)
     topicos = list(topicos)
     if not areas or not topicos:
-        raise ValueError("vocabulario vazio: rode o backfill ou semeie dim_area/dim_topico")
+        raise ValueError(
+            "vocabulario vazio: rode `hfpapers taxonomia carregar config/taxonomia_inicial.json`"
+        )
     return {
         "type": "object",
         "additionalProperties": False,

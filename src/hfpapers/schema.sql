@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS fato_metrica (
     qtd_modelos     INTEGER,   -- numTotalModels    (só atualizado no enriquecimento)
     qtd_datasets    INTEGER,   -- numTotalDatasets
     qtd_spaces      INTEGER,   -- numTotalSpaces
-    origem          TEXT NOT NULL,   -- 'daily' | 'por_paper' | 'backfill'
+    origem          TEXT NOT NULL,   -- 'daily' | 'por_paper' (linhas antigas trazem 'backfill', que nada mais escreve)
     PRIMARY KEY (paper_id, data_snapshot)
 );
 CREATE INDEX IF NOT EXISTS ix_metrica_data ON fato_metrica(data_snapshot);

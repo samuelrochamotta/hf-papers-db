@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from hfpapers import db
-from hfpapers.doutor import AVISO, OK, checar_pendencias, rodar
+from hfpapers.doutor import AVISO, OK, checar_pendencias, checar_vocabulario, rodar
 
 
 def _paper(conn, paper_id: str, visto: str) -> None:
@@ -254,51 +254,51 @@ def test_corte_e_a_execucao_mais_recente_que_classificou(cfg, base):
     assert item.dados["corte"] == "2026-09-03T09:00:00"
 
 
-# ── execucao dirigida: nao serve de corte ───────────────────────────────────
+# ── toda execucao que classificou serve de corte ────────────────────────────
 
 
-def test_backfill_nao_serve_de_corte(cfg, base):
-    """O caso de 04/09: `backfill --seed ./seed` fez o doutor virar `aviso`.
-
-    O backfill trabalha so sobre o `seed/` (14/08 a 25/08) e nunca teve como
-    alcancar um paper visto em 04/09. A linha dele em `log_execucao` satisfazia
-    o filtro de contagem positiva e virava corte assim mesmo.
-    """
-    _paper(base, "2609.00196", "2026-09-04T07:33:00")
-    _execucao(base, "backfill", fim="2026-09-04T08:55:00", classificou=308)
-    base.commit()
-
-    item = checar_pendencias(cfg)
-    assert item.estado == OK
-    assert item.dados["atrasados"] == 0
-    assert item.dados["na_fila"] == 1
-
-
-def test_backfill_nao_encobre_a_rodada_real_anterior(cfg, base):
-    """Excluir o backfill do corte nao pode apagar o corte que existia: a
-    rodada de verdade continua acusando quem atravessou ela."""
-    _paper(base, "2609.00001", "2026-09-03T07:00:00")
-    _execucao(base, "run-a", fim="2026-09-03T09:00:00", classificou=5)
-    _execucao(base, "backfill", fim="2026-09-04T08:55:00", classificou=308)
-    base.commit()
-
-    item = checar_pendencias(cfg)
-    assert item.estado == AVISO
-    assert item.dados["corte"] == "2026-09-03T09:00:00"
-    assert item.dados["atrasados"] == 1
-
-
-def test_rodada_de_verdade_continua_entrando_no_corte(cfg, base):
-    """A protecao original nao pode ter sido perdida: rodada normal e corte."""
+def test_execucao_dirigida_tambem_e_corte(cfg, base):
+    """Nao ha mais recorte fixo: `reclassificar` varre o que mandarem varrer e
+    a linha dele em `log_execucao` conta como qualquer outra."""
     _paper(base, "2609.00001", "2026-09-04T07:33:00")
-    _execucao(base, "backfill", fim="2026-09-04T08:55:00", classificou=308)
-    _execucao(base, "run-b", fim="2026-09-04T09:10:00", classificou=1)
+    _execucao(base, "run-a", fim="2026-09-03T09:00:00", classificou=5)
+    _execucao(base, "run-total", fim="2026-09-04T08:55:00", classificou=308)
     base.commit()
 
     item = checar_pendencias(cfg)
     assert item.estado == AVISO
-    assert item.dados["corte"] == "2026-09-04T09:10:00"
+    assert item.dados["corte"] == "2026-09-04T08:55:00"
     assert item.dados["ids"] == ["2609.00001"]
+
+
+# ── vocabulario ─────────────────────────────────────────────────────────────
+
+
+def test_vocabulario_vazio_e_aviso(cfg, base):
+    item = checar_vocabulario(cfg)
+    assert item.estado == AVISO
+    assert "taxonomia carregar" in item.detalhe
+    assert item.dados == {"areas": 0, "topicos": 0}
+
+
+def test_so_areas_ainda_e_aviso(cfg, base):
+    """Os dois enums do Estagio A precisam existir; um so nao basta."""
+    db.upsert_area(base, {"area": "Agentes & automação", "definicao": "d"})
+    base.commit()
+
+    item = checar_vocabulario(cfg)
+    assert item.estado == AVISO
+    assert "dim_topico" in item.detalhe and "dim_area" not in item.detalhe
+
+
+def test_vocabulario_povoado_e_ok(cfg, base):
+    db.upsert_area(base, {"area": "Agentes & automação", "definicao": "d"})
+    db.upsert_topico(base, {"topico": "Agentes de codificação", "definicao": "d"})
+    base.commit()
+
+    item = checar_vocabulario(cfg)
+    assert item.estado == OK
+    assert item.dados == {"areas": 1, "topicos": 1}
 
 
 # ── integracao ──────────────────────────────────────────────────────────────

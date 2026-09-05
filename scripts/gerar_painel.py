@@ -70,13 +70,6 @@ TOPO_DESCARTADOS = 10
 
 ORDINAL = {1: "1", 2: "2", 3: "3", 4: "4"}
 
-# O backfill nao tem justificativa por paper: ele importa o veredito curado dos
-# digests historicos e carimba `run_id = 'backfill'` na linha (backfill/tipos.py,
-# gravado em backfill/importacao.py). Exibir o texto do carimbo como se fosse o
-# motivo da decisao seria mentir sobre o que o pipeline avaliou, entao o app
-# troca por um aviso explicito sempre que a linha vem de la.
-RUN_ID_BACKFILL = "backfill"
-
 # Enquanto uma linha antiga sobreviver com esse prefixo (estagios/classificacao.py),
 # a justificativa dela e sobre a infraestrutura ter falhado, nao sobre o paper -
 # apresentar isso sob o rotulo "POR QUE AMPLO" seria fingir raciocinio de
@@ -94,16 +87,18 @@ PREFIXO_FALLBACK = "Estagio B falhou;"
 def justificativa_exibivel(triagem: dict) -> tuple[str, int]:
     """Decide o que o app pode mostrar como motivo da decisao.
 
-    Retorna (texto, codigo): codigo 0 e o texto normal, 1 e veredito herdado do
-    backfill (texto descartado, o app troca por aviso), 2 e justificativa de
-    fallback do Estagio B (idem), 3 e ausencia de texto - uma linha do pipeline
-    com `justificativa` vazia, que sem este codigo sairia como cabecalho oco
-    (rotulo "POR QUE ESTRITO"/"POR QUE AMPLO" sem corpo). As duas notas de
-    honestidade da issue #2 passam por aqui, para as duas listas (aprovados e
-    descartados) nao divergirem na regra.
+    Retorna (texto, codigo): codigo 0 e o texto normal, 2 e justificativa de
+    fallback do Estagio B (texto descartado, o app troca por aviso), 3 e
+    ausencia de texto - uma linha do pipeline com `justificativa` vazia, que
+    sem este codigo sairia como cabecalho oco (rotulo "POR QUE ESTRITO"/"POR
+    QUE AMPLO" sem corpo). As duas notas de honestidade da issue #2 passam por
+    aqui, para as duas listas (aprovados e descartados) nao divergirem na regra.
+
+    O codigo 1 (veredito herdado, sem justificativa por paper) morreu com o
+    backfill: hoje todo veredito sai do pipeline. Os codigos nao foram
+    renumerados de proposito - `painel_app.js` le o mesmo contrato e um 2 que
+    virasse 1 mudaria o aviso de papers ja publicados.
     """
-    if triagem.get("run_id") == RUN_ID_BACKFILL:
-        return "", 1
     texto = triagem.get("justificativa") or ""
     if texto.startswith(PREFIXO_FALLBACK):
         return "", 2

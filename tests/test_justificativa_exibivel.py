@@ -1,8 +1,8 @@
 """`justificativa_exibivel` e os tres pontos onde o painel a consome (issue #2).
 
-O app nao pode mostrar como "motivo da decisao" nem o carimbo de procedencia do
-backfill, nem uma justificativa que so registra falha de infra do Estagio B,
-nem um cabecalho vazio. `justificativa_exibivel` e o unico lugar que decide
+O app nao pode mostrar como "motivo da decisao" uma justificativa que so
+registra falha de infra do Estagio B, nem um cabecalho vazio.
+`justificativa_exibivel` e o unico lugar que decide
 isso - `montar_hall` (aprovados e descartados) e `montar_dados` (lista viva)
 tem de concordar com ela, sem reimplementar a regra.
 
@@ -17,7 +17,7 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
-from gerar_painel import PREFIXO_FALLBACK, RUN_ID_BACKFILL, justificativa_exibivel
+from gerar_painel import PREFIXO_FALLBACK, justificativa_exibivel
 
 # Fixa e distante de "hoje" de proposito: os testes de `montar_dados` abaixo
 # nao podem depender do relogio da maquina que roda a suite. `JANELA_LONGA`
@@ -27,34 +27,12 @@ DIA = dt.date(2020, 1, 1)
 JANELA_LONGA = 100_000
 
 
-# ══════════════ ancora no produtor ══════════════
-
-def test_run_id_backfill_bate_com_o_que_o_backfill_grava():
-    """`RUN_ID_BACKFILL` e um literal duplicado: sem esta ancora um typo aqui
-
-    (por exemplo `"backfil"`) faria toda linha do backfill cair no ramo de
-    texto normal, e o painel exibiria `justificativa` de importacao (o carimbo
-    de procedencia, nao um motivo de decisao) sob o rotulo "POR QUE ESTRITO"/
-    "POR QUE AMPLO" - exatamente a mentira que a issue #2 existe para impedir.
-    O produtor (`backfill/importacao.py`) continua vivo, entao a ancora aqui
-    e direta.
-    """
-    from hfpapers.backfill.tipos import RUN_ID
-
-    assert RUN_ID_BACKFILL == RUN_ID
-
-
-# ══════════════ os quatro codigos ══════════════
+# ══════════════ os codigos ══════════════
 
 def test_texto_normal_passa_intacto_com_codigo_zero():
     assert justificativa_exibivel({"justificativa": "o payload principal e treino"}) == (
         "o payload principal e treino", 0
     )
-
-
-def test_veredito_herdado_do_backfill_e_codigo_um():
-    triagem = {"run_id": RUN_ID_BACKFILL, "justificativa": "texto do digest antigo"}
-    assert justificativa_exibivel(triagem) == ("", 1)
 
 
 def test_justificativa_de_fallback_do_estagio_b_e_codigo_dois():
@@ -71,18 +49,14 @@ def test_chave_justificativa_ausente_tambem_e_codigo_tres():
     assert justificativa_exibivel({}) == ("", 3)
 
 
-# ══════════════ precedencia ══════════════
+# ══════════════ procedencia nao decide mais nada ══════════════
 
-def test_backfill_com_justificativa_vazia_ainda_e_codigo_um():
-    """`run_id == backfill` decide primeiro: nao cai no codigo 3 por a linha estar vazia."""
-    triagem = {"run_id": RUN_ID_BACKFILL, "justificativa": ""}
-    assert justificativa_exibivel(triagem) == ("", 1)
-
-
-def test_backfill_com_justificativa_de_fallback_ainda_e_codigo_um():
-    """`run_id == backfill` ganha do prefixo do Estagio B: a procedencia importa mais."""
-    triagem = {"run_id": RUN_ID_BACKFILL, "justificativa": PREFIXO_FALLBACK + " timeout"}
-    assert justificativa_exibivel(triagem) == ("", 1)
+def test_run_id_nao_muda_o_codigo():
+    """O codigo 1 morreu com o backfill: todo veredito sai do pipeline, entao a
+    linha vale pelo texto que carrega, venha do `run_id` que vier."""
+    triagem = {"run_id": "run-20260901-074155", "justificativa": "motivo forte"}
+    assert justificativa_exibivel(triagem) == ("motivo forte", 0)
+    assert justificativa_exibivel({**triagem, "justificativa": ""}) == ("", 3)
 
 
 # ══════════════ os consumidores concordam (montar_dados) ══════════════
@@ -157,10 +131,6 @@ def test_lista_embute_justificativa_para_qualquer_veredito_aprovado(tmp_path, mo
 @pytest.mark.parametrize(
     "extra_triagem, esperado",
     [
-        pytest.param(
-            {"run_id": RUN_ID_BACKFILL, "justificativa": "texto do digest antigo"}, ("", 1),
-            id="backfill",
-        ),
         pytest.param(
             {"justificativa": PREFIXO_FALLBACK + " timeout"}, ("", 2),
             id="fallback-estagio-b",

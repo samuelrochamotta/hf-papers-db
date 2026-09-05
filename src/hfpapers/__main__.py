@@ -9,7 +9,6 @@ from typing import Optional
 
 import typer
 
-from . import backfill as mod_backfill
 from . import db, doutor as doutor_mod, execucao, log, taxonomia as mod_tax
 from .config import config
 from .estagios import classificacao, export as mod_export
@@ -100,32 +99,6 @@ def run(
         raise typer.Exit(code=1)
     if any(a.startswith("coleta_falhou") for a in r.avisos):
         raise typer.Exit(code=1)
-
-
-# ── backfill ────────────────────────────────────────────────────────────────
-
-
-@app.command()
-def backfill(
-    seed: Path = typer.Option(Path("./seed"), "--seed", help="Pasta com os arquivos-semente."),
-    pular_llm: bool = typer.Option(False, "--pular-llm", help="So importa; nao gera ficha."),
-    force: bool = typer.Option(False, "--force", help="Re-hidrata papers ja enriquecidos."),
-) -> None:
-    """Carrega a base historica a partir de seed/. Idempotente."""
-    cfg = _preparar()
-    r = mod_backfill.rodar(seed, cfg=cfg, pular_llm=pular_llm, force=force)
-
-    typer.echo(f"papers na lista de trabalho: {r.papers}")
-    typer.echo(f"hidratados agora: {r.hidratados} | falhas: {len(r.falhas_hidratacao)}")
-    typer.echo(f"triagens na base: {r.triagens} -> {r.vereditos}")
-    typer.echo(f"classificacoes curadas aplicadas: {r.classificacoes_curadas}")
-    typer.echo(f"estagio A (papers sem classificacao): {r.estagio_a}")
-    typer.echo(f"fichas geradas agora: {r.fichas_geradas} (ja existiam {r.fichas_existentes})")
-    typer.echo(f"LLM: US$ {r.uso.custo_usd:.4f}")
-    if r.relatorio:
-        typer.echo(f"relatorio: {r.relatorio}")
-    for aviso in r.avisos[:20]:
-        typer.echo(f"  [aviso] {aviso}")
 
 
 # ── export ──────────────────────────────────────────────────────────────────
@@ -222,6 +195,57 @@ def taxonomia_fundir(
     finally:
         conn.close()
     typer.echo(f"'{de}' -> '{para}': {r['papers_no_destino']} papers no destino")
+
+
+TAXONOMIA_INICIAL = Path("config/taxonomia_inicial.json")
+
+
+@app_tax.command("exportar")
+def taxonomia_exportar(
+    destino: Path = typer.Option(
+        TAXONOMIA_INICIAL, "--destino", help="Arquivo JSON de saida."
+    ),
+) -> None:
+    """Grava areas e topicos do banco num JSON versionavel. Candidatos nao entram."""
+    cfg = _preparar()
+    conn = db.abrir(cfg)
+    try:
+        dados = mod_tax.exportar(conn)
+    finally:
+        conn.close()
+
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(
+        json.dumps(dados, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    typer.echo(
+        f"{len(dados['areas'])} areas e {len(dados['topicos'])} topicos em {destino}"
+    )
+
+
+@app_tax.command("carregar")
+def taxonomia_carregar(
+    arquivo: Path = typer.Argument(
+        TAXONOMIA_INICIAL, help="JSON gerado por `taxonomia exportar`."
+    ),
+) -> None:
+    """Repoe o vocabulario num banco vazio. Idempotente: rotulo existente nao e tocado."""
+    cfg = _preparar()
+    if not arquivo.exists():
+        typer.echo(f"arquivo inexistente: {arquivo}")
+        raise typer.Exit(code=2)
+    dados = json.loads(arquivo.read_text(encoding="utf-8"))
+
+    conn = db.abrir(cfg)
+    try:
+        with db.transacao(conn):
+            r = mod_tax.carregar(conn, dados)
+    finally:
+        conn.close()
+    typer.echo(
+        f"{r['areas']} areas e {r['topicos']} topicos inseridos "
+        f"({r['ja_existiam']} rotulos ja existiam, intocados)"
+    )
 
 
 # ── modelos ─────────────────────────────────────────────────────────────────

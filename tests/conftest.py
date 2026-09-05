@@ -8,7 +8,6 @@ from hfpapers.config import Config
 from hfpapers.llm.cliente import ClienteLLM, ErroLLM, Preco, Resposta, Uso
 
 FIXTURES = Path(__file__).parent / "fixtures"
-SEED = Path(__file__).parents[1] / "seed"
 
 # ── dublês de LLM compartilhados entre test_execucao.py e os arquivos da
 # issue #1 que exercitam a falha do Estagio B a partir de `classificacao.rodar`
@@ -134,8 +133,3 @@ def cfg(tmp_path) -> Config:
     c.llm.estagio_b.modelo = "modelo/teste-b"
     c.llm.retry.backoff_inicial_s = 0     # sem espera artificial nos testes
     return c
-
-
-@pytest.fixture()
-def seed_dir() -> Path:
-    return SEED

@@ -386,18 +386,17 @@
 
   /* Traduz o codigo de `justificativa_exibivel` (gerar_painel.py) para o aviso
      que substitui o texto - ou `null` quando ha texto de verdade para mostrar.
-     Unica funcao a interpretar `h`: os tres consumidores do contrato de quatro
-     valores (a lista da janela, os aprovados e os descartados do hall) chamam
-     esta funcao em vez de testar `h` por si, porque um `if (p.h)` cru trata
-     qualquer valor diferente de zero como "veio do backfill" - e o codigo 3
-     (justificativa vazia gravada pelo proprio pipeline, sem relacao com o
-     backfill) e um caso vivo em `estagios/classificacao.py`, nao hipotetico.
+     Unica funcao a interpretar `h`: os tres consumidores do contrato (a lista
+     da janela, os aprovados e os descartados do hall) chamam esta funcao em
+     vez de testar `h` por si, porque um `if (p.h)` cru trata qualquer valor
+     diferente de zero como falha do Estagio B - e o codigo 3 (justificativa
+     vazia gravada pelo proprio pipeline) e um caso vivo em
+     `estagios/classificacao.py`, nao hipotetico.
      So o codigo 0 devolve `null` (ha texto). Qualquer outro valor, `undefined`
      incluido, cai no aviso residual - a guarda e invertida de proposito: o
      painel publica sozinho as 08:30, e um `h` fora do contrato nao pode virar
      cabecalho com rotulo e corpo vazio. */
   function avisoDecisao(h) {
-    if (h === 1) return 'Veredito herdado dos digests históricos — o backfill não registra justificativa por paper.';
     if (h === 2) return 'O Estágio B não concluiu neste paper — o veredito é preliminar.';
     // codigo 3 e qualquer residual: a decisao pode ter sido so do Estagio A
     // (classificacao.py:206 grava "fora" sem o B chegar a rodar), entao o
@@ -630,7 +629,7 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O que ficou do ' + esc(atual.rot) + '</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">' + atual.ap.length + ' de ' + atual.na + ' aprovados, ordenados por voto da comunidade. Clique para abrir o porquê da decisão — e a ficha inteira, quando o Estágio B chegou a escrevê-la. <span style="color: #6d7178;">A marca de decisão de fronteira só existe para papers classificados pelo pipeline — o backfill não a registra.</span></div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">' + atual.ap.length + ' de ' + atual.na + ' aprovados, ordenados por voto da comunidade. Clique para abrir o porquê da decisão — e a ficha inteira, quando o Estágio B chegou a escrevê-la.</div>' +
           '</div>' + avisoCons +
         '</div>' +
         '<div style="display: grid; grid-template-columns: 30px 78px minmax(0, 1fr) 200px 66px 60px; gap: 14px; padding: 11px 24px; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; background: #131619; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">' +
