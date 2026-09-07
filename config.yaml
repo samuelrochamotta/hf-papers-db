@@ -28,11 +28,11 @@ llm:
   # reclassificação total: `reclassificar --tudo --concorrencia 4`. Teto: 8.
   concorrencia: 1
   estagio_a:
-    modelo: "qwen/qwen3.8-flash"
+    modelo: "z-ai/glm-5.3-flash"
     temperatura: 0.0
-    max_tokens: 2400   # o modelo raciocina antes do JSON; 1200 truncava em todo paper
+    max_tokens: 2400   # modelo que raciocina antes do JSON trunca com teto baixo
   estagio_b:
-    modelo: "qwen/qwen3.8-flash"
+    modelo: "z-ai/glm-5.3-flash"
     temperatura: 0.2
     max_tokens: 8000
   provider:
