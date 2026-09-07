@@ -185,15 +185,9 @@ que sobra é linha antiga e o conserto é um comando (`reclassificar --tudo`).
 Vocabulário vazio é só aviso: banco recém-criado passa por aí legitimamente, e a
 saída aponta `taxonomia carregar`.
 
-**Hoje o `doutor` sai com código 1 e isso é esperado**: 164 dos 309 `fora` da
-base (medido em 04/09/2026) são linhas antigas sem `regra_fora`, e o número só
-zera com a rodada da seção seguinte. Se você rodou o `doutor` e viu
-
-```
-[ERRO]  regra_fora   164 paper(s) 'fora' sem regra de descarte - rode `hfpapers reclassificar --tudo`
-```
-
-nada quebrou: a reclassificação total ainda não foi executada.
+Esse erro esteve aceso até 07/09/2026, por 164 linhas antigas sem `regra_fora`,
+e a rodada da seção seguinte o apagou. Se ele voltar, a leitura é outra: linha
+sem regra não nasce mais do pipeline, então a origem é dado escrito por fora.
 
 ### Recuperação de lacuna
 
@@ -206,17 +200,24 @@ Fim de semana vazio é normal e não é erro.
 
 A base tem papers classificados antes de `regra_fora` e `criterios_veredito`
 existirem. A rodada que os traz para o vocabulário vigente é **uma operação
-manual, feita uma vez** — não entra no agendamento e não roda sozinha. Em
-04/09/2026 ela **ainda não tinha sido executada**.
+manual, feita uma vez** — não entra no agendamento e não roda sozinha.
 
-Enquanto ela não roda: 164 `fora` sem regra, `doutor` com código 1, e o card
-"Por que o pipeline aprova" do painel mostra cobertura de critério baixa (em
-04/09/2026, 3 de 167 aprovados). Nada disso é falha.
+**Executada em 07/09/2026**, `run-20260907-182217`: 516 papers, 346 `fora`,
+43 amplo, 127 estrito, 170 fichas, zero pendentes. Depois dela: zero `fora` sem
+regra, zero aprovado sem critério, um `run_id` só em toda a `fato_triagem`, e o
+`doutor` saindo com código 0.
 
-Custo: 482 papers pelos dois estágios. Sequencial, entre 8 h (estimativa da
-spec) e ~14 h (a conta do ADR com os tempos medidos por paper); com
-`--concorrencia 4`, entre 2 h e 3,5 h. Em dinheiro, ordem de US$ 1 a US$ 2 —
-`custos --mes` dá o valor real depois.
+Custo e tempo medidos, com `--concorrencia 4` e `glm-5.3-flash`: **47 minutos e
+US$ 0,21** para os 516 papers. As estimativas anteriores (8–14 h sequencial,
+US$ 1 a 2) foram feitas sobre o `qwen3.8-flash`, cujo provider único estrangulou
+a operação — ver a nota de modelo abaixo. `custos --mes` dá o valor real.
+
+> **Modelo**: a rodada foi feita com `z-ai/glm-5.3-flash` nos dois estágios.
+> O `qwen/qwen3.8-flash` que estava no `config.yaml` tem **um único provider**
+> no OpenRouter (Alibaba, pool compartilhado) e passou 07/09 em 429: a rodada
+> diária levou 10h30 para 19 papers e falhou em 14 deles. Antes de trocar o
+> modelo de qualquer estágio, olhe `GET /api/v1/models/<id>/endpoints` — um
+> endpoint só é risco operacional, não detalhe de catálogo.
 
 ```bash
 # 1. espere a rodada diária das 07:30 terminar (log_execucao com finalizado_em)
@@ -438,9 +439,9 @@ com razão utilizável.
 ### Tamanho
 
 O peso vem do texto das fichas embutido em `DADOS`, não de HTML por card.
-Medido em 04/09/2026: **838 KB para 482 papers e 166 fichas**, dos quais 337 KB
-são fichas (~2,1 KB cada), 250 KB são os papers (~530 B cada) e 96 KB é a série
-de métricas.
+Medido em 07/09/2026, depois da reclassificação total: **856 KB para 516 papers
+e 170 fichas**, dos quais 293 KB são fichas (~1,8 KB cada), 276 KB são os papers
+(~548 B cada) e 131 KB é a série de métricas.
 
 O custo por entrada do histórico é assimétrico de propósito — é o que permite as
 duas listas terem tamanhos diferentes:
@@ -451,10 +452,10 @@ duas listas terem tamanhos diferentes:
 | 10 descartados | regra + justificativa | ~0,3 KB | ~3 KB |
 
 **~28 KB por trimestre, ~115 KB por ano** — contra os **~932 KB/mês** que a
-janela viva acumularia se não fosse recortada (os 482 papers de 22 dias corridos
-pesam 683 KB de payload). Se doer, `--dias` é o botão para girar. O custo do
-descartado é piso, não teto: metade dos dez de hoje ainda é linha antiga sem
-regra nem justificativa, e sobe quando a reclassificação total passar.
+janela viva acumularia se não fosse recortada (os 516 papers pesam 705 KB de
+payload). Se doer, `--dias` é o botão para girar. O custo do descartado deixou
+de ser piso otimista: com a reclassificação total, todo descartado do histórico
+já carrega regra e justificativa de verdade.
 
 Vale lembrar que `painel.html` é commitado e empurrado todo dia (217 KB
 comprimido, ~77 MB/ano de repositório): cada KB adicionado se multiplica por 365.
@@ -538,14 +539,16 @@ Três coisas novas, todas já nos Parquet de `marts/`:
 - **`fato_triagem[revisao]` e `fato_triagem[run_id]`** — `revisao` conta quantas
   vezes o paper passou pela classificação: 1 na primeira, +1 a cada
   reclassificação, e **0 nas linhas que entraram como veredito importado**, que
-  nunca passaram por ela. Distribuição em 04/09/2026: 242 linhas com 0 (as
-  importadas, todas de uma carga histórica só), 224 com 1, 9 com 2, 2 com 3 —
-  `revisao = 0` é o filtro que isola as antigas.
-  **A marca da reclassificação total é o `run_id`, não `revisao`**: depois dela
-  toda linha de `fato_triagem` carrega o mesmo `run_id`, e é essa a consulta que
-  fecha a rodada. Um filtro `revisao ≥ 2` erraria o alvo — as 242 importadas
-  chegam a 1, e é nelas que estão 159 dos 164 `fora` sem `regra_fora` (os outros
-  5 vêm de rodadas normais anteriores à regra obrigatória).
+  nunca passaram por ela. Antes da rodada total (04/09/2026): 242 linhas com 0
+  (as importadas, todas de uma carga histórica só), 224 com 1, 9 com 2, 2 com 3.
+  Depois dela (07/09/2026): 245 com 1, 248 com 2, 21 com 3, 2 com 4 — nenhuma
+  com 0, porque toda linha passou pela classificação ao menos uma vez.
+  **A marca da reclassificação total é o `run_id`, não `revisao`**, e a
+  distribuição acima mostra por quê: as 242 importadas chegaram a **1**, não a
+  2, então o filtro `revisao ≥ 2` teria deixado de fora justamente as linhas que
+  a rodada veio consertar — nelas estavam 159 dos 164 `fora` sem `regra_fora`
+  (os outros 5 vinham de rodadas normais anteriores à regra obrigatória). O que
+  fecha a rodada é o `run_id` único em toda a `fato_triagem`.
 
 Não há `.pbix` no repositório: o Power BI lê os Parquet e o modelo vive fora do
 git (`docs/adr-001-fora-de-escopo-do-mapa.md`, decisão 2). Estas três colunas são

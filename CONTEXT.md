@@ -55,7 +55,8 @@ _Avoid_: não classificado, sem veredito, falho
 **Revisão** (`revisao`):
 Quantas vezes o paper passou pela classificação: 0 na linha de veredito
 importado, que nunca passou; 1 na primeira passagem, +1 a cada reclassificação.
-Substitui a distinção "recente vs. backfill".
+Substitui a distinção "recente vs. backfill". Desde a reclassificação total de
+07/09/2026 nenhuma linha está em 0 — as importadas chegaram a 1, não a 2.
 _Avoid_: recentes, backfill, herdado
 
 **Reclassificação total**:

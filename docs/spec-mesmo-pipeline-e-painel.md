@@ -250,3 +250,26 @@ deixou de estar fora de escopo.
   escopo e foi implementado; a decisão está no
   `docs/adr-001-fora-de-escopo-do-mapa.md` (decisão 3), que também mantém fora
   os outros dois itens da §8.
+
+### 9.1 Execução da §3 (07/09/2026)
+
+A rodada total foi executada: `run-20260907-182217`, 516 papers, **47 minutos**
+com `--concorrencia 4`, **US$ 0,21**. Resultado: 346 `fora`, 43 amplo, 127
+estrito, 170 fichas, zero pendentes. O aceite da §7 fechou inteiro — um `run_id`
+só em toda a `fato_triagem`, zero `fora` sem regra, zero aprovado sem critério,
+`doutor` com código 0.
+
+Duas notas de fato:
+
+- **O modelo teve de mudar para a rodada acontecer.** O `qwen/qwen3.8-flash` da
+  §0 tem **um único provider** no OpenRouter (Alibaba, pool compartilhado) e
+  passou 07/09 em 429 upstream: a rodada diária levou 10h30 para 19 papers e
+  falhou em 14; a rodada total, medida com `--concorrencia 4`, fez 1 paper em
+  3,5 min e falhou em 3. Os dois estágios voltaram ao `z-ai/glm-5.3-flash`
+  (24 endpoints, roteamento que se espalha sozinho), commit `2df77c5`. As
+  estimativas de tempo e custo da §3 (8–10 h, ≈ US$ 1,0) foram feitas sobre o
+  qwen e não descrevem mais a operação.
+- **A distribuição de `revisao` confirmou a errata acima**, em dado e não em
+  leitura de código: depois da rodada, 245 linhas em 1, 248 em 2, 21 em 3, 2 em
+  4 — nenhuma em 0. As 242 importadas chegaram a 1, exatamente como previsto, e
+  o filtro `revisao ≥ 2` teria perdido as 245 primeiras.
