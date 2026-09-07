@@ -660,7 +660,8 @@
   function navAbas() {
     var s = state;
     var itens = [
-      { valor: 'janela', label: 'Janela', nota: DADOS.papers.length + ' papers · ' + DADOS.janela + 'd' },
+      { valor: 'janela', label: 'Janela', nota: DADOS.papers.length + ' papers · ' + DADOS.janela + 'd' +
+          (DADOS.pendentes ? ' · +' + DADOS.pendentes + ' na fila' : '') },
       { valor: 'historico', label: 'Registro histórico', nota: (DADOS.hall || []).length + ' trimestres' }
     ];
     return '<div style="display: flex; gap: 30px; margin-top: 26px; border-bottom: 1px solid #242a30;">' +
@@ -1039,6 +1040,18 @@
               : (criterioAtivo
                 ? '<span style="font-size: 11.5px; color: #6d7178;">restrito a <span style="color: ' + VERDE + ';">aprovados</span> pelo filtro de critério</span>'
                 : '')) +
+            /* Os pendentes nao estao em `DADOS.papers` (ver gerar_painel.py):
+               nunca classificado nao e `fora`. Mas some-los da pagina sem
+               dizer faria a soma dos tres chips nao bater com o total do dia
+               na aba - entao a conta aparece aqui, ao lado dos vereditos que
+               ela NAO integra. */
+            (DADOS.pendentes
+              ? '<span' + ev('e', mostraTip('Ainda sem veredito',
+                  'O refresh grava paper novo depois que a classificação já passou; ele entra na próxima rodada. Fica fora das contagens de veredito porque nunca classificado não é o mesmo que fora.')) +
+                  ev('l', escondeTip()) +
+                  ' style="font-size: 11.5px; color: #6d7178; border-bottom: 1px dotted #3a4048; cursor: help;">+' +
+                  DADOS.pendentes + ' na fila, sem veredito</span>'
+              : '') +
           '</div>' +
         '</div>' +
         linhaFiltro('TEMA', zTema,

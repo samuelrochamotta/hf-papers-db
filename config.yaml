@@ -9,7 +9,6 @@ paths:
   prompts: "prompts"
   logs: "logs"
   relatorios: "relatorios"        # artefatos de leitura: painel.html
-  estado: "data/estado"           # cache que alimenta a proxima etapa - nao apague
 
 hf:
   base_url: "https://huggingface.co"

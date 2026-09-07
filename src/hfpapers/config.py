@@ -46,10 +46,6 @@ class Paths(BaseModel):
     prompts: str = "prompts"
     logs: str = "logs"
     relatorios: str = "relatorios"
-    # estado de maquina - cache que alimenta uma etapa seguinte, nao artefato de
-    # leitura. Separado de `relatorios` de proposito: apagar um relatorio e
-    # inocuo, apagar o estado muda o resultado da proxima rodada.
-    estado: str = "data/estado"
 
 
 class HF(BaseModel):
@@ -160,10 +156,6 @@ class Config(BaseModel):
     @property
     def dir_relatorios(self) -> Path:
         return self._abs(self.paths.relatorios)
-
-    @property
-    def dir_estado(self) -> Path:
-        return self._abs(self.paths.estado)
 
 
 def carregar_config(caminho: Optional[Path] = None) -> Config:

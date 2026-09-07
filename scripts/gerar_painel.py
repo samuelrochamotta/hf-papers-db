@@ -28,7 +28,7 @@ Quatro decisoes que valem explicacao:
    nada e apagado, nem do banco nem dos Parquet. O que ela resolve e
    visibilidade - impedir que o recorte de 90 dias esconda para sempre o que a
    comunidade mais votou. Por isso e derivada a cada geracao, sem tabela nova,
-   sem estado em `data/estado/` e sem estagio novo no pipeline.
+   sem estado em disco e sem estagio novo no pipeline.
 
    Nao ha deduplicacao a fazer: `data_hf_daily` e imutavel, entao cada paper
    pertence a exatamente um trimestre, para sempre.
@@ -394,7 +394,23 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     corte_hall = hoje - dt.timedelta(days=dias_hall)
 
     # A janela usa data_hf_daily (a data da operacao diaria), nao data_arxiv.
-    na_janela = [p for p in papers if p.get("data_hf_daily") and p["data_hf_daily"] >= corte]
+    #
+    # Paper sem triagem fica de FORA da lista, pelo mesmo motivo que o hall ja
+    # o deixa de fora das duas listas dele (ver `montar_hall.veredito`): nunca
+    # classificado nao e `fora`. A aba viva chegou a dobrar os dois no mesmo
+    # chip cinza, e o preco disso aparece no Pareto - um pendente nao tem regra
+    # de descarte, entao caia na categoria "regra nao registrada", que existe
+    # para medir cobertura que falta nos vereditos LEGADOS. Depois da
+    # reclassificacao total essa categoria zera; com pendente dentro ela nunca
+    # zeraria, e o sinal que ela carrega (o dia em que voltar a subir) morria.
+    #
+    # Pendente na janela e rotina, nao falha: o refresh grava paper novo depois
+    # que o estagio 3 ja passou, e ele so e classificado na rodada seguinte.
+    # Por isso a contagem viaja em `pendentes` e o app a exibe - some da conta
+    # de veredito, nao da pagina.
+    na_janela_todos = [p for p in papers if p.get("data_hf_daily") and p["data_hf_daily"] >= corte]
+    na_janela = [p for p in na_janela_todos if p["paper_id"] in triagem]
+    pendentes = len(na_janela_todos) - len(na_janela)
     ids = {p["paper_id"] for p in na_janela}
     ids_hall = {p["paper_id"] for p in papers
                 if p.get("data_hf_daily") and p["data_hf_daily"] < corte_hall}
@@ -444,8 +460,8 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     lista = []
     for p in sorted(na_janela, key=lambda x: (x["data_hf_daily"], x["paper_id"])):
         pid = p["paper_id"]
-        t = triagem.get(pid, {})
-        veredito_p = t.get("veredito") or "fora"
+        t = triagem[pid]
+        veredito_p = t["veredito"]
         entrada = {
             "id": pid,
             "t": p.get("titulo") or "",
@@ -493,6 +509,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         "modeloA": modelo_a,
         "modeloB": modelo_b,
         "janela": janela,
+        "pendentes": pendentes,
         "diasHall": dias_hall,
         # o corte efetivo pode vir de --dias-hall, mas a frase que explica o
         # congelamento fala do refresh - e o refresh nao muda por flag de CLI
