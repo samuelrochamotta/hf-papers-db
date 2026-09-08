@@ -351,7 +351,7 @@ def test_prompt_declara_o_eixo_da_vertente_e_o_teste_de_decisao(cfg):
     assert "a primeira é a\n  dominante" in a
 
 
-def test_prompt_traz_as_nove_vertentes_com_o_complemento(cfg):
+def test_prompt_traz_toda_vertente_viva_com_o_complemento(cfg):
     """O complemento e o que impede a vertente de ser lida como tema: "Medir"
     sozinho vira assunto, "Medir - cria o instrumento" nao."""
     from pathlib import Path
@@ -367,7 +367,11 @@ def test_prompt_traz_as_nove_vertentes_com_o_complemento(cfg):
     )
     a = ea.montar_prompt(PAPER, vocab, cfg)
 
-    assert len(dados["vertentes"]) == 9
+    # Dez desde o ticket 08: a regra 4 promoveu "Treinar" a partir dos 12
+    # nao-encaixes de eixo `vertente` que diziam a mesma coisa - que nenhum
+    # dos nove verbos cobria o movimento de treinar. O numero nao e trava; o
+    # piso de seis e.
+    assert len(dados["vertentes"]) == 10
     for v in dados["vertentes"]:
         assert f"**{v['rotulo']}** — {v['definicao']}" in a
 

@@ -378,6 +378,60 @@ def test_fusao_recusa_rotulo_inexistente(base):
         taxonomia.fundir(base, de="Nao existe", para="Agentes & automação")
 
 
+def test_fusao_de_sub_area_move_o_paper_para_a_irma(base_facetada):
+    """A regra 2 do ticket 08 funde sub-area, e nao area: o rotulo que sai esta
+    na coluna `subarea` da ponte, e e la que a reescrita precisa acontecer."""
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Memória de longo prazo",
+            vertentes_paper=["Medir"],
+        )
+
+    taxonomia.fundir(
+        base_facetada, de="Memória de longo prazo", para="RAG & recuperação"
+    )
+
+    assert _pares(base_facetada) == [("Contexto & recuperação", "RAG & recuperação", 1)]
+    assert "Memória de longo prazo" not in taxonomia.hierarquia(base_facetada)
+
+
+def test_fusao_nao_deixa_o_paper_sem_par_primario(base_facetada):
+    """Paper com as duas irmas: o par sobrevivente e o primario, nao o que
+    sobrou. Sem isto a fusao zera a primaria de quem tinha o destino como
+    secundaria - e a cobertura do par primario e a checagem 1 do relatorio."""
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Memória de longo prazo",
+            area_secundaria="Contexto & recuperação",
+            subarea_secundaria="RAG & recuperação",
+            vertentes_paper=["Medir"],
+        )
+
+    taxonomia.fundir(
+        base_facetada, de="Memória de longo prazo", para="RAG & recuperação"
+    )
+
+    assert _pares(base_facetada) == [("Contexto & recuperação", "RAG & recuperação", 1)]
+
+
+def test_fusao_recusa_rotulos_que_nao_sao_irmaos(base_facetada):
+    """Sub-area so funde na irma. Mandar uma para outra area gravaria um par
+    cuja sub-area nao e filha da area - o estado que `aplicar_classificacao`
+    recusa -, e misturar raiz com filha inverteria a hierarquia."""
+    with pytest.raises(ValueError):
+        taxonomia.fundir(base_facetada, de="Fala & áudio", para="RAG & recuperação")
+    with pytest.raises(ValueError):
+        taxonomia.fundir(
+            base_facetada, de="Memória de longo prazo", para="Interface & modalidade"
+        )
+
+
 
 def test_exportar_traz_rotulo_e_definicao(base):
     dados = taxonomia.exportar(base)
@@ -466,9 +520,11 @@ def test_carregar_e_exportar_reproduzem_a_grade_hierarquica(conn2):
 
 
 def test_arquivo_versionado_traz_a_grade_facetada():
-    """A grade v1 e o dado que este ticket entrega: dez areas com sub-areas
-    aninhadas e nove vertentes, cada uma com o complemento que fixa o sentido
-    do verbo. Ela convive com a grade antiga ate a contracao (ticket 05)."""
+    """A grade e o dado que estes tickets entregam: dez areas com sub-areas
+    aninhadas e as vertentes, cada uma com o complemento que fixa o sentido do
+    verbo. As dez raizes e o piso de seis vertentes sao as travas do ticket 08;
+    o numero de sub-areas e o de vertentes se mexem com a medicao, e por isso
+    entram aqui como piso e nao como igualdade."""
     dados = _arquivo_versionado()
     com_subarea = [a for a in dados["areas"] if a["subareas"]]
     subareas = [s for a in com_subarea for s in a["subareas"]]
@@ -478,7 +534,7 @@ def test_arquivo_versionado_traz_a_grade_facetada():
     assert len(subareas) >= 45
     # sub-area sem definicao nao separa a irma: o Estagio A escolheria pelo rotulo
     assert [s["rotulo"] for s in subareas if not s["definicao"]] == []
-    assert len(dados["vertentes"]) == 9
+    assert len(dados["vertentes"]) >= 6
     assert all(v["definicao"] for v in dados["vertentes"])
 
 

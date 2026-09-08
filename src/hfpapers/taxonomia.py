@@ -7,9 +7,11 @@ quorum, promocao automatica, teto de vocabulario para segura-la - saiu com
 que le essa fila. O teto de vertentes por paper continua aqui, e continua
 constante - ver `MAX_VERTENTES_POR_PAPER`.
 
-**Fusao de rotulos e manual** e exige comando explicito: vocabulario grande
-demais deixa de separar qualquer coisa, e escolher qual par fundir e julgamento
-humano.
+**Fusao de rotulos exige comando explicito**, nunca sai de quem classifica:
+vocabulario grande demais deixa de separar qualquer coisa. Quem escolhe o par
+deixou de ser julgamento humano no ticket 08 - e a regra 2 da revisao da grade,
+lida do relatorio de massa: sub-area abaixo de 3% da area ou de 10 papers funde
+na irma de maior afinidade.
 """
 
 from __future__ import annotations
@@ -34,9 +36,12 @@ MAX_VERTENTES_POR_PAPER = 2
 # e deliberada: area nova e evento raro e grave - uma peca de sistema que nao
 # existia; sub-area nova e rotina saudavel, o campo se ramifica; vertente nova
 # deveria ser quase impossivel, e e por isso que ela precisa do instrumento -
-# a lista de nove verbos e a hipotese mais fragil do desenho, e nao convinha
-# que fosse o unico eixo sem detector de erro. `llm/schemas.py` importa daqui
-# para montar o enum do contrato, pelo mesmo motivo de `MAX_VERTENTES_POR_PAPER`.
+# a lista de verbos e a hipotese mais fragil do desenho, e nao convinha que
+# fosse o unico eixo sem detector de erro. A fila cobrou: 12 dos 13 nao-encaixes
+# de vertente da rodada 1 diziam a mesma coisa - que faltava o verbo de treinar
+# -, e foi por eles que 'Treinar' entrou na grade v2. `llm/schemas.py` importa
+# daqui para montar o enum do contrato, pelo mesmo motivo de
+# `MAX_VERTENTES_POR_PAPER`.
 EIXOS = ("area", "subarea", "vertente")
 
 
@@ -334,31 +339,63 @@ def nao_encaixes(
     return [dict(r) for r in conn.execute(sql + " ORDER BY paper_id", params)]
 
 
-# ── fusao (manual) ──────────────────────────────────────────────────────────
+# ── fusao ───────────────────────────────────────────────────────────────────
 
 
 def fundir(conn: sqlite3.Connection, *, de: str, para: str) -> dict[str, int]:
-    """Reescreve a ponte de area de `de` para `para` e apaga o rotulo `de`.
+    """Reescreve a ponte de `de` para `para` e apaga o rotulo `de`.
 
-    Sem parametro de tipo: a fusao aceitava area ou topico, e o topico saiu do
-    banco na contracao. Um parametro de um valor so nao escolhe nada.
+    Sem parametro de tipo, e sem parametro de nivel: o nivel sai da propria
+    hierarquia. Area raiz mora na coluna `area` da ponte e sub-area na coluna
+    `subarea` - cada rotulo so aparece na sua -, entao quem sabe se `de` tem pai
+    ja sabe qual coluna reescrever, e um parametro para isso seria uma segunda
+    chance de errar.
+
+    **Os dois rotulos precisam ser do mesmo nivel e do mesmo pai.** A regra 2 do
+    ticket 08 funde na *irma*, e nao em qualquer rotulo: mandar uma sub-area
+    para outra area produziria um par cuja sub-area nao e filha da area, que e
+    exatamente o que `aplicar_classificacao` recusa gravar - a fusao nao pode
+    criar pela porta dos fundos o estado que a classificacao rejeita.
     """
+    pai_de = hierarquia(conn)
     for rotulo in (de, para):
-        if not conn.execute("SELECT 1 FROM dim_area WHERE area = ?", (rotulo,)).fetchone():
+        if rotulo not in pai_de:
             raise ValueError(f"area inexistente: {rotulo}")
+    if pai_de[de] != pai_de[para]:
+        raise ValueError(f"'{de}' e '{para}' nao sao irmas: fusao so entre o mesmo pai")
 
+    # A coluna que carrega o rotulo, e a outra metade do par: a colisao de
+    # chave so acontece entre linhas do mesmo paper que coincidem nas duas.
+    coluna = "subarea" if pai_de[de] else "area"
+    outra_coluna = "area" if coluna == "subarea" else "subarea"
     with db.transacao(conn):
-        # o paper pode ja ter a area de destino: nesse caso a primaria vence
+        # O paper pode ja ter o destino, e ai as duas linhas colidem na chave.
+        # Quem sobrevive e a linha de destino, entao ela precisa herdar a
+        # primazia antes: sem isto o paper que tinha `de` como primaria e `para`
+        # como secundaria termina so com a secundaria, e a cobertura do par
+        # primario - checagem 1 do relatorio - cai sem que ninguem tenha
+        # decidido isso.
         conn.execute(
-            "UPDATE OR IGNORE ponte_paper_area SET area = ? WHERE area = ?", (para, de)
+            f"UPDATE ponte_paper_area SET is_primaria = 1 WHERE {coluna} = ? "
+            f"  AND EXISTS (SELECT 1 FROM ponte_paper_area o "
+            f"               WHERE o.paper_id = ponte_paper_area.paper_id "
+            f"                 AND o.{outra_coluna} = ponte_paper_area.{outra_coluna} "
+            f"                 AND o.{coluna} = ? AND o.is_primaria = 1)",
+            (para, de),
         )
-        conn.execute("DELETE FROM ponte_paper_area WHERE area = ?", (de,))
+        conn.execute(
+            f"UPDATE OR IGNORE ponte_paper_area SET {coluna} = ? WHERE {coluna} = ?",
+            (para, de),
+        )
+        conn.execute(f"DELETE FROM ponte_paper_area WHERE {coluna} = ?", (de,))
         movidos = conn.execute(
-            "SELECT COUNT(*) AS n FROM ponte_paper_area WHERE area = ?", (para,)
+            f"SELECT COUNT(DISTINCT paper_id) AS n FROM ponte_paper_area "
+            f"WHERE {coluna} = ?",
+            (para,),
         ).fetchone()["n"]
         conn.execute("DELETE FROM dim_area WHERE area = ?", (de,))
 
-    log.info("fusao de area: '%s' -> '%s' (%s papers no destino)", de, para, movidos)
+    log.info("fusao de '%s' -> '%s' (%s papers no destino)", de, para, movidos)
     return {"papers_no_destino": int(movidos)}
 
 

@@ -272,7 +272,9 @@ def taxonomia_fundir(
     de: str = typer.Option(..., "--de", help="Rotulo que sera absorvido."),
     para: str = typer.Option(..., "--para", help="Rotulo que permanece."),
 ) -> None:
-    """Funde duas areas e reescreve a ponte. Operacao manual, por desenho."""
+    """Funde dois rotulos irmaos - duas areas raiz ou duas sub-areas do mesmo
+    pai - e reescreve a ponte. Comando explicito, por desenho: quem classifica
+    nunca funde. O par vem da regra 2 da revisao da grade (ticket 08)."""
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:

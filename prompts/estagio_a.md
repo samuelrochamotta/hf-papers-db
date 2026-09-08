@@ -95,10 +95,11 @@ constatação, não um nome: preencha `nao_coube` com `{eixo, justificativa}`, d
   área e o que falta é resolução.
 - `eixo: "subarea"` — a área está certa, mas **nenhuma filha dela** descreve o trabalho.
   É o caso comum e esperado: o campo se ramifica, e a grade acompanha depois.
-- `eixo: "vertente"` — **nenhum dos nove verbos** é o movimento que o paper faz. Diga
-  qual movimento é, com suas palavras. Este eixo existe porque a lista de nove é a parte
-  mais frágil do desenho e precisa do próprio detector de erro; ainda assim, antes de
-  usá-lo, releia o complemento de cada verbo — ele é mais largo que o rótulo sozinho.
+- `eixo: "vertente"` — **nenhum dos verbos listados** é o movimento que o paper faz.
+  Diga qual movimento é, com suas palavras. Este eixo existe porque a lista de verbos é
+  a parte mais frágil do desenho e precisa do próprio detector de erro — foi por ele que
+  *Treinar* entrou na grade v2; ainda assim, antes de usá-lo, releia o complemento de
+  cada verbo — ele é mais largo que o rótulo sozinho.
 
 Um eixo só, o que falhou primeiro. E **mesmo declarando o não-encaixe, classifique com
 os rótulos vigentes mais próximos**: nenhum paper pode ficar sem par e sem vertente. A

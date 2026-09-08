@@ -39,19 +39,72 @@ substituindo.
 
 **Bloqueado por:** 07.
 
-**Status:** ready-for-agent
+**Status:** done — com uma ressalva declarada: a regra 3 não foi aplicada a
+*Especificar* (ver o checkbox correspondente e *Por que a regra 3 ficou parada*)
 
-- [ ] Cada ajuste registra o número do relatório que o motivou
-- [ ] Nenhuma sub-área da v2 acima de 25% da sua área, ou o caso está registrado com a
-      razão pela qual a divisão foi rejeitada
-- [ ] Nenhuma sub-área da v2 abaixo de 3% da sua área ou com menos de 10 papers, salvo
-      a exceção das áreas com duas sub-áreas
-- [ ] Nenhuma vertente da v2 abaixo de 2%, e no mínimo seis vertentes vivas
-- [ ] Absorção de vertente com o mapeamento de origem e destino declarado no arquivo
-- [ ] Cada família de não-encaixe com oito ou mais papers virou rótulo, ou está
-      registrada com a razão de não ter virado
-- [ ] As dez áreas raiz, os dois eixos e a cardinalidade intactos
-- [ ] Uma única passada: nenhuma regra reaplicada sobre o resultado da anterior
-- [ ] O arquivo de taxonomia atualizado, recarregável, e reproduzindo a grade ao ser
-      exportado e relido
-- [ ] Um resumo do que mudou entre v1 e v2, rótulo a rótulo, deixado para leitura
+- [x] Cada ajuste registra o número do relatório que o motivou — `docs/grade-v2-resumo.md`
+- [x] Nenhuma sub-área da v2 acima de 25% da sua área, ou o caso está registrado com a
+      razão pela qual a divisão foi rejeitada — 12 das 15 divididas; três registradas
+      (*Escala em tempo de inferência* a 0,5 ponto do teto e na seção 7 do relatório;
+      *Fala & áudio* e *GUI & visão de tela* com irmãs estimadas abaixo do piso de 10
+      papers da regra 2). *Interpretabilidade & sondas* foi dividida e a estimativa a
+      deixa em 40,7%: a regra admite três irmãs no máximo, e a área tem 91 papers — o
+      caso está registrado
+- [x] Nenhuma sub-área da v2 abaixo de 3% da sua área ou com menos de 10 papers, salvo
+      a exceção das áreas com duas sub-áreas — quatro fundidas; duas registradas
+      (*Atalhos & espúrios* e *Fidelidade do raciocínio*, ambas com 9 papers, um abaixo
+      do piso e dentro da instabilidade de ~19%)
+- [ ] Nenhuma vertente da v2 abaixo de 2%, e no mínimo seis vertentes vivas —
+      **não cumprido, por decisão registrada**: *Especificar* fica em 1,5%, 0,5 ponto
+      abaixo do piso e na seção 7 do relatório; medida na base, ela não tem vertente
+      substituta (co-ocorrência espalhada, 32 dominantes com tema coerente) e o
+      denominador muda na rodada 2. Dez vertentes vivas, bem acima do piso de seis
+- [ ] Absorção de vertente com o mapeamento de origem e destino declarado no arquivo —
+      **sem objeto**: nenhuma vertente foi absorvida
+- [x] Cada família de não-encaixe com oito ou mais papers virou rótulo, ou está
+      registrada com a razão de não ter virado — `Treinar` promovida (12 registros de
+      eixo `vertente`); *neurociência & sinal biomédico* (8 registros de eixo `area`)
+      registrada, porque promovê-la criaria uma 11ª área raiz e a trava proíbe; nenhuma
+      família de eixo `subarea` chega a oito
+- [x] As dez áreas raiz, os dois eixos e a cardinalidade intactos
+- [x] Uma única passada: nenhuma regra reaplicada sobre o resultado da anterior
+- [x] O arquivo de taxonomia atualizado, recarregável, e reproduzindo a grade ao ser
+      exportado e relido — `config/taxonomia_inicial.json`, 10 áreas, 64 sub-áreas,
+      10 vertentes; a ida e volta é o que `test_arquivo_versionado_povoa_banco_vazio`
+      afirma
+- [x] Um resumo do que mudou entre v1 e v2, rótulo a rótulo, deixado para leitura —
+      `docs/grade-v2-resumo.md`
+
+## Por que a regra 3 ficou parada
+
+A regra 3 mandava absorver *Especificar* (46 papers, 1,5%), e a trava do piso de seis
+vertentes não a protegia — absorvê-la deixaria nove, com folga. A regra foi suspensa por
+**decisão de coordenação**, não por leitura do agente implementador: a instrução que ele
+recebeu era não mexer em rótulo a menos de três pontos de um limiar, porque a grade tem
+~19% de instabilidade intrínseca e *Especificar* está a 0,5 ponto do piso.
+
+Três coisas sustentam a suspensão, e a terceira é a que decide:
+
+1. Medida na base, *Especificar* **não tem substituta**: sua co-ocorrência é espalhada
+   (Medir 8, Confiabilizar 8, Endurecer 5, sem dominante), e os 32 papers em que ela é
+   dominante formam tema coerente — contrato, protocolo, verificação formal. Absorver
+   sem destino óbvio é escolher um destino, não descobri-lo.
+2. A absorção é **irreversível** e a rodada 2 remede de graça.
+3. O denominador **já mudou**: `Treinar` entrou nesta mesma passada, e uma parte do que
+   hoje é *Baratear* dentro de *Modelo & treino* vai migrar. Medir *Especificar* contra
+   o denominador antigo é medir contra uma base que não existe mais.
+
+A consequência honesta é que o checkbox fica aberto e o ticket 09 herda a pergunta: se
+*Especificar* continuar abaixo de 2% na rodada 2, com o denominador novo e o ruído
+diluído por uma segunda medição, ela é absorvida sem mais discussão.
+
+## Efeito colateral medido: o prompt cresceu
+
+A v2 tem 64 sub-áreas em vez de 47, e o Estágio A injeta a grade inteira no prompt. O
+prompt renderizado passou de **14.832 para 18.785 caracteres (+26,7%)**, ou cerca de
++988 tokens de entrada por chamada.
+
+Projeção para a rodada 2 sobre 3.166 papers, a partir do custo real da rodada 1
+(US$ 1,2326 com 4.398 tokens de entrada por chamada): **US$ 1,51 para o Estágio A**,
+22% acima. A estimativa de US$ 0,54 que consta do ticket 09 é da grade antiga e está
+obsoleta por um fator de quase três.

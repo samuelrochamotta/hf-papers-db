@@ -5,16 +5,28 @@
       "definicao": "como o comportamento é medido",
       "subareas": [
         {
+          "rotulo": "Benchmark científico & clínico",
+          "definicao": "Mede perícia de campo científico ou clínico: matemática, física, química, biologia, medicina e engenharia."
+        },
+        {
           "rotulo": "Benchmark de agente",
-          "definicao": "Mede o laço agêntico: tarefa de vários passos, com ferramenta e ambiente, não uma resposta só."
+          "definicao": "Mede o laço agêntico em geral, quando o alvo não é código nem uso de computador: negócio, assistente pessoal, ciência e horizonte longo."
+        },
+        {
+          "rotulo": "Benchmark de agente de computador & web",
+          "definicao": "Mede o agente que opera uma máquina ou a web: GUI, desktop, celular, terminal, navegação e pesquisa profunda."
+        },
+        {
+          "rotulo": "Benchmark de agente de código",
+          "definicao": "Mede o agente que mexe em repositório: resolver issue, escrever e refatorar código, gerar kernel, e a fidelidade do que ele entrega ao que foi pedido."
         },
         {
           "rotulo": "Benchmark de domínio",
-          "definicao": "Mede conhecimento ou perícia de um campo, como medicina, direito ou matemática."
+          "definicao": "Mede conhecimento ou perícia de um campo que não é científico nem clínico: língua e cultura, direito, finanças, tabela e conhecimento social."
         },
         {
-          "rotulo": "Custo da avaliação",
-          "definicao": "O preço de medir: tamanho do conjunto, número de execuções, gasto de rodar o juiz."
+          "rotulo": "Benchmark de percepção multimodal",
+          "definicao": "Mede o que o modelo vê e ouve, e não o que ele sabe de um campo: imagem, vídeo, áudio, documento e raciocínio espacial."
         },
         {
           "rotulo": "Diagnóstico de falha",
@@ -26,7 +38,7 @@
         },
         {
           "rotulo": "Protocolo & metodologia",
-          "definicao": "Como se mede, não o que se mede: desenho do experimento, contaminação, comparação justa."
+          "definicao": "Como se mede, não o que se mede: desenho do experimento, contaminação, comparação justa e o custo de rodar a própria medição."
         }
       ]
     },
@@ -35,24 +47,32 @@
       "definicao": "o que entra na janela e de onde vem",
       "subareas": [
         {
+          "rotulo": "Busca agêntica",
+          "definicao": "O agente que decide o que buscar e quando parar, em vez de recuperar uma vez e responder."
+        },
+        {
           "rotulo": "Compressão & alocação de contexto",
           "definicao": "Que parte do que já se tem cabe na janela finita, e o que é resumido ou descartado para caber."
         },
         {
           "rotulo": "Memória de longo prazo",
-          "definicao": "O que persiste entre sessões e é relido depois, não o que cabe na janela desta."
+          "definicao": "O que persiste entre sessões e é relido depois, não o que cabe na janela desta. Material textual; o multimodal tem sub-área própria."
+        },
+        {
+          "rotulo": "Memória multimodal & de vídeo",
+          "definicao": "Memória cujo material não é texto: vídeo, tela, voz e imagem egocêntrica."
+        },
+        {
+          "rotulo": "Modelos de embedding & ranking",
+          "definicao": "O modelo que representa e ordena, e não o laço que o usa: embedding, reranker, índice e busca por vizinho aproximado."
         },
         {
           "rotulo": "RAG & recuperação",
-          "definicao": "Buscar trecho num acervo externo e trazê-lo para a janela desta pergunta."
+          "definicao": "O laço que busca trecho num acervo externo e o traz para a janela desta pergunta, incluindo verificar se a fonte sustenta a afirmação."
         },
         {
           "rotulo": "Skills & conhecimento compilado",
           "definicao": "Procedimento destilado em artefato reusável que o sistema carrega quando a tarefa pede, em vez de redescobrir."
-        },
-        {
-          "rotulo": "Verificação de fonte & citação",
-          "definicao": "Amarrar a afirmação ao trecho que a sustenta e checar se a fonte diz mesmo aquilo."
         }
       ]
     },
@@ -65,12 +85,24 @@
           "definicao": "Sintetizar geometria e cena com volume, de que se pode ver outro ângulo."
         },
         {
+          "rotulo": "Edição & restauração de imagem",
+          "definicao": "Transformar uma imagem que já existe, e não sintetizar do zero: edição instruída, personalização de sujeito e identidade, restauração, super-resolução, inpainting e composição."
+        },
+        {
+          "rotulo": "Edição de vídeo",
+          "definicao": "Transformar um vídeo que já existe: edição instruída, remoção e inserção de objeto, restilização e restauração."
+        },
+        {
           "rotulo": "Imagem & difusão",
-          "definicao": "Sintetizar quadro parado, e o processo de difusão que o produz."
+          "definicao": "Sintetizar quadro parado do zero: modelo de difusão e de fluxo, treino de texto-para-imagem, tokenizador e espaço latente, destilação e alinhamento do gerador."
         },
         {
           "rotulo": "Vídeo & animação",
-          "definicao": "Sintetizar sequência com coerência de um quadro para o seguinte, não imagens soltas."
+          "definicao": "Sintetizar sequência com coerência de um quadro para o seguinte: cena cinematográfica, múltiplos planos, humano e avatar, e geração conjunta com áudio."
+        },
+        {
+          "rotulo": "Vídeo longo & streaming",
+          "definicao": "Sustentar a geração além do clipe curto: horizonte longo, geração autorregressiva contínua, memória de cena e latência de tempo real."
         },
         {
           "rotulo": "World models generativos",
@@ -86,6 +118,10 @@
       "rotulo": "Guardrails & controle",
       "definicao": "o que é barrado antes de acontecer",
       "subareas": [
+        {
+          "rotulo": "Ataque & red-teaming",
+          "definicao": "Descobrir a falha antes do adversário: jailbreak, ataque adversarial, backdoor e exercício de red team."
+        },
         {
           "rotulo": "Detecção de alucinação",
           "definicao": "Flagrar a afirmação inventada antes que ela saia como resposta."
@@ -104,7 +140,11 @@
         },
         {
           "rotulo": "Risco & dano",
-          "definicao": "Que estrago o sistema pode causar no mundo, e como medir e limitar essa exposição."
+          "definicao": "Que estrago o sistema pode causar no mundo, e como caracterizar e medir essa exposição: taxonomia de dano, viés, desinformação e benchmark de segurança."
+        },
+        {
+          "rotulo": "Segurança de agente",
+          "definicao": "O risco que só existe quando o modelo age: privilégio de ferramenta, agente de navegador, sandbox e autorização em tempo de execução."
         }
       ]
     },
@@ -117,24 +157,28 @@
           "definicao": "O laço reescreve a si mesmo, prompt ou ferramenta, sem que alguém edite o código."
         },
         {
-          "rotulo": "Elicitação & requisito",
-          "definicao": "Arrancar do humano o que ele quer antes de executar, virando pedido vago em especificação."
-        },
-        {
           "rotulo": "Engenharia de código com agente",
           "definicao": "O agente como programador: lê o repositório, edita arquivo, roda teste e conserta o que quebrou."
         },
         {
           "rotulo": "Laço de execução & trajetória",
-          "definicao": "A sequência de passos de uma execução: quando chamar ferramenta, quando parar, o que reter do que já ocorreu."
+          "definicao": "A sequência de passos de uma execução: quando chamar, quando parar, o que reter, e a elicitação do que o usuário quer antes do primeiro passo."
         },
         {
           "rotulo": "Pesquisa autônoma",
           "definicao": "O agente conduz a investigação inteira, da pergunta ao relatório, sem passo humano no meio."
         },
         {
+          "rotulo": "Runtime & estado do agente",
+          "definicao": "O substrato que executa o agente: estado de sessão, persistência, checkpoint e retomada, e o agente que roda por muito tempo."
+        },
+        {
           "rotulo": "Sistemas multiagente",
           "definicao": "Vários agentes dividindo a tarefa, com o protocolo entre eles como objeto."
+        },
+        {
+          "rotulo": "Uso de ferramenta & orquestração",
+          "definicao": "Escolher a ferramenta, ordenar a chamada e compor o fluxo: seleção de ferramenta, MCP, e o fluxo de trabalho que amarra as chamadas."
         }
       ]
     },
@@ -152,11 +196,7 @@
         },
         {
           "rotulo": "GUI & visão de tela",
-          "definicao": "Ler a tela e agir nela como um usuário: clicar, digitar, navegar pela interface."
-        },
-        {
-          "rotulo": "Vídeo & streaming",
-          "definicao": "Sinal contínuo entendido enquanto chega, e não um arquivo inteiro de uma vez."
+          "definicao": "Ler a tela e agir nela como um usuário: clicar, digitar, navegar pela interface, e o canal visual em tempo real entre humano e sistema."
         }
       ]
     },
@@ -169,12 +209,20 @@
           "definicao": "A correlação superficial que o modelo aprendeu no lugar da regra, e que quebra fora da distribuição."
         },
         {
+          "rotulo": "Direção & edição de ativações",
+          "definicao": "Intervir no que já está lá: steering de ativação, apagamento de conceito, modulação de neurônio e edição do fluxo residual."
+        },
+        {
           "rotulo": "Fidelidade do raciocínio",
           "definicao": "Se o raciocínio exibido é o que produziu a resposta, ou uma narrativa montada depois."
         },
         {
           "rotulo": "Interpretabilidade & sondas",
-          "definicao": "Abrir pesos e ativações para achar onde uma informação mora e o que a move."
+          "definicao": "Abrir pesos e ativações para achar onde uma informação mora: circuito, neurônio, feature, autoencoder esparso e geometria da representação."
+        },
+        {
+          "rotulo": "Monitoramento & atribuição causal",
+          "definicao": "Ler o processo enquanto ele acontece e atribuí-lo a uma causa: monitor de cadeia de raciocínio, calibração de sonda, grafo causal e assinatura de linhagem."
         }
       ]
     },
@@ -191,12 +239,20 @@
           "definicao": "Encolher o modelo, em parâmetros ou em bits, preservando o que ele sabia fazer."
         },
         {
+          "rotulo": "Otimização de política & recompensa verificável",
+          "definicao": "A algorítmica do reforço e o sinal que a alimenta: variante de GRPO ou PPO, atribuição de crédito, entropia e exploração, recompensa verificável, rubrica e verificador."
+        },
+        {
           "rotulo": "Pré-treino & arquitetura",
           "definicao": "A forma da rede e o treino de base que a produziu, antes de qualquer alinhamento."
         },
         {
           "rotulo": "Pós-treino & RL",
-          "definicao": "O que se faz com o modelo já treinado para mudar o comportamento: SFT, recompensa, preferência."
+          "definicao": "A receita de pós-treino em geral, quando o alvo não é agente nem recompensa verificável: SFT, preferência e alinhamento, destilação on-policy, PEFT, aprendizado contínuo e merge."
+        },
+        {
+          "rotulo": "RL agêntico & ambiente de treino",
+          "definicao": "Treina a política de um agente de vários passos: RL multi-turno, síntese de ambiente verificável, RL nativo de harness, e agente de busca, GUI, web ou terminal."
         }
       ]
     },
@@ -204,6 +260,14 @@
       "rotulo": "Percepção & robótica",
       "definicao": "como o sistema lê o mundo físico e age sobre ele",
       "subareas": [
+        {
+          "rotulo": "Dados & treino de política robótica",
+          "definicao": "De onde vem a demonstração e como a política é treinada: vídeo egocêntrico humano, motor de dados, sim-to-real, RL e adaptação entre corpos."
+        },
+        {
+          "rotulo": "Modelo de mundo para ação",
+          "definicao": "O mundo aprendido como peça do controle: prever a dinâmica, imaginar o futuro da ação e avaliar a política contra essa imaginação."
+        },
         {
           "rotulo": "Navegação & mundo físico",
           "definicao": "Deslocar-se num espaço real: mapa, rota, obstáculo, corpo que anda."
@@ -218,7 +282,7 @@
         },
         {
           "rotulo": "VLA & manipulação",
-          "definicao": "Da imagem e da instrução ao comando de atuador: pegar, mover, montar."
+          "definicao": "O modelo visão-linguagem-ação em si e a tarefa de manipulação: arquitetura, decodificação de ação, execução em tempo real, preensão e destreza."
         }
       ]
     },
@@ -228,7 +292,11 @@
       "subareas": [
         {
           "rotulo": "Atenção, kernel & cache",
-          "definicao": "O que a máquina executa por token: núcleo de atenção, cache de chave-valor, memória ocupada."
+          "definicao": "O que a máquina executa por token: núcleo de atenção, atenção esparsa, prefill e decodificação especulativa."
+        },
+        {
+          "rotulo": "Cache KV & compressão de contexto",
+          "definicao": "O que fica guardado entre passos: despejo, compressão e quantização do cache de chave-valor."
         },
         {
           "rotulo": "Escala em tempo de inferência",
@@ -285,6 +353,10 @@
     {
       "rotulo": "Medir",
       "definicao": "cria o instrumento: benchmark, protocolo, métrica, auditoria"
+    },
+    {
+      "rotulo": "Treinar",
+      "definicao": "muda os pesos para a peça ficar melhor: pós-treino, RL, destilação, adaptação com retreino"
     }
   ]
 }
