@@ -16,5 +16,9 @@ ticket; a numeração segue a ordem de dependência.
 01 → 02 → 03 → 04 → 05 → 07 → 08 → 09 → 10; a coleta retroativa é a única ramificação
 que corre por fora.
 
-O ticket **08 é o ponto de decisão humana**: a grade v1 é hipótese, e só a medição do
-ticket 07 diz quais sub-áreas e vertentes sobrevivem.
+A cadeia inteira roda **sem intervenção humana**. O ticket **08 é o ponto em que a
+grade se corrige sozinha**: a v1 é hipótese, e a medição do ticket 07 alimenta as
+regras determinísticas do 08 — ramificar acima de 25% da área, fundir abaixo de 3%,
+absorver vertente abaixo de 2%, promover não-encaixe com oito papers de quórum — que
+dizem quais sub-áreas e vertentes sobrevivem. As travas do 08 impedem que a correção
+reabra o desenho: as dez áreas raiz, os dois eixos e a cardinalidade não se mexem.

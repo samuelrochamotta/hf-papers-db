@@ -268,7 +268,8 @@ Esta é a mudança que ataca a causa raiz. As demais são consequência dela.
 
 ### Operação
 
-Sequência, com dois blocos separados por um ponto de decisão humano:
+Sequência contínua, sem intervenção humana — a correção da grade no passo 5 é
+automática, governada por regras determinísticas:
 
 1. Backup do banco antes de qualquer escrita.
 2. Grade, schema, prompt, código e testes verdes.
@@ -277,10 +278,13 @@ Sequência, com dois blocos separados por um ponto de decisão humano:
    segundo.
 4. Primeira rodada, só Estágio A, sobre a base inteira (~2.600 papers), com
    concorrência 4.
-5. **Ponto de decisão**: medir a massa por sub-área e por vertente. Duas checagens
-   objetivas — nenhuma sub-área acima de ~25% da sua área (falta ramificar), nenhuma
-   vertente abaixo de ~2% (rótulo a absorver). *Adaptar* e *Explicar* são as candidatas
-   a sumir. A grade v2 sai daqui e é apresentada antes de rodar de novo.
+5. **Correção automática**: medir a massa por sub-área e por vertente, e aplicar as
+   regras em uma passada única — ramificar sub-área acima de ~25% da sua área (cada
+   irmã com ao menos 5%), fundir sub-área abaixo de 3% da área ou de 10 papers,
+   absorver vertente abaixo de ~2%, promover família de não-encaixe com oito papers de
+   quórum. *Adaptar* e *Explicar* são as candidatas conhecidas a sumir. Travas: as dez
+   áreas raiz, os dois eixos, a cardinalidade e o piso de seis vertentes não se mexem,
+   e toda alteração cita o número que a motivou.
 6. Segunda rodada com a grade v2, mais o Estágio B nos aprovados retroativos.
 7. Export, diagnóstico, geração do painel.
 

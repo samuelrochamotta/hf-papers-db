@@ -22,6 +22,7 @@ existir, e a informação que carregavam já foi extraída no desenho desta.
       não-encaixe com eixo e justificativa
 - [ ] Os três eixos aceitam a declaração
 - [ ] O registro de não-encaixe é consultável por eixo, para leitura como fila de revisão
-- [ ] O modelo não promove mais rótulo por quórum: a promoção passa a ser ato humano
+- [ ] A promoção sai do ato da classificação: o Estágio A registra o não-encaixe e
+      nunca cria rótulo; quem promove é a revisão da grade, no ticket 08, por quórum
 - [ ] Os 168 candidatos anteriores saem da base
 - [ ] Não-encaixe declarado não impede o paper de receber sua melhor atribuição possível
