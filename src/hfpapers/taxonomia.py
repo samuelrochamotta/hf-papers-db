@@ -190,6 +190,10 @@ def aplicar_classificacao(
     conn.execute("DELETE FROM ponte_paper_vertente WHERE paper_id = ?", (paper_id,))
     conn.execute("DELETE FROM tax_nao_encaixe WHERE paper_id = ?", (paper_id,))
 
+    # Os pares que a validacao de parentesco derrubou, na ordem em que caíram.
+    # Viram fila de revisao depois de `nao_coube`, e nao no lugar dele.
+    rejeitados: list[str] = []
+
     def _par(area: Optional[str], subarea: Optional[str], *, primaria: bool) -> None:
         if not area and not subarea:
             return                       # par secundario nulo e a resposta comum
@@ -197,6 +201,7 @@ def aplicar_classificacao(
             log.warning(
                 "par (area > sub-area) ignorado em %s: %s > %s", paper_id, area, subarea
             )
+            rejeitados.append(f"{area} > {subarea}")
             return
         db.inserir_ignorando(
             conn,
@@ -236,6 +241,7 @@ def aplicar_classificacao(
         )
 
     _registrar_nao_encaixe(conn, paper_id, nao_coube)
+    _registrar_par_rejeitado(conn, paper_id, rejeitados)
 
 
 # ── nao-encaixe ─────────────────────────────────────────────────────────────
@@ -268,6 +274,44 @@ def _registrar_nao_encaixe(
             "paper_id": paper_id,
             "eixo": nao_coube.eixo,
             "justificativa": justificativa,
+            "registrado_em": db.agora(),
+        },
+    )
+
+
+def _registrar_par_rejeitado(
+    conn: sqlite3.Connection, paper_id: str, rejeitados: list[str]
+) -> None:
+    """Enfileira, como nao-encaixe de sub-area, o par que o parentesco derrubou.
+
+    Nem todo par rejeitado e rotulo inventado. A rodada 1 do ticket 07 rejeitou
+    15 pares em 3.166 papers, e eles se concentravam em quatro: o modelo poe
+    'Skills & conhecimento compilado' e 'Benchmark de agente' sob 'Harness &
+    orquestracao', enquanto a grade v1 os pendura em 'Contexto & recuperacao' e
+    'Avaliacao & instrumentacao'. Os dois rotulos existem - o que nao existe e o
+    parentesco entre eles, e decidir de quem a sub-area e filha e trabalho da
+    revisao da grade, nao de quem persiste.
+
+    O eixo e `subarea` porque e essa a pergunta que o par levanta: a area serviu,
+    a sub-area nao coube nela. A justificativa carrega o par tentado - sem ele a
+    fila diria que houve desacordo sem dizer sobre o que, e nao se arbitra isso.
+
+    Roda **depois** de `_registrar_nao_encaixe`, e a ordem e a regra: a tabela
+    guarda um nao-encaixe por paper, e `inserir_ignorando` deixa o primeiro
+    vencer. A constatacao do modelo e dado; a rejeicao de parentesco e
+    inferencia nossa a partir do que ele mandou.
+    """
+    if not rejeitados:
+        return
+    db.inserir_ignorando(
+        conn,
+        "tax_nao_encaixe",
+        {
+            "paper_id": paper_id,
+            "eixo": "subarea",
+            "justificativa": (
+                "par rejeitado pelo parentesco da grade: " + "; ".join(rejeitados)
+            ),
             "registrado_em": db.agora(),
         },
     )

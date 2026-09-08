@@ -19,22 +19,77 @@ execução.
 
 **Bloqueado por:** 05, 06.
 
-**Status:** in progress — desbloqueado por `llm.prazo_total_s` (ver *O que destravou*)
+**Status:** done
 
-- [x] Backup do banco tomado antes da rodada
-- [x] Custo estimado apresentado antes de disparar
-- [ ] Todos os papers da base com área, sub-área e vertente, incluindo os `fora`
-      — a rodada foi abortada com zero chamadas concluídas; a base segue com 212
-- [ ] Uma única rodada, com `run_id` único em toda a triagem
-      — `run-20260908-153226` existe em `log_execucao`, mas sem triagem nenhuma
-- [x] Nenhuma ficha nova gerada nesta etapa — `--so-estagio-a` é a trava, e
-      `dim_ficha` continua com as 184 de antes
-- [ ] Relatório com a distribuição por sub-área e por vertente, e o resultado das duas
-      checagens — o gerador está pronto (`scripts/relatorio_massa.py`); falta a massa
-- [ ] Relatório com a contagem de não-encaixes por eixo — idem
-- [ ] Custo real conferido contra a estimativa de US$ 0,54 — a estimativa foi
-      refeita e é de **US$ 1,23** para 3.166 papers (o prompt da grade facetada
-      dobrou a entrada, de ~2.500 para 4.401 tokens); falta o real
+- [x] Backup do banco tomado antes da rodada — `data/hfpapers.db.pre-t07-20260908-162425`
+- [x] Custo estimado apresentado antes de disparar — US$ 1,23; o real foi US$ 1,2326
+- [x] Todos os papers da base com área, sub-área e vertente, incluindo os `fora`
+      — 3.166 com vertente (100%), 3.163 com par primário (99,9%), nenhum sem
+      faceta. Os 3 restantes têm par secundário e não primário: a primária deles
+      caiu na validação de parentesco, e o desenho do ticket 04 manda preservar a
+      melhor atribuição possível em vez de zerar o paper
+- [x] Uma única rodada, com `run_id` único em toda a triagem — `run-20260908-162429`,
+      3.166 papers. Houve 15 reclassificações pontuais **depois** dela, uma por
+      paper, para repopular a fila de não-encaixe com os pares rejeitados (ver
+      *O par rejeitado virou fila*); elas não alteram a medição da grade
+- [x] Nenhuma ficha nova gerada nesta etapa — `--so-estagio-a` segurou; `dim_ficha`
+      continua com as 176 de antes
+- [x] Relatório com a distribuição por sub-área e por vertente, e o resultado das duas
+      checagens — `docs/relatorio-massa-grade-v1.md`
+- [x] Relatório com a contagem de não-encaixes por eixo — 75 no total (2,4% da base),
+      com a tabela de desacordo de parentesco à parte
+- [x] Custo real conferido contra a estimativa — US$ 1,2326 contra US$ 1,2300, uma
+      diferença de 0,2%. A duração ficou em 0,52 h contra 1,4 h previstas, porque a
+      estimativa usava o ritmo de 36,6 ch/min de antes do `esforco_raciocinio`
+
+## O que a rodada 1 mediu
+
+3.166 papers, 3.169 chamadas, 31 minutos, **zero cortes por prazo**. Latência p50 de
+2,1 s, p90 de 3,3 s, e pior caso de **75,7 s** — abaixo do teto de 90 s, e é o número
+que justifica ter escolhido 90 e não 60: um teto de 60 s teria descartado uma chamada
+legítima. Roteamento: 3.164 no Together, 3 no Wafer (2 truncadas), 2 no DeepInfra.
+
+**Checagem A — nenhuma sub-área acima de ~25% da sua área: FALHA**, 15 acima do teto.
+A pior é *Internos do modelo > Interpretabilidade & sondas* com 80,2%, seguida de
+*Modelo & treino > Pós-treino & RL* com 60,8% e *Percepção & robótica > VLA &
+manipulação* com 53,0%. A v1 foi desenhada sobre 127 títulos e é exatamente isto que
+a medição existia para revelar.
+
+**Checagem B — nenhuma vertente abaixo de ~2%: FALHA**, 1 abaixo do piso.
+*Especificar* ficou com 46 papers (1,5%). As candidatas que o ticket previa eram
+outras: *Adaptar* ficou em 2,3% e *Explicar* em 6,3% — a segunda com folga, o que
+derruba a previsão do desenho. Três vertentes caem na faixa de incerteza de ±3 pontos
+(*Endurecer* 3,3%, *Adaptar* 2,3%, *Especificar* 1,5%), e com ~19% de ruído intrínseco
+isso significa que o ticket 08 decide sobre ruído se tratá-las pelo número seco.
+
+## O par rejeitado virou fila
+
+A massa revelou uma lacuna do ticket 04: o par reprovado na validação de parentesco
+só virava `WARNING` no log. Doze papers ficaram com faceta parcial ou nenhuma sem
+aparecer em consulta alguma — um sinal que só existe no log não é fila de revisão.
+
+E o padrão importava. Dos 15 pares rejeitados, quase todos eram os mesmos quatro, e
+nenhum era rótulo inventado:
+
+| Par que o modelo tentou | onde a grade pendura a sub-área |
+|---|---|
+| Harness & orquestração > Skills & conhecimento compilado | Contexto & recuperação |
+| Harness & orquestração > Benchmark de agente | Avaliação & instrumentação |
+| Percepção & robótica > GUI & visão de tela | Interface & modalidade |
+| Internos do modelo > Pré-treino & arquitetura | Modelo & treino |
+
+Os dois lados existem; o que o modelo recusou foi **de quem a sub-área é filha**. É a
+única entrada da fila que aponta um conserto concreto — mudar o pai, não criar rótulo —
+e o ticket 08 a recebe pronta.
+
+A correção (`_registrar_par_rejeitado`) enfileira o par no eixo `subarea`, com o par
+tentado na justificativa, e roda **depois** de `nao_coube`: a tabela guarda um
+não-encaixe por paper, e a constatação do modelo é dado enquanto a rejeição de
+parentesco é inferência nossa.
+
+Ao reprocessar os 15, só 4 repetiram a rejeição — os outros 11 encaixaram. É mais uma
+medida do ruído de ~19% da grade, e um aviso para o ticket 08: o desacordo de
+parentesco é real, mas sua contagem em uma rodada única subestima a frequência.
 
 ## Rodada 1, tentativa 1 — abortada em 2026-09-08 15:39
 

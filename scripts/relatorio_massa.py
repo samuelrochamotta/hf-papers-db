@@ -96,16 +96,24 @@ def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
     classificados = um("SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_vertente")
 
     nao = q("SELECT eixo, COUNT(*) n FROM tax_nao_encaixe GROUP BY eixo ORDER BY n DESC")
+    # O desacordo de parentesco tem tratamento proprio porque nao e o mesmo
+    # sinal: a area serviu e a sub-area existe - o que nao serviu foi a linha
+    # entre as duas. E a unica entrada da fila que aponta um conserto concreto.
+    parentesco = q("SELECT replace(justificativa, 'par rejeitado pelo parentesco "
+                   "da grade: ', '') par, COUNT(*) n FROM tax_nao_encaixe "
+                   "WHERE justificativa LIKE 'par rejeitado%' GROUP BY par ORDER BY n DESC")
 
     # ── custo e roteamento, estes sim recortados pela rodada ────────────────
     onde, par = ("WHERE run_id=?", (run_id,)) if run_id else ("WHERE 1=1", ())
     uso = q(f"SELECT COUNT(*) n, COALESCE(SUM(custo_usd),0) usd, "
             f"COALESCE(SUM(tokens_entrada),0) tin, COALESCE(SUM(tokens_saida),0) tout, "
             f"COALESCE(SUM(erro IS NOT NULL),0) erros, COALESCE(SUM(erro LIKE '%cortada%'),0) cortadas, "
+            f"COALESCE(SUM(erro LIKE 'ErroPrazo%'),0) prazo, "
             f"COALESCE(strftime('%s',MAX(criado_em))-strftime('%s',MIN(criado_em)),0) seg "
             f"FROM log_llm {onde}", par)[0]
     prov = q(f"SELECT COALESCE(provedor,'(não registrado)') provedor, COUNT(*) n, "
              f"COALESCE(SUM(erro LIKE '%cortada%'),0) cortadas, "
+             f"COALESCE(SUM(erro LIKE 'ErroPrazo%'),0) prazo, "
              f"COALESCE(SUM(erro IS NOT NULL),0) erros, "
              f"ROUND(AVG(latencia_ms)/1000.0,1) lat, ROUND(MAX(latencia_ms)/1000.0,1) pior "
              f"FROM log_llm {onde} AND etapa='estagio_a' GROUP BY 1 ORDER BY n DESC", par)
@@ -203,6 +211,18 @@ def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
     soma = sum(r["n"] for r in nao)
     w(f"| **total** | {soma} | {_pct(soma, total):.1%} |")
     w("")
+    if parentesco:
+        w("### Desacordo de parentesco\n")
+        w("Estes não são rótulos inventados: os dois lados existem na grade, e o")
+        w("que o modelo recusou foi de quem a sub-área é filha. É a entrada da")
+        w("fila que aponta um conserto concreto — mudar o pai, e não criar rótulo.\n")
+        w("| Par que o modelo tentou | papers | onde a grade pendura a sub-área |")
+        w("|---|---:|---|")
+        for r in parentesco:
+            sub = r["par"].split(" > ")[-1]
+            pai = um("SELECT area_pai FROM dim_area WHERE area = ?", (sub,)) or "—"
+            w(f"| {r['par']} | {r['n']} | {pai} |")
+        w("")
 
     w("## 5. Custo real contra a estimativa\n")
     seg = uso["seg"] or 0
@@ -218,15 +238,27 @@ def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
     if uso["n"]:
         w(f"Erros: {uso['erros']}. Respostas cortadas: {uso['cortadas']} "
           f"({_pct(uso['cortadas'], uso['n']):.1%} das chamadas).")
+    if uso["prazo"]:
+        # A chamada abandonada pelo `llm.prazo_total_s` foi cobrada e sai com uso
+        # zero: os tokens vinham na resposta que ninguem leu. O custo real e o da
+        # tabela mais estas - dize-lo aqui evita conciliar a fatura no escuro.
+        w("")
+        w(f"Abandonadas pelo prazo (`llm.prazo_total_s`): {uso['prazo']} "
+          f"({_pct(uso['prazo'], uso['n']):.1%}). **O custo acima as subestima** — "
+          "elas foram cobradas e saíram com uso zero, porque os tokens vinham na "
+          "resposta que nunca foi lida.")
     w("")
 
     w("## 6. Roteamento — por provedor do OpenRouter\n")
     w("Os endpoints do OpenRouter não se comportam igual, e a coluna *pior* é o")
     w("que diz se a rodada aguentou: uma média boa esconde a cauda.\n")
-    w("| Provedor | chamadas | cortadas | erros | latência média (s) | pior (s) |")
-    w("|---|---:|---:|---:|---:|---:|")
+    w("A linha *(não registrado)* concentra as chamadas que morreram antes da")
+    w("resposta — inclusive as abandonadas pelo prazo: quem não respondeu não")
+    w("informou quem era, e atribuí-las a um provedor seria acusar inocente.\n")
+    w("| Provedor | chamadas | cortadas | prazo | erros | latência média (s) | pior (s) |")
+    w("|---|---:|---:|---:|---:|---:|---:|")
     for p in prov:
-        w(f"| {p['provedor']} | {p['n']} | {p['cortadas']} | {p['erros']} "
+        w(f"| {p['provedor']} | {p['n']} | {p['cortadas']} | {p['prazo']} | {p['erros']} "
           f"| {p['lat']} | {p['pior']} |")
     w("")
 

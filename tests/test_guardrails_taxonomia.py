@@ -654,3 +654,88 @@ def test_listar_conta_o_paper_na_area_e_na_subarea(base_facetada):
         "Memória de longo prazo": 1,
         "RAG & recuperação": 1,
     }
+
+
+# ── par rejeitado por parentesco vira fila, nao so aviso ────────────────────
+#
+# A rodada 1 do ticket 07 (3.166 papers) rejeitou 15 pares, e o padrao era um
+# so: o modelo poe 'Skills & conhecimento compilado' e 'Benchmark de agente'
+# sob 'Harness & orquestracao', e a grade v1 os pendura em 'Contexto &
+# recuperacao' e 'Avaliacao & instrumentacao'. Nao e rotulo inventado - e
+# desacordo de parentesco, exatamente o que o ticket 08 precisa arbitrar.
+#
+# Antes disso a rejeicao so virava WARNING, e 12 papers ficaram com faceta
+# parcial ou nenhuma sem aparecer em consulta alguma. Um sinal que so existe no
+# log nao e fila de revisao.
+
+
+def _nao_encaixe(conn, paper_id="2608.00000"):
+    r = conn.execute(
+        "SELECT eixo, justificativa FROM tax_nao_encaixe WHERE paper_id = ?", (paper_id,)
+    ).fetchone()
+    return tuple(r) if r else None
+
+
+def test_par_com_parentesco_errado_entra_na_fila_de_nao_encaixe(base_facetada):
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Fala & áudio",        # filha de Interface & modalidade
+        )
+    eixo, justificativa = _nao_encaixe(base_facetada)
+    assert eixo == "subarea"
+    # O par tentado tem de estar legivel: o ticket 08 decide mudar o parentesco
+    # a partir do que o modelo tentou, e "houve uma rejeicao" nao se arbitra.
+    assert "Contexto & recuperação" in justificativa
+    assert "Fala & áudio" in justificativa
+
+
+def test_declaracao_do_modelo_vence_o_par_rejeitado(base_facetada):
+    """Um nao-encaixe por paper, e a constatacao explicita vale mais.
+
+    A rejeicao de parentesco e inferencia nossa; `nao_coube` e o modelo dizendo
+    que olhou a grade e nao achou lugar. Perder a segunda para a primeira seria
+    trocar o dado pelo palpite.
+    """
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Fala & áudio",
+            nao_coube=taxonomia.NaoEncaixe("vertente", "nenhum verbo descreve o movimento"),
+        )
+    assert _nao_encaixe(base_facetada) == (
+        "vertente", "nenhum verbo descreve o movimento",
+    )
+
+
+def test_par_valido_nao_gera_nao_encaixe(base_facetada):
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Memória de longo prazo",
+        )
+    assert _nao_encaixe(base_facetada) is None
+
+
+def test_par_secundario_nulo_nao_gera_nao_encaixe(base_facetada):
+    """A resposta mais comum do Estagio A e um par secundario vazio.
+
+    Trata-lo como rejeicao encheria a fila de revisao com dois tercos da base e
+    afogaria o sinal de verdade.
+    """
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Memória de longo prazo",
+            area_secundaria=None,
+            subarea_secundaria=None,
+        )
+    assert _nao_encaixe(base_facetada) is None
