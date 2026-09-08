@@ -131,6 +131,27 @@ def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
     }]
 
 
+def test_dim_area_leva_o_pai_ao_parquet(conn, cfg):
+    """Sem `area_pai` a dimensao chega ao Power BI como 74 rotulos planos: nao ha
+    como saber qual e area raiz e qual e sub-area, nem de quem cada sub-area e
+    filha. A hierarquia por auto-referencia so existe se a coluna atravessar."""
+    _semear(conn)
+    with db.transacao(conn):
+        db.upsert_area(conn, {"area": "Contexto & recuperação", "definicao": "d"})
+        db.upsert_area(
+            conn,
+            {"area": "Memória de longo prazo", "definicao": "d",
+             "area_pai": "Contexto & recuperação"},
+        )
+    export.rodar(conn, cfg, hoje=HOJE)
+
+    areas = pq.read_table(cfg.dir_marts / "dim_area.parquet").to_pylist()
+    assert {a["area"]: a["area_pai"] for a in areas} == {
+        "Contexto & recuperação": None,
+        "Memória de longo prazo": "Contexto & recuperação",
+    }
+
+
 def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
     """User story 27: sem a ordem no Parquet o analista nao separa a dominante
     da secundaria, e as duas viram a mesma medida."""

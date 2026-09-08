@@ -367,8 +367,17 @@ def _simples(conn: sqlite3.Connection, tabela: str, schema: pa.Schema) -> tuple[
 
 
 _SCHEMAS_SIMPLES = {
+    # `area_pai` e o que faz a dimensao ser hierarquica: sem ela os dois niveis
+    # chegam ao Power BI como uma lista plana de rotulos, sem dizer qual e area
+    # raiz (pai nulo) nem de quem cada sub-area e filha. `_escrever` monta as
+    # colunas a partir dos nomes do schema, entao coluna fora daqui nao sai.
     "dim_area": pa.schema(
-        [("area", pa.string()), ("definicao", pa.string()), ("desde", pa.string())]
+        [
+            ("area", pa.string()),
+            ("area_pai", pa.string()),
+            ("definicao", pa.string()),
+            ("desde", pa.string()),
+        ]
     ),
     "dim_vertente": pa.schema(
         [("vertente", pa.string()), ("definicao", pa.string()), ("desde", pa.string())]

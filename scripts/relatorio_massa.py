@@ -120,8 +120,12 @@ def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
 
     o: list[str] = []
     w = o.append
-    w("# Relatório de massa — grade v1 (ticket 07, rodada 1)\n")
-    w(f"- **Rodada**: `{run_id or '(log inteiro)'}` — Estágio A apenas, concorrência 4")
+    # O título não cita versão da grade nem número de rodada: o script não tem
+    # como saber nem uma coisa nem outra, e o texto fixo da v1 saiu carimbado no
+    # relatório da rodada 2, dizendo "grade v1" sobre a medição da v2. Quem
+    # nomeia a versão é o arquivo de saída.
+    w("# Relatório de massa da grade facetada\n")
+    w(f"- **Rodada**: `{run_id or '(log inteiro)'}`")
     w(f"- **Base**: {total} papers")
     w("- **Checagens**: `docs/spec-taxonomia-facetada.md`, seção *Operação*, passo 5\n")
 
