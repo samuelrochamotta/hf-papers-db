@@ -4,11 +4,11 @@
 > já não o reproduz: as fusões da regra 2 do ticket 08 reescreveram a ponte de
 > área. `scripts/relatorio_massa.py` grava neste caminho por **padrão**, em
 > silêncio — sempre passe o arquivo de destino como segundo argumento. A medição
-> vigente é `relatorio-massa-grade-v2.md`.
+> vigente é `docs/relatorios/massa-grade-v2.md`.
 
 - **Rodada**: `run-20260908-162429` — Estágio A apenas, concorrência 4
 - **Base**: 3166 papers
-- **Checagens**: `docs/spec-taxonomia-facetada.md`, seção *Operação*, passo 5
+- **Checagens**: `docs/specs/taxonomia-facetada.md`, seção *Operação*, passo 5
 
 ## 1. Cobertura
 

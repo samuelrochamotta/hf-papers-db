@@ -15,9 +15,10 @@ O arquivo de saida e obrigatorio, e nao por rigor: o default apontava para o
 relatorio da v1, e rodar o script sem ele apagava a medicao que justifica as
 fusoes ja feitas.
 
-A saida vai para `docs/` de proposito: `relatorios/` nao e versionado (so o
-`painel.html` escapa do `.gitignore`), e este relatorio e entrada do proximo
-ticket, nao artefato de leitura descartavel.
+A saida vai para `docs/relatorios/` de proposito, e nao para o `relatorios/` da
+raiz: aquele nao e versionado (so o `painel.html` escapa do `.gitignore`) e
+guarda artefato de leitura descartavel, enquanto este relatorio e entrada do
+proximo ticket.
 
 Duas leituras do denominador, e as duas aparecem porque respondem a perguntas
 diferentes: a sub-area e medida **dentro da sua area** (e ali que a regra de
@@ -159,7 +160,7 @@ def gerar(
     w("# Relatório de massa da grade facetada\n")
     w(f"- **Rodada**: `{run_id or '(log inteiro)'}`")
     w(f"- **Base**: {total} papers")
-    w("- **Checagens**: `docs/spec-taxonomia-facetada.md`, seção *Operação*, passo 5\n")
+    w("- **Checagens**: `docs/specs/taxonomia-facetada.md`, seção *Operação*, passo 5\n")
 
     w("## 1. Cobertura\n")
     w("| | papers | % da base |")
@@ -365,7 +366,7 @@ def gerar(
 
 def main() -> None:
     # O arquivo de saida e **obrigatorio**, e nao tem default. O default era
-    # `docs/relatorio-massa-grade-v1.md`, entao rodar o script sem o segundo
+    # `docs/relatorios/massa-grade-v1.md`, entao rodar o script sem o segundo
     # argumento sobrescrevia em silencio o relatorio da v1 - que e a evidencia
     # que justifica cada fusao do ticket 08. Um instrumento de medicao nao pode
     # ter, no caminho mais curto, o apagamento da medicao anterior.

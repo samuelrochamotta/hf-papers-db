@@ -25,13 +25,13 @@ candidata —, o registro dessa mudança de rumo vale um ADR próprio.
       a seção *Taxonomia*, com Grade, Faceta, Área/sub-área, Par, Vertente e
       Não-encaixe no formato do glossário
 - [x] A spec marcada como implementada, com custo e tempo reais medidos —
-      `spec-taxonomia-facetada.md` sai de `proposta` para **implementada em
+      `docs/specs/taxonomia-facetada.md` sai de `proposta` para **implementada em
       2026-09-08**, com a tabela de previsto contra medido no cabeçalho: base 3.166
       (previa ~2.600), 64 sub-áreas (previa ~45), 10 vertentes (previa 9 e a perda de
       duas), **US$ 3,30 de fatura** (previa ~US$ 1,35) e **1,54 h de máquina** (previa
       ~3 h)
 - [x] A distribuição final por área, sub-área e vertente registrada —
-      `relatorio-massa-grade-v2.md` é a medição completa e continua sendo a fonte; o
+      `docs/relatorios/massa-grade-v2.md` é a medição completa e continua sendo a fonte; o
       README ganha o retrato de leitura (cobertura, áreas maiores, vertentes maiores,
       fila de revisão) e o resultado das duas checagens, que **falham** e estão
       registradas como pendência do ADR 002
@@ -56,7 +56,7 @@ candidata —, o registro dessa mudança de rumo vale um ADR próprio.
 
 ## O ADR que a rodada 1 tornou devido
 
-`docs/adr-002-a-lista-de-vertentes.md`. A lista de nove vertentes caiu, e de forma
+`docs/adr/002-a-lista-de-vertentes.md`. A lista de nove vertentes caiu, e de forma
 que o desenho não previu: ele esperava **perder** *Adaptar* e *Explicar*, e a grade
 **ganhou** `Treinar`. *Explicar* ficou em 6,3% na v1, com folga; quem reprovou foi
 *Especificar* (1,5%), que a spec não cita. O ADR registra os três achados — a previsão

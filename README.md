@@ -164,7 +164,7 @@ horas em chamada sequencial é a varredura da base inteira; a rodada diária sã
 na ordem original dos papers, então `--concorrencia 4` termina com o banco
 idêntico ao de `--concorrencia 1` **na rodada que completa**. Valor fora da faixa
 1–8 é cortado com aviso, não recusado (o porquê do teto está no
-`docs/adr-001-fora-de-escopo-do-mapa.md`).
+`docs/adr/001-fora-de-escopo-do-mapa.md`).
 
 A ressalva importa porque a rodada total dura horas e pode cair no meio: **a
 varredura que estoura não é equivalente**. Os workers vão adiante da thread
@@ -634,7 +634,7 @@ lote de 25/08 — a operação diária é organizada pela segunda.
 ### A taxonomia facetada
 
 Dois eixos ortogonais, e nenhuma coordenada é dedutível da outra. Spec em
-`docs/spec-taxonomia-facetada.md`, implementada em 08/09/2026.
+`docs/specs/taxonomia-facetada.md`, implementada em 08/09/2026.
 
 - **ÁREA — em que peça do sistema o trabalho mexe.** Hierárquica em dois níveis:
   uma área raiz e uma sub-área sob ela.
@@ -662,7 +662,7 @@ Três decisões de schema, todas em `src/hfpapers/schema.sql`:
 **A grade vigente** (`config/taxonomia_inicial.json`, recarregável com
 `taxonomia carregar`): **10 áreas raiz, 64 sub-áreas, 10 vertentes**. As dez
 áreas nasceram do desenho e não se mexeram; as 64 sub-áreas e a décima vertente
-saíram de medição, não de leitura de título — `docs/grade-v2-resumo.md` conta a
+saíram de medição, não de leitura de título — `docs/relatorios/grade-v2-resumo.md` conta a
 passagem da v1 para a v2, rótulo a rótulo.
 
 ```
@@ -679,12 +679,12 @@ Escalar ....... faz funcionar maior: horizonte, contexto, número de agentes
 ```
 
 `Treinar` é a décima, e a razão de ela existir está em
-`docs/adr-002-a-lista-de-vertentes.md`: o desenho previa que a lista **perderia**
+`docs/adr/002-a-lista-de-vertentes.md`: o desenho previa que a lista **perderia**
 duas vertentes e ela ganhou uma.
 
 #### O que a grade mede hoje
 
-Medição completa em `docs/relatorio-massa-grade-v2.md`
+Medição completa em `docs/relatorios/massa-grade-v2.md`
 (`run-20260908-173724`, 3.166 papers). O retrato:
 
 | | |
@@ -716,11 +716,11 @@ que impede tratar qualquer rótulo a poucos pontos de um limiar pelo valor seco.
 
 ```bash
 # O arquivo de saída é obrigatório: o script recusa rodar sem ele. Tinha
-# default para docs/relatorio-massa-grade-v1.md e sobrescrevia em silêncio o
+# default para docs/relatorios/massa-grade-v1.md e sobrescrevia em silêncio o
 # relatório da v1 — a causa registrada da grade v2, que o banco de hoje já não
 # reproduz. `-` no lugar do run_id usa o log inteiro.
 /opt/miniconda3/envs/digest-hf/bin/python scripts/relatorio_massa.py \
-    run-AAAAMMDD-HHMMSS docs/relatorio-massa-grade-v3.md
+    run-AAAAMMDD-HHMMSS docs/relatorios/massa-grade-v3.md
 ```
 
 O relatório traz cobertura, distribuição por área e sub-área com o veredito de
@@ -799,7 +799,7 @@ Seis coisas novas, todas já nos Parquet de `marts/`:
   fecha a rodada é o `run_id` único em toda a `fato_triagem`.
 
 Não há `.pbix` no repositório: o Power BI lê os Parquet e o modelo vive fora do
-git (`docs/adr-001-fora-de-escopo-do-mapa.md`, decisão 2). Estas colunas são o
+git (`docs/adr/001-fora-de-escopo-do-mapa.md`, decisão 2). Estas colunas são o
 contrato; montar as visuais é trabalho manual no Desktop.
 
 ## Refresh escalonado
@@ -939,11 +939,17 @@ scripts/
 └── relatorio_massa.py    mede a grade: distribuição, checagens A e B, roteamento
 prompts/            regras versionadas
 config/             taxonomia_inicial.json — a grade vigente, recarregável
-docs/               specs, ADRs, relatórios de massa e os tickets
+docs/               índice em docs/README.md
+├── adr/            decisões, uma por arquivo, numeradas
+├── specs/          desenhos entregues — não se reescrevem depois
+├── relatorios/     medições da base (relatorio_massa.py), uma por rodada
+└── tickets/        a spec quebrada em fatias, uma subpasta por spec
 marts/              ← o Power BI aponta para cá
 relatorios/         artefatos de leitura: painel.html
 data/               o banco SQLite
 ```
 
 `relatorios/`, `marts/`, `data/` e `logs/` não são versionados. A diferença entre
-eles: `relatorios/` e `marts/` regeneram do banco; `data/` **é** a fonte.
+eles: `relatorios/` e `marts/` regeneram do banco; `data/` **é** a fonte. O
+`docs/relatorios/` é outra coisa e **é** versionado: cada medição de lá é a causa
+registrada de uma mudança na grade, e não se regenera.

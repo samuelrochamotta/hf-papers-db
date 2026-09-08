@@ -2,12 +2,12 @@
 
 - **Data**: 2026-09-05
 - **Estado**: aceito
-- **Contexto**: seção 8 da `spec-mesmo-pipeline-e-painel.md`
+- **Contexto**: seção 8 da `docs/specs/mesmo-pipeline-e-painel.md`
 
 > **Nota de 08/09/2026, sem alterar o texto abaixo.** A decisão 3 cita
 > `registrar_candidato` para explicar por que a escrita no banco segue na ordem
 > original dos papers. Esse mecanismo deixou de existir com a taxonomia facetada
-> (`spec-taxonomia-facetada.md`): a classificação não promove mais rótulo
+> (`docs/specs/taxonomia-facetada.md`): a classificação não promove mais rótulo
 > nenhum, e o que ela grava é o não-encaixe em `tax_nao_encaixe`. **A decisão
 > continua valendo e a razão também** — a ordem de escrita ainda é determinística
 > por desenho, e agora o exemplo é a ponte de área. O princípio da decisão 1

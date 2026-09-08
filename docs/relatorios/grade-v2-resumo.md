@@ -1,13 +1,13 @@
 # Grade v2 — o que mudou, rótulo a rótulo
 
-- **Origem**: `relatorio-massa-grade-v1.md`, rodada `run-20260908-162429`, 3.166 papers
-- **Regras**: `tickets-taxonomia-facetada/08-grade-v2.md`, aplicadas em passada única, 1 → 4
+- **Origem**: `docs/relatorios/massa-grade-v1.md`, rodada `run-20260908-162429`, 3.166 papers
+- **Regras**: `docs/tickets/taxonomia-facetada/08-grade-v2.md`, aplicadas em passada única, 1 → 4
 - **Resultado**: 10 áreas raiz (intactas), **64 sub-áreas** (eram 47), **10 vertentes** (eram 9)
 
 Toda linha abaixo cita o número do relatório que a motivou. Onde a regra mandava mexer
 e não se mexeu, a razão está registrada — nenhuma linha fica sem causa nem sem decisão.
 
-> **Não regenere `relatorio-massa-grade-v1.md`.** As quatro fusões da regra 2 reescreveram
+> **Não regenere `docs/relatorios/massa-grade-v1.md`.** As quatro fusões da regra 2 reescreveram
 > a ponte de área, então o banco já não reproduz aquele relatório — e
 > `scripts/relatorio_massa.py` grava naquele caminho por padrão, em silêncio. O relatório
 > v1 é a medição que motivou esta grade; sobrescrevê-lo apaga a causa das mudanças. A

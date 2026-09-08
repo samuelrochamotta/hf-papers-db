@@ -3,15 +3,15 @@
 - **Data**: 2026-09-07
 - **Estado**: **implementada** em 2026-09-08 (tickets 01 a 10)
 - **Precede**: reescrita da classificação do Estágio A
-- **Respeita**: `adr-001-fora-de-escopo-do-mapa.md` (uma fonte de verdade por decisão)
-- **Corrigida por**: `adr-002-a-lista-de-vertentes.md` (a lista de nove verbos virou dez)
+- **Respeita**: `docs/adr/001-fora-de-escopo-do-mapa.md` (uma fonte de verdade por decisão)
+- **Corrigida por**: `docs/adr/002-a-lista-de-vertentes.md` (a lista de nove verbos virou dez)
 
 > **Leitura desta spec, agora que ela foi executada.** O texto abaixo está como
 > foi escrito em 07/09, e o *Problem Statement* descreve a grade de tópicos que
 > deixou de existir — é a causa registrada, não uma descrição do sistema atual.
 > Onde o desenho foi derrubado pela medição, a nota está no ponto. O estado
 > atual do sistema está no README (seção *A taxonomia facetada*); a medição
-> vigente, em `relatorio-massa-grade-v2.md`.
+> vigente, em `docs/relatorios/massa-grade-v2.md`.
 >
 > **O que a execução mudou em relação ao que esta spec previa:**
 >
@@ -30,7 +30,7 @@
 > - **eixo ÁREA** — 6 sub-áreas acima de 25% (eram 15 na v1, e uma sétima ficou
 >   exatamente em 25,0%). Quatro delas sem razão registrada, e a razão de uma
 >   quinta foi escrita sobre uma estimativa que errou por 22 pontos. A pendência
->   é de `docs/tickets-taxonomia-facetada/08-grade-v2.md`, seção *Por que a
+>   é de `docs/tickets/taxonomia-facetada/08-grade-v2.md`, seção *Por que a
 >   checagem A ficou aberta*.
 > - **eixo VERTENTE** — 2 vertentes abaixo de 2% (*Adaptar* 1,2%, *Especificar*
 >   1,1%). A pendência é do ADR 002, que cobre só este eixo.

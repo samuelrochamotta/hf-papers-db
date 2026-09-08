@@ -10,7 +10,7 @@ sem regra, 5 pendentes. Modelo `qwen/qwen3.8-flash` nos dois estágios.
 
 > **O vocabulário desta spec foi substituído em 08/09/2026.** Onde se lê
 > *tópico*, `dim_topico` ou `ponte_paper_topico`, o sistema atual tem a
-> **taxonomia facetada** de `spec-taxonomia-facetada.md`: área hierárquica
+> **taxonomia facetada** de `docs/specs/taxonomia-facetada.md`: área hierárquica
 > (`dim_area` com `area_pai`) e vertente (`dim_vertente`, com `ordem` na ponte).
 > A grade de tópicos foi removida do banco, não versionada.
 >
@@ -274,7 +274,7 @@ deixou de estar fora de escopo.
   242 linhas com `revisao = 0`, 224 com 1, 9 com 2, 2 com 3.
 - **§8 — "concorrência no estágio 3" foi revogada.** O item saiu de fora de
   escopo e foi implementado; a decisão está no
-  `docs/adr-001-fora-de-escopo-do-mapa.md` (decisão 3), que também mantém fora
+  `docs/adr/001-fora-de-escopo-do-mapa.md` (decisão 3), que também mantém fora
   os outros dois itens da §8.
 
 ### 9.1 Execução da §3 (07/09/2026)

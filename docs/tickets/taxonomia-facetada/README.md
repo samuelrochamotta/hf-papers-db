@@ -1,6 +1,6 @@
 # Tickets — Taxonomia facetada
 
-Quebra de `../spec-taxonomia-facetada.md` em fatias verticais. Cada arquivo é um
+Quebra de `docs/specs/taxonomia-facetada.md` em fatias verticais. Cada arquivo é um
 ticket; a numeração segue a ordem de dependência.
 
 ```

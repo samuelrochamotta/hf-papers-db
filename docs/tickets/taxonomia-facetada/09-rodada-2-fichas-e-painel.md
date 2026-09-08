@@ -59,7 +59,7 @@ Estágio B foi muito maior que os "cerca de 525" do texto: quem chega lá é tod
 do Estágio A, não só o aprovado retroativo, e foram 1.093 fichas gravadas contra as 176
 que a base tinha.
 
-**Medição da rodada 2:** `docs/relatorio-massa-grade-v2.md`. As duas checagens continuam
+**Medição da rodada 2:** `docs/relatorios/massa-grade-v2.md`. As duas checagens continuam
 falhando, com números melhores e um deslocamento novo: a checagem A caiu de 15 para 7
 sub-áreas acima de 25%, e a checagem B trocou de réu — *Especificar* piorou de 1,5% para
 **1,1%** e *Adaptar*, que a v1 media em 2,3%, caiu para **1,2%**. As duas perderam massa

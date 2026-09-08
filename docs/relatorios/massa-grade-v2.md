@@ -2,7 +2,7 @@
 
 - **Rodada**: `run-20260908-173724`
 - **Base**: 3166 papers
-- **Checagens**: `docs/spec-taxonomia-facetada.md`, seção *Operação*, passo 5
+- **Checagens**: `docs/specs/taxonomia-facetada.md`, seção *Operação*, passo 5
 
 ## 1. Cobertura
 

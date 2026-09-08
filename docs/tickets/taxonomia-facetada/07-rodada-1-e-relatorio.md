@@ -35,7 +35,7 @@ execução.
 - [x] Nenhuma ficha nova gerada nesta etapa — `--so-estagio-a` segurou; `dim_ficha`
       continua com as 176 de antes
 - [x] Relatório com a distribuição por sub-área e por vertente, e o resultado das duas
-      checagens — `docs/relatorio-massa-grade-v1.md`
+      checagens — `docs/relatorios/massa-grade-v1.md`
 - [x] Relatório com a contagem de não-encaixes por eixo — 75 no total (2,4% da base),
       com a tabela de desacordo de parentesco à parte
 - [x] Custo real conferido contra a estimativa — US$ 1,2326 contra US$ 1,2300, uma

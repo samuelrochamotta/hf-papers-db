@@ -2,7 +2,7 @@
 
 - **Data**: 2026-09-08
 - **Estado**: aceito
-- **Contexto**: `spec-taxonomia-facetada.md`, seção *Further Notes*; tickets 07, 08 e 09
+- **Contexto**: `docs/specs/taxonomia-facetada.md`, seção *Further Notes*; tickets 07, 08 e 09
 - **Substitui**: a lista de nove vertentes fixada na seção *A grade* da spec
 
 ## Contexto

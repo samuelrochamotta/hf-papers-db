@@ -43,7 +43,7 @@ substituindo.
 *Especificar* (ver *Por que a regra 3 ficou parada*), e a checagem A continua
 reprovando em seis sub-áreas (ver *Por que a checagem A ficou aberta*)
 
-- [x] Cada ajuste registra o número do relatório que o motivou — `docs/grade-v2-resumo.md`
+- [x] Cada ajuste registra o número do relatório que o motivou — `docs/relatorios/grade-v2-resumo.md`
 - [ ] Nenhuma sub-área da v2 acima de 25% da sua área, ou o caso está registrado com a
       razão pela qual a divisão foi rejeitada — **não cumprido**: a v2 medida tem **seis
       sub-áreas acima do teto**, e **quatro delas não têm razão registrada** (*VLA &
@@ -75,7 +75,7 @@ reprovando em seis sub-áreas (ver *Por que a checagem A ficou aberta*)
       10 vertentes; a ida e volta é o que `test_arquivo_versionado_povoa_banco_vazio`
       afirma
 - [x] Um resumo do que mudou entre v1 e v2, rótulo a rótulo, deixado para leitura —
-      `docs/grade-v2-resumo.md`
+      `docs/relatorios/grade-v2-resumo.md`
 
 ## Por que a regra 3 ficou parada
 
@@ -103,7 +103,7 @@ diluído por uma segunda medição, ela é absorvida sem mais discussão.
 ## Por que a checagem A ficou aberta
 
 Esta é a pendência do eixo **ÁREA**, análoga à da vertente logo acima, e é para cá que
-`docs/spec-taxonomia-facetada.md` aponta quem procura por ela. O ADR 002 cobre só as
+`docs/specs/taxonomia-facetada.md` aponta quem procura por ela. O ADR 002 cobre só as
 vertentes.
 
 A v2 corrigiu a checagem A pela metade: eram 15 sub-áreas acima de 25% na v1, são
@@ -151,7 +151,7 @@ Projeção para a rodada 2 sobre 3.166 papers, a partir do custo real da rodada 
 22% acima. A estimativa de US$ 0,54 que consta do ticket 09 é da grade antiga e está
 obsoleta por um fator de quase três.
 
-`docs/grade-v2-resumo.md` mede o mesmo crescimento como 13.579 → 17.532 caracteres.
+`docs/relatorios/grade-v2-resumo.md` mede o mesmo crescimento como 13.579 → 17.532 caracteres.
 **As duas medições estão certas**: o delta é 3.953 caracteres nas duas, e o que muda
 é o denominador — o prompt renderizado inclui o paper, e cada medição usou um
 abstract de tamanho diferente. O número comparável entre grades é o delta; o
