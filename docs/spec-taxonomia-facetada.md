@@ -24,10 +24,16 @@
 > | tempo de máquina | ~3 h | **1,54 h** (31 min + 61,5 min, concorrência 4) |
 > | par secundário | ~20% dos aprovados | **18,5% da base inteira** |
 >
-> As duas checagens objetivas do passo 5 da *Operação* **falham na v2**, e isso
-> está registrado, não esquecido: 7 sub-áreas acima de 25% (eram 15) e 2
-> vertentes abaixo de 2% (*Adaptar* 1,2%, *Especificar* 1,1%). A pendência é do
-> ADR 002.
+> As duas checagens objetivas do passo 5 da *Operação* **falham na v2**, e cada
+> uma tem o seu próprio registro — não o mesmo:
+>
+> - **eixo ÁREA** — 6 sub-áreas acima de 25% (eram 15 na v1, e uma sétima ficou
+>   exatamente em 25,0%). Quatro delas sem razão registrada, e a razão de uma
+>   quinta foi escrita sobre uma estimativa que errou por 22 pontos. A pendência
+>   é de `docs/tickets-taxonomia-facetada/08-grade-v2.md`, seção *Por que a
+>   checagem A ficou aberta*.
+> - **eixo VERTENTE** — 2 vertentes abaixo de 2% (*Adaptar* 1,2%, *Especificar*
+>   1,1%). A pendência é do ADR 002, que cobre só este eixo.
 
 ## Problem Statement
 

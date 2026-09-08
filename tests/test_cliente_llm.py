@@ -266,7 +266,7 @@ def test_corpo_de_erro_sem_choices_e_registrado_em_log_llm(cfg, conn):
     )
     with pytest.raises(ErroLLM):
         _chamar(c)
-    c.drenar_registros(conn)
+    c.drenar_registros()
     erros = [
         r["erro"]
         for r in conn.execute("SELECT erro FROM log_llm WHERE erro IS NOT NULL")
@@ -311,7 +311,7 @@ def _cliente_com_provedor(cfg, conn, provedor, respostas=None):
 def test_provedor_que_atendeu_e_registrado(cfg, conn):
     c = _cliente_com_provedor(cfg, conn, "Together")
     _chamar(c)
-    c.drenar_registros(conn)
+    c.drenar_registros()
     assert conn.execute("SELECT provedor FROM log_llm").fetchone()["provedor"] == "Together"
 
 
@@ -325,7 +325,7 @@ def test_provedor_ausente_nao_quebra_o_registro(cfg, conn):
         conn=conn,
     )
     _chamar(c)
-    c.drenar_registros(conn)
+    c.drenar_registros()
     assert conn.execute("SELECT provedor FROM log_llm").fetchone()["provedor"] is None
 
 
@@ -337,7 +337,7 @@ def test_provedor_e_registrado_tambem_quando_a_chamada_falha(cfg, conn):
     c = _cliente_com_provedor(cfg, conn, "Wafer", respostas=[('{"a"', "length")] * 3)
     with pytest.raises(ErroLLM):
         _chamar(c)
-    c.drenar_registros(conn)
+    c.drenar_registros()
     provedores = [r["provedor"] for r in conn.execute("SELECT provedor FROM log_llm")]
     assert provedores == ["Wafer", "Wafer", "Wafer"]
 
@@ -406,12 +406,62 @@ def _cliente_lento(cfg, atrasos, *, conn=None, respostas=None, n=3):
     )
 
 
-def test_chamada_que_passa_do_prazo_e_abandonada(cfg):
+def test_chamada_que_passa_do_prazo_e_abandonada(cfg, conn):
+    """Duas afirmacoes, e as duas precisam ser diretas.
+
+    **A causa e `ErroPrazo`**, e nao qualquer `ErroLLM`: a versao anterior deste
+    teste aceitava `"prazo" in str(e.value)`, e a mensagem de `ErroPrazo` sempre
+    contem "prazo" - o teste passava mesmo com o teto desligado, desde que algum
+    erro subisse. Quem carrega o nome da classe e a linha de `log_llm`.
+
+    **E a chamada foi abandonada antes do tempo do duble**: tres tentativas de
+    5 s cada dao 15 s se ninguem desistir, e o teto de 0,05 s tem de fechar tudo
+    numa fracao disso. Sem esta medida o teste nao distingue "abandonou" de
+    "esperou e falhou por outro motivo".
+    """
     cfg.llm.prazo_total_s = 0.05
-    c = _cliente_lento(cfg, [5.0] * 3)
+    c = _cliente_lento(cfg, [5.0] * 3, conn=conn)
+
+    t0 = time.monotonic()
     with pytest.raises(ErroLLM) as e:
         _chamar(c)
-    assert "0,05" in str(e.value).replace(".", ",") or "prazo" in str(e.value)
+    decorrido = time.monotonic() - t0
+
+    c.drenar_registros()
+    erros = [r["erro"] for r in conn.execute("SELECT erro FROM log_llm ORDER BY id")]
+    assert all(x.startswith("ErroPrazo:") for x in erros)
+    assert "0,05" in str(e.value).replace(".", ",")
+    assert decorrido < 5.0
+
+
+def test_a_linha_do_corte_sai_com_uso_zero(cfg, conn):
+    """A consequencia contabil do abandono, que a documentacao afirma em quatro
+    lugares e nenhum teste protegia: a chamada abandonada **foi cobrada** e sai
+    de `log_llm` com token e custo zerados, porque a resposta que traria os
+    numeros nunca foi lida.
+
+    E por isso que o relatorio de massa diz que o custo subestima as abandonadas
+    e manda conta-las pelo `erro LIKE 'ErroPrazo%'`. Se um dia a linha do corte
+    passar a trazer uso, e a conciliacao da fatura que muda - e ela precisa
+    saber disso por aqui, e nao pela diferenca inexplicada no fim do mes.
+    """
+    cfg.llm.prazo_total_s = 0.05
+    c = _cliente_lento(cfg, [5.0] * 3, conn=conn)
+    with pytest.raises(ErroLLM):
+        _chamar(c)
+
+    c.drenar_registros()
+    linhas = [
+        (r["tokens_entrada"], r["tokens_saida"], r["custo_usd"])
+        for r in conn.execute(
+            "SELECT tokens_entrada, tokens_saida, custo_usd FROM log_llm "
+            "WHERE erro LIKE 'ErroPrazo%' ORDER BY id"
+        )
+    ]
+    assert linhas == [(0, 0, 0.0)] * 3
+    # E o contador do cliente tambem: o que nao foi lido nao entra na conta da
+    # rodada, que e o numero que o operador ve no fim.
+    assert (c.uso.tokens_entrada, c.uso.tokens_saida, c.uso.custo_usd) == (0, 0, 0.0)
 
 
 def test_chamada_dentro_do_prazo_passa_intacta(cfg):
@@ -438,7 +488,7 @@ def test_prazo_estourado_e_registrado_em_log_llm(cfg, conn):
     c = _cliente_lento(cfg, [5.0] * 3, conn=conn)
     with pytest.raises(ErroLLM):
         _chamar(c)
-    c.drenar_registros(conn)
+    c.drenar_registros()
     erros = [r["erro"] for r in conn.execute("SELECT erro FROM log_llm WHERE erro IS NOT NULL")]
     assert len(erros) == 3
     assert all("ErroPrazo" in e for e in erros)

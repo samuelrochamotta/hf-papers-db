@@ -215,9 +215,17 @@ apoiada no menor número do relatório. Ficam registrados.
 O prompt do Estágio A carrega a grade inteira, e ela cresceu de 47 para 64 sub-áreas: o
 prompt passou de **13.579 para 17.532 caracteres**, cerca de **mil tokens de entrada a
 mais por chamada**. A rodada 1 gastou 13,9 M de tokens de entrada em 3.169 chamadas
-(seção 5 do relatório), ou ~4.400 por chamada — o acréscimo é de **~23% na entrada**. A
-estimativa de custo do ticket 09 foi feita sobre o prompt da v1 e precisa subir na mesma
-proporção.
+(seção 5 do relatório), ou ~4.400 por chamada — o acréscimo previsto era de **~23% na
+entrada**. A estimativa de custo do ticket 09 foi feita sobre o prompt da v1 e precisa
+subir na mesma proporção.
+
+**Medido depois, na rodada 2:** o acréscimo real foi de **+25,3%**, de 4.398 para 5.509
+tokens de entrada por chamada (`log_llm`, `etapa='estagio_a'`: `run-20260908-162429` com
+13.936.996 tokens em 3.169 chamadas, `run-20260908-173724` com 17.472.948 em 3.172). Os
+~23% eram a conta de mil tokens sobre 4.400, feita antes de a rodada existir; o número
+comparável hoje é o medido. O README (~26%) e o ticket 08 (+26,7%) medem o mesmo
+crescimento pelo texto do prompt renderizado, e não pelos tokens cobrados — os três são
+leituras diferentes do mesmo salto.
 
 ## O que a rodada 2 precisa remedir
 

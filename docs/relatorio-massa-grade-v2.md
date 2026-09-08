@@ -8,10 +8,11 @@
 
 | | papers | % da base |
 |---|---:|---:|
-| com par primário (área > sub-área) | 3158 | 99.7% |
-| com par secundário | 587 | 18.5% |
+| com par primário (área > sub-área) | 3162 | 99.9% |
+| com par secundário | 583 | 18.4% |
 | com ao menos uma vertente | 3166 | 100.0% |
 | com duas vertentes | 680 | 21.5% |
+| com par, sem primária | 0 | 0.0% |
 | **sem faceta nenhuma** | 4 | 0.1% |
 
 ## 2. Distribuição por área e sub-área
@@ -38,16 +39,16 @@ regra manda fundir.
 | | Edição de vídeo | 31 | 5.4% | **no limiar** |
 | | Vídeo longo & streaming | 28 | 4.9% | **no limiar** |
 | | Áudio & música | 26 | 4.5% | **no limiar** |
-| **Avaliação & instrumentação** | _493 papers_ | | | |
-| | Benchmark de agente | 116 | 23.5% | **no limiar** |
-| | Benchmark de percepção multimodal | 98 | 19.9% |  |
-| | Protocolo & metodologia | 54 | 11.0% |  |
+| **Avaliação & instrumentação** | _495 papers_ | | | |
+| | Benchmark de agente | 116 | 23.4% | **no limiar** |
+| | Benchmark de percepção multimodal | 99 | 20.0% |  |
+| | Protocolo & metodologia | 54 | 10.9% |  |
 | | Benchmark de agente de código | 50 | 10.1% |  |
 | | Benchmark de domínio | 48 | 9.7% |  |
-| | Benchmark de agente de computador & web | 43 | 8.7% |  |
+| | Benchmark de agente de computador & web | 44 | 8.9% |  |
 | | Diagnóstico de falha | 36 | 7.3% |  |
 | | Benchmark científico & clínico | 29 | 5.9% | **no limiar** |
-| | LLM como avaliador | 19 | 3.9% | **no limiar** |
+| | LLM como avaliador | 19 | 3.8% | **no limiar** |
 | **Percepção & robótica** | _358 papers_ | | | |
 | | VLA & manipulação | 128 | 35.8% | **ramificar** (acima de 25%) |
 | | Dados & treino de política robótica | 58 | 16.2% |  |
@@ -63,14 +64,14 @@ regra manda fundir.
 | | Compressão & alocação de contexto | 20 | 8.4% |  |
 | | Memória multimodal & de vídeo | 18 | 7.6% |  |
 | | Busca agêntica | 17 | 7.2% |  |
-| **Harness & orquestração** | _220 papers_ | | | |
-| | Auto-evolução do harness | 48 | 21.8% |  |
+| **Harness & orquestração** | _221 papers_ | | | |
+| | Auto-evolução do harness | 49 | 22.2% | **no limiar** |
 | | Sistemas multiagente | 43 | 19.5% |  |
-| | Laço de execução & trajetória | 37 | 16.8% |  |
-| | Pesquisa autônoma | 27 | 12.3% |  |
+| | Laço de execução & trajetória | 37 | 16.7% |  |
+| | Pesquisa autônoma | 27 | 12.2% |  |
 | | Engenharia de código com agente | 24 | 10.9% |  |
 | | Uso de ferramenta & orquestração | 21 | 9.5% |  |
-| | Runtime & estado do agente | 20 | 9.1% |  |
+| | Runtime & estado do agente | 20 | 9.0% |  |
 | **Serving & inferência** | _152 papers_ | | | |
 | | Atenção, kernel & cache | 39 | 25.7% | **ramificar** (acima de 25%) · **no limiar** |
 | | Escala em tempo de inferência | 34 | 22.4% | **no limiar** |
@@ -78,14 +79,14 @@ regra manda fundir.
 | | Infraestrutura & deployment | 20 | 13.2% |  |
 | | Orçamento de token visual | 19 | 12.5% |  |
 | | Roteamento de modelos | 13 | 8.6% |  |
-| **Guardrails & controle** | _115 papers_ | | | |
-| | Risco & dano | 29 | 25.2% | **ramificar** (acima de 25%) · **no limiar** |
-| | Ataque & red-teaming | 27 | 23.5% | **no limiar** |
-| | Guard models | 19 | 16.5% |  |
-| | Segurança de agente | 18 | 15.7% |  |
-| | Detecção de alucinação | 11 | 9.6% |  |
-| | Política & conformidade | 7 | 6.1% | fundir (7 papers) |
-| | Injeção & delegação | 4 | 3.5% | fundir (4 papers) · **no limiar** |
+| **Guardrails & controle** | _116 papers_ | | | |
+| | Risco & dano | 29 | 25.0% | **no limiar** |
+| | Ataque & red-teaming | 27 | 23.3% | **no limiar** |
+| | Guard models | 19 | 16.4% |  |
+| | Segurança de agente | 19 | 16.4% |  |
+| | Detecção de alucinação | 11 | 9.5% |  |
+| | Política & conformidade | 7 | 6.0% | fundir (7 papers) |
+| | Injeção & delegação | 4 | 3.4% | fundir (4 papers) · **no limiar** |
 | **Internos do modelo** | _92 papers_ | | | |
 | | Interpretabilidade & sondas | 58 | 63.0% | **ramificar** (acima de 25%) |
 | | Direção & edição de ativações | 17 | 18.5% |  |
@@ -97,11 +98,10 @@ regra manda fundir.
 | | Documento & extração | 14 | 33.3% | **ramificar** (acima de 25%) |
 | | GUI & visão de tela | 8 | 19.0% | fundir (8 papers) |
 
-**Checagem A — nenhuma sub-área acima de ~25% da sua área**: FALHA, 7 acima do teto.
+**Checagem A — nenhuma sub-área acima de ~25% da sua área**: FALHA, 6 acima do teto.
   - Geração de mídia > Imagem & difusão: 165 papers, 28.6%
   - Percepção & robótica > VLA & manipulação: 128 papers, 35.8%
   - Serving & inferência > Atenção, kernel & cache: 39 papers, 25.7%
-  - Guardrails & controle > Risco & dano: 29 papers, 25.2%
   - Internos do modelo > Interpretabilidade & sondas: 58 papers, 63.0%
   - Interface & modalidade > Fala & áudio: 20 papers, 47.6%
   - Interface & modalidade > Documento & extração: 14 papers, 33.3%
@@ -148,6 +148,14 @@ Estes não são rótulos inventados: os dois lados existem na grade, e o
 que o modelo recusou foi de quem a sub-área é filha. É a entrada da
 fila que aponta um conserto concreto — mudar o pai, e não criar rótulo.
 
+**A contagem é piso, e não o total.** `tax_nao_encaixe` guarda um
+registro por paper, e a declaração do modelo (`nao_coube`) vence o par
+rejeitado quando o paper tem os dois — então o paper que declarou
+não-encaixe *e* teve o par derrubado aparece só como declaração. Quem
+quer o total conta os `WARNING` de `par (area > sub-area) ignorado` no
+log da rodada: na rodada 1 do ticket 07 foram 15 pares rejeitados, e a
+tabela guardou 12.
+
 | Par que o modelo tentou | papers | onde a grade pendura a sub-área |
 |---|---:|---|
 | Harness & orquestração > Skills & conhecimento compilado | 7 | Contexto & recuperação |
@@ -187,10 +195,15 @@ A linha *(não registrado)* concentra as chamadas que morreram antes da
 resposta — inclusive as abandonadas pelo prazo: quem não respondeu não
 informou quem era, e atribuí-las a um provedor seria acusar inocente.
 
+As três colunas de tempo saem de `latencia_ms`, que só é gravada na
+chamada que respondeu: *média (s)* e *pior* contam só as chamadas que
+responderam, e não a rodada. Um provedor cujas chamadas todas morreram
+antes da resposta sai com travessão nas três — não há tempo a medir.
+
 | Provedor | chamadas | cortadas | prazo | erros | média (s) | pior 1ª tent. (s) | pior acum. (s) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Together | 4400 | 4 | 0 | 59 | 3.4 | 19.1 | 115.8 |
-| (não registrado) | 7 | 0 | 7 | 7 | None | None | None |
+| (não registrado) | 7 | 0 | 7 | 7 | — | — | — |
 
 ## 7. Rótulos perto de um limiar
 
@@ -204,15 +217,16 @@ sobre ruído — o ticket 08 precisa tratar esta lista à parte.
 - **Geração de mídia > Edição de vídeo**: 31 papers, 5.4% da área
 - **Geração de mídia > Vídeo longo & streaming**: 28 papers, 4.9% da área
 - **Geração de mídia > Áudio & música**: 26 papers, 4.5% da área
-- **Avaliação & instrumentação > Benchmark de agente**: 116 papers, 23.5% da área
+- **Avaliação & instrumentação > Benchmark de agente**: 116 papers, 23.4% da área
 - **Avaliação & instrumentação > Benchmark científico & clínico**: 29 papers, 5.9% da área
-- **Avaliação & instrumentação > LLM como avaliador**: 19 papers, 3.9% da área
+- **Avaliação & instrumentação > LLM como avaliador**: 19 papers, 3.8% da área
 - **Contexto & recuperação > Modelos de embedding & ranking**: 55 papers, 23.2% da área
+- **Harness & orquestração > Auto-evolução do harness**: 49 papers, 22.2% da área
 - **Serving & inferência > Atenção, kernel & cache**: 39 papers, 25.7% da área
 - **Serving & inferência > Escala em tempo de inferência**: 34 papers, 22.4% da área
-- **Guardrails & controle > Risco & dano**: 29 papers, 25.2% da área
-- **Guardrails & controle > Ataque & red-teaming**: 27 papers, 23.5% da área
-- **Guardrails & controle > Injeção & delegação**: 4 papers, 3.5% da área
+- **Guardrails & controle > Risco & dano**: 29 papers, 25.0% da área
+- **Guardrails & controle > Ataque & red-teaming**: 27 papers, 23.3% da área
+- **Guardrails & controle > Injeção & delegação**: 4 papers, 3.4% da área
 - **Internos do modelo > Fidelidade do raciocínio**: 5 papers, 5.4% da área
 - **Internos do modelo > Atalhos & espúrios**: 4 papers, 4.3% da área
 - **vertente Escalar**: 152 papers, 4.8% dos classificados

@@ -150,9 +150,20 @@ def test_par_secundario_de_mesma_area_com_sub_area_diferente_e_gravado(base_face
     ]
 
 
-def test_sub_area_de_outra_area_e_ignorada_sem_derrubar_o_paper(base_facetada):
+def test_par_primario_rejeitado_promove_o_secundario_a_primario(base_facetada):
     """O enum e plano - ele nao sabe de quem cada sub-area e filha -, entao o
-    parentesco e cobrado aqui. Par invalido nao entra; o veredito fica de pe."""
+    parentesco e cobrado aqui. Par invalido nao entra, e o secundario que
+    sobrou **sobe a primario**.
+
+    Trava a regressao que deixou quatro papers na base de producao com ponte e
+    sem primaria (2605.17734, 2606.01993, 2607.21596, 2607.26326): o par
+    primario caia no parentesco, o secundario entrava com `is_primaria=0` e
+    ninguem promovia. O `CONTEXT.md` diz que o primario e obrigatorio e unico,
+    e a checagem 1 do relatorio de massa conta paper com primaria - o paper sem
+    ela some das duas leituras sem aparecer em lugar nenhum como falha.
+
+    O registro em `tax_nao_encaixe` continua: promover o secundario nao apaga
+    que o modelo errou o parentesco - ver o teste de fila logo abaixo."""
     with db.transacao(base_facetada):
         taxonomia.aplicar_classificacao(
             base_facetada,
@@ -162,7 +173,36 @@ def test_sub_area_de_outra_area_e_ignorada_sem_derrubar_o_paper(base_facetada):
             area_secundaria="Interface & modalidade",
             subarea_secundaria="Fala & áudio",
         )
-    assert _pares(base_facetada) == [("Interface & modalidade", "Fala & áudio", 0)]
+    assert _pares(base_facetada) == [("Interface & modalidade", "Fala & áudio", 1)]
+    assert [n["justificativa"] for n in taxonomia.nao_encaixes(base_facetada)] == [
+        "par rejeitado pelo parentesco da grade: Contexto & recuperação > Fala & áudio"
+    ]
+
+
+def test_os_dois_pares_rejeitados_deixam_o_paper_sem_ponte(base_facetada):
+    """Nao ha o que promover quando os dois caem: o paper fica sem ponte, e a
+    fila de nao-encaixe carrega os dois pares tentados.
+
+    E o unico estado sem primaria que a base aceita, e ele e visivel - a linha
+    'sem faceta nenhuma' do relatorio de massa o conta. O estado que o achado 1
+    produzia (ponte sem primaria) nao era visivel em leitura nenhuma."""
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Fala & áudio",            # filha de Interface & modalidade
+            area_secundaria="Interface & modalidade",
+            subarea_secundaria="RAG & recuperação",     # filha de Contexto & recuperação
+            vertentes_paper=["Medir"],
+        )
+    assert _pares(base_facetada) == []
+    assert _vertentes(base_facetada) == [("Medir", 1)]
+    assert [n["justificativa"] for n in taxonomia.nao_encaixes(base_facetada)] == [
+        "par rejeitado pelo parentesco da grade: "
+        "Contexto & recuperação > Fala & áudio; "
+        "Interface & modalidade > RAG & recuperação"
+    ]
 
 
 def test_aplicar_classificacao_ignora_rotulo_desconhecido(base_facetada):
@@ -348,29 +388,77 @@ def test_reclassificar_sem_nao_encaixe_apaga_a_declaracao_anterior(base_facetada
     assert taxonomia.nao_encaixes(base_facetada) == []
 
 
-def test_fusao_reescreve_pontes(base_facetada):
-    """A fusao passa a valer so para area: o topico saiu do banco na contracao,
-    e era o outro tipo que ela aceitava."""
-    with db.transacao(base_facetada):
-        db.upsert_area(base_facetada, {"area": "Absorvida", "definicao": "d"})
-        for pid, area in (("2608.00000", "Absorvida"), ("2608.00001", "Contexto & recuperação")):
-            db.inserir_ignorando(
+def test_fusao_reescreve_a_ponte_de_todos_os_papers_do_rotulo(base_facetada):
+    """A fusao alcanca a base inteira, e nao so o paper que a motivou: quem
+    tinha a sub-area absorvida e quem ja tinha a irma terminam juntos no
+    destino, e o rotulo sai de `dim_area`.
+
+    A fixture usa duas sub-areas irmas porque e o unico caso que a fusao aceita
+    - ver o teste de recusa de area raiz logo abaixo. A versao anterior deste
+    teste montava uma raiz sem filhas e um par cuja sub-area era filha de outra
+    area: estado que `aplicar_classificacao` recusa gravar e que a producao nao
+    pode ter, entao o teste passava por acidente sobre um mundo inexistente."""
+    for pid, subarea in (
+        ("2608.00000", "Memória de longo prazo"),
+        ("2608.00001", "Memória de longo prazo"),
+        ("2608.00002", "RAG & recuperação"),
+    ):
+        with db.transacao(base_facetada):
+            taxonomia.aplicar_classificacao(
                 base_facetada,
-                "ponte_paper_area",
-                {
-                    "paper_id": pid,
-                    "area": area,
-                    "subarea": "Memória de longo prazo",
-                    "is_primaria": 1,
-                },
+                pid,
+                area_primaria="Contexto & recuperação",
+                subarea_primaria=subarea,
             )
 
-    taxonomia.fundir(base_facetada, de="Absorvida", para="Contexto & recuperação")
+    assert taxonomia.fundir(
+        base_facetada, de="Memória de longo prazo", para="RAG & recuperação"
+    ) == {"papers_no_destino": 3}
 
-    assert "Absorvida" not in taxonomia.hierarquia(base_facetada)
+    assert "Memória de longo prazo" not in taxonomia.hierarquia(base_facetada)
     assert db.contar(
-        base_facetada, "ponte_paper_area", "area = 'Contexto & recuperação'"
-    ) == 2
+        base_facetada, "ponte_paper_area", "subarea = 'RAG & recuperação'"
+    ) == 3
+
+
+def test_fusao_recusa_rotulo_para_ele_mesmo(base_facetada):
+    """`fundir --de X --para X` apagava o rotulo e **todas** as pontes de X, em
+    silencio: o check de irmandade passa trivialmente (X tem o pai de X), o
+    UPDATE vira no-op e o DELETE do rotulo de origem leva tudo.
+
+    Um erro de digitacao do operador custava uma rodada paga de reclassificacao
+    - ou o backup, se houvesse."""
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Memória de longo prazo",
+        )
+
+    with pytest.raises(ValueError):
+        taxonomia.fundir(
+            base_facetada, de="Memória de longo prazo", para="Memória de longo prazo"
+        )
+
+    assert _pares(base_facetada) == [("Contexto & recuperação", "Memória de longo prazo", 1)]
+    assert "Memória de longo prazo" in taxonomia.hierarquia(base_facetada)
+
+
+def test_fusao_recusa_area_raiz(base_facetada):
+    """Fundir duas raizes era anunciado pela CLI e nunca funcionou: as filhas de
+    `de` ficavam com `area_pai` apontando para um rotulo que o DELETE ia apagar,
+    e a FK derrubava a transacao com `IntegrityError` - traceback cru para o
+    operador, porque a CLI so tratava `ValueError`.
+
+    A recusa e explicita e o erro e `ValueError` de novo: a regra 2 do ticket 08
+    funde na irma *sub-area*, e mexer nas dez raizes e o que a trava do ticket
+    08 proibe."""
+    with pytest.raises(ValueError, match="raiz"):
+        taxonomia.fundir(
+            base_facetada, de="Interface & modalidade", para="Contexto & recuperação"
+        )
+    assert "Interface & modalidade" in taxonomia.hierarquia(base_facetada)
 
 
 def test_fusao_recusa_rotulo_inexistente(base):

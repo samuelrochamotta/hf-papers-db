@@ -93,8 +93,9 @@ class ErroPrazo(RuntimeError):
     Existe porque `llm.timeout_s` nao protege: ele e read timeout do httpx, e o
     keep-alive do OpenRouter (`: OPENROUTER PROCESSING`) o reinicia a cada
     linha. Medido em 2026-09-08: uma chamada de 409,8 s atravessou inteira um
-    teto de 180 s sem erro, sem retentativa e sem linha em `log_llm`, e sozinha
-    consumiu 68% da parede de uma rodada de 30 papers.
+    teto de 180 s sem erro, sem retentativa e sem linha em `log_llm`, e ela
+    **foi** a parede de uma rodada de 30 papers - a rodada durou 409 s, e as
+    outras 29 chamadas rodaram inteiras por baixo dela.
 
     Herda de `RuntimeError` para cair na retentativa generica de rede - que e o
     ponto: a instancia seguinte costuma responder em segundos.

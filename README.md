@@ -63,10 +63,12 @@ chamadas concluídas.
 
 `prazo_total_s` é um prazo de ponta a ponta nosso: a chamada roda numa thread e é
 abandonada aos 90 s, caindo na retentativa que já existia. O valor foi calibrado
-medindo, não chutado — em 195 chamadas o pior caso legítimo foi 55,5 s no Estágio
-A e 13,8 s no Estágio B, e o valor seguinte depois de 55,5 s era 409,8 s: o teto
-cai no vazio entre os dois. Na rodada 2 ele pegou **7 chamadas em 4.407 (0,16%),
-todas recuperadas na retentativa**. `0` desliga, para quando o modelo mudar e a
+medindo, não chutado — em 201 chamadas com provedor registrado (as quatro
+rodadas de validação de 15:06–15:12 mais a rodada de 30 papers que expôs a cauda)
+o pior caso legítimo foi 55,5 s no Estágio A e 13,8 s no Estágio B, e o valor
+seguinte depois de 55,5 s era 409,8 s: o teto cai no vazio entre os dois. Na
+rodada 2 ele pegou **7 chamadas em 4.407 (0,16%), todas recuperadas na
+retentativa**. `0` desliga, para quando o modelo mudar e a
 distribuição junto.
 
 Duas consequências que valem para conferir a fatura: a chamada abandonada
@@ -76,11 +78,14 @@ exatamente nessas linhas. Conte-as com `erro LIKE 'ErroPrazo%'`.
 
 **`log_llm.provedor` — a coluna sem a qual a lentidão não tem réu.** O OpenRouter
 roteia entre ~24 endpoints do mesmo modelo, e eles não se comportam igual: numa
-medição de 170 chamadas, Together deu média de 3,3 s e Sail Research 14,6 s com
-cauda de 195 s. Sem a coluna, "a rodada ficou 9x mais lenta" é uma frase sem
-sujeito. Com ela, o relatório de massa sai por provedor (seção 6 dos relatórios
-em `docs/`) e a cauda ganha dono — ou não ganha, que é informação igual: quem
-morre antes de responder não informa quem era, e essas chamadas ficam numa linha
+medição de 171 chamadas, Together deu média de 3,3 s (pior 13,8 s) e Sail
+Research 14,6 s, com pior caso de 55,5 s. A chamada de 195 s que motivou a coluna
+não está em `log_llm`: ela veio de uma sonda com o payload real do Estágio A,
+disparada fora do pipeline (ticket 07, *Rodada 1, tentativa 1*). Sem a coluna,
+"a rodada ficou 9x mais lenta" é uma frase sem sujeito. Com ela, o relatório de
+massa sai por provedor (seção 6 dos relatórios em `docs/`) e a cauda ganha dono —
+ou não ganha, que é informação igual: quem morre antes de responder não informa
+quem era, e essas chamadas ficam numa linha
 *(não registrado)* em vez de acusarem um inocente. Foi essa coluna que mostrou
 que trocar de endpoint trata a mediana e não a cauda: **a pior chamada do dia,
 409,8 s, saiu do Together**, o endpoint de melhor mediana do catálogo.
@@ -135,7 +140,7 @@ python -m hfpapers reclassificar --tudo                    # a base inteira, hor
 python -m hfpapers reclassificar --tudo --concorrencia 4   # 1 = sequencial, teto 8
 python -m hfpapers taxonomia listar
 python -m hfpapers taxonomia nao-encaixes [--eixo area|subarea|vertente]
-python -m hfpapers taxonomia fundir --de "X" --para "Y"   # dois rótulos irmãos
+python -m hfpapers taxonomia fundir --de "X" --para "Y"   # duas sub-áreas irmãs
 python -m hfpapers taxonomia exportar [--destino config/taxonomia_inicial.json]
 python -m hfpapers taxonomia carregar [config/taxonomia_inicial.json]
 python -m hfpapers modelos listar
@@ -173,10 +178,13 @@ estoura.
 `taxonomia exportar` grava áreas, sub-áreas e vertentes do banco (rótulo +
 definição, sem a fila de revisão) no JSON versionado, com a sub-área aninhada sob
 a sua área; `carregar` é o inverso, para banco vazio, e é idempotente — rótulo
-que já existe não é tocado. `taxonomia fundir` funde dois rótulos **irmãos** —
-duas áreas raiz ou duas sub-áreas do mesmo pai — e reescreve a ponte; não há
-parâmetro de tipo, porque só existe um vocabulário hierárquico desde a contração
-da grade antiga. `taxonomia nao-encaixes` lê a fila de revisão da grade: os
+que já existe não é tocado. `taxonomia fundir` funde **duas sub-áreas do mesmo
+pai** e reescreve a ponte; não há parâmetro de tipo nem de nível, porque só existe
+um vocabulário hierárquico desde a contração da grade antiga e só um nível funde.
+Ele recusa três coisas, com código 2 e mensagem: fundir um rótulo nele mesmo (que
+apagava todas as pontes do rótulo em silêncio), rótulos que não são irmãos, e
+**área raiz** — a grade de dez raízes é trava do ticket 08, e a regra 2 funde na
+irmã sub-área. `taxonomia nao-encaixes` lê a fila de revisão da grade: os
 papers em que o Estágio A declarou que nenhuma célula servia, com o eixo que
 falhou (`area`, `subarea` ou `vertente`) e a justificativa. **Ninguém promove
 rótulo a partir dela dentro do pipeline**: a classificação nunca cria
@@ -289,7 +297,9 @@ a próxima:
 > **Modelo**: as rodadas foram feitas com `z-ai/glm-5.3-flash` nos dois estágios.
 > O `qwen/qwen3.8-flash` que estava no `config.yaml` tem **um único provider**
 > no OpenRouter (Alibaba, pool compartilhado) e passou 07/09 em 429: a rodada
-> diária levou 10h30 para 19 papers e falhou em 14 deles. Antes de trocar o
+> diária levou 10h33 para 19 papers e falhou em 7 deles (`log_execucao.avisos`,
+`run-20260907-073150`: 7 `estagio_a_falhou`; foram 43 chamadas com erro no
+Estágio A, e é esse número maior que a versão anterior deste texto reportava). Antes de trocar o
 > modelo de qualquer estágio, olhe `GET /api/v1/models/<id>/endpoints` — um
 > endpoint só é risco operacional, não detalhe de catálogo.
 
@@ -303,8 +313,12 @@ código 0 nas duas.
 ```bash
 # 1. espere a rodada diária das 07:30 terminar (log_execucao com finalizado_em)
 # 2. a varredura, em terminal que sobreviva (nohup, tmux). Acima de
-#    --concorrencia 1, o Ctrl+C só age quando as chamadas em voo terminam (até
-#    ~18 min no pior caso): espere, não mate o processo — kill no meio de uma
+#    --concorrencia 1, o Ctrl+C só age quando as chamadas em voo terminam:
+#    llm.retry.tentativas × llm.prazo_total_s + backoff = 3 × 90 s + 2 s + 4 s
+#    ≈ 4,6 min por estágio, ≈ 9,2 min se o paper já estiver no Estágio B (a
+#    thread faz A e depois B). Com `prazo_total_s: 0` o teto de ponta a ponta
+#    sai e volta a valer `llm.timeout_s`: a espera dobra, ≈ 9,1 min por estágio
+#    e ≈ 18 min no Estágio B. Espere, não mate o processo — kill no meio de uma
 #    gravação é o único jeito de corromper esta rodada
 python -m hfpapers reclassificar --tudo --concorrencia 4
 
@@ -524,7 +538,9 @@ com razão utilizável.
 ### Tamanho
 
 O peso vem do texto das fichas embutido em `DADOS`, não de HTML por card.
-Medido em 08/09/2026, depois da rodada 2 da grade facetada: **2.492 KB para os
+Medido em 08/09/2026, depois da rodada 2 da grade facetada — em KB de 1.000
+bytes, que é como o Finder e o `ls -l` contam; o ticket 09 mede o mesmo arquivo
+em KiB de 1.024 e diz 2.489: **2.492 KB para os
 1.970 papers da janela e 679 fichas**, dos quais 1.120 KB são fichas (~1,7 KB
 cada), 1.044 KB são os papers (~543 B cada), 228 KB é a série de métricas e
 27 KB a aba histórica.
@@ -673,8 +689,8 @@ Medição completa em `docs/relatorio-massa-grade-v2.md`
 
 | | |
 |---|---|
-| cobertura | 3.158 papers com par primário (99,7%), 587 com par secundário (18,5%), 3.166 com ao menos uma vertente (100%), 680 com duas (21,5%) |
-| áreas maiores | Modelo & treino 872 · Geração de mídia 577 · Avaliação & instrumentação 493 · Percepção & robótica 358 |
+| cobertura | 3.162 papers com par primário (99,9%), 583 com par secundário (18,4%), 4 sem faceta nenhuma, 3.166 com ao menos uma vertente (100%), 680 com duas (21,5%) |
+| áreas maiores | Modelo & treino 872 · Geração de mídia 577 · Avaliação & instrumentação 495 · Percepção & robótica 358 |
 | vertentes maiores | Treinar 45,3% · Medir 31,8% · Baratear 16,6% |
 | fila de revisão | 81 não-encaixes (2,6% da base): 49 de sub-área, 30 de área, **2 de vertente** |
 
@@ -699,9 +715,10 @@ que impede tratar qualquer rótulo a poucos pontos de um limiar pelo valor seco.
 #### Como medir a grade de novo
 
 ```bash
-# SEMPRE com o segundo argumento. Sem ele o script grava em
-# docs/relatorio-massa-grade-v1.md, em silêncio — e aquele relatório é a causa
-# registrada da grade v2, que o banco de hoje já não reproduz.
+# O arquivo de saída é obrigatório: o script recusa rodar sem ele. Tinha
+# default para docs/relatorio-massa-grade-v1.md e sobrescrevia em silêncio o
+# relatório da v1 — a causa registrada da grade v2, que o banco de hoje já não
+# reproduz. `-` no lugar do run_id usa o log inteiro.
 /opt/miniconda3/envs/digest-hf/bin/python scripts/relatorio_massa.py \
     run-AAAAMMDD-HHMMSS docs/relatorio-massa-grade-v3.md
 ```
@@ -757,8 +774,9 @@ Seis coisas novas, todas já nos Parquet de `marts/`:
 - **`ponte_paper_criterio`** (`paper_id`, `criterio`) — os critérios que
   sustentam o veredito de um aprovado, do enum de dez (cinco de estrito, cinco
   de amplo; ver *Regras de classificação*). **É um-para-muitos**: um paper
-  aprovado pode se qualificar por mais de um critério (já há caso com dois), e
-  cruzar essa ponte com `dim_paper` **multiplica as linhas**. Contar papers pede
+  aprovado pode se qualificar por mais de um critério — e não é raro: **506 dos
+  1.093 aprovados (46,3%) têm dois ou mais**, e quatro têm quatro. Cruzar essa
+  ponte com `dim_paper` **multiplica as linhas**. Contar papers pede
   `DISTINCTCOUNT(paper_id)`; `COUNTROWS` conta ocorrências, que é outra medida
   (legítima — é a que o card *Por que o pipeline aprova* do painel usa — mas não
   é "quantos papers"). Descarte não tem critério: a tabela só traz aprovados.
@@ -877,8 +895,9 @@ Três invariantes que os testes cobrem:
    métrica de saída, guardada em `fato_metrica` para você descobrir depois se
    prediz aprovação. A aba histórica do painel ordena por upvote, mas isso é
    exibição, não decisão: o veredito já foi dado e não é reaberto. A lista de
-   descartados existe justamente para medir a divergência — no lote atual, 13
-   dos 20 papers mais votados são `fora`.
+   descartados existe justamente para medir a divergência — na base
+   inteira, **15 dos 20 papers mais votados são `fora`** (o "13" era da base
+   anterior à coleta retroativa; a janela de 90 dias do painel dá o mesmo 15).
 2. **O Padrão Extraído é escrito e testado antes do veredito.** A ordem das
    propriedades no schema do Estágio B é normativa.
 3. **A LLM não cria rótulo, e não propõe nenhum.** O enum é injetado do banco;

@@ -20,7 +20,9 @@ DIA = dt.date(2020, 1, 1)
 JANELA_LONGA = 100_000
 
 
-def _tabelas(papers, triagem, criterios, fichas=None, areas=None, vertentes=None):
+def _tabelas(
+    papers, triagem, criterios, fichas=None, areas=None, vertentes=None, grade=None
+):
     return {
         "dim_paper": papers,
         "fato_triagem": triagem,
@@ -29,20 +31,22 @@ def _tabelas(papers, triagem, criterios, fichas=None, areas=None, vertentes=None
         "ponte_paper_vertente": vertentes or [],
         "ponte_paper_criterio": criterios,
         "fato_metrica": [],
-        "dim_area": [],
+        "dim_area": grade or [],
     }
 
 
 def _montar(
     tmp_path, monkeypatch, papers, triagem, criterios, *, areas=None, vertentes=None,
-    dias_hall=JANELA_LONGA,
+    grade=None, dias_hall=JANELA_LONGA,
 ):
     import gerar_painel
 
     (tmp_path / "_manifest.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(gerar_painel, "DIR_MARTS", tmp_path)
     monkeypatch.setattr(gerar_painel, "CONFIG", tmp_path / "config-inexistente.yaml")
-    tabelas = _tabelas(papers, triagem, criterios, areas=areas, vertentes=vertentes)
+    tabelas = _tabelas(
+        papers, triagem, criterios, areas=areas, vertentes=vertentes, grade=grade
+    )
     monkeypatch.setattr(gerar_painel, "ler", lambda nome: tabelas.get(nome, []))
     dados, _ = gerar_painel.montar_dados(janela=JANELA_LONGA, dias_hall=dias_hall)
     return dados
@@ -295,3 +299,36 @@ def test_a_subarea_acompanha_o_paper_ate_a_aba_historica(tmp_path, monkeypatch):
 def test_paper_sem_par_nao_inventa_subarea(tmp_path, monkeypatch):
     dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1", "amplo")], [])
     assert (dados["papers"][0]["a"], dados["papers"][0]["sa"]) == (None, None)
+
+
+# A grade como ela sai de `dim_area` desde o ticket 02: raiz com `area_pai`
+# nulo, sub-area apontando para a raiz. Os testes acima passavam `dim_area`
+# vazia, e foi por isso que o menu com sub-area dentro nunca apareceu.
+GRADE = [
+    {"area": "Contexto & recuperação", "definicao": "d1", "area_pai": None},
+    {"area": "Interface & modalidade", "definicao": "d2", "area_pai": None},
+    {"area": "Memória de longo prazo", "definicao": "", "area_pai": "Contexto & recuperação"},
+    {"area": "Fala & áudio", "definicao": "", "area_pai": "Interface & modalidade"},
+]
+
+
+def test_o_menu_de_area_lista_so_as_raizes(tmp_path, monkeypatch):
+    """`DADOS.areas` alimenta o filtro ÁREA, e o filtro compara com `p.a`, que
+    e sempre raiz. Mandar as sub-areas junto enche o menu de entradas que
+    filtram para o vazio - foram 64 delas quando `dim_area` passou a ter dois
+    niveis.
+
+    A sub-area nao vira uma segunda faceta de menu: ela ja acompanha o paper
+    no card, em `p.sa`."""
+    dados = _montar(
+        tmp_path, monkeypatch,
+        [_paper("p1")],
+        [_triado("p1", "estrito")],
+        [],
+        areas=[PAR_PRIMARIO],
+        grade=GRADE,
+    )
+    assert dados["areas"] == [
+        {"a": "Contexto & recuperação", "def": "d1"},
+        {"a": "Interface & modalidade", "def": "d2"},
+    ]

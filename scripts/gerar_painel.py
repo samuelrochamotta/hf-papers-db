@@ -523,7 +523,16 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         # o corte efetivo pode vir de --dias-hall, mas a frase que explica o
         # congelamento fala do refresh - e o refresh nao muda por flag de CLI
         "diasRefresh": janela_hall(),
-        "areas": [{"a": a["area"], "def": a.get("definicao") or ""} for a in ler("dim_area")],
+        # So a raiz: `DADOS.areas` alimenta o filtro ÁREA, e o filtro compara
+        # com `p.a`, que e sempre area raiz. Desde que `dim_area` ganhou dois
+        # niveis (ticket 02) mandar a tabela inteira punha 64 sub-areas no menu,
+        # todas filtrando para o vazio. A sub-area acompanha o paper no card,
+        # em `p.sa`, e nao precisa de faceta propria.
+        "areas": [
+            {"a": a["area"], "def": a.get("definicao") or ""}
+            for a in ler("dim_area")
+            if not a.get("area_pai")
+        ],
         "papers": lista,
         "fichas": [
             {

@@ -39,17 +39,19 @@ substituindo.
 
 **Bloqueado por:** 07.
 
-**Status:** done — com uma ressalva declarada: a regra 3 não foi aplicada a
-*Especificar* (ver o checkbox correspondente e *Por que a regra 3 ficou parada*)
+**Status:** done — com duas ressalvas declaradas: a regra 3 não foi aplicada a
+*Especificar* (ver *Por que a regra 3 ficou parada*), e a checagem A continua
+reprovando em seis sub-áreas (ver *Por que a checagem A ficou aberta*)
 
 - [x] Cada ajuste registra o número do relatório que o motivou — `docs/grade-v2-resumo.md`
-- [x] Nenhuma sub-área da v2 acima de 25% da sua área, ou o caso está registrado com a
-      razão pela qual a divisão foi rejeitada — 12 das 15 divididas; três registradas
-      (*Escala em tempo de inferência* a 0,5 ponto do teto e na seção 7 do relatório;
-      *Fala & áudio* e *GUI & visão de tela* com irmãs estimadas abaixo do piso de 10
-      papers da regra 2). *Interpretabilidade & sondas* foi dividida e a estimativa a
-      deixa em 40,7%: a regra admite três irmãs no máximo, e a área tem 91 papers — o
-      caso está registrado
+- [ ] Nenhuma sub-área da v2 acima de 25% da sua área, ou o caso está registrado com a
+      razão pela qual a divisão foi rejeitada — **não cumprido**: a v2 medida tem **seis
+      sub-áreas acima do teto**, e **quatro delas não têm razão registrada** (*VLA &
+      manipulação* 35,8%, *Documento & extração* 33,3%, *Imagem & difusão* 28,6%,
+      *Atenção, kernel & cache* 25,7%). Das duas registradas, *Fala & áudio* (47,6%) tem
+      a razão escrita e *Interpretabilidade & sondas* tem a razão escrita sobre uma
+      **estimativa errada**: o texto previa 40,7% e a medição deu **63,0%**. Ver
+      *Por que a checagem A ficou aberta*
 - [x] Nenhuma sub-área da v2 abaixo de 3% da sua área ou com menos de 10 papers, salvo
       a exceção das áreas com duas sub-áreas — quatro fundidas; duas registradas
       (*Atalhos & espúrios* e *Fidelidade do raciocínio*, ambas com 9 papers, um abaixo
@@ -97,6 +99,46 @@ Três coisas sustentam a suspensão, e a terceira é a que decide:
 A consequência honesta é que o checkbox fica aberto e o ticket 09 herda a pergunta: se
 *Especificar* continuar abaixo de 2% na rodada 2, com o denominador novo e o ruído
 diluído por uma segunda medição, ela é absorvida sem mais discussão.
+
+## Por que a checagem A ficou aberta
+
+Esta é a pendência do eixo **ÁREA**, análoga à da vertente logo acima, e é para cá que
+`docs/spec-taxonomia-facetada.md` aponta quem procura por ela. O ADR 002 cobre só as
+vertentes.
+
+A v2 corrigiu a checagem A pela metade: eram 15 sub-áreas acima de 25% na v1, são
+**seis** na v2, medidas sobre `ponte_paper_area WHERE is_primaria=1` e por área.
+
+| sub-área acima do teto | % da área | papers | razão registrada? |
+|---|---:|---:|---|
+| Internos do modelo > Interpretabilidade & sondas | 63,0% | 58 de 92 | sim, mas sobre estimativa de 40,7% |
+| Interface & modalidade > Fala & áudio | 47,6% | 20 de 42 | sim |
+| Percepção & robótica > VLA & manipulação | 35,8% | 128 de 358 | **não** |
+| Interface & modalidade > Documento & extração | 33,3% | 14 de 42 | **não** |
+| Geração de mídia > Imagem & difusão | 28,6% | 165 de 577 | **não** |
+| Serving & inferência > Atenção, kernel & cache | 25,7% | 39 de 152 | **não** |
+
+Uma sétima, *Guardrails & controle > Risco & dano*, ficou **exatamente em 25,0%** (29 de
+116) e por isso não entra na lista. Ela estava em 25,2% antes do reparo dos quatro papers
+que tinham ponte e nenhuma primária: promovê-los mudou o denominador de uma área. Um
+rótulo que atravessa o limiar porque quatro linhas foram consertadas está dentro dos ~19%
+de instabilidade da grade, e não deve ser lido como aprovação.
+
+**A lição transferível é sobre método, e não sobre estas seis.** As razões registradas no
+checkbox foram escritas a partir de estimativas por leitura de título, feitas antes da
+rodada 2 existir. Uma delas errou por **22 pontos**: *Interpretabilidade & sondas* foi
+dividida contando que ficasse em 40,7%, e a medição deu 63,0% — a divisão não segurou
+nada, e o texto que a justificava foi arquivado como se tivesse segurado. As outras
+quatro nem estimativa têm: a v1 as deixava abaixo do teto, e a divisão das irmãs mudou o
+denominador delas sem que ninguém remedisse.
+
+Estimativa por leitura de título serve para propor a divisão. Não serve para **fechar o
+checkbox** — para isso só a medição da rodada seguinte vale, e é por isso que este
+checkbox fica aberto até uma v3.
+
+Enquanto ele estiver aberto, quem lê a grade precisa saber que seis sub-áreas concentram
+mais de um quarto da sua área, e que *Interpretabilidade & sondas* concentra quase dois
+terços da dela: nessas seis, a sub-área está dizendo pouco mais do que a área já dizia.
 
 ## Efeito colateral medido: o prompt cresceu
 

@@ -22,8 +22,11 @@ fazê-la antes significaria refazê-la.
       `cp` copiaria um arquivo sem o que ainda está no journal
 - [x] Toda a base classificada na grade v2, com `run_id` único — `run-20260908-173724`,
       3.166 de 3.166 linhas de `fato_triagem`, nenhuma de outra rodada e nenhum paper
-      sem triagem. 61,5 min a concorrência 4, **US$ 2,0406**, zero truncamentos e
-      7 `ErroPrazo` em 4.407 chamadas (0,16%), todos recuperados na retentativa
+      sem triagem. 61,5 min a concorrência 4, **US$ 2,0406**, **4 respostas cortadas**
+      e 7 `ErroPrazo` em 4.407 chamadas (0,16%), todos recuperados na retentativa.
+      (Dizia "zero truncamentos" enquanto o instrumento só contava
+      `finish_reason == 'length'`; os 4 `json invalido: Unterminated string` desta
+      mesma rodada são corte com outro nome — ver *Correção do instrumento*.)
 - [x] Todo aprovado, retroativo ou não, tem ficha — 1.093 aprovados (348 amplo, 745
       estrito) e 1.093 fichas; zero aprovado sem ficha e zero ficha órfã
 - [x] O hall exibe os trimestres retroativos, cada um com seu ranking — **um**
@@ -34,15 +37,18 @@ fazê-la antes significaria refazê-la.
       para 1.970 papers e de ~2.100 pendentes para zero
 - [x] Nenhum paper aprovado aparece no hall sem ficha — zero no hall e zero na aba viva
 - [x] Os Parquet trazem área, sub-área, vertente e ordem da vertente — conferido lendo
-      os arquivos: `ponte_paper_area` com `area`+`subarea` (3.158 primárias, 587
-      secundárias, 64 sub-áreas distintas) e `ponte_paper_vertente` com `ordem`
+      os arquivos: `ponte_paper_area` com `area`+`subarea` (3.162 primárias, 583
+      secundárias, 64 sub-áreas distintas — eram 3.158 e 587 antes do reparo dos
+      quatro papers que tinham ponte e nenhuma primária) e `ponte_paper_vertente` com `ordem`
       (3.166 de ordem 1, 680 de ordem 2). `dim_area` passou a levar **`area_pai`**,
       que faltava: sem ela a dimensão chegava ao Power BI como 74 rótulos planos, sem
       dizer qual é raiz nem de quem cada sub-área é filha
 - [x] O diagnóstico sem rede sai com código 0 — `doutor --sem-rede`, nenhum item em
       erro, `regra_fora` ok em todo `fora`
-- [x] O painel é gerado sem erro e sem corte por vertente — 2.489 KB; a vertente só é
-      exibida no card (`p.vt`), não existe filtro por ela em `painel_app.js`
+- [x] O painel é gerado sem erro e sem corte por vertente — 2.489 KiB (2.492 KB no
+      `ls -l`, e é esse o número do README: mesmo arquivo, unidade diferente); a
+      vertente só é exibida no card (`p.vt`), não existe filtro por ela em
+      `painel_app.js`
 
 **Custo, estimativa contra real:** as cifras do texto acima são da grade v1 e ficaram
 para trás. A estimativa refeita antes de disparar, a partir do custo medido da rodada 1

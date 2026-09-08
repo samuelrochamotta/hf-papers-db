@@ -29,14 +29,16 @@ llm:
   # assim que a rodada 1 do ticket 07 parou: quatro threads em voo, sete
   # minutos, zero chamadas concluídas.
   #
-  # 90 s vem da medição de 2026-09-08, já sob `esforco_raciocinio`: em 195
-  # chamadas o pior caso legítimo foi 55,5 s no estágio A e 13,8 s no estágio B,
+  # 90 s vem da medição de 2026-09-08, já sob `esforco_raciocinio`: em 201
+  # chamadas com provedor registrado (as validações de 15:06–15:12 mais a rodada
+  # que expôs a cauda) o pior caso legítimo foi 55,5 s no A e 13,8 s no B,
   # e o valor seguinte depois de 55,5 s era 409,8 s. O teto cai no vazio entre
   # os dois — não corta nenhuma chamada boa observada e mata a cauda.
   #
   # A chamada abandonada continua sendo cobrada (~US$ 0,0004) e a resposta dela
   # é descartada. É o preço do teto, e é barato: aquela única chamada de 409,8 s
-  # consumiu 68% da parede de uma rodada de 30 papers.
+  # *foi* a parede de uma rodada de 30 papers — a rodada durou 409 s e só
+  # terminou quando ela terminou.
   #
   # `0` desliga, para quando o modelo mudar e a distribuição junto.
   prazo_total_s: 90
@@ -70,13 +72,15 @@ llm:
     max_tokens: 8000
   provider:
     require_parameters: true  # só roteia para provedores com saída estruturada
-    # Endpoints tentados primeiro. Medido em 2026-09-08, 170 chamadas: Together
-    # com média de 3,3 s e pior caso de 13,8 s; Sail Research com 14,6 s e uma
-    # cauda de 195 s que pendurou a rodada 1 do ticket 07 — quatro threads
-    # paradas, sete minutos, zero chamadas concluídas. O `timeout_s` não pega
-    # esse caso: o keep-alive `: OPENROUTER PROCESSING` reinicia o read timeout
-    # do httpx a cada linha, então a chamada de 195 s passa sob o teto de 180 s
-    # sem erro, sem retry e sem linha em `log_llm`.
+    # Endpoints tentados primeiro. Medido em 2026-09-08, 171 chamadas: Together
+    # com média de 3,3 s e pior caso de 13,8 s; Sail Research com 14,6 s e pior
+    # de 55,5 s. Foi o Sail que pendurou a rodada 1 do ticket 07 — quatro
+    # threads paradas, sete minutos, zero chamadas concluídas -, e uma sonda
+    # fora do pipeline o pegou em 195 s (esse valor não está em `log_llm`: a
+    # coluna `provedor` ainda não existia). O `timeout_s` não pega esse caso: o
+    # keep-alive `: OPENROUTER PROCESSING` reinicia o read timeout do httpx a
+    # cada linha, então a chamada de 195 s passa sob o teto de 180 s sem erro,
+    # sem retry e sem linha em `log_llm`.
     #
     # É preferência, não exclusividade: o fallback para os outros 22 endpoints
     # continua ligado, senão isto vira a armadilha do provedor único.

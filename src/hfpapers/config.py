@@ -76,9 +76,11 @@ class ProviderLLM(BaseModel):
     # Endpoints tentados primeiro, na ordem. Vazio deixa o balanceador do
     # OpenRouter escolher, que e o padrao. A lista existe porque os endpoints do
     # mesmo modelo nao se comportam igual e a diferenca nao aparece no catalogo:
-    # em 2026-09-08, 170 chamadas medidas deram Together com 3,3 s de media e
-    # 13,8 s de pior caso, contra 14,6 s e 195 s do Sail Research - e foi a cauda
-    # deste que pendurou a rodada 1 do ticket 07 com quatro threads paradas.
+    # em 2026-09-08, 171 chamadas medidas deram Together com 3,3 s de media e
+    # 13,8 s de pior caso, contra 14,6 s de media e 55,5 s de pior do Sail
+    # Research - e foi a cauda deste que pendurou a rodada 1 do ticket 07 com
+    # quatro threads paradas. Uma sonda fora do pipeline pegou o Sail em 195 s;
+    # esse valor nao esta em `log_llm`, que so ganhou a coluna `provedor` depois.
     #
     # O fallback fica sempre ligado: preferencia nao e exclusividade, e uma lista
     # de um nome so sem fallback recria a armadilha do provedor unico (o 429 do
@@ -102,9 +104,10 @@ class LLM(BaseModel):
     # 409,8 s atravessa um teto de 180 s sem erro, sem retentativa e sem linha
     # em `log_llm`. Foi assim que a rodada 1 do ticket 07 parou.
     #
-    # 90 s vem da medicao de 2026-09-08, ja sob `esforco_raciocinio`: em 195
-    # chamadas, o pior caso legitimo foi 55,5 s no estagio A e 13,8 s no
-    # estagio B, e o proximo valor depois de 55,5 era 409,8 s. O teto cai no
+    # 90 s vem da medicao de 2026-09-08, ja sob `esforco_raciocinio`: em 201
+    # chamadas com provedor registrado (as validacoes de 15:06-15:12 mais a
+    # rodada que expos a cauda), o pior caso legitimo foi 55,5 s no estagio A e
+    # 13,8 s no estagio B, e o proximo valor depois de 55,5 era 409,8 s. O teto cai no
     # vazio entre os dois. `0` desliga, e a escotilha para quando o modelo
     # mudar e a distribuicao junto.
     prazo_total_s: float = 90

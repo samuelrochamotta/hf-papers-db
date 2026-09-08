@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import sqlite3
 from pathlib import Path
 from typing import Optional
 
@@ -136,8 +137,12 @@ def reclassificar(
             "Chamadas simultaneas ao OpenRouter "
             f"(1 = sequencial, teto {classificacao.CONCORRENCIA_MAXIMA}). "
             "Padrao: llm.concorrencia do config.yaml. "
-            "Acima de 1, Ctrl+C so age quando as chamadas em voo terminam "
-            "(ate ~18 min no pior caso) - espere, nao mate o processo."
+            "Acima de 1, Ctrl+C so age quando as chamadas em voo terminam: "
+            "llm.retry.tentativas x llm.prazo_total_s mais o backoff "
+            "(3 x 90 s + 2 s + 4 s = ~4,6 min por estagio, ~9,2 min se o "
+            "paper ja estiver no Estagio B). Com prazo_total_s: 0 volta a "
+            "valer llm.timeout_s e a espera dobra. "
+            "Espere, nao mate o processo."
         ),
     ),
     so_estagio_a: bool = typer.Option(
@@ -272,14 +277,20 @@ def taxonomia_fundir(
     de: str = typer.Option(..., "--de", help="Rotulo que sera absorvido."),
     para: str = typer.Option(..., "--para", help="Rotulo que permanece."),
 ) -> None:
-    """Funde dois rotulos irmaos - duas areas raiz ou duas sub-areas do mesmo
-    pai - e reescreve a ponte. Comando explicito, por desenho: quem classifica
-    nunca funde. O par vem da regra 2 da revisao da grade (ticket 08)."""
+    """Funde duas sub-areas do mesmo pai e reescreve a ponte. Comando
+    explicito, por desenho: quem classifica nunca funde. O par vem da regra 2
+    da revisao da grade (ticket 08).
+
+    Area raiz nao funde: a grade de dez raizes e trava do ticket 08."""
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:
         r = mod_tax.fundir(conn, de=de, para=para)
-    except ValueError as e:
+    # `IntegrityError` junto de `ValueError` e defesa em profundidade: a fusao
+    # recusa antes de tocar no banco tudo o que sabe recusar, mas se um caso
+    # novo chegar a esbarrar numa FK, o operador merece a mensagem e o codigo 2
+    # - nao o traceback do sqlite3.
+    except (ValueError, sqlite3.IntegrityError) as e:
         typer.echo(str(e))
         raise typer.Exit(code=2)
     finally:

@@ -10,15 +10,17 @@ Nenhum teste fala com o OpenRouter - o duble dorme uns milissegundos para que a
 sobreposicao seja observavel, e conta o pico de chamadas simultaneas.
 """
 
+import json
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 from conftest import RESPOSTA_A, RESPOSTA_A_FORA, RESPOSTA_B, LLMDuble, povoar_vocabulario
 
 from hfpapers import db
 from hfpapers.estagios import classificacao
-from hfpapers.llm.cliente import ErroLLM, Resposta, Uso
+from hfpapers.llm.cliente import ClienteLLM, ErroLLM, Preco, Resposta, Uso
 from hfpapers.llm.estagio_a import PaperEntrada
 
 NAO_COUBE = {
@@ -302,3 +304,158 @@ def test_concorrencia_absurda_ainda_classifica(cfg, base):
     )
     assert res.classificados == 8
     assert len(llm.threads) <= classificacao.CONCORRENCIA_MAXIMA
+
+
+# ── prazo estourando sob concorrencia ───────────────────────────────────────
+#
+# O `llm.prazo_total_s` roda a chamada numa thread daemon e a **abandona** no
+# prazo. A thread orfa continua presa no I/O, e o que segura o desenho e uma
+# propriedade so: `_criar` nao toca estado do cliente - nao chama
+# `_contabilizar`, nao chama `_registrar`, nao toma `_TRAVA`. Se ela pudesse,
+# uma orfa que voltasse depois somaria uso de uma chamada descartada, ou
+# gravaria uma linha de `log_llm` fora de ordem.
+#
+# Essa propriedade nao aparece em teste nenhum: ela e frágil a qualquer edicao
+# futura de `_criar`, e cai em silencio. Os testes daqui para baixo usam o
+# `ClienteLLM` de verdade, com um transporte falso no lugar do `openai` - e a
+# unica forma de `_com_prazo` rodar de verdade: o `LLMConcorrente` sobrescreve
+# `chamar` inteiro e nunca chega la.
+
+TITULOS_LENTOS = ("TITULO-02", "TITULO-05", "TITULO-07")
+
+
+class TransporteLento:
+    """Imita `client.chat.completions.create`, e dorme nos papers escolhidos.
+
+    Deterministico pelo titulo, que e o que chega ao prompt: sob concorrencia a
+    ordem das chamadas nao e estavel, e um duble que respondesse por contagem
+    seria ele proprio a fonte da nao-determinacao que o teste quer negar.
+
+    O atraso e muito maior que o prazo de proposito: a thread orfa fica viva
+    depois de a chamada ter sido abandonada, que e a situacao sob teste.
+    """
+
+    def __init__(self, lentos=TITULOS_LENTOS, atraso=0.4):
+        self.lentos = set(lentos)
+        self.atraso = atraso
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    def _create(self, *, model, messages, **kw):
+        texto = " ".join(m["content"] for m in messages)
+        if model.endswith("-a") and any(t in texto for t in self.lentos):
+            time.sleep(self.atraso)
+        dados = RESPOSTA_B if model.endswith("-b") else RESPOSTA_A
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content=json.dumps(dados)),
+                    finish_reason="stop",
+                )
+            ],
+            usage=SimpleNamespace(prompt_tokens=100, completion_tokens=50),
+        )
+
+
+def _lote_titulado() -> list[PaperEntrada]:
+    return [
+        PaperEntrada(
+            paper_id=f"2608.0000{i}",
+            titulo=f"TITULO-0{i}",
+            abstract="um abstract",
+            keywords=[],
+        )
+        for i in range(1, 9)
+    ]
+
+
+def _base_titulada(conn):
+    with db.transacao(conn):
+        povoar_vocabulario(conn)
+        for i in range(1, 9):
+            db.upsert_paper(
+                conn,
+                {
+                    "paper_id": f"2608.0000{i}",
+                    "titulo": f"TITULO-0{i}",
+                    "primeiro_visto_em": db.agora(),
+                },
+            )
+    return conn
+
+
+def _cliente_real(conn, cfg):
+    return ClienteLLM(
+        cfg,
+        conn=conn,
+        run_id="run-1",
+        cliente=TransporteLento(),
+        precos={"modelo/teste-a": Preco(1e-6, 2e-6), "modelo/teste-b": Preco(2e-6, 1e-5)},
+        parametros={},
+    )
+
+
+def _rodar_com_prazo(conn, cfg, concorrencia: int):
+    cfg.llm.prazo_total_s = 0.05
+    return classificacao.rodar(
+        conn,
+        _cliente_real(conn, cfg),
+        _lote_titulado(),
+        run_id="run-1",
+        cfg=cfg,
+        concorrencia=concorrencia,
+    )
+
+
+def test_prazo_estourando_em_concorrencia_4_da_o_mesmo_banco_que_em_1(
+    cfg, tmp_path, conn
+):
+    """Tres dos oito papers estouram o prazo em todas as tentativas, e as
+    threads orfas continuam vivas enquanto a rodada segue. O banco tem de sair
+    identico ao da rodada sequencial - linha a linha e na ordem fisica.
+
+    E o teste que trava a propriedade "`_criar` nao toca estado do cliente".
+    Se um dia ele passar a contabilizar uso ou a gravar em `log_llm`, a orfa
+    que volta depois do abandono escreve numa rodada que ja seguiu adiante, e a
+    igualdade aqui quebra - com quatro threads o momento em que cada orfa volta
+    nao coincide com o da rodada sequencial.
+    """
+    sequencial = _base_titulada(conn)
+    paralela = db.conectar(tmp_path / "paralela.db")
+    try:
+        _base_titulada(paralela)
+
+        seq = _rodar_com_prazo(sequencial, cfg, 1)
+        par = _rodar_com_prazo(paralela, cfg, 4)
+
+        assert _estado(paralela) == _estado(sequencial)
+        assert (par.fora, par.amplo, par.estrito) == (seq.fora, seq.amplo, seq.estrito)
+        assert par.avisos == seq.avisos
+        # o lote de fato exercitou o corte: os tres lentos caem no Estagio A
+        assert seq.avisos == [f"estagio_a_falhou:2608.0000{i}" for i in (2, 5, 7)]
+        assert seq.pulados == 3 and seq.classificados == 5
+    finally:
+        paralela.close()
+
+
+def test_a_orfa_do_prazo_nao_acrescenta_linha_em_log_llm(cfg, conn):
+    """A thread abandonada volta com uma resposta que ninguem leu. Se ela
+    gravasse, `log_llm` ganharia linhas depois do fim da rodada - e a
+    conferencia da fatura passaria a depender de quando o processo terminou.
+
+    O `sleep` no fim e o teste: ele da a todas as orfas tempo de voltar. A
+    contagem tem de ser a mesma antes e depois.
+    """
+    _rodar_com_prazo(_base_titulada(conn), cfg, 4)
+    antes = db.contar(conn, "log_llm")
+
+    # tempo de sobra para as 9 orfas (3 papers x 3 tentativas) voltarem do
+    # `sleep` de 0,4 s do transporte
+    time.sleep(1.0)
+
+    assert db.contar(conn, "log_llm") == antes
+    # 3 tentativas por paper lento, todas com ErroPrazo, e nada alem disso
+    prazos = [
+        r["paper_id"]
+        for r in conn.execute("SELECT paper_id FROM log_llm WHERE erro LIKE 'ErroPrazo%'")
+    ]
+    assert sorted(prazos) == sorted([f"2608.0000{i}" for i in (2, 5, 7)] * 3)

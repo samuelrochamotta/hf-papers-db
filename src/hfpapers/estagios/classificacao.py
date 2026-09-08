@@ -499,8 +499,16 @@ def _varrer_paralelo(
             #
             # Consequencia para quem opera: um Ctrl+C no meio de uma rodada
             # longa nao devolve o terminal na hora - ele espera as chamadas em
-            # voo, no pior caso `llm.retry.tentativas` x `llm.timeout_s` mais o
-            # backoff (~9 min por estagio, ~18 min se estiver no Estagio B).
+            # voo, no pior caso `llm.retry.tentativas` x `llm.prazo_total_s`
+            # mais o backoff. Com o config vigente (3 x 90 s + 2 s + 4 s) sao
+            # ~4,6 min por estagio, e ~9,2 min se o paper ja estiver no Estagio
+            # B - a thread faz A e depois B, entao o pior caso e o dobro.
+            #
+            # Quem manda no numero e `prazo_total_s`, e nao `timeout_s`: o
+            # prazo e o teto de ponta a ponta por chamada. Com
+            # `prazo_total_s: 0` (teto desligado) volta a valer `timeout_s`, e
+            # a espera dobra para ~9,1 min por estagio, ~18 min no Estagio B.
+            #
             # E inerente ao `concurrent.futures`; matar o processo no lugar de
             # esperar arrisca interromper uma gravacao. O help do
             # `--concorrencia` avisa.

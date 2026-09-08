@@ -5,11 +5,15 @@ e por isso mora aqui e nao numa consulta ad hoc: o ticket 08 deriva a grade v2
 destas contagens, e uma contagem que ninguem consegue repetir nao serve de base
 para fundir rotulo nenhum.
 
-    python scripts/relatorio_massa.py <run_id> [saida.md] [estimativa_usd]
+    python scripts/relatorio_massa.py <run_id> <saida.md> [estimativa_usd]
 
 O `run_id` recorta so o custo e o roteamento - a distribuicao sai das pontes,
-que guardam o estado final da base, nao o de uma rodada. Sem `run_id`, o custo
-e o do log inteiro.
+que guardam o estado final da base, nao o de uma rodada. `-` no lugar do
+`run_id` usa o log inteiro.
+
+O arquivo de saida e obrigatorio, e nao por rigor: o default apontava para o
+relatorio da v1, e rodar o script sem ele apagava a medicao que justifica as
+fusoes ja feitas.
 
 A saida vai para `docs/` de proposito: `relatorios/` nao e versionado (so o
 `painel.html` escapa do `.gitignore`), e este relatorio e entrada do proximo
@@ -48,6 +52,17 @@ def _pct(n: int, total: int) -> float:
     return n / total if total else 0.0
 
 
+def _tempo(v: float | None) -> str:
+    """Segundos para a tabela, com travessao no lugar do vazio.
+
+    `AVG`/`MAX` sobre um grupo todo-NULL devolvem NULL, e sem isto o `None` do
+    Python vazava impresso para dentro do Markdown - `| 7 | None | None |`. O
+    grupo todo-NULL nao e acidente: `latencia_ms` so e gravada na chamada que
+    respondeu, e a linha *(nao registrado)* concentra as que morreram antes.
+    """
+    return "—" if v is None else str(v)
+
+
 def gerar(
     conn: sqlite3.Connection, run_id: str | None, estimativa_usd: float | None = None
 ) -> str:
@@ -68,6 +83,14 @@ def gerar(
         ("com duas vertentes",
          um("SELECT COUNT(*) FROM (SELECT paper_id FROM ponte_paper_vertente "
             "GROUP BY paper_id HAVING COUNT(*)=2)")),
+        # A linha que faltava, e sem a qual o paper com ponte e sem primaria nao
+        # aparece em leitura nenhuma: ele nao entra em "com par primário" e nao
+        # entra em "sem faceta nenhuma". Foi assim que quatro papers ficaram
+        # meses num estado que o `CONTEXT.md` proibe. Depois do reparo ela sai
+        # zerada, e e para continuar assim que ela precisa existir.
+        ("com par, sem primária",
+         um("SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_area WHERE paper_id "
+            "NOT IN (SELECT paper_id FROM ponte_paper_area WHERE is_primaria=1)")),
         ("**sem faceta nenhuma**",
          um("SELECT COUNT(*) FROM dim_paper WHERE paper_id NOT IN "
             "(SELECT paper_id FROM ponte_paper_area)")),
@@ -229,12 +252,25 @@ def gerar(
         w("Estes não são rótulos inventados: os dois lados existem na grade, e o")
         w("que o modelo recusou foi de quem a sub-área é filha. É a entrada da")
         w("fila que aponta um conserto concreto — mudar o pai, e não criar rótulo.\n")
+        w("**A contagem é piso, e não o total.** `tax_nao_encaixe` guarda um")
+        w("registro por paper, e a declaração do modelo (`nao_coube`) vence o par")
+        w("rejeitado quando o paper tem os dois — então o paper que declarou")
+        w("não-encaixe *e* teve o par derrubado aparece só como declaração. Quem")
+        w("quer o total conta os `WARNING` de `par (area > sub-area) ignorado` no")
+        w("log da rodada: na rodada 1 do ticket 07 foram 15 pares rejeitados, e a")
+        w("tabela guardou 12.\n")
         w("| Par que o modelo tentou | papers | onde a grade pendura a sub-área |")
         w("|---|---:|---|")
         for r in parentesco:
             sub = r["par"].split(" > ")[-1]
-            pai = um("SELECT area_pai FROM dim_area WHERE area = ?", (sub,)) or "—"
-            w(f"| {r['par']} | {r['n']} | {pai} |")
+            # A sub-area pode nao estar mais em `dim_area` - uma fusao apaga o
+            # rotulo e nao mexe na fila -, e ali `fetchone()` volta None inteiro,
+            # nao uma linha com None dentro. Sem o `fetchone()` proprio o
+            # relatorio quebrava com `TypeError` em vez de imprimir o travessao.
+            linha = conn.execute(
+                "SELECT area_pai FROM dim_area WHERE area = ?", (sub,)
+            ).fetchone()
+            w(f"| {r['par']} | {r['n']} | {(linha and linha[0]) or '—'} |")
         w("")
 
     seg = uso["seg"] or 0
@@ -301,11 +337,15 @@ def gerar(
     w("A linha *(não registrado)* concentra as chamadas que morreram antes da")
     w("resposta — inclusive as abandonadas pelo prazo: quem não respondeu não")
     w("informou quem era, e atribuí-las a um provedor seria acusar inocente.\n")
+    w("As três colunas de tempo saem de `latencia_ms`, que só é gravada na")
+    w("chamada que respondeu: *média (s)* e *pior* contam só as chamadas que")
+    w("responderam, e não a rodada. Um provedor cujas chamadas todas morreram")
+    w("antes da resposta sai com travessão nas três — não há tempo a medir.\n")
     w("| Provedor | chamadas | cortadas | prazo | erros | média (s) | pior 1ª tent. (s) | pior acum. (s) |")
     w("|---|---:|---:|---:|---:|---:|---:|---:|")
     for p in prov:
         w(f"| {p['provedor']} | {p['n']} | {p['cortadas']} | {p['prazo']} | {p['erros']} "
-          f"| {p['lat']} | {p['pior1']} | {p['pior']} |")
+          f"| {_tempo(p['lat'])} | {_tempo(p['pior1'])} | {_tempo(p['pior'])} |")
     w("")
 
     w("## 7. Rótulos perto de um limiar\n")
@@ -324,8 +364,21 @@ def gerar(
 
 
 def main() -> None:
-    run_id = sys.argv[1] if len(sys.argv) > 1 else None
-    saida = sys.argv[2] if len(sys.argv) > 2 else "docs/relatorio-massa-grade-v1.md"
+    # O arquivo de saida e **obrigatorio**, e nao tem default. O default era
+    # `docs/relatorio-massa-grade-v1.md`, entao rodar o script sem o segundo
+    # argumento sobrescrevia em silencio o relatorio da v1 - que e a evidencia
+    # que justifica cada fusao do ticket 08. Um instrumento de medicao nao pode
+    # ter, no caminho mais curto, o apagamento da medicao anterior.
+    if len(sys.argv) < 3:
+        raise SystemExit(
+            "uso: python scripts/relatorio_massa.py <run_id> <saida.md> "
+            "[estimativa_usd]\n"
+            "     o arquivo de saida e obrigatorio: sem ele o script sobrescrevia "
+            "o relatorio da grade v1, que e a evidencia das fusoes do ticket 08.\n"
+            "     run_id '-' usa o log inteiro."
+        )
+    run_id = sys.argv[1] if sys.argv[1] != "-" else None
+    saida = sys.argv[2]
     estimativa = float(sys.argv[3]) if len(sys.argv) > 3 else None
     conn = sqlite3.connect(BANCO)
     try:

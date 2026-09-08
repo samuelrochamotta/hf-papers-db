@@ -87,6 +87,12 @@ tentado na justificativa, e roda **depois** de `nao_coube`: a tabela guarda um
 não-encaixe por paper, e a constatação do modelo é dado enquanto a rejeição de
 parentesco é inferência nossa.
 
+**Consequência: a fila de parentesco conta um piso, não o total.** O paper que tem
+declaração do modelo *e* par rejeitado guarda só a declaração — a PK é o `paper_id` e o
+primeiro registro vence. Os 15 pares desta seção vieram do log (`WARNING`), e a tabela
+guardou 12. As duas medidas são legítimas e não são a mesma; a seção *Desacordo de
+parentesco* do relatório de massa passou a dizer isso na cara de quem a lê.
+
 Ao reprocessar os 15, só 4 repetiram a rejeição — os outros 11 encaixaram. É mais uma
 medida do ruído de ~19% da grade, e um aviso para o ticket 08: o desacordo de
 parentesco é real, mas sua contagem em uma rodada única subestima a frequência.
@@ -127,8 +133,17 @@ Dois achados que sobrevivem à rodada:
 A preferência por `Together` **não bastou**. Uma validação de 29 papers com
 `provider.order: [Together]` roteou 28 das 30 chamadas para lá, e mesmo assim
 teve **uma chamada de 409,8 s** — no endpoint de melhor mediana do catálogo
-(3,2 s nas outras 28). Ela sozinha consumiu 68% da parede e derrubou o ritmo
-para 4,4 chamadas/min, abaixo do piso de 10 que aborta a rodada.
+(3,2 s nas outras 28 com latência registrada). **Essa chamada não consumiu parte
+da parede: ela *foi* a parede.** A rodada levou 409 s do início ao fim
+(`log_execucao`, `run-20260908-160502`; 405 s pelo intervalo entre a primeira e a
+última linha de `log_llm`), e a chamada durou 409,8 s. Com quatro threads, as
+outras 29 rodaram inteiras por baixo dela, e a rodada só terminou quando ela
+terminou — o ritmo caiu para 4,4 chamadas/min, abaixo do piso de 10 que aborta a
+rodada.
+
+É esse o formato da falha, e por isso ela não se mede em percentual da parede: um
+número como "68%" sugere uma chamada cara entre outras, quando o que houve foi
+uma rodada inteira pendurada esperando uma chamada só.
 
 **A cauda não tem dono.** Atribuí-la ao Sail Research foi erro meu: o Together
 produziu a pior chamada do dia. Trocar de endpoint trata a mediana, não a cauda,
@@ -138,9 +153,16 @@ linha.
 
 A correção é um prazo de ponta a ponta nosso: a chamada roda numa thread e é
 abandonada aos 90 s, caindo na retentativa que já existia. O valor vem da
-medição já sob `esforco_raciocinio` — em 195 chamadas, o pior caso legítimo foi
-55,5 s no Estágio A e 13,8 s no Estágio B, e o valor seguinte depois de 55,5 s
-era 409,8 s. O teto cai no vazio entre os dois.
+medição já sob `esforco_raciocinio` — em **201 chamadas com provedor
+registrado** (as quatro rodadas de validação de 15:06–15:12, 171 chamadas, mais
+as 30 de `run-20260908-160502`, que é a que expôs a cauda), o pior caso legítimo
+foi 55,5 s no Estágio A e 13,8 s no Estágio B, e o valor seguinte depois de
+55,5 s era 409,8 s. O teto cai no vazio entre os dois.
+
+O denominador precisa conter a chamada de 409,8 s, senão a frase "o valor
+seguinte depois de 55,5 s" não tem a que se referir. Contar também
+`run-20260908-162127` — a validação já **com** o prazo ligado — daria 230, mas
+aquelas 29 chamadas são resultado da correção, não a evidência que a produziu.
 
 Duas validações, o mesmo dia de 29 papers:
 
@@ -157,8 +179,15 @@ Duas validações, o mesmo dia de 29 papers:
 Ressalva de leitura: **nesta rodada o prazo não chegou a ser acionado** — a cauda
 simplesmente não apareceu. O que a tabela prova é que o teto não cria falso
 positivo. Que ele corta de fato foi provado à parte, com o prazo baixado de
-propósito contra a API real: 16 cortes, cada um com sua linha em `log_llm`
-(`ErroPrazo`), e a retentativa recuperando na tentativa seguinte.
+propósito contra a API real, e a retentativa recuperando na tentativa seguinte.
+
+**Correção do número.** Este parágrafo dizia "16 cortes, cada um com sua linha em
+`log_llm`". O banco não tem essas 16 linhas: as únicas `ErroPrazo` que existem
+são **7**, todas de `run-20260908-173724` (3 no Estágio A, 4 no B) e todas com o
+prazo de 90 s. O experimento do prazo baixado rodou contra a API real, mas fora
+de uma rodada registrada — ele não deixou rastro em `log_llm`, e a frase "cada um
+com sua linha" não se sustenta. O que o banco sustenta são as 7 da rodada 2, que
+o README já reporta como "7 chamadas em 4.407 (0,16%), todas recuperadas".
 
 Duas consequências operacionais:
 

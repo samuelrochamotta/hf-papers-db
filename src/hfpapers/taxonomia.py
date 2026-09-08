@@ -165,6 +165,16 @@ def aplicar_classificacao(
     expressa "sub-area valida *dado* que a area e X" sem um `oneOf` de dez ramos
     que nem todo provedor trata -, entao o parentesco so pode ser cobrado aqui.
 
+    **Derrubar o par primario promove o secundario.** A primazia e da posicao
+    entre os pares que sobreviveram, e nao entre os que o modelo mandou: o
+    `CONTEXT.md` diz que o primario e obrigatorio e unico, e um paper com ponte
+    e sem primaria nao aparece em leitura nenhuma - nem na cobertura de par
+    primario, que o conta como faltante, nem na de paper sem faceta, que so
+    olha quem nao tem ponte. A rejeicao continua indo para `tax_nao_encaixe`:
+    promover o que sobrou nao apaga que o modelo errou o parentesco. Se os dois
+    caem, o paper fica sem ponte - esse estado e visivel, e e o caminho por
+    onde a fila de revisao cobra a grade.
+
     `vertentes_paper` chega ordenada, a dominante primeiro, e e a ordem que a
     ponte grava. **O teto de duas e aplicado aqui, e nao so pedido no prompt**
     (user story 29): `maxItems` sob `strict: true` nao e cumprido por todo
@@ -199,15 +209,30 @@ def aplicar_classificacao(
     # Viram fila de revisao depois de `nao_coube`, e nao no lugar dele.
     rejeitados: list[str] = []
 
-    def _par(area: Optional[str], subarea: Optional[str], *, primaria: bool) -> None:
+    def _aprovar_par(area: Optional[str], subarea: Optional[str]) -> bool:
+        """True se o par pode ser gravado; **reprovar enfileira o motivo**."""
         if not area and not subarea:
-            return                       # par secundario nulo e a resposta comum
+            return False                 # par secundario nulo e a resposta comum
         if not subarea or pai_de.get(subarea) != area:
             log.warning(
                 "par (area > sub-area) ignorado em %s: %s > %s", paper_id, area, subarea
             )
             rejeitados.append(f"{area} > {subarea}")
-            return
+            return False
+        return True
+
+    candidatos = [(area_primaria, subarea_primaria)]
+    if (area_secundaria, subarea_secundaria) != (area_primaria, subarea_primaria):
+        candidatos.append((area_secundaria, subarea_secundaria))
+
+    # **A primazia sai da posicao entre os pares que sobreviveram**, e nao da
+    # posicao entre os que o modelo mandou: se o parentesco derruba o primario,
+    # quem sobra sobe. Sem isto o paper terminava com ponte e sem primaria -
+    # estado que o `CONTEXT.md` proibe, que nenhuma leitura conta como falha, e
+    # que quatro papers da base carregaram ate o reparo (achado 1 da revisao).
+    for posicao, (area, subarea) in enumerate(
+        [par for par in candidatos if _aprovar_par(*par)]
+    ):
         db.inserir_ignorando(
             conn,
             "ponte_paper_area",
@@ -215,13 +240,9 @@ def aplicar_classificacao(
                 "paper_id": paper_id,
                 "area": area,
                 "subarea": subarea,
-                "is_primaria": int(primaria),
+                "is_primaria": int(posicao == 0),
             },
         )
-
-    _par(area_primaria, subarea_primaria, primaria=True)
-    if (area_secundaria, subarea_secundaria) != (area_primaria, subarea_primaria):
-        _par(area_secundaria, subarea_secundaria, primaria=False)
 
     # A ordem sai da posicao na lista *depois* de descartar o desconhecido: uma
     # vertente inventada em primeiro lugar nao pode deixar a valida seguinte
@@ -343,54 +364,67 @@ def nao_encaixes(
 
 
 def fundir(conn: sqlite3.Connection, *, de: str, para: str) -> dict[str, int]:
-    """Reescreve a ponte de `de` para `para` e apaga o rotulo `de`.
+    """Funde a sub-area `de` na irma `para`: reescreve a ponte e apaga `de`.
 
-    Sem parametro de tipo, e sem parametro de nivel: o nivel sai da propria
-    hierarquia. Area raiz mora na coluna `area` da ponte e sub-area na coluna
-    `subarea` - cada rotulo so aparece na sua -, entao quem sabe se `de` tem pai
-    ja sabe qual coluna reescrever, e um parametro para isso seria uma segunda
-    chance de errar.
+    Sem parametro de tipo e sem parametro de nivel: so ha um nivel que funde.
+    A sub-area mora na coluna `subarea` da ponte, e e sempre essa a coluna
+    reescrita - um parametro para dize-lo seria uma segunda chance de errar.
 
-    **Os dois rotulos precisam ser do mesmo nivel e do mesmo pai.** A regra 2 do
-    ticket 08 funde na *irma*, e nao em qualquer rotulo: mandar uma sub-area
-    para outra area produziria um par cuja sub-area nao e filha da area, que e
-    exatamente o que `aplicar_classificacao` recusa gravar - a fusao nao pode
-    criar pela porta dos fundos o estado que a classificacao rejeita.
+    Tres recusas, e cada uma fecha um estrago diferente:
+
+    - **`de == para`**: o UPDATE viraria no-op e o DELETE do rotulo de origem
+      levaria junto **todas** as pontes dele. Um erro de digitacao apagava a
+      classificacao de uma sub-area inteira em silencio.
+    - **Rotulos que nao sao irmaos**: a regra 2 do ticket 08 funde na *irma*,
+      e nao em qualquer rotulo. Mandar uma sub-area para outra area produziria
+      um par cuja sub-area nao e filha da area - o estado que
+      `aplicar_classificacao` recusa gravar e que so a FK de `ponte_paper_area`
+      segurava. O check e a garantia; a FK e a rede embaixo dela.
+    - **Area raiz**: fundir duas raizes foi anunciado e nunca funcionou - as
+      filhas de `de` ficavam apontando para o rotulo que o DELETE ia apagar, e
+      a FK derrubava a transacao com `IntegrityError`. Reparentar as filhas
+      seria capacidade que ninguem pediu: mexer nas dez raizes e justamente o
+      que a trava do ticket 08 proibe.
     """
     pai_de = hierarquia(conn)
+    if de == para:
+        raise ValueError(f"fusao de '{de}' nela mesma apagaria as pontes do rotulo")
     for rotulo in (de, para):
         if rotulo not in pai_de:
             raise ValueError(f"area inexistente: {rotulo}")
     if pai_de[de] != pai_de[para]:
         raise ValueError(f"'{de}' e '{para}' nao sao irmas: fusao so entre o mesmo pai")
+    if pai_de[de] is None:
+        raise ValueError(
+            f"'{de}' e '{para}' sao areas raiz, e a fusao so vale entre sub-areas: "
+            "a regra 2 do ticket 08 funde na irma sub-area, e a grade de dez "
+            "areas raiz e trava do ticket 08"
+        )
 
-    # A coluna que carrega o rotulo, e a outra metade do par: a colisao de
-    # chave so acontece entre linhas do mesmo paper que coincidem nas duas.
-    coluna = "subarea" if pai_de[de] else "area"
-    outra_coluna = "area" if coluna == "subarea" else "subarea"
     with db.transacao(conn):
-        # O paper pode ja ter o destino, e ai as duas linhas colidem na chave.
-        # Quem sobrevive e a linha de destino, entao ela precisa herdar a
-        # primazia antes: sem isto o paper que tinha `de` como primaria e `para`
-        # como secundaria termina so com a secundaria, e a cobertura do par
-        # primario - checagem 1 do relatorio - cai sem que ninguem tenha
-        # decidido isso.
+        # O paper pode ja ter o destino, e ai as duas linhas colidem na chave -
+        # a colisao so acontece entre linhas do mesmo paper que coincidem na
+        # area e na sub-area de destino. Quem sobrevive e a linha de destino,
+        # entao ela precisa herdar a primazia antes: sem isto o paper que tinha
+        # `de` como primaria e `para` como secundaria termina so com a
+        # secundaria, e a cobertura do par primario - checagem 1 do relatorio -
+        # cai sem que ninguem tenha decidido isso.
         conn.execute(
-            f"UPDATE ponte_paper_area SET is_primaria = 1 WHERE {coluna} = ? "
-            f"  AND EXISTS (SELECT 1 FROM ponte_paper_area o "
-            f"               WHERE o.paper_id = ponte_paper_area.paper_id "
-            f"                 AND o.{outra_coluna} = ponte_paper_area.{outra_coluna} "
-            f"                 AND o.{coluna} = ? AND o.is_primaria = 1)",
+            "UPDATE ponte_paper_area SET is_primaria = 1 WHERE subarea = ? "
+            "  AND EXISTS (SELECT 1 FROM ponte_paper_area o "
+            "               WHERE o.paper_id = ponte_paper_area.paper_id "
+            "                 AND o.area = ponte_paper_area.area "
+            "                 AND o.subarea = ? AND o.is_primaria = 1)",
             (para, de),
         )
         conn.execute(
-            f"UPDATE OR IGNORE ponte_paper_area SET {coluna} = ? WHERE {coluna} = ?",
+            "UPDATE OR IGNORE ponte_paper_area SET subarea = ? WHERE subarea = ?",
             (para, de),
         )
-        conn.execute(f"DELETE FROM ponte_paper_area WHERE {coluna} = ?", (de,))
+        conn.execute("DELETE FROM ponte_paper_area WHERE subarea = ?", (de,))
         movidos = conn.execute(
-            f"SELECT COUNT(DISTINCT paper_id) AS n FROM ponte_paper_area "
-            f"WHERE {coluna} = ?",
+            "SELECT COUNT(DISTINCT paper_id) AS n FROM ponte_paper_area "
+            "WHERE subarea = ?",
             (para,),
         ).fetchone()["n"]
         conn.execute("DELETE FROM dim_area WHERE area = ?", (de,))
