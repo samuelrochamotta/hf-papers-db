@@ -1,6 +1,6 @@
 """Gravacao dos criterios, da regra e da contraparte pelo estagio de classificacao.
 
-`ponte_paper_criterio` segue as pontes de area e topico: reescrita a cada
+`ponte_paper_criterio` segue a ponte de area: reescrita a cada
 classificacao, vazia para `fora`. Os avisos de fronteira do Estagio B chegam ao
 resultado da rodada com o `paper_id` anexado.
 """

@@ -104,11 +104,6 @@ CREATE TABLE IF NOT EXISTS dim_vertente (
     definicao   TEXT NOT NULL,
     desde       DATE
 );
-CREATE TABLE IF NOT EXISTS dim_topico (
-    topico      TEXT PRIMARY KEY,
-    definicao   TEXT NOT NULL,
-    desde       DATE
-);
 -- O par (área > sub-área) que localiza o paper na grade. A sub-área entra na
 -- chave primária porque o par secundário pode repetir a área do primário desde
 -- que a sub-área difira: com a chave `(paper_id, area)` esse par era proibido.
@@ -119,11 +114,6 @@ CREATE TABLE IF NOT EXISTS ponte_paper_area (
     subarea     TEXT NOT NULL REFERENCES dim_area(area),
     is_primaria INTEGER NOT NULL,   -- 1 = par primário, 0 = secundário
     PRIMARY KEY (paper_id, area, subarea)
-);
-CREATE TABLE IF NOT EXISTS ponte_paper_topico (
-    paper_id    TEXT NOT NULL REFERENCES dim_paper(paper_id),
-    topico      TEXT NOT NULL REFERENCES dim_topico(topico),
-    PRIMARY KEY (paper_id, topico)
 );
 -- De uma a duas vertentes por paper. A `ordem` é o que distingue a dominante
 -- (1) da secundária (2): sem ela as duas seriam intercambiáveis e nenhuma

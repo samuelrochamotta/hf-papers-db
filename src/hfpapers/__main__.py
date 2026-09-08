@@ -202,8 +202,8 @@ def reclassificar(
 
 @app_tax.command("listar")
 def taxonomia_listar() -> None:
-    """Areas (com as sub-areas), topicos e vertentes, com quantos papers cada
-    rotulo carrega, mais o quanto a grade esta devendo por eixo."""
+    """Areas (com as sub-areas) e vertentes, com quantos papers cada rotulo
+    carrega, mais o quanto a grade esta devendo por eixo."""
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:
@@ -211,12 +211,8 @@ def taxonomia_listar() -> None:
     finally:
         conn.close()
 
-    planas = [a for a in dados["areas"] if not a["subareas"]]
     subareas = sum(len(a["subareas"]) for a in dados["areas"])
-    typer.echo(
-        f"AREAS ({len(planas)} na grade plana + "
-        f"{len(dados['areas']) - len(planas)} facetadas com {subareas} sub-areas)"
-    )
+    typer.echo(f"AREAS ({len(dados['areas'])} com {subareas} sub-areas)")
     for a in dados["areas"]:
         typer.echo(f"  {a['papers']:>4}  {a['rotulo']}")
         for s in a["subareas"]:
@@ -229,9 +225,6 @@ def taxonomia_listar() -> None:
             f"  {v['papers']:>4}  ({v['dominantes']:>4} dom.)  "
             f"{v['rotulo']} — {v['definicao']}"
         )
-    typer.echo(f"\nTOPICOS ({len(dados['topicos'])})")
-    for t in dados["topicos"]:
-        typer.echo(f"  {t['papers']:>4}  {t['rotulo']}")
     typer.echo("\nNAO-ENCAIXE (`taxonomia nao-encaixes` para ler a fila)")
     for eixo in mod_tax.EIXOS:
         typer.echo(f"  {dados['nao_encaixes'].get(eixo, 0):>4}  {eixo}")
@@ -269,13 +262,12 @@ def taxonomia_nao_encaixes(
 def taxonomia_fundir(
     de: str = typer.Option(..., "--de", help="Rotulo que sera absorvido."),
     para: str = typer.Option(..., "--para", help="Rotulo que permanece."),
-    tipo: str = typer.Option("topico", "--tipo", help="area | topico"),
 ) -> None:
-    """Funde dois rotulos e reescreve as pontes. Operacao manual, por desenho."""
+    """Funde duas areas e reescreve a ponte. Operacao manual, por desenho."""
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:
-        r = mod_tax.fundir(conn, de=de, para=para, tipo=tipo)
+        r = mod_tax.fundir(conn, de=de, para=para)
     except ValueError as e:
         typer.echo(str(e))
         raise typer.Exit(code=2)
@@ -305,8 +297,8 @@ def taxonomia_exportar(
         None, "--destino", help=f"Arquivo JSON de saida (padrao: {TAXONOMIA_INICIAL})."
     ),
 ) -> None:
-    """Grava areas, sub-areas, topicos e vertentes do banco num JSON versionavel.
-    Candidatos nao entram."""
+    """Grava areas, sub-areas e vertentes do banco num JSON versionavel.
+    O nao-encaixe nao entra: e fila de revisao, nao vocabulario vigente."""
     cfg = _preparar()
     destino = _taxonomia_inicial(cfg, destino)
     conn = db.abrir(cfg)
@@ -322,8 +314,7 @@ def taxonomia_exportar(
     typer.echo(
         f"{len(dados['areas'])} areas com "
         f"{sum(len(a['subareas']) for a in dados['areas'])} sub-areas, "
-        f"{len(dados['topicos'])} topicos e {len(dados['vertentes'])} vertentes "
-        f"em {destino}"
+        f"e {len(dados['vertentes'])} vertentes em {destino}"
     )
 
 
@@ -348,7 +339,7 @@ def taxonomia_carregar(
     finally:
         conn.close()
     typer.echo(
-        f"{r['areas']} areas, {r['subareas']} sub-areas, {r['topicos']} topicos e "
+        f"{r['areas']} areas, {r['subareas']} sub-areas e "
         f"{r['vertentes']} vertentes inseridos "
         f"({r['ja_existiam']} rotulos ja existiam, intocados)"
     )

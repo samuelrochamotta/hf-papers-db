@@ -38,30 +38,17 @@
   var VERDE_CLARO = '#8fe0ae';
 
   /* Os dois papeis do passo claro, nomeados a parte de proposito: eles dizem
-     coisas diferentes em cards diferentes ("amplo" no empilhamento por
-     veredito, "cresceu" na escala divergente do heatmap) e nunca aparecem na
-     mesma escala - cada card tem a sua legenda. O valor coincidir e
-     intencional, e a indirecao e o que impede o acidente inverso: reestepar um
-     dos papeis (por CVD, por exemplo) sem perceber que mexeu no outro exige
-     trocar o alias aqui, de olho nos dois nomes. */
+     coisas diferentes em cards diferentes e nunca aparecem na mesma escala -
+     cada card tem a sua legenda. O valor coincidir e intencional, e a
+     indirecao e o que impede o acidente inverso: reestepar um dos papeis (por
+     CVD, por exemplo) sem perceber que mexeu no outro exige trocar o alias
+     aqui, de olho nos dois nomes. */
   var VERDE_ESTRITO = VERDE_ESCURO;
   var VERDE_AMPLO = VERDE_CLARO;
-  var VERDE_ALTA = VERDE_CLARO;
 
-  /* Polos da escala divergente do heatmap (vista `crescimento`). O ticket pede
-     vermelho = caiu, cinza = estavel, verde = cresceu; os TONS sao escolha
-     desta implementacao, porque o par obvio (#e66767 com #4ec07a) mede ΔE 4,8
-     sob deuteranopia - abaixo do piso 6 da skill, ou seja, dois cinzas iguais
-     para quem nao distingue vermelho de verde. Escurecer o vermelho e clarear
-     o verde poe a diferenca na LUMINANCIA, que a deuteranopia preserva: o
-     mesmo par medido de novo da ΔE 24,3. O sinal tambem sai por escrito no
-     tooltip, entao a cor nunca e o unico canal. */
-  var VERMELHO_QUEDA = '#c94f4f';
+  /* Zero da rampa de taxa da matriz de cruzamentos: cinza, e nao o fundo do
+     card, porque "0% aprovado" e um valor medido e precisa ser visivel. */
   var CINZA_ESTAVEL = '#6b7480';
-  /* Fundo da celula vazia do heatmap e da matriz: e o zero das rampas, e nao o
-     fundo do card - uma celula sem dado precisa se distinguir de uma celula
-     com o menor valor da escala. */
-  var FUNDO_CELULA = '#1a1d21';
 
   /* Serie do card "Como o voto amadurece". Roxo por eliminacao deliberada:
      azul e laranja sao estrito e amplo, cinza e `fora`, verde e aprovado e
@@ -78,7 +65,7 @@
 
   var state = {
     aba: 'janela',
-    diasSel: [], vereditos: [], areas: [], topicos: [], orgs: [],
+    diasSel: [], vereditos: [], areas: [], orgs: [],
     // recortes que so o grafico produz (nao ha menu para eles na barra de
     // filtro): `regrasFora` vem do clique no Pareto, `criterios` do clique no
     // card espelho dele ("Por que o pipeline aprova"), `areasSec` do clique na
@@ -88,8 +75,7 @@
     menu: null, buscaMenu: '',
     perSel: null, abertaH: null,
     // alternancias de desenho dentro de um card - nao recortam dado
-    vistaArea: 'dist', taxaDecomp: false,
-    heatVista: 'volume', lagGrupo: 'veredito',
+    vistaArea: 'dist', taxaDecomp: false, lagGrupo: 'veredito',
     // "mais" do cabecalho da decisao, por card aberto (chave: secao + id) -
     // um objeto, nao um id unico, porque o card da aba viva e o do hall podem
     // estar abertos ao mesmo tempo (abas diferentes, mesmo estado).
@@ -209,16 +195,16 @@
     });
   }
 
-  /* Interpolacao de cor para as rampas sequenciais e divergentes dos mapas de
-     calor. Mistura sobre `FUNDO_CELULA` em vez de usar alfa: com alfa a celula
-     herdaria o que estiver atras dela (o card, a borda, outra celula) e a
-     mesma intensidade mudaria de cor conforme o lugar - numa rampa que E o
-     dado, isso e erro de leitura, nao detalhe. */
-  /* Aceita `#rrggbb` e o proprio `rgb(...)` que devolve: a escala divergente
-     mistura DUAS vezes (fundo → cinza neutro, depois neutro → polo), e sem
-     isso a segunda chamada recebia "rgb(" no lugar de um hex, `parseInt` dava
-     NaN e a celula saia transparente - o mapa inteiro ficava preto sem erro
-     nenhum no console. */
+  /* Interpolacao de cor para a rampa de taxa da matriz de cruzamentos.
+     Mistura em vez de alfa: com alfa a celula herdaria o que estiver atras
+     dela (o card, a borda, outra celula) e a mesma intensidade mudaria de cor
+     conforme o lugar - numa rampa que E o dado, isso e erro de leitura, nao
+     detalhe.
+
+     Aceita `#rrggbb` e o proprio `rgb(...)` que devolve, porque a mistura pode
+     ser encadeada; sem isso a segunda chamada recebia "rgb(" no lugar de um
+     hex, `parseInt` dava NaN e a celula saia transparente - sem erro nenhum no
+     console. */
   function rgbDe(c) {
     if (c.charAt(0) === '#') {
       return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
@@ -232,10 +218,6 @@
       return Math.round(v + (cb[i] - v) * t);
     }).join(',') + ')';
   }
-  /* Piso da rampa sequencial: o menor valor presente ainda precisa se separar
-     da celula vazia, senao "pouco" e "nenhum" viram a mesma cor. */
-  function sequencial(cor, frac) { return mistura(FUNDO_CELULA, cor, 0.16 + frac * 0.84); }
-
   /* Cor de uma taxa de aprovacao: cinza (nenhum passou) → verde (todos). A
      rampa sai do cinza e nao do fundo porque aqui o zero e um valor medido,
      nao ausencia de dado - "0% aprovado" precisa ser visivel. */
@@ -277,7 +259,6 @@
       // foi aprovado, entao marcar um criterio ja implica excluir os `fora`
       if (!livre('criterios') && s.criterios.length &&
         (p.v === 'fora' || !s.criterios.some(function (c) { return (p.cr || []).indexOf(c) >= 0; }))) return false;
-      if (!livre('topicos') && s.topicos.length && !s.topicos.some(function (t) { return p.tp.indexOf(t) >= 0; })) return false;
       if (!livre('orgs') && s.orgs.length) {
         var chave = p.org || '__sem-org__';
         if (s.orgs.indexOf(chave) < 0) return false;
@@ -420,7 +401,7 @@
   var SVG_CHEVRON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"></path></svg>';
   var SVG_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 7"></path></svg>';
 
-  /* Menu suspenso de selecao multipla (dia, area, topico, organizacao).
+  /* Menu suspenso de selecao multipla (dia, area, organizacao).
      `campo` e a chave de estado; `itens` e [{valor, label, n}] ja ordenado. */
   function montaMenu(rotulo, campo, itens, opcoes) {
     var s = state;
@@ -432,7 +413,7 @@
     var rotuloTodos = (opcoes && opcoes.todos) || 'todos';
 
     // caixa de selecao desenhada: o clique alterna e o menu FICA aberto,
-    // senao marcar tres topicos exigiria reabrir o menu tres vezes
+    // senao marcar tres areas exigiria reabrir o menu tres vezes
     function caixa(marcado) {
       return 'display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 4px; ' +
         (marcado
@@ -978,12 +959,6 @@
       return { valor: a.a, label: a.a, n: contaArea[a.a] || 0 };
     }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
 
-    var contaTop = {};
-    todos.forEach(function (p) { p.tp.forEach(function (t) { contaTop[t] = (contaTop[t] || 0) + 1; }); });
-    var itensTopico = DADOS.topicos.map(function (t) {
-      return { valor: t.t, label: t.t, n: contaTop[t.t] || 0 };
-    }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
-
     var contaOrg = {};
     todos.forEach(function (p) { if (p.org) contaOrg[p.org] = (contaOrg[p.org] || 0) + 1; });
     var semOrg = todos.filter(function (p) { return !p.org; }).length;
@@ -1001,7 +976,6 @@
     if (s.areasSec.length) ativos.push(s.areasSec.length === 1 ? 'sec: ' + s.areasSec[0] : s.areasSec.length + ' áreas secundárias');
     if (s.regrasFora.length) ativos.push(s.regrasFora.length === 1 ? 'regra: ' + rotulo(s.regrasFora[0]) : s.regrasFora.length + ' regras');
     if (s.criterios.length) ativos.push(s.criterios.length === 1 ? 'critério: ' + rotulo(s.criterios[0]) : s.criterios.length + ' critérios');
-    if (s.topicos.length) ativos.push(s.topicos.length === 1 ? s.topicos[0] : s.topicos.length + ' tópicos');
     if (s.orgs.length) ativos.push(s.orgs.length === 1 ? (s.orgs[0] === '__sem-org__' ? 'sem organização' : s.orgs[0]) : s.orgs.length + ' organizações');
     if (s.busca) ativos.push('"' + s.busca + '"');
     var resumoFiltro = ativos.length ? total + ' de ' + todos.length + ' · ' + ativos.join(' · ') : todos.length + ' papers, sem recorte';
@@ -1013,7 +987,7 @@
     // z-index 90 na linha do menu aberto: sem isso a cortina de fechar (80)
     // ficaria por cima do proprio menu e nenhum item seria clicavel.
     var zDia = s.menu === 'diasSel' ? 90 : 4;
-    var zTema = (s.menu === 'areas' || s.menu === 'topicos') ? 90 : 2;
+    var zTema = s.menu === 'areas' ? 90 : 2;
     var zOrg = s.menu === 'orgs' ? 90 : 1;
 
     out.push(
@@ -1031,7 +1005,7 @@
                 ev('i', function (e) { setState({ busca: e.target.value, aberta: null, justExp: {} }); }) +
                 ' placeholder="buscar título ou organização" style="font-family: \'Instrument Sans\', sans-serif; font-size: 13px; padding: 9px 14px 9px 36px; width: 268px; border: 1px solid #2b3138; border-radius: 100px; background: #1b1f23; color: #ecebe6; outline: none;">' +
             '</div>' +
-            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], areasSec: [], regrasFora: [], criterios: [], topicos: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
+            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], areasSec: [], regrasFora: [], criterios: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>limpar</span>' +
             '</div>' +
           '</div>' +
@@ -1062,9 +1036,7 @@
               : '') +
           '</div>' +
         '</div>' +
-        linhaFiltro('TEMA', zTema,
-          montaMenu('ÁREA', 'areas', itensArea, { todos: 'todas' }) +
-          montaMenu('TÓPICO', 'topicos', itensTopico, { todos: 'todos' })) +
+        linhaFiltro('TEMA', zTema, montaMenu('ÁREA', 'areas', itensArea, { todos: 'todas' })) +
         linhaFiltro('AUTORIA', zOrg, montaMenu('ORGANIZAÇÃO', 'orgs', itensOrg, { todos: 'todas' })) +
       '</div>'
     );
@@ -1503,7 +1475,7 @@
 
     var vistaAreaCruz = s.vistaArea === 'cruz';
     out.push(
-      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 18px;">' +
+      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 18px;">' +
         '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Área primária</div>' +
@@ -1526,244 +1498,6 @@
           : (barrasArea
             ? '<div style="display: flex; flex-direction: column; gap: 13px;">' + barrasArea + '</div>'
             : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhuma área dentro deste recorte.</div>')) +
-      '</div>'
-    );
-
-    /* ── heatmap tópico × tempo ─────────────────────────────────────────── */
-    /* Acima de ~24 colunas o dia vira faixa de 1 pixel e o rotulo some, entao a
-       coluna passa a ser a semana. O corte e do desenho, nao do dado: a janela
-       padrao e de 90 dias e ninguem le 90 colunas. */
-    var porSemana = dias.length > 24;
-    var periodos = [], mapaPer = {}, perDeDia = {};
-    dias.forEach(function (d) {
-      // segunda-feira da semana: 1970-01-01 caiu numa quinta, dai o +3
-      var chave = porSemana ? String(diaNum(d) - ((diaNum(d) + 3) % 7)) : d;
-      if (!mapaPer[chave]) {
-        mapaPer[chave] = { k: chave, dias: [], total: 0, ap: 0, tp: {}, tpAp: {} };
-        periodos.push(mapaPer[chave]);
-      }
-      mapaPer[chave].dias.push(d);
-      perDeDia[d] = mapaPer[chave];
-    });
-
-    var selTopico = filtrados('topicos');
-    var linhaTop = {};
-    selTopico.forEach(function (p) {
-      var per = perDeDia[p.d];
-      if (per) { per.total++; if (p.v !== 'fora') per.ap++; }
-      // um paper conta uma vez por topico, mesmo que o topico se repita na
-      // lista: o denominador do heatmap e paper, nao ocorrencia
-      var vistos = {};
-      p.tp.forEach(function (t) {
-        if (vistos[t]) return;
-        vistos[t] = 1;
-        if (per) {
-          per.tp[t] = (per.tp[t] || 0) + 1;
-          // aprovados do topico NAQUELE periodo: e o numerador da vista
-          // `aprovação`, que precisa ser por celula - a taxa da linha inteira
-          // ja esta na coluna % APR e nao diria nada novo pintada de novo
-          if (p.v !== 'fora') per.tpAp[t] = (per.tpAp[t] || 0) + 1;
-        }
-        if (!linhaTop[t]) linhaTop[t] = { n: 0, ap: 0 };
-        linhaTop[t].n++;
-        if (p.v !== 'fora') linhaTop[t].ap++;
-      });
-    });
-
-    var meioPer = Math.floor(periodos.length / 2);
-    function participacao(t, de, ate) {
-      var n = 0, tot = 0;
-      for (var i = de; i < ate; i++) { n += periodos[i].tp[t] || 0; tot += periodos[i].total; }
-      return tot ? n / tot : 0;
-    }
-    var MIN_TAXA_TOP = 5;
-    var topsOrd = Object.keys(linhaTop).sort(function (x, y) {
-      if (s.heatVista === 'crescimento') {
-        // diferenca de PARTICIPACAO entre a metade recente e a antiga, nao de
-        // contagem: o tamanho do lote diario varia demais para comparar cru
-        var gx = participacao(x, meioPer, periodos.length) - participacao(x, 0, meioPer);
-        var gy = participacao(y, meioPer, periodos.length) - participacao(y, 0, meioPer);
-        return gy - gx || linhaTop[y].n - linhaTop[x].n;
-      }
-      if (s.heatVista === 'aprovacao') {
-        // topico de 1 paper aprovado nao pode liderar um ranking de taxa:
-        // abaixo do minimo de amostra ele cai para o fim da lista
-        var ex = linhaTop[x].n >= MIN_TAXA_TOP ? linhaTop[x].ap / linhaTop[x].n : -1;
-        var ey = linhaTop[y].n >= MIN_TAXA_TOP ? linhaTop[y].ap / linhaTop[y].n : -1;
-        return ey - ex || linhaTop[y].n - linhaTop[x].n;
-      }
-      return linhaTop[y].n - linhaTop[x].n || x.localeCompare(y);
-    });
-    var LINHAS_HEAT = 12;
-    var topsVisiveis = topsOrd.slice(0, LINHAS_HEAT);
-
-    /* ── as tres escalas do heatmap ─────────────────────────────────────────
-       A vista nao troca so a ordem das linhas: troca a MEDIDA da celula, e
-       cada medida tem a escala que o tipo dela pede (ticket 04).
-
-       `volume`     participacao do topico no lote — magnitude, entao sequencial
-                    de uma cor so (azul), do fundo ao cheio.
-       `crescimento` participacao do periodo MENOS a participacao media do
-                    topico na janela — tem sinal, entao divergente: vermelho
-                    abaixo, cinza em cima da media, verde acima. O ponto neutro
-                    e a media do proprio topico, nao zero; comparar topicos
-                    entre si nesta vista nao e a leitura (para isso ha `volume`).
-       `aprovação`  taxa de aprovacao do topico naquele periodo — magnitude de
-                    novo, e sequencial verde porque verde e aprovado.
-
-       Uma escala por vista e nao uma so para as tres: sao unidades diferentes
-       (fracao do lote, desvio com sinal, taxa), e uma rampa unica so poderia
-       estar certa para uma delas. */
-    var maxPart = 0;
-    topsVisiveis.forEach(function (t) {
-      periodos.forEach(function (per) {
-        if (!per.total) return;
-        var v = (per.tp[t] || 0) / per.total;
-        if (v > maxPart) maxPart = v;
-      });
-    });
-    if (maxPart <= 0) maxPart = 1;
-
-    // media do topico na janela inteira: o zero da escala divergente
-    var mediaTop = {};
-    topsVisiveis.forEach(function (t) { mediaTop[t] = participacao(t, 0, periodos.length); });
-    var maxDesvio = 0;
-    topsVisiveis.forEach(function (t) {
-      periodos.forEach(function (per) {
-        if (!per.total) return;
-        var dv = Math.abs((per.tp[t] || 0) / per.total - mediaTop[t]);
-        if (dv > maxDesvio) maxDesvio = dv;
-      });
-    });
-    if (maxDesvio <= 0) maxDesvio = 1;
-
-    /* Devolve {cor, dica} de uma celula na vista corrente. Periodo sem paper
-       nenhum e ausencia de dado nas tres vistas; celula zerada dentro de um
-       periodo cheio e ausencia de dado em `volume` e `aprovação` (nao ha o que
-       medir) mas e informacao em `crescimento` — o topico sumiu, e sumir e
-       cair. */
-    function celulaHeat(t, per) {
-      var n = per.tp[t] || 0;
-      var parte = per.total ? n / per.total : 0;
-      var rot = porSemana ? 'semana de ' + diaCurto(per.dias[0]) : diaCurto(per.dias[0]);
-      if (!per.total) return { cor: FUNDO_CELULA, l1: t + ' · ' + rot, l2: 'nenhum paper neste período' };
-      if (s.heatVista === 'crescimento') {
-        var dv = parte - mediaTop[t];
-        var pp = Math.round(dv * 1000) / 10;       // em pontos percentuais do lote
-        var frac = Math.abs(dv) / maxDesvio;
-        var neutro = mistura(FUNDO_CELULA, CINZA_ESTAVEL, 0.42);
-        return {
-          // sem piso, ao contrario da rampa sequencial: aqui o meio da escala e
-          // um valor de verdade ("ficou na media"), e um piso de saturacao
-          // pintaria de vermelho ou verde um desvio de um decimo de ponto - o
-          // mapa inteiro acenderia e nao sobraria nada de neutro para comparar
-          cor: mistura(neutro, dv > 0 ? VERDE_ALTA : VERMELHO_QUEDA, frac),
-          l1: t + ' · ' + rot,
-          // o sinal sai por escrito: a cor sozinha nao pode ser o unico canal
-          // que diz subiu ou caiu (vermelho e verde colidem sob deuteranopia)
-          l2: n + ' de ' + per.total + ' papers · ' + (pp > 0 ? '+' : '') + pp.toFixed(1) +
-            ' p.p. ' + (pp > 0 ? 'acima' : pp < 0 ? 'abaixo' : 'em cima') + ' da média do tópico (' +
-            (mediaTop[t] * 100).toFixed(1) + '%)'
-        };
-      }
-      if (s.heatVista === 'aprovacao') {
-        var nap = per.tpAp[t] || 0;
-        return {
-          cor: n ? sequencial(VERDE, nap / n) : FUNDO_CELULA,
-          l1: t + ' · ' + rot,
-          l2: n ? nap + ' de ' + n + ' aprovados · ' + pct(nap, n) + '% aprovado'
-            : 'o tópico não aparece neste período'
-        };
-      }
-      return {
-        cor: parte > 0 ? sequencial('#3987e5', parte / maxPart) : FUNDO_CELULA,
-        l1: t + ' · ' + rot,
-        l2: n + ' de ' + per.total + ' papers · ' + Math.round(parte * 100) + '% do lote'
-      };
-    }
-
-    /* Chave da escala, por vista. Obrigatoria: a mesma celula muda de
-       significado entre as tres, e sem a faixa ninguem sabe qual esta vendo. */
-    function rampa(paradas) {
-      return '<span style="display: inline-block; width: 96px; height: 9px; border-radius: 100px; background: linear-gradient(to right, ' +
-        paradas.join(', ') + ');"></span>';
-    }
-    var legendaHeat = (function () {
-      var neutro = mistura(FUNDO_CELULA, CINZA_ESTAVEL, 0.42);
-      var partes;
-      if (s.heatVista === 'crescimento') {
-        partes = ['caiu', rampa([mistura(neutro, VERMELHO_QUEDA, 1), neutro, mistura(neutro, VERDE_ALTA, 1)]), 'cresceu',
-          '<span style="color: #6d7178;">· ponto neutro = média do próprio tópico na janela</span>'];
-      } else if (s.heatVista === 'aprovacao') {
-        partes = ['0%', rampa([sequencial(VERDE, 0), sequencial(VERDE, 1)]), '100% aprovado no período'];
-      } else {
-        partes = ['0%', rampa([sequencial('#3987e5', 0), sequencial('#3987e5', 1)]),
-          Math.round(maxPart * 100) + '% do lote do período'];
-      }
-      return '<div style="display: flex; align-items: center; gap: 9px; font-size: 11.5px; color: #a8a49b; flex-wrap: wrap;">' +
-        partes.join('') + '</div>';
-    })();
-
-    var colsHeat = 'grid-template-columns: 186px repeat(' + Math.max(1, periodos.length) + ', minmax(0, 1fr)) 46px 54px; gap: 2px;';
-    // com muitas colunas o rotulo de cada uma se sobrepoe; um sim, um nao
-    var puloRot = periodos.length > 18 ? 2 : 1;
-    var cabHeat = '<div style="display: grid; ' + colsHeat + ' align-items: end; margin-bottom: 4px;">' +
-      '<div style="font-size: 10px; font-weight: 600; letter-spacing: 0.13em; color: #6d7178;">' + (porSemana ? 'SEMANA DE →' : 'DIA →') + '</div>' +
-      periodos.map(function (per, i) {
-        return '<div style="font-family: \'IBM Plex Mono\', monospace; font-size: 9.5px; color: #6d7178; text-align: center;">' +
-          (i % puloRot === 0 ? diaCurto(per.dias[0]) : '') + '</div>';
-      }).join('') +
-      '<div style="font-size: 9.5px; letter-spacing: 0.1em; color: #6d7178; text-align: right;">N</div>' +
-      '<div style="font-size: 9.5px; letter-spacing: 0.1em; color: #6d7178; text-align: right;">% APR</div>' +
-      '</div>';
-
-    var linhasHeat = topsVisiveis.map(function (t) {
-      var on = s.topicos.indexOf(t) >= 0;
-      var lt = linhaTop[t];
-      var celulas = periodos.map(function (per) {
-        var cel = celulaHeat(t, per);
-        return '<div' +
-          ev('c', function () { setState({ topicos: [t], diasSel: per.dias.slice(), aberta: null, justExp: {} }); }) +
-          ev('e', mostraTip(cel.l1, cel.l2)) +
-          ev('l', escondeTip()) +
-          ' style="height: 22px; border-radius: 2px; cursor: pointer; background: ' + cel.cor + ';"></div>';
-      }).join('');
-      return '<div style="display: grid; ' + colsHeat + ' align-items: center;">' +
-        '<div' + ev('c', function () { alternaLista('topicos', t); }) +
-          ev('e', mostraTip(t, lt.n + ' papers · ' + lt.ap + ' aprovados · ' + pct(lt.ap, lt.n) + '% aprovado')) +
-          ev('l', escondeTip()) +
-          ' style="font-size: 12px; color: ' + (on ? ACCENT : '#a8a49b') + '; font-weight: ' + (on ? '600' : '400') + '; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">' + esc(t) + '</div>' +
-        celulas +
-        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #8b8f96; text-align: right;">' + lt.n + '</span>' +
-        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + (lt.n >= MIN_TAXA_TOP ? '#8b8f96' : '#4a5058') + '; text-align: right;">' + pct(lt.ap, lt.n) + '%</span>' +
-        '</div>';
-    }).join('');
-
-    out.push(
-      '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 16px;">' +
-        '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
-          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
-            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Tópico × tempo</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">' +
-              (s.heatVista === 'crescimento'
-                ? 'Cor = quanto a participação do tópico no período se afasta da média dele na janela: vermelho abaixo, verde acima.'
-                : (s.heatVista === 'aprovacao'
-                  ? 'Cor = taxa de aprovação do tópico dentro daquele período.'
-                  : 'Cor = participação do tópico no lote do período.')) +
-              ' As linhas também são ordenadas pela vista. Clique na célula para filtrar tópico e período; no nome, só o tópico.' +
-              (topsOrd.length > LINHAS_HEAT ? ' <span style="color: #6d7178;">Outros ' + (topsOrd.length - LINHAS_HEAT) + ' tópicos ficam fora do corte de ' + LINHAS_HEAT + ' linhas.</span>' : '') +
-            '</div>' +
-          '</div>' +
-          '<div style="display: flex; align-items: center; gap: 9px; padding-top: 3px;">' +
-            '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">VISTA</span>' +
-            chipVista('volume', s.heatVista === 'volume', function () { setState({ heatVista: 'volume' }); }) +
-            chipVista('crescimento', s.heatVista === 'crescimento', function () { setState({ heatVista: 'crescimento' }); }) +
-            chipVista('aprovação', s.heatVista === 'aprovacao', function () { setState({ heatVista: 'aprovacao' }); }) +
-          '</div>' +
-        '</div>' +
-        (linhasHeat
-          ? legendaHeat + '<div style="display: flex; flex-direction: column; gap: 2px;">' + cabHeat + linhasHeat + '</div>'
-          : '<div style="padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178;">Nenhum tópico atribuído dentro deste recorte.</div>') +
       '</div>'
     );
 

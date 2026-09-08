@@ -311,3 +311,54 @@ def test_a_ponte_de_area_aceita_duas_subareas_irmas_do_mesmo_paper(conn):
                  "is_primaria": primaria},
             )
     assert db.contar(conn, "ponte_paper_area") == 2
+
+
+def test_banco_antigo_perde_a_grade_de_topicos_ao_abrir(tmp_path):
+    """A contracao do ticket 05, na abertura: a dimensao de topicos, a ponte
+    dela e as areas da grade plana saem juntas do banco.
+
+    A area plana e reconhecida pela forma - raiz sem sub-area -, que e o que a
+    distinguia da grade facetada enquanto as duas conviveram. O par facetado
+    fica: ele e da grade nova, e so a plana e vocabulario anterior.
+    """
+    import sqlite3
+
+    caminho = tmp_path / "com_topico.db"
+    conn = db.conectar(caminho)
+    with db.transacao(conn):
+        db.upsert_area(conn, {"area": "Harness & orquestração", "definicao": "d"})
+        db.upsert_area(
+            conn,
+            {"area": "Sistemas multiagente", "definicao": "d", "area_pai": "Harness & orquestração"},
+        )
+        db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
+        db.upsert_paper(
+            conn, {"paper_id": "2608.00001", "titulo": "P", "primeiro_visto_em": db.agora()}
+        )
+    conn.close()
+
+    bruto = sqlite3.connect(caminho)
+    bruto.executescript(
+        "CREATE TABLE dim_topico ("
+        "  topico TEXT PRIMARY KEY, definicao TEXT NOT NULL, desde DATE);"
+        "CREATE TABLE ponte_paper_topico ("
+        "  paper_id TEXT NOT NULL, topico TEXT NOT NULL, PRIMARY KEY (paper_id, topico));"
+        "INSERT INTO dim_topico VALUES ('Agentes de codificação', 'd', '2026-08-01');"
+        "INSERT INTO ponte_paper_topico VALUES ('2608.00001', 'Agentes de codificação');"
+    )
+    bruto.commit()
+    bruto.close()
+
+    conn = db.conectar(caminho)
+    try:
+        assert db.colunas(conn, "dim_topico") == []
+        assert db.colunas(conn, "ponte_paper_topico") == []
+        assert [r["area"] for r in conn.execute("SELECT area FROM dim_area ORDER BY area")] == [
+            "Harness & orquestração",
+            "Sistemas multiagente",
+        ]
+        db.migrar(conn)   # segunda vez: idempotente, nao tem mais o que apagar
+        assert db.contar(conn, "dim_area") == 2
+        assert db.diagnostico_banco(conn)["tabelas_faltando"] == []
+    finally:
+        conn.close()

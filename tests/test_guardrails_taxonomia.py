@@ -68,7 +68,6 @@ GRADE_NOVA = {
             "subareas": [{"rotulo": "Fala & áudio", "definicao": ""}],
         },
     ],
-    "topicos": [],
     # Tres vertentes porque os testes de ordem e de teto precisam de material:
     # duas para a dominante e a secundaria, a terceira para o teto recusar.
     # Em ordem alfabetica porque `exportar` devolve assim, e o teste de ida e
@@ -90,7 +89,6 @@ def base(conn):
                 {"paper_id": f"2608.0000{i}", "titulo": f"P{i}", "primeiro_visto_em": db.agora()},
             )
         db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
-        db.upsert_topico(conn, {"topico": "Agentes de codificação", "definicao": "d"})
     return conn
 
 
@@ -350,21 +348,34 @@ def test_reclassificar_sem_nao_encaixe_apaga_a_declaracao_anterior(base_facetada
     assert taxonomia.nao_encaixes(base_facetada) == []
 
 
-def test_fusao_reescreve_pontes(base):
-    with db.transacao(base):
-        db.upsert_topico(base, {"topico": "Antigo", "definicao": "d"})
-        db.inserir_ignorando(base, "ponte_paper_topico", {"paper_id": "2608.00000", "topico": "Antigo"})
-        db.inserir_ignorando(
-            base, "ponte_paper_topico", {"paper_id": "2608.00001", "topico": "Agentes de codificação"}
-        )
-    taxonomia.fundir(base, de="Antigo", para="Agentes de codificação", tipo="topico")
-    assert "Antigo" not in taxonomia.topicos(base)
-    assert db.contar(base, "ponte_paper_topico", "topico = 'Agentes de codificação'") == 2
+def test_fusao_reescreve_pontes(base_facetada):
+    """A fusao passa a valer so para area: o topico saiu do banco na contracao,
+    e era o outro tipo que ela aceitava."""
+    with db.transacao(base_facetada):
+        db.upsert_area(base_facetada, {"area": "Absorvida", "definicao": "d"})
+        for pid, area in (("2608.00000", "Absorvida"), ("2608.00001", "Contexto & recuperação")):
+            db.inserir_ignorando(
+                base_facetada,
+                "ponte_paper_area",
+                {
+                    "paper_id": pid,
+                    "area": area,
+                    "subarea": "Memória de longo prazo",
+                    "is_primaria": 1,
+                },
+            )
+
+    taxonomia.fundir(base_facetada, de="Absorvida", para="Contexto & recuperação")
+
+    assert "Absorvida" not in taxonomia.hierarquia(base_facetada)
+    assert db.contar(
+        base_facetada, "ponte_paper_area", "area = 'Contexto & recuperação'"
+    ) == 2
 
 
 def test_fusao_recusa_rotulo_inexistente(base):
     with pytest.raises(ValueError):
-        taxonomia.fundir(base, de="Nao existe", para="Agentes de codificação", tipo="topico")
+        taxonomia.fundir(base, de="Nao existe", para="Agentes & automação")
 
 
 
@@ -375,7 +386,6 @@ def test_exportar_traz_rotulo_e_definicao(base):
     assert dados["areas"] == [
         {"rotulo": "Agentes & automação", "definicao": "d", "subareas": []}
     ]
-    assert dados["topicos"] == [{"rotulo": "Agentes de codificação", "definicao": "d"}]
     assert dados["vertentes"] == []
 
 
@@ -384,7 +394,7 @@ def test_carregar_e_o_inverso_de_exportar(base, conn2):
     dados = taxonomia.exportar(base)
     with db.transacao(conn2):
         r = taxonomia.carregar(conn2, dados)
-    assert r == {"areas": 1, "subareas": 0, "topicos": 1, "vertentes": 0, "ja_existiam": 0}
+    assert r == {"areas": 1, "subareas": 0, "vertentes": 0, "ja_existiam": 0}
     assert taxonomia.exportar(conn2) == dados
 
 
@@ -399,8 +409,8 @@ def test_carregar_e_idempotente_e_nao_toca_rotulo_existente(base, conn2):
     with db.transacao(conn2):
         r2 = taxonomia.carregar(conn2, dados)
 
-    assert r1 == {"areas": 0, "subareas": 0, "topicos": 1, "vertentes": 0, "ja_existiam": 1}
-    assert r2 == {"areas": 0, "subareas": 0, "topicos": 0, "vertentes": 0, "ja_existiam": 2}
+    assert r1 == {"areas": 0, "subareas": 0, "vertentes": 0, "ja_existiam": 1}
+    assert r2 == {"areas": 0, "subareas": 0, "vertentes": 0, "ja_existiam": 1}
     assert db.contar(conn2, "dim_area") == 1
     areas = taxonomia.exportar(conn2)["areas"]
     assert areas[0]["definicao"] == "definicao viva"
@@ -419,7 +429,6 @@ def test_arquivo_versionado_povoa_banco_vazio(conn2):
         r = taxonomia.carregar(conn2, dados)
 
     assert r["areas"] == len(dados["areas"]) and r["areas"] > 0
-    assert r["topicos"] == len(dados["topicos"]) and r["topicos"] > 0
     assert r["subareas"] == sum(len(a["subareas"]) for a in dados["areas"]) > 0
     assert r["vertentes"] == len(dados["vertentes"]) > 0
     assert taxonomia.exportar(conn2) == dados
@@ -427,7 +436,7 @@ def test_arquivo_versionado_povoa_banco_vazio(conn2):
 
 def test_carregar_ignora_entrada_sem_rotulo(conn2):
     with db.transacao(conn2):
-        r = taxonomia.carregar(conn2, {"areas": [{"rotulo": "", "definicao": "d"}], "topicos": []})
+        r = taxonomia.carregar(conn2, {"areas": [{"rotulo": "", "definicao": "d"}]})
     assert r["areas"] == 0
     assert db.contar(conn2, "dim_area") == 0
 
@@ -522,10 +531,7 @@ def test_rodada_grava_o_par_primario_para_todo_paper_inclusive_os_fora(cfg, conn
 def test_rodada_grava_a_vertente_para_todo_paper_inclusive_os_fora(cfg, conn):
     """O criterio do ticket 03, de ponta a ponta: a vertente atravessa o schema
     novo, a validacao e a persistencia ate a ponte, em 100% dos papers
-    classificados - e a de ordem 1 e recuperavel como dominante.
-
-    O topico nao acompanha: ele saiu do contrato do Estagio A, e a ponte dele
-    fica vazia ate o ticket 05 apagar a tabela."""
+    classificados - e a de ordem 1 e recuperavel como dominante."""
     from conftest import VERTENTE_TESTE, LLMDuble
 
     from hfpapers.estagios import classificacao
@@ -553,7 +559,6 @@ def test_rodada_grava_a_vertente_para_todo_paper_inclusive_os_fora(cfg, conn):
         ("2608.00002", "estrito", VERTENTE_TESTE, 1),
     ]
     assert taxonomia.vertente_dominante(conn, "2608.00001") == VERTENTE_TESTE
-    assert db.contar(conn, "ponte_paper_topico") == 0
 
 
 def test_rodada_registra_o_nao_encaixe_sem_criar_rotulo(cfg, conn):
@@ -596,7 +601,7 @@ def test_listar_aninha_a_subarea_sob_a_area_e_traz_as_vertentes(base_facetada):
         "Memória de longo prazo",
         "RAG & recuperação",
     ]
-    # a area plana continua na lista, sem filhas - e nenhuma sub-area sobe a raiz
+    # raiz sem filha vem com a lista vazia, e nenhuma sub-area sobe a raiz
     assert por_rotulo["Agentes & automação"]["subareas"] == []
     assert "Memória de longo prazo" not in por_rotulo
     assert [v["rotulo"] for v in dados["vertentes"]] == ["Baratear", "Escalar", "Medir"]

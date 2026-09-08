@@ -171,12 +171,10 @@ def checar_vocabulario(cfg: Config) -> Item:
     nao erro, porque o banco recem-criado passa por aqui legitimamente - o
     conserto e uma linha.
 
-    A area contada e a da grade facetada, e nao `dim_area` inteira: a grade
-    plana anterior ainda convive na tabela ate a contracao do ticket 05, e
-    conta-la aqui faria o diagnostico dizer que ha vocabulario onde o Estagio A
-    nao encontra nenhum. `dim_topico` saiu da conta pelo motivo simetrico: o
-    topico deixou de alimentar o Estagio A no ticket 03, e cobra-lo aqui
-    reprovaria um banco que classifica.
+    A area contada e a da grade que o Estagio A oferece - raiz com sub-area -,
+    e nao `dim_area` inteira: raiz sem filha nao tem celula, e conta-la aqui
+    faria o diagnostico dizer que ha vocabulario onde a classificacao nao acha
+    par nenhum.
     """
     conn = db.abrir(cfg)
     try:

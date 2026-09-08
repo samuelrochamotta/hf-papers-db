@@ -110,10 +110,8 @@ def _tabelas(papers, triagem):
         "fato_triagem": triagem,
         "dim_ficha": [],
         "ponte_paper_area": [],
-        "ponte_paper_topico": [],
         "fato_metrica": [],
         "dim_area": [],
-        "dim_topico": [],
     }
 
 

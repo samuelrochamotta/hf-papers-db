@@ -69,9 +69,8 @@ def carregar_vocabulario(conn: sqlite3.Connection) -> Vocabulario:
     """O que o modelo pode escolher: vira texto no prompt e enum no schema.
 
     A area vem da grade facetada - raiz com sub-areas -, e nao de `dim_area`
-    inteira: a grade plana anterior ainda convive no banco ate a contracao do
-    ticket 05, e oferecer as duas juntas daria ao modelo dois vocabularios que
-    dizem a mesma coisa em resolucoes diferentes.
+    inteira: raiz sem filha nao oferece celula, e um par com ela seria recusado
+    na persistencia depois de ja ter sido pago.
     """
     areas = taxonomia.areas_facetadas(conn)
     vertentes = [

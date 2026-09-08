@@ -60,8 +60,8 @@ def montar(papers, triagem, fichas=None, ultimo_voto=None, corte=CORTE, criterio
         papers,
         triagem,
         fichas or {},
-        {},          # area_primaria
-        {},          # topicos_por_paper
+        {},          # par_primario
+        {},          # vertentes_por_paper
         ultimo_voto or {},
         criterios or {},
         corte=corte,

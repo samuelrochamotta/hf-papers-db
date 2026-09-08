@@ -15,11 +15,11 @@ travar nada.
 
 **Bloqueado por:** 03, 04.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Backup do banco tomado antes da primeira escrita destrutiva
-- [ ] A dimensão de tópicos e sua ponte não existem mais no schema
-- [ ] Nenhuma área ou tópico do vocabulário anterior permanece no banco
-- [ ] Nenhum caminho de código ainda lê ou escreve o vocabulário antigo
-- [ ] O diagnóstico sem rede sai com código 0
-- [ ] A suíte de testes está verde, incluindo os dublês de LLM atualizados
+- [x] Backup do banco tomado antes da primeira escrita destrutiva
+- [x] A dimensão de tópicos e sua ponte não existem mais no schema
+- [x] Nenhuma área ou tópico do vocabulário anterior permanece no banco
+- [x] Nenhum caminho de código ainda lê ou escreve o vocabulário antigo
+- [x] O diagnóstico sem rede sai com código 0
+- [x] A suíte de testes está verde, incluindo os dublês de LLM atualizados

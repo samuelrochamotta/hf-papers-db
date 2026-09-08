@@ -86,8 +86,8 @@ def hierarquia(conn: sqlite3.Connection) -> dict[str, Optional[str]]:
 def arvore_de_areas(conn: sqlite3.Connection) -> list[Area]:
     """`dim_area` inteira em dois niveis: toda raiz, com as filhas sob ela.
 
-    A raiz da grade plana anterior vem junto, de `subareas` vazia. Quem quer so
-    a grade facetada filtra pela forma - e o que `areas_facetadas` faz.
+    Toda raiz entra, inclusive a que ainda nao tem sub-area. Quem so pode
+    oferecer celula completa filtra pela forma - e o que `areas_facetadas` faz.
     """
     filhas: dict[str, list[Area]] = {}
     for r in conn.execute(
@@ -104,17 +104,16 @@ def arvore_de_areas(conn: sqlite3.Connection) -> list[Area]:
 
 
 def areas_facetadas(conn: sqlite3.Connection) -> list[Area]:
-    """A grade facetada: so a raiz que tem sub-area, aninhada.
+    """A grade que o Estagio A oferece: so a raiz que tem sub-area, aninhada.
 
-    E o que o prompt e o enum do Estagio A oferecem. A raiz sem filha fica de
-    fora porque e da grade plana anterior, que ainda convive em `dim_area` ate a
-    contracao do ticket 05.
+    A raiz sem filha fica de fora porque nao oferece celula nenhuma - o par que
+    o modelo devolvesse com ela seria recusado por `aplicar_classificacao`, que
+    exige sub-area filha da area declarada. Ate a contracao do ticket 05 esse
+    filtro tambem separava a grade plana anterior, que convivia em `dim_area`;
+    sobrou dele o motivo que nao depende daquela grade - a raiz incompleta, que
+    aparece enquanto uma area nova esta sendo montada.
     """
     return [a for a in arvore_de_areas(conn) if a.subareas]
-
-
-def topicos(conn: sqlite3.Connection) -> list[str]:
-    return [r["topico"] for r in conn.execute("SELECT topico FROM dim_topico ORDER BY topico")]
 
 
 def vertentes(conn: sqlite3.Connection) -> list[str]:
@@ -132,10 +131,6 @@ def vertente_dominante(conn: sqlite3.Connection, paper_id: str) -> Optional[str]
         (paper_id,),
     ).fetchone()
     return row["vertente"] if row else None
-
-
-def _tabela(tipo: str) -> tuple[str, str]:
-    return ("dim_area", "area") if tipo == "area" else ("dim_topico", "topico")
 
 
 # ── classificacao de um paper ───────────────────────────────────────────────
@@ -171,11 +166,6 @@ def aplicar_classificacao(
     provedor, e uma terceira vertente aceita em silencio faria a dominante
     perder o sentido - se tudo cabe, nada e dominante.
 
-    A ponte de topico e apagada e nao reescrita: o topico saiu do contrato do
-    Estagio A neste ticket, e deixar o antigo de pe daria ao paper uma vertente
-    da grade nova ao lado de um topico da grade que deixou de existir. A tabela
-    inteira sai no ticket 05, e com ela esta linha.
-
     `nao_coube` entra por aqui, e nao por uma chamada propria de quem
     classifica, porque **e a mesma reescrita**: tudo o que a classificacao diz
     sobre o lugar do paper na grade - os dois pares, as vertentes e a
@@ -197,7 +187,6 @@ def aplicar_classificacao(
     validas_vertente = set(vertentes(conn))
 
     conn.execute("DELETE FROM ponte_paper_area WHERE paper_id = ?", (paper_id,))
-    conn.execute("DELETE FROM ponte_paper_topico WHERE paper_id = ?", (paper_id,))
     conn.execute("DELETE FROM ponte_paper_vertente WHERE paper_id = ?", (paper_id,))
     conn.execute("DELETE FROM tax_nao_encaixe WHERE paper_id = ?", (paper_id,))
 
@@ -304,34 +293,28 @@ def nao_encaixes(
 # ── fusao (manual) ──────────────────────────────────────────────────────────
 
 
-def fundir(conn: sqlite3.Connection, *, de: str, para: str, tipo: str) -> dict[str, int]:
-    """Reescreve as pontes de `de` para `para` e apaga o rotulo `de`."""
-    tabela, coluna = _tabela(tipo)
-    ponte = "ponte_paper_area" if tipo == "area" else "ponte_paper_topico"
+def fundir(conn: sqlite3.Connection, *, de: str, para: str) -> dict[str, int]:
+    """Reescreve a ponte de area de `de` para `para` e apaga o rotulo `de`.
 
+    Sem parametro de tipo: a fusao aceitava area ou topico, e o topico saiu do
+    banco na contracao. Um parametro de um valor so nao escolhe nada.
+    """
     for rotulo in (de, para):
-        if not conn.execute(f"SELECT 1 FROM {tabela} WHERE {coluna} = ?", (rotulo,)).fetchone():
-            raise ValueError(f"{tipo} inexistente: {rotulo}")
+        if not conn.execute("SELECT 1 FROM dim_area WHERE area = ?", (rotulo,)).fetchone():
+            raise ValueError(f"area inexistente: {rotulo}")
 
     with db.transacao(conn):
-        if tipo == "area":
-            # o paper pode ja ter a area de destino: nesse caso a primaria vence
-            conn.execute(
-                "UPDATE OR IGNORE ponte_paper_area SET area = ? WHERE area = ?", (para, de)
-            )
-            conn.execute("DELETE FROM ponte_paper_area WHERE area = ?", (de,))
-        else:
-            conn.execute(
-                "UPDATE OR IGNORE ponte_paper_topico SET topico = ? WHERE topico = ?",
-                (para, de),
-            )
-            conn.execute("DELETE FROM ponte_paper_topico WHERE topico = ?", (de,))
+        # o paper pode ja ter a area de destino: nesse caso a primaria vence
+        conn.execute(
+            "UPDATE OR IGNORE ponte_paper_area SET area = ? WHERE area = ?", (para, de)
+        )
+        conn.execute("DELETE FROM ponte_paper_area WHERE area = ?", (de,))
         movidos = conn.execute(
-            f"SELECT COUNT(*) AS n FROM {ponte} WHERE {coluna} = ?", (para,)
+            "SELECT COUNT(*) AS n FROM ponte_paper_area WHERE area = ?", (para,)
         ).fetchone()["n"]
-        conn.execute(f"DELETE FROM {tabela} WHERE {coluna} = ?", (de,))
+        conn.execute("DELETE FROM dim_area WHERE area = ?", (de,))
 
-    log.info("fusao %s: '%s' -> '%s' (%s papers no destino)", tipo, de, para, movidos)
+    log.info("fusao de area: '%s' -> '%s' (%s papers no destino)", de, para, movidos)
     return {"papers_no_destino": int(movidos)}
 
 
@@ -345,7 +328,7 @@ def fundir(conn: sqlite3.Connection, *, de: str, para: str, tipo: str) -> dict[s
 
 
 def exportar(conn: sqlite3.Connection) -> dict[str, Any]:
-    """dim_area / dim_topico / dim_vertente -> dicionario serializavel.
+    """dim_area / dim_vertente -> dicionario serializavel.
 
     `desde` fica de fora de proposito: num banco novo a data em que o rotulo
     passou a valer e a da carga, nao a do banco de origem.
@@ -365,10 +348,6 @@ def exportar(conn: sqlite3.Connection) -> dict[str, Any]:
             }
             for a in arvore_de_areas(conn)
         ],
-        "topicos": [
-            {"rotulo": r["topico"], "definicao": r["definicao"] or ""}
-            for r in conn.execute("SELECT topico, definicao FROM dim_topico ORDER BY topico")
-        ],
         "vertentes": [
             {"rotulo": r["vertente"], "definicao": r["definicao"] or ""}
             for r in conn.execute(
@@ -386,7 +365,7 @@ def carregar(conn: sqlite3.Connection, dados: dict[str, Any]) -> dict[str, int]:
     nao upsert - rodar duas vezes nao muda nada e nao desfaz fusao nenhuma.
     """
     desde = db.hoje().isoformat()
-    contagem = {"areas": 0, "subareas": 0, "topicos": 0, "vertentes": 0, "ja_existiam": 0}
+    contagem = {"areas": 0, "subareas": 0, "vertentes": 0, "ja_existiam": 0}
 
     def _inserir(chave: str, tabela: str, coluna: str, item: dict, **extra: Any) -> str:
         """Grava um rotulo e devolve o que foi gravado - '' se nao havia rotulo."""
@@ -408,8 +387,6 @@ def carregar(conn: sqlite3.Connection, dados: dict[str, Any]) -> dict[str, int]:
             continue   # sem pai gravado a FK da auto-referencia recusaria as filhas
         for sub in item.get("subareas") or []:
             _inserir("subareas", "dim_area", "area", sub, area_pai=pai)
-    for item in dados.get("topicos") or []:
-        _inserir("topicos", "dim_topico", "topico", item)
     for item in dados.get("vertentes") or []:
         _inserir("vertentes", "dim_vertente", "vertente", item)
     return contagem
@@ -445,14 +422,6 @@ def listar(conn: sqlite3.Connection) -> dict[str, Any]:
     return {
         "areas": [
             {**a, "subareas": por_pai.get(a["rotulo"], [])} for a in por_pai.get(None, [])
-        ],
-        "topicos": [
-            dict(r)
-            for r in conn.execute(
-                "SELECT d.topico AS rotulo, d.definicao, d.desde, "
-                "       (SELECT COUNT(*) FROM ponte_paper_topico p WHERE p.topico = d.topico) AS papers "
-                "FROM dim_topico d ORDER BY papers DESC, rotulo"
-            )
         ],
         "vertentes": [
             dict(r)

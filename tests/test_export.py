@@ -88,8 +88,8 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
 
     esperados = {
         "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
-        "dim_area", "dim_topico", "dim_vertente",
-        "ponte_paper_area", "ponte_paper_topico", "ponte_paper_vertente",
+        "dim_area", "dim_vertente",
+        "ponte_paper_area", "ponte_paper_vertente",
         "ponte_paper_keyword", "ponte_paper_autor", "dim_calendario", "fato_execucao",
         "ponte_paper_criterio",
     }

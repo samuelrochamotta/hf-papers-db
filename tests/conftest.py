@@ -19,25 +19,19 @@ FIXTURES = Path(__file__).parent / "fixtures"
 # A grade minima que os dublês respondem. Mora aqui pelo mesmo motivo deles: e
 # o vocabulario que `RESPOSTA_A` pressupoe, e duas copias divergentes deixariam
 # metade dos testes sem par primario. A area e hierarquica porque desde o
-# ticket 02 e a grade facetada que o Estagio A oferece - `carregar_vocabulario`
-# so enxerga area raiz que tenha sub-area.
+# ticket 02 e a grade facetada que o Estagio A oferece.
 AREA_TESTE = "Harness & orquestração"
 SUBAREA_TESTE = "Engenharia de código com agente"
 SUBAREA_IRMA_TESTE = "Sistemas multiagente"
-TOPICO_TESTE = "Agentes de codificação"
 VERTENTE_TESTE = "Automatizar"
 
 
 def povoar_vocabulario(conn) -> None:
-    """Uma area raiz com duas sub-areas irmas, um topico e uma vertente. Sem
-    transacao: quem chama ja esta dentro da sua.
-
-    O topico continua aqui porque `dim_topico` e a ponte dele so saem do banco
-    no ticket 05; ele nao alimenta mais o Estagio A."""
+    """Uma area raiz com duas sub-areas irmas e uma vertente. Sem transacao:
+    quem chama ja esta dentro da sua."""
     db.upsert_area(conn, {"area": AREA_TESTE, "definicao": "o laço que chama o modelo"})
     for sub in (SUBAREA_TESTE, SUBAREA_IRMA_TESTE):
         db.upsert_area(conn, {"area": sub, "definicao": "d", "area_pai": AREA_TESTE})
-    db.upsert_topico(conn, {"topico": TOPICO_TESTE, "definicao": "d"})
     db.upsert_vertente(
         conn, {"vertente": VERTENTE_TESTE, "definicao": "tira o humano do laço"}
     )

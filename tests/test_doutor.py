@@ -304,10 +304,10 @@ def test_so_areas_ainda_e_aviso(cfg, base):
     assert "dim_vertente" in item.detalhe and "dim_area" not in item.detalhe
 
 
-def test_grade_so_plana_e_aviso(cfg, base):
-    """A grade anterior sem sub-area nenhuma nao classifica ninguem desde o
-    ticket 02: contar `dim_area` inteira faria o diagnostico dizer OK onde o
-    Estagio A cai com "vocabulario vazio"."""
+def test_raiz_sem_subarea_e_aviso(cfg, base):
+    """Raiz sem sub-area nao oferece celula nenhuma: contar `dim_area` inteira
+    faria o diagnostico dizer OK onde o Estagio A cai com "vocabulario
+    vazio"."""
     db.upsert_area(base, {"area": "Agentes & automação", "definicao": "d"})
     db.upsert_vertente(base, {"vertente": "Medir", "definicao": "d"})
     base.commit()

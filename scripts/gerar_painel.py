@@ -431,14 +431,6 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         else:
             areas_sec[r["paper_id"]].append(r["area"])
 
-    # O topico saiu do contrato do Estagio A no ticket 03 e a ponte dele so
-    # tem o que a grade anterior deixou; ele nao aparece mais no card, so nos
-    # dois cortes que o ticket 05 remove junto com a tabela.
-    topicos_por_paper: dict[str, list[str]] = defaultdict(list)
-    for r in ler("ponte_paper_topico"):
-        if r["paper_id"] in ids_uteis:
-            topicos_por_paper[r["paper_id"]].append(r["topico"])
-
     # Ordenada pela `ordem`: a dominante e a primeira que o card exibe, e sem a
     # ordenacao aqui a ordem em que o Parquet devolve as linhas decidiria isso.
     vertentes_por_paper: dict[str, list[str]] = defaultdict(list)
@@ -489,7 +481,6 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "a": area,
             "sa": subarea,
             "as": areas_sec.get(pid, []),
-            "tp": topicos_por_paper.get(pid, []),
             "vt": vertentes_por_paper.get(pid, []),
             "oa": 1 if p.get("tem_codigo_aberto") else 0,
             "pp": 1 if p.get("tem_project_page") else 0,
@@ -533,7 +524,6 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         # congelamento fala do refresh - e o refresh nao muda por flag de CLI
         "diasRefresh": janela_hall(),
         "areas": [{"a": a["area"], "def": a.get("definicao") or ""} for a in ler("dim_area")],
-        "topicos": [{"t": t["topico"], "def": t.get("definicao") or ""} for t in ler("dim_topico")],
         "papers": lista,
         "fichas": [
             {

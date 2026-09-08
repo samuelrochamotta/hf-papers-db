@@ -26,12 +26,10 @@ def _tabelas(papers, triagem, criterios, fichas=None, areas=None, vertentes=None
         "fato_triagem": triagem,
         "dim_ficha": fichas or [],
         "ponte_paper_area": areas or [],
-        "ponte_paper_topico": [],
         "ponte_paper_vertente": vertentes or [],
         "ponte_paper_criterio": criterios,
         "fato_metrica": [],
         "dim_area": [],
-        "dim_topico": [],
     }
 
 

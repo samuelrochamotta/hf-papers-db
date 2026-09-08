@@ -35,8 +35,8 @@ NOMES_DIA_SEMANA = [
 
 TABELAS_ESPERADAS = [
     "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
-    "dim_area", "dim_topico", "dim_vertente",
-    "ponte_paper_area", "ponte_paper_topico", "ponte_paper_vertente",
+    "dim_area", "dim_vertente",
+    "ponte_paper_area", "ponte_paper_vertente",
     "ponte_paper_criterio",
     "tax_nao_encaixe", "ponte_paper_keyword", "ponte_paper_autor",
     "log_execucao", "log_llm", "dim_calendario",
@@ -79,14 +79,15 @@ COLUNAS_MIGRADAS = [
 
 def migrar(conn: sqlite3.Connection) -> None:
     """Aplica schema.sql, as colunas de `COLUNAS_MIGRADAS`, a reconstrucao de
-    `ponte_paper_area` e a saida de `tax_candidato`. Idempotente: tudo la e IF
-    NOT EXISTS, a coluna so e adicionada quando falta, e as duas tabelas so sao
-    tocadas uma vez."""
+    `ponte_paper_area`, a saida de `tax_candidato` e a contracao da grade
+    anterior. Idempotente: tudo la e IF NOT EXISTS, a coluna so e adicionada
+    quando falta, e as tabelas so sao tocadas uma vez."""
     conn.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
     for tabela, coluna, tipo in COLUNAS_MIGRADAS:
         _garantir_coluna(conn, tabela, coluna, tipo)
     _migrar_ponte_paper_area(conn)
     _remover_tax_candidato(conn)
+    _contrair_grade_antiga(conn)
 
 
 def colunas(conn: sqlite3.Connection, tabela: str) -> list[str]:
@@ -149,6 +150,42 @@ def _remover_tax_candidato(conn: sqlite3.Connection) -> None:
         "tax_candidato removida: %d candidato(s) descartados - a fila de revisao "
         "agora e tax_nao_encaixe, que registra o eixo em vez de propor rotulo",
         descartados,
+    )
+
+
+def _contrair_grade_antiga(conn: sqlite3.Connection) -> None:
+    """Apaga o vocabulario anterior: a dimensao de topicos, a ponte dela e as
+    areas da grade plana.
+
+    Sai tudo de uma vez porque e uma coisa so - a grade que a facetada
+    substituiu -, e sai sem versionamento pelo principio do ADR 001: uma fonte
+    de verdade por decisao. A rastreabilidade fica no `run_id` da rodada e no
+    historico de `config/taxonomia_inicial.json` no git, nao numa coluna de
+    versao que toda consulta teria de filtrar para sempre.
+
+    A area plana e reconhecida pela forma - raiz sem sub-area -, o mesmo teste
+    que separava as duas grades enquanto elas conviviam em `dim_area`. As
+    linhas de `ponte_paper_area` que apontavam para ela ja tinham saido na
+    reconstrucao acima, que devolve a ponte vazia.
+
+    **Uma vez so, e presa a existencia de `dim_topico`.** Sem essa condicao a
+    regra "raiz sem sub-area sai" valeria para sempre e apagaria em silencio
+    uma area raiz nova, gravada antes da primeira sub-area dela.
+    """
+    if not colunas(conn, "dim_topico"):
+        return
+    topicos = contar(conn, "dim_topico")
+    pontes = contar(conn, "ponte_paper_topico")
+    conn.executescript("DROP TABLE ponte_paper_topico; DROP TABLE dim_topico;")
+    areas = conn.execute(
+        "DELETE FROM dim_area WHERE area_pai IS NULL AND area NOT IN "
+        "(SELECT area_pai FROM dim_area WHERE area_pai IS NOT NULL)"
+    ).rowcount
+    log.warning(
+        "grade anterior removida: %d topico(s), %d linha(s) da ponte de topico "
+        "e %d area(s) da grade plana - quem reclassifica na grade facetada e a "
+        "rodada seguinte",
+        topicos, pontes, areas,
     )
 
 
@@ -297,10 +334,6 @@ def upsert_ficha(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
 
 def upsert_area(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
     upsert(conn, "dim_area", dados, chave=["area"])
-
-
-def upsert_topico(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
-    upsert(conn, "dim_topico", dados, chave=["topico"])
 
 
 def upsert_vertente(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
