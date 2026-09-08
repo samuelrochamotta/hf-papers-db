@@ -8,6 +8,32 @@ Escrita em 2026-09-04. Fatos de partida: 482 papers, 477 triagens, 242 com
 veredito herdado do digest (`run_id='backfill'`), 5 `fora` de rodadas normais
 sem regra, 5 pendentes. Modelo `qwen/qwen3.8-flash` nos dois estágios.
 
+> **O vocabulário desta spec foi substituído em 08/09/2026.** Onde se lê
+> *tópico*, `dim_topico` ou `ponte_paper_topico`, o sistema atual tem a
+> **taxonomia facetada** de `spec-taxonomia-facetada.md`: área hierárquica
+> (`dim_area` com `area_pai`) e vertente (`dim_vertente`, com `ordem` na ponte).
+> A grade de tópicos foi removida do banco, não versionada.
+>
+> Cinco pontos deixaram de valer ao pé da letra e nenhum foi reescrito, porque
+> reescrever spec entregue apaga a causa das decisões que vieram depois:
+>
+> - **§1, bootstrap do vocabulário** — "9 áreas, 23 tópicos" hoje são 10 áreas
+>   raiz, 64 sub-áreas e 10 vertentes; `taxonomia exportar` grava áreas,
+>   sub-áreas e vertentes, com a sub-área aninhada sob a área.
+> - **§2, taxonomia congelada** — o candidato virou **não-encaixe**
+>   (`tax_nao_encaixe`): o modelo constata em qual dos três eixos a grade não
+>   serviu, em vez de propor um nome. `registrar_candidato`, `tax_candidato` e o
+>   parâmetro `promover` não existem mais; a rodada diária também não promove.
+> - **§2, o que a rodada reescreve** — "pontes de área/tópico" hoje são
+>   `ponte_paper_area` (com a sub-área na chave, para admitir o par secundário de
+>   mesma área) e `ponte_paper_vertente` (com a `ordem` que separa a dominante).
+> - **§3, passo 5** — "promover ou fundir à mão os candidatos com quórum" hoje é
+>   ler a fila com `taxonomia nao-encaixes --eixo ...`. `taxonomia fundir` perdeu
+>   o parâmetro `--tipo` e passou a valer para rótulos irmãos da hierarquia.
+> - **§4, painel, e §5, `doutor`** — o heatmap *Tópico × tempo* saiu do painel
+>   junto com o eixo que ele media; o check de vocabulário vazio olha `dim_area`
+>   e `dim_vertente`, e conta só a área raiz que tem ao menos uma sub-área.
+
 ## 0. O que já está implementado
 
 Commits `bf3660c` e `6e9ba5e` (2026-09-04), validados em 6 papers reais, 250

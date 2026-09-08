@@ -5,7 +5,7 @@ e por isso mora aqui e nao numa consulta ad hoc: o ticket 08 deriva a grade v2
 destas contagens, e uma contagem que ninguem consegue repetir nao serve de base
 para fundir rotulo nenhum.
 
-    python scripts/relatorio_massa.py <run_id> [saida.md]
+    python scripts/relatorio_massa.py <run_id> [saida.md] [estimativa_usd]
 
 O `run_id` recorta so o custo e o roteamento - a distribuicao sai das pontes,
 que guardam o estado final da base, nao o de uma rodada. Sem `run_id`, o custo
@@ -48,7 +48,9 @@ def _pct(n: int, total: int) -> float:
     return n / total if total else 0.0
 
 
-def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
+def gerar(
+    conn: sqlite3.Connection, run_id: str | None, estimativa_usd: float | None = None
+) -> str:
     conn.row_factory = sqlite3.Row
     q = lambda s, p=(): [dict(r) for r in conn.execute(s, p)]
     um = lambda s, p=(): conn.execute(s, p).fetchone()[0]
@@ -107,16 +109,23 @@ def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
     onde, par = ("WHERE run_id=?", (run_id,)) if run_id else ("WHERE 1=1", ())
     uso = q(f"SELECT COUNT(*) n, COALESCE(SUM(custo_usd),0) usd, "
             f"COALESCE(SUM(tokens_entrada),0) tin, COALESCE(SUM(tokens_saida),0) tout, "
-            f"COALESCE(SUM(erro IS NOT NULL),0) erros, COALESCE(SUM(erro LIKE '%cortada%'),0) cortadas, "
+            f"COALESCE(SUM(erro IS NOT NULL),0) erros, COALESCE(SUM(erro LIKE '%cortada%' OR erro LIKE '%Unterminated%'),0) cortadas, "
             f"COALESCE(SUM(erro LIKE 'ErroPrazo%'),0) prazo, "
+            f"COALESCE(SUM(CASE WHEN erro IS NOT NULL THEN custo_usd END),0) usd_erro, "
             f"COALESCE(strftime('%s',MAX(criado_em))-strftime('%s',MIN(criado_em)),0) seg "
             f"FROM log_llm {onde}", par)[0]
     prov = q(f"SELECT COALESCE(provedor,'(não registrado)') provedor, COUNT(*) n, "
-             f"COALESCE(SUM(erro LIKE '%cortada%'),0) cortadas, "
+             f"COALESCE(SUM(erro LIKE '%cortada%' OR erro LIKE '%Unterminated%'),0) cortadas, "
              f"COALESCE(SUM(erro LIKE 'ErroPrazo%'),0) prazo, "
              f"COALESCE(SUM(erro IS NOT NULL),0) erros, "
-             f"ROUND(AVG(latencia_ms)/1000.0,1) lat, ROUND(MAX(latencia_ms)/1000.0,1) pior "
-             f"FROM log_llm {onde} AND etapa='estagio_a' GROUP BY 1 ORDER BY n DESC", par)
+             f"ROUND(AVG(latencia_ms)/1000.0,1) lat, ROUND(MAX(latencia_ms)/1000.0,1) pior, "
+             # `latencia_ms` conta do inicio do laco de `chamar`, entao uma linha
+             # de tentativa 3 carrega as duas anteriores e os dois backoffs. Sem
+             # esta coluna o relatorio anuncia pior caso de 115,8 s numa rodada
+             # cuja chamada mais lenta levou 19,1 s - e faz o teto de 90 s
+             # parecer furado quando ele estava funcionando.
+             f"ROUND(MAX(CASE WHEN tentativas=1 THEN latencia_ms END)/1000.0,1) pior1 "
+             f"FROM log_llm {onde} GROUP BY 1 ORDER BY n DESC", par)
 
     o: list[str] = []
     w = o.append
@@ -228,20 +237,50 @@ def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
             w(f"| {r['par']} | {r['n']} | {pai} |")
         w("")
 
-    w("## 5. Custo real contra a estimativa\n")
     seg = uso["seg"] or 0
-    w("| | estimado | real |")
-    w("|---|---:|---:|")
-    w(f"| chamadas | {total} | {uso['n']} |")
-    w(f"| custo | US$ 1,2300 | US$ {uso['usd']:.4f} |")
-    w(f"| tokens de entrada | 13,9 M | {uso['tin'] / 1e6:.1f} M |")
-    w(f"| tokens de saída | 0,7 M | {uso['tout'] / 1e6:.1f} M |")
-    w(f"| duração | ~1,4 h | {seg / 3600:.2f} h |")
-    w(f"| ritmo | 36,6 ch/min | {uso['n'] * 60 / seg if seg else 0:.1f} ch/min |")
+    # A estimativa entra por parametro, e nao fixa no codigo: ela e do momento em
+    # que a rodada foi disparada, e uma constante aqui viraria mentira na rodada
+    # seguinte - a coluna "estimado" da rodada 2 anunciava os numeros da 1.
+    if estimativa_usd is not None:
+        w("## 5. Custo real contra a estimativa\n")
+        w("| | estimado | real |")
+        w("|---|---:|---:|")
+        # So o custo e estimado; o resto sai em branco em vez de repetir o
+        # numero de papers como se fosse previsao de chamadas - a rodada de dois
+        # estagios faz mais de uma por paper.
+        w(f"| chamadas | — | {uso['n']} |")
+        w(f"| custo | US$ {estimativa_usd:.4f} | US$ {uso['usd']:.4f} |")
+        erro_pct = (uso["usd"] / estimativa_usd - 1) if estimativa_usd else 0
+        w(f"| tokens de entrada | — | {uso['tin'] / 1e6:.1f} M |")
+        w(f"| tokens de saída | — | {uso['tout'] / 1e6:.1f} M |")
+        w(f"| duração | — | {seg / 3600:.2f} h |")
+        w(f"| ritmo | — | {uso['n'] * 60 / seg if seg else 0:.1f} ch/min |")
+        w("")
+        w(f"A estimativa errou por {erro_pct:+.1%}.")
+    else:
+        w("## 5. Custo real\n")
+        w("| | real |")
+        w("|---|---:|")
+        w(f"| chamadas | {uso['n']} |")
+        w(f"| custo | US$ {uso['usd']:.4f} |")
+        w(f"| tokens de entrada | {uso['tin'] / 1e6:.1f} M |")
+        w(f"| tokens de saída | {uso['tout'] / 1e6:.1f} M |")
+        w(f"| duração | {seg / 3600:.2f} h |")
+        w(f"| ritmo | {uso['n'] * 60 / seg if seg else 0:.1f} ch/min |")
     w("")
     if uso["n"]:
         w(f"Erros: {uso['erros']}. Respostas cortadas: {uso['cortadas']} "
-          f"({_pct(uso['cortadas'], uso['n']):.1%} das chamadas).")
+          f"({_pct(uso['cortadas'], uso['n']):.1%} das chamadas) — a conta inclui o "
+          "`json invalido: Unterminated string`, que é corte com outro nome.")
+    if uso["erros"]:
+        # `log_execucao.custo_usd` conta so o que virou triagem; `log_llm` conta o
+        # que o OpenRouter cobrou. A tentativa que erra e refeita aparece so no
+        # segundo, e conciliar fatura pelo primeiro deixa a diferenca sem dono.
+        w("")
+        w(f"O custo acima é o do `log_llm` — **tudo o que foi cobrado**, inclusive as "
+          f"{uso['erros']} chamadas que erraram e foram refeitas "
+          f"(US$ {uso['usd_erro']:.4f}). `log_execucao.custo_usd` conta só o que virou "
+          "triagem, e por isso é menor: os dois estão certos e medem coisas diferentes.")
     if uso["prazo"]:
         # A chamada abandonada pelo `llm.prazo_total_s` foi cobrada e sai com uso
         # zero: os tokens vinham na resposta que ninguem leu. O custo real e o da
@@ -254,16 +293,19 @@ def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
     w("")
 
     w("## 6. Roteamento — por provedor do OpenRouter\n")
-    w("Os endpoints do OpenRouter não se comportam igual, e a coluna *pior* é o")
-    w("que diz se a rodada aguentou: uma média boa esconde a cauda.\n")
+    w("Os endpoints do OpenRouter não se comportam igual, e a cauda é o que diz")
+    w("se a rodada aguentou: uma média boa a esconde. Mas leia a coluna certa —")
+    w("*pior 1ª tent.* é o provedor; *pior acum.* conta do início do laço de")
+    w("`chamar`, então numa linha de tentativa 3 ela carrega as duas anteriores e")
+    w("os backoffs. É tempo do paper, não da chamada.\n")
     w("A linha *(não registrado)* concentra as chamadas que morreram antes da")
     w("resposta — inclusive as abandonadas pelo prazo: quem não respondeu não")
     w("informou quem era, e atribuí-las a um provedor seria acusar inocente.\n")
-    w("| Provedor | chamadas | cortadas | prazo | erros | latência média (s) | pior (s) |")
-    w("|---|---:|---:|---:|---:|---:|---:|")
+    w("| Provedor | chamadas | cortadas | prazo | erros | média (s) | pior 1ª tent. (s) | pior acum. (s) |")
+    w("|---|---:|---:|---:|---:|---:|---:|---:|")
     for p in prov:
         w(f"| {p['provedor']} | {p['n']} | {p['cortadas']} | {p['prazo']} | {p['erros']} "
-          f"| {p['lat']} | {p['pior']} |")
+          f"| {p['lat']} | {p['pior1']} | {p['pior']} |")
     w("")
 
     w("## 7. Rótulos perto de um limiar\n")
@@ -284,9 +326,10 @@ def gerar(conn: sqlite3.Connection, run_id: str | None) -> str:
 def main() -> None:
     run_id = sys.argv[1] if len(sys.argv) > 1 else None
     saida = sys.argv[2] if len(sys.argv) > 2 else "docs/relatorio-massa-grade-v1.md"
+    estimativa = float(sys.argv[3]) if len(sys.argv) > 3 else None
     conn = sqlite3.connect(BANCO)
     try:
-        texto = gerar(conn, run_id)
+        texto = gerar(conn, run_id, estimativa)
     finally:
         conn.close()
     with open(saida, "w", encoding="utf-8") as f:

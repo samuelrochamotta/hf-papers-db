@@ -61,3 +61,42 @@ para `Treinar`, que nasceu com 45,3% da base e é agora o rótulo maior; *Barate
 33,6% para 16,6%, confirmando a suspeita do ticket 08 de rótulo inflado por falta de
 vizinho. As 21 sub-áreas novas receberam papers — **todas as 21**, 1.011 papers no total
 —, e nenhuma das 64 ficou vazia.
+
+## Nota de conciliação — os dois custos da rodada 2
+
+Este ticket cita **US$ 2,0406** como custo real, que é `log_execucao.custo_usd`. A soma
+por etapa que ele também cita (Estágio A US$ 1,4968 + Estágio B US$ 0,5707) dá
+**US$ 2,0675**, e a diferença de US$ 0,0269 não é erro de conta: são as 66 chamadas que
+erraram e foram refeitas.
+
+Os dois números estão certos e medem coisas diferentes:
+
+| | o que conta | rodada 2 |
+|---|---|---:|
+| `log_execucao.custo_usd` | o que virou triagem | US$ 2,0406 |
+| `SUM(log_llm.custo_usd)` | **o que o OpenRouter cobrou** | US$ 2,0675 |
+
+Para conciliar fatura, o número é o do `log_llm` — a tentativa que erra é cobrada e não
+aparece no primeiro. E mesmo ele subestima: as 7 chamadas abandonadas pelo prazo saem
+com uso zero, porque os tokens vinham na resposta que nunca foi lida.
+
+`scripts/relatorio_massa.py` passou a dizer isso na seção 5, junto do número.
+
+## Correção do instrumento, depois do fato
+
+Três defeitos do gerador de relatório apareceram ao conferir esta rodada, e os três
+estão corrigidos:
+
+1. **Truncamento subcontado.** A métrica só olhava `finish_reason == 'length'`, então os
+   4 `json invalido: Unterminated string` desta rodada saíam como "zero cortadas". São
+   corte com outro nome.
+2. **Roteamento só do Estágio A.** O filtro `etapa='estagio_a'` era herança da rodada 1,
+   que foi de um estágio só; a seção 6 mostrava 3.172 chamadas onde a rodada teve 4.407.
+3. **Pior caso enganoso.** `log_llm.latencia_ms` conta do início do laço de `chamar`,
+   então uma linha de tentativa 3 carrega as duas anteriores e os backoffs. O relatório
+   anunciava 115,8 s de pior caso numa rodada cuja chamada mais lenta levou **19,1 s** —
+   e isso fazia o teto de 90 s parecer furado quando ele estava funcionando. A tabela
+   agora traz as duas colunas, e a que mede o provedor é a de primeira tentativa.
+
+A coluna *estimado* da seção 5 também era fixa no código, com os números da rodada 1;
+ela virou parâmetro, e sem estimativa o relatório sai só com o real.

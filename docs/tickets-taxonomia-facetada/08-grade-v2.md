@@ -108,3 +108,9 @@ Projeção para a rodada 2 sobre 3.166 papers, a partir do custo real da rodada 
 (US$ 1,2326 com 4.398 tokens de entrada por chamada): **US$ 1,51 para o Estágio A**,
 22% acima. A estimativa de US$ 0,54 que consta do ticket 09 é da grade antiga e está
 obsoleta por um fator de quase três.
+
+`docs/grade-v2-resumo.md` mede o mesmo crescimento como 13.579 → 17.532 caracteres.
+**As duas medições estão certas**: o delta é 3.953 caracteres nas duas, e o que muda
+é o denominador — o prompt renderizado inclui o paper, e cada medição usou um
+abstract de tamanho diferente. O número comparável entre grades é o delta; o
+percentual depende do paper que se escolheu para renderizar.

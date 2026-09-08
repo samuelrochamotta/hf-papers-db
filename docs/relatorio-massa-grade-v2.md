@@ -160,30 +160,37 @@ fila que aponta um conserto concreto — mudar o pai, e não criar rótulo.
 
 | | estimado | real |
 |---|---:|---:|
-| chamadas | 3166 | 4407 |
-| custo | US$ 1,2300 | US$ 2.0675 |
-| tokens de entrada | 13,9 M | 21.5 M |
-| tokens de saída | 0,7 M | 1.8 M |
-| duração | ~1,4 h | 1.02 h |
-| ritmo | 36,6 ch/min | 71.7 ch/min |
+| chamadas | — | 4407 |
+| custo | US$ 2.0000 | US$ 2.0675 |
+| tokens de entrada | — | 21.5 M |
+| tokens de saída | — | 1.8 M |
+| duração | — | 1.02 h |
+| ritmo | — | 71.7 ch/min |
 
-Erros: 66. Respostas cortadas: 0 (0.0% das chamadas).
+A estimativa errou por +3.4%.
+
+Erros: 66. Respostas cortadas: 4 (0.1% das chamadas) — a conta inclui o `json invalido: Unterminated string`, que é corte com outro nome.
+
+O custo acima é o do `log_llm` — **tudo o que foi cobrado**, inclusive as 66 chamadas que erraram e foram refeitas (US$ 0.0269). `log_execucao.custo_usd` conta só o que virou triagem, e por isso é menor: os dois estão certos e medem coisas diferentes.
 
 Abandonadas pelo prazo (`llm.prazo_total_s`): 7 (0.2%). **O custo acima as subestima** — elas foram cobradas e saíram com uso zero, porque os tokens vinham na resposta que nunca foi lida.
 
 ## 6. Roteamento — por provedor do OpenRouter
 
-Os endpoints do OpenRouter não se comportam igual, e a coluna *pior* é o
-que diz se a rodada aguentou: uma média boa esconde a cauda.
+Os endpoints do OpenRouter não se comportam igual, e a cauda é o que diz
+se a rodada aguentou: uma média boa a esconde. Mas leia a coluna certa —
+*pior 1ª tent.* é o provedor; *pior acum.* conta do início do laço de
+`chamar`, então numa linha de tentativa 3 ela carrega as duas anteriores e
+os backoffs. É tempo do paper, não da chamada.
 
 A linha *(não registrado)* concentra as chamadas que morreram antes da
 resposta — inclusive as abandonadas pelo prazo: quem não respondeu não
 informou quem era, e atribuí-las a um provedor seria acusar inocente.
 
-| Provedor | chamadas | cortadas | prazo | erros | latência média (s) | pior (s) |
-|---|---:|---:|---:|---:|---:|---:|
-| Together | 3169 | 0 | 0 | 3 | 2.3 | 108.7 |
-| (não registrado) | 3 | 0 | 3 | 3 | None | None |
+| Provedor | chamadas | cortadas | prazo | erros | média (s) | pior 1ª tent. (s) | pior acum. (s) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Together | 4400 | 4 | 0 | 59 | 3.4 | 19.1 | 115.8 |
+| (não registrado) | 7 | 0 | 7 | 7 | None | None | None |
 
 ## 7. Rótulos perto de um limiar
 

@@ -46,6 +46,57 @@ python -m hfpapers modelos listar --contem claude
 O filtro já mostra só modelos com saída estruturada (`response_format` /
 `structured_outputs`), que é do que os dois estágios dependem.
 
+### Três chaves que existem por causa do OpenRouter
+
+O `config.yaml` carrega a calibração de cada uma em comentário, com as medições.
+O que segue é por que elas existem — a leitura, não o número.
+
+**`llm.prazo_total_s` (90 s) — o teto que o `timeout_s` não é.** `llm.timeout_s`
+é read timeout do httpx: ele conta o tempo desde o último byte recebido. O
+OpenRouter manda linhas de keep-alive `: OPENROUTER PROCESSING` enquanto o
+provedor pensa, e **cada uma reinicia esse relógio**. O resultado é o modo de
+falha mais caro que este projeto encontrou: uma chamada de 409,8 s atravessa um
+teto de 180 s **sem erro, sem retentativa e sem linha em `log_llm`** — a rodada
+fica pendurada em silêncio, e a única evidência é o ritmo caindo. Foi assim que a
+primeira tentativa da rodada 1 morreu: quatro threads em voo, sete minutos, zero
+chamadas concluídas.
+
+`prazo_total_s` é um prazo de ponta a ponta nosso: a chamada roda numa thread e é
+abandonada aos 90 s, caindo na retentativa que já existia. O valor foi calibrado
+medindo, não chutado — em 195 chamadas o pior caso legítimo foi 55,5 s no Estágio
+A e 13,8 s no Estágio B, e o valor seguinte depois de 55,5 s era 409,8 s: o teto
+cai no vazio entre os dois. Na rodada 2 ele pegou **7 chamadas em 4.407 (0,16%),
+todas recuperadas na retentativa**. `0` desliga, para quando o modelo mudar e a
+distribuição junto.
+
+Duas consequências que valem para conferir a fatura: a chamada abandonada
+**continua sendo cobrada** (~US$ 0,0004) e sai com uso zero, porque os tokens
+vinham na resposta que nunca foi lida — então `log_llm` **subestima** o gasto
+exatamente nessas linhas. Conte-as com `erro LIKE 'ErroPrazo%'`.
+
+**`log_llm.provedor` — a coluna sem a qual a lentidão não tem réu.** O OpenRouter
+roteia entre ~24 endpoints do mesmo modelo, e eles não se comportam igual: numa
+medição de 170 chamadas, Together deu média de 3,3 s e Sail Research 14,6 s com
+cauda de 195 s. Sem a coluna, "a rodada ficou 9x mais lenta" é uma frase sem
+sujeito. Com ela, o relatório de massa sai por provedor (seção 6 dos relatórios
+em `docs/`) e a cauda ganha dono — ou não ganha, que é informação igual: quem
+morre antes de responder não informa quem era, e essas chamadas ficam numa linha
+*(não registrado)* em vez de acusarem um inocente. Foi essa coluna que mostrou
+que trocar de endpoint trata a mediana e não a cauda: **a pior chamada do dia,
+409,8 s, saiu do Together**, o endpoint de melhor mediana do catálogo.
+
+**`llm.esforco_raciocinio` (`medium`) — porque o GLM raciocina de qualquer
+jeito.** O `z-ai/glm-5.3-flash` raciocina de forma obrigatória: `reasoning.enabled:
+false` volta HTTP 400. Com o prompt da grade facetada ele gastava **2.343 tokens
+de rascunho para produzir 540 caracteres de JSON**. Passar `effort` derruba a
+saída para ~220 tokens e a latência de 174 s para 12 s — 14x — **sem mexer na
+classificação**: medido em 420 chamadas, `low` e `medium` concordam entre si em
+87% do par área > sub-área, mais do que `low` concorda **consigo mesmo** (82%).
+Esse 82% é a origem do número de ~19% de instabilidade intrínseca da grade que
+aparece nos relatórios de massa: a diferença entre dois níveis de esforço é menor
+que o ruído do modelo consigo mesmo, então o esforço não é onde a grade perde
+precisão.
+
 ## Pipeline
 
 Cinco estágios, em sequência, cada um idempotente e com transação própria:
@@ -84,7 +135,7 @@ python -m hfpapers reclassificar --tudo                    # a base inteira, hor
 python -m hfpapers reclassificar --tudo --concorrencia 4   # 1 = sequencial, teto 8
 python -m hfpapers taxonomia listar
 python -m hfpapers taxonomia nao-encaixes [--eixo area|subarea|vertente]
-python -m hfpapers taxonomia fundir --de "X" --para "Y" --tipo topico
+python -m hfpapers taxonomia fundir --de "X" --para "Y"   # dois rótulos irmãos
 python -m hfpapers taxonomia exportar [--destino config/taxonomia_inicial.json]
 python -m hfpapers taxonomia carregar [config/taxonomia_inicial.json]
 python -m hfpapers modelos listar
@@ -119,14 +170,17 @@ Nenhuma linha se perde: o gasto desses papers está em `log_llm` e aparece em
 que virou triagem. Com `--concorrencia 1` nada é chamado adiante do paper que
 estoura.
 
-`taxonomia exportar` grava áreas e tópicos do banco (rótulo + definição, sem a
-fila de revisão) no JSON versionado; `carregar` é o inverso, para banco vazio, e
-é idempotente — rótulo que já existe não é tocado. `taxonomia nao-encaixes` lê a
-fila de revisão da grade: os papers em que o Estágio A declarou que nenhuma
-célula servia, com o eixo que falhou (`area`, `subarea` ou `vertente`) e a
-justificativa. **Ninguém promove rótulo a partir dela dentro do pipeline**: a
-classificação nunca cria vocabulário, e a promoção é da revisão da grade, por
-quórum.
+`taxonomia exportar` grava áreas, sub-áreas e vertentes do banco (rótulo +
+definição, sem a fila de revisão) no JSON versionado, com a sub-área aninhada sob
+a sua área; `carregar` é o inverso, para banco vazio, e é idempotente — rótulo
+que já existe não é tocado. `taxonomia fundir` funde dois rótulos **irmãos** —
+duas áreas raiz ou duas sub-áreas do mesmo pai — e reescreve a ponte; não há
+parâmetro de tipo, porque só existe um vocabulário hierárquico desde a contração
+da grade antiga. `taxonomia nao-encaixes` lê a fila de revisão da grade: os
+papers em que o Estágio A declarou que nenhuma célula servia, com o eixo que
+falhou (`area`, `subarea` ou `vertente`) e a justificativa. **Ninguém promove
+rótulo a partir dela dentro do pipeline**: a classificação nunca cria
+vocabulário, e a promoção é da revisão da grade, por quórum.
 
 ### Papers que chegam pelo refresh
 
@@ -177,7 +231,7 @@ positivo de uma rodada, não um sintoma a investigar.
 | item | estado | quando |
 |---|---|---|
 | `regra_fora` | erro | há `fora` com `regra_fora` nula |
-| `vocabulario` | aviso | `dim_area` ou `dim_topico` sem linhas |
+| `vocabulario` | aviso | `dim_area` ou `dim_vertente` sem linhas |
 | `triagem` | aviso | pendente que atravessou uma rodada de classificação |
 | `schema`, `integridade`, `chave`, `api_*` | erro | tabela faltando, FK violada, chave ausente, API fora |
 
@@ -185,7 +239,11 @@ positivo de uma rodada, não um sintoma a investigar.
 explica no painel; o Estágio A e o Estágio B já recusam gravar um assim, então o
 que sobra é linha antiga e o conserto é um comando (`reclassificar --tudo`).
 Vocabulário vazio é só aviso: banco recém-criado passa por aí legitimamente, e a
-saída aponta `taxonomia carregar`.
+saída aponta `taxonomia carregar`. A área que o check conta é a **da grade que o
+Estágio A oferece** — raiz com ao menos uma sub-área —, e não `dim_area` inteira:
+raiz sem filha não forma célula, e contá-la faria o diagnóstico dizer que há
+vocabulário onde a classificação não acha par nenhum. A linha de `ok` diz os três
+números: `10 areas com 64 sub-areas, 10 vertentes`.
 
 Esse erro esteve aceso até 07/09/2026, por 164 linhas antigas sem `regra_fora`,
 e a rodada da seção seguinte o apagou. Se ele voltar, a leitura é outra: linha
@@ -200,26 +258,47 @@ Fim de semana vazio é normal e não é erro.
 
 ## Reclassificação total (operação manual)
 
-A base tem papers classificados antes de `regra_fora` e `criterios_veredito`
-existirem. A rodada que os traz para o vocabulário vigente é **uma operação
-manual, feita uma vez** — não entra no agendamento e não roda sozinha.
+A rodada que traz a base inteira para o vocabulário vigente é **uma operação
+manual** — não entra no agendamento e não roda sozinha. Ela já foi feita três
+vezes, e as três estão medidas.
 
-**Executada em 07/09/2026**, `run-20260907-182217`: 516 papers, 346 `fora`,
-43 amplo, 127 estrito, 170 fichas, zero pendentes. Depois dela: zero `fora` sem
-regra, zero aprovado sem critério, um `run_id` só em toda a `fato_triagem`, e o
-`doutor` saindo com código 0.
+| rodada | `run_id` | base | chamadas | custo | parede | ritmo |
+|---|---|---:|---:|---:|---:|---:|
+| critérios de veredito, 07/09 | `run-20260907-182217` | 516 | — | US$ 0,21 | 47 min | — |
+| grade v1, só Estágio A, 08/09 | `run-20260908-162429` | 3.166 | 3.169 | **US$ 1,2326** | 31 min | 101,2 ch/min |
+| grade v2, A e B, 08/09 | `run-20260908-173724` | 3.166 | 4.407 | **US$ 2,0406** | 61,5 min | 71,7 ch/min |
 
-Custo e tempo medidos, com `--concorrencia 4` e `glm-5.3-flash`: **47 minutos e
-US$ 0,21** para os 516 papers. As estimativas anteriores (8–14 h sequencial,
-US$ 1 a 2) foram feitas sobre o `qwen3.8-flash`, cujo provider único estrangulou
-a operação — ver a nota de modelo abaixo. `custos --mes` dá o valor real.
+Com `--concorrencia 4` e `glm-5.3-flash` nas três. Três leituras que valem para
+a próxima:
 
-> **Modelo**: a rodada foi feita com `z-ai/glm-5.3-flash` nos dois estágios.
+- **A estimativa por chamada é confiável e a de tempo não é.** A rodada 1 previu
+  US$ 1,2300 e gastou US$ 1,2326 — 0,2% de erro. A mesma estimativa previu 1,4 h
+  e a rodada levou 0,52 h, porque o ritmo usado era de antes do
+  `esforco_raciocinio` (36,6 contra 101,2 chamadas/min). Custo escala com token,
+  que se conta; tempo escala com o endpoint que o OpenRouter sortear.
+- **A rodada 2 custou 66% mais que a 1 por dois motivos somados**, não um: a
+  grade v2 tem 64 sub-áreas em vez de 47 e o prompt do Estágio A cresceu ~26%,
+  e o Estágio B entrou (1.235 chamadas, US$ 0,5707). Sozinho, o Estágio A subiu
+  de US$ 1,2326 para US$ 1,4968.
+- **`log_execucao.custo_usd` e `log_llm` não batem, e é de propósito.** A rodada 2
+  fechou com US$ 2,0406 em `log_execucao` e US$ 2,0675 somando `log_llm`. A
+  diferença de US$ 0,0269 são as 66 chamadas que erraram e foram refeitas: elas
+  foram cobradas e não viraram triagem. `custos --mes` lê `log_llm`, que é o
+  número da fatura; `log_execucao` conta o que virou dado.
+
+> **Modelo**: as rodadas foram feitas com `z-ai/glm-5.3-flash` nos dois estágios.
 > O `qwen/qwen3.8-flash` que estava no `config.yaml` tem **um único provider**
 > no OpenRouter (Alibaba, pool compartilhado) e passou 07/09 em 429: a rodada
 > diária levou 10h30 para 19 papers e falhou em 14 deles. Antes de trocar o
 > modelo de qualquer estágio, olhe `GET /api/v1/models/<id>/endpoints` — um
 > endpoint só é risco operacional, não detalhe de catálogo.
+
+O que cada rodada deixou na base: a de 07/09 fechou 516 papers em 346 `fora`,
+43 amplo e 127 estrito, com 170 fichas — zero `fora` sem regra, zero aprovado sem
+critério, um `run_id` só em toda a `fato_triagem`. A de 08/09 fechou **3.166
+papers em 2.073 `fora`, 348 amplo e 745 estrito, com 1.093 fichas** — zero
+aprovado sem ficha, zero ficha órfã, zero pendente, e o `doutor` saindo com
+código 0 nas duas.
 
 ```bash
 # 1. espere a rodada diária das 07:30 terminar (log_execucao com finalizado_em)
@@ -301,9 +380,9 @@ Claude Design. Aquele arquivo só roda dentro do runtime do canvas;
 `scripts/painel_app.js` é o mesmo layout portado para JS de navegador — cinco
 seções (01 volume e recência, 02 vocabulário e cruzamentos, 03 regras do corte,
 04 atenção e adoção, 05 por que passou), filtro cruzado por dia, veredito, área,
-tópico, organização, regra de descarte e critério de veredito. `gerar_painel.py`
-não desenha nada: extrai os dados de `marts/`, serializa em `DADOS` e embute o
-app.
+área secundária, organização, regra de descarte e critério de veredito.
+`gerar_painel.py` não desenha nada: extrai os dados de `marts/`, serializa em
+`DADOS` e embute o app.
 
 **O gatilho é dependência real, não horário chutado.** O estágio de export
 escreve `marts/_manifest.json` por último e de forma atômica (`os.replace`),
@@ -344,13 +423,17 @@ Na seção **03 · Regras do corte**, dois cards espelhados:
   mostra a cobertura de critério do recorte. Clicar numa barra filtra o painel
   inteiro, como no Pareto.
 
-Na seção **02 · Vocabulário e cruzamentos**, o heatmap Tópico × tempo tem três
-vistas com **uma escala cada**, porque a vista troca a medida da célula e não só
-a ordem das linhas: `volume` (sequencial azul), `crescimento` (divergente —
-vermelho caiu, cinza estável, verde cresceu) e `aprovação` (sequencial verde). A
-matriz área primária × secundária virou matriz de bolhas: cor é a taxa de
-aprovação, tamanho é o total. Grande e verde é muito e muito aprovado; grande e
-cinza é muito e pouco.
+Na seção **02 · Vocabulário e cruzamentos**, duas peças. As barras por área
+raiz, empilhadas por veredito (estrito, amplo, fora), com "n · % aprovado" ao
+lado; clicar numa delas filtra o painel inteiro. E a matriz área primária ×
+secundária, que é matriz de bolhas: cor é a taxa de aprovação, tamanho é o
+total. Grande e verde é muito e muito aprovado; grande e cinza é muito e pouco.
+
+O heatmap Tópico × tempo saiu junto com a grade de tópicos: sem o eixo, ele não
+media nada. **A vertente não virou filtro nesta versão** — ela aparece no card do
+paper (`p.vt`, a dominante primeiro) e em lugar nenhum da barra de filtro. É
+exclusão de escopo declarada, não pendência esquecida: ver *A taxonomia
+facetada*, mais abaixo.
 
 Na ficha do paper, a linha do veredito traz os critérios em português
 ("ESTRITO · artefato aberto + benchmark"); quando há contraparte de fronteira,
@@ -441,9 +524,14 @@ com razão utilizável.
 ### Tamanho
 
 O peso vem do texto das fichas embutido em `DADOS`, não de HTML por card.
-Medido em 07/09/2026, depois da reclassificação total: **856 KB para 516 papers
-e 170 fichas**, dos quais 293 KB são fichas (~1,8 KB cada), 276 KB são os papers
-(~548 B cada) e 131 KB é a série de métricas.
+Medido em 08/09/2026, depois da rodada 2 da grade facetada: **2.492 KB para os
+1.970 papers da janela e 679 fichas**, dos quais 1.120 KB são fichas (~1,7 KB
+cada), 1.044 KB são os papers (~543 B cada), 228 KB é a série de métricas e
+27 KB a aba histórica.
+
+O salto de 856 KB para 2.492 KB em um dia é a coleta retroativa de três meses
+(ticket 06) chegando à janela viva: 455 papers viraram 1.970 e 170 fichas
+viraram 679. Não é regressão do gerador — é acervo que antes não existia.
 
 O custo por entrada do histórico é assimétrico de propósito — é o que permite as
 duas listas terem tamanhos diferentes:
@@ -453,14 +541,16 @@ duas listas terem tamanhos diferentes:
 | 10 aprovados | ficha inteira (5 campos) | ~2,5 KB | ~25 KB |
 | 10 descartados | regra + justificativa | ~0,3 KB | ~3 KB |
 
-**~28 KB por trimestre, ~115 KB por ano** — contra os **~932 KB/mês** que a
-janela viva acumularia se não fosse recortada (os 516 papers pesam 705 KB de
-payload). Se doer, `--dias` é o botão para girar. O custo do descartado deixou
-de ser piso otimista: com a reclassificação total, todo descartado do histórico
-já carrega regra e justificativa de verdade.
+**~28 KB por trimestre, ~115 KB por ano** — contra os **~1,1 MB/mês** que a
+janela viva acumularia se não fosse recortada (os 1.970 papers da janela pesam
+2.392 KB de payload, ou ~1,2 KB por paper, a ~30 papers por dia). Se doer,
+`--dias` é o botão para girar. O custo do descartado deixou de ser piso otimista:
+com a reclassificação total, todo descartado do histórico já carrega regra e
+justificativa de verdade.
 
-Vale lembrar que `painel.html` é commitado e empurrado todo dia (217 KB
-comprimido, ~77 MB/ano de repositório): cada KB adicionado se multiplica por 365.
+Vale lembrar que `painel.html` é commitado e empurrado todo dia (644 KB
+comprimido, ~229 MB/ano de repositório): cada KB adicionado se multiplica por
+365.
 Por isso o ranking desempata por `paper_id` — sem critério estável, dois papers
 empatados em votos trocariam de lugar entre rodadas e o commit diário ganharia
 diff sem significado.
@@ -491,8 +581,9 @@ inspeção o valor negativo não faz sentido nenhum, e a geração diária (sem
 argumentos) nunca chega perto dele.
 
 Duas defesas contra publicar rascunho por engano, porque `--dias` e `--dias-hall`
-mudam **o que** o painel mostra (com `--dias 10` são 270 papers em vez de 455, e
-os 185 que sobram não aparecem em aba nenhuma):
+mudam **o que** o painel mostra (medido em 04/09/2026, com `--dias 10` eram 270
+papers em vez de 455, e os 185 que sobravam não apareciam em aba nenhuma; hoje a
+janela padrão traz 1.970 e o desconto é proporcionalmente maior):
 
 - `gerar_painel.sh` não commita nem empurra quando recebe `--dias`, `--dias-hall`
   ou `--destino` — só a geração diária, sem argumentos, publica;
@@ -513,20 +604,156 @@ a cada abertura de conexão — tudo `IF NOT EXISTS`):
 | `fato_metrica` | série temporal: 1 linha por paper por dia (upvotes, comentários, stars, artefatos) |
 | `fato_triagem` | veredito (`fora`/`amplo`/`estrito`), regra de descarte, teste de portabilidade, fronteira e sua contraparte |
 | `dim_ficha` | os cinco campos da ficha, só para aprovados |
-| `dim_area`, `dim_topico`, `dim_vertente` | vocabulário controlado (área hierárquica, tópico da grade antiga, vertente) |
+| `dim_area` | vocabulário controlado dos dois níveis de área, numa tabela só: `area_pai` nulo é área raiz, preenchido é sub-área |
+| `dim_vertente` | vocabulário controlado do eixo transversal: que movimento o paper faz |
 | `tax_nao_encaixe` | fila de revisão da grade: paper, eixo em que o encaixe falhou, justificativa |
-| `ponte_paper_*` | área, tópico, critério de veredito, keyword, autor (muitos-para-muitos) |
-| `log_execucao`, `log_llm` | operação, tokens e custo |
+| `ponte_paper_*` | área (par > sub-área), vertente (com ordem), critério de veredito, keyword, autor (muitos-para-muitos) |
+| `log_execucao`, `log_llm` | operação, tokens e custo; `log_llm.provedor` guarda qual endpoint do OpenRouter atendeu (nulo quando a chamada morreu antes da resposta) |
 | `dim_calendario` | inteligência temporal do Power BI |
 
 Duas datas, separadas de propósito: `data_arxiv` (`paper.publishedAt`) e
 `data_hf_daily` (`paper.submittedOnDailyAt`). Elas divergem em 35 de 35 papers no
 lote de 25/08 — a operação diária é organizada pela segunda.
 
+### A taxonomia facetada
+
+Dois eixos ortogonais, e nenhuma coordenada é dedutível da outra. Spec em
+`docs/spec-taxonomia-facetada.md`, implementada em 08/09/2026.
+
+- **ÁREA — em que peça do sistema o trabalho mexe.** Hierárquica em dois níveis:
+  uma área raiz e uma sub-área sob ela.
+- **VERTENTE — que movimento o paper faz com essa peça.** Plana e transversal a
+  todas as áreas: qualquer peça pode ser medida, barateada, endurecida, treinada.
+
+O teste que a grade anterior falhava e esta passa: `MemUse` e `LycheeMemory V2`
+vivem na mesma sub-área e antes eram indistinguíveis; com a vertente, um **mede**
+e o outro **barateia**.
+
+**Cardinalidade.** Um paper recebe exatamente um par primário (área > sub-área),
+no máximo um par secundário e de uma a duas vertentes ordenadas. **Toda a base
+recebe as três facetas, inclusive os `fora`** — é o que torna a regra de descarte
+revisável com dado em vez de memória ("Geração de mídia > World models
+generativos, descartado 95 vezes" é uma frase que a base sabe dizer).
+
+Três decisões de schema, todas em `src/hfpapers/schema.sql`:
+
+| Peça | O que é, e por quê |
+|---|---|
+| `dim_area.area_pai` | A hierarquia mora na auto-referência, não numa tabela irmã: área e sub-área são o mesmo tipo de coisa, e uma tabela só evita duas definições divergentes. Sub-área é filha de **exatamente uma** área. |
+| `ponte_paper_area (paper_id, area, subarea)` | A sub-área entra na **chave primária**. Com a chave `(paper_id, area)` o par secundário de mesma área e sub-área diferente era proibido, e ele é caso real. `is_primaria` distingue os dois pares. |
+| `ponte_paper_vertente.ordem` | `1` é a dominante, `2` a secundária. Sem a ordem as duas seriam intercambiáveis e nenhum ranking teria resposta única. O teto de duas é aplicado **na persistência**, não só pedido no prompt. |
+
+**A grade vigente** (`config/taxonomia_inicial.json`, recarregável com
+`taxonomia carregar`): **10 áreas raiz, 64 sub-áreas, 10 vertentes**. As dez
+áreas nasceram do desenho e não se mexeram; as 64 sub-áreas e a décima vertente
+saíram de medição, não de leitura de título — `docs/grade-v2-resumo.md` conta a
+passagem da v1 para a v2, rótulo a rótulo.
+
+```
+Medir ......... cria o instrumento: benchmark, protocolo, métrica, auditoria
+Treinar ....... muda os pesos para a peça ficar melhor: pós-treino, RL, destilação
+Baratear ...... reduz custo, latência, memória ou tokens
+Endurecer ..... sustenta o comportamento sob ataque, ruído ou entrada fora da distribuição
+Confiabilizar . reduz o erro silencioso: alucinação, calibração, atribuição
+Automatizar ... tira o humano do laço: auto-evolução, síntese, busca automática
+Explicar ...... torna legível o que já acontece: interpretabilidade, sondas, causalidade
+Especificar ... formaliza o que se quer antes de executar: contrato, verificação, política
+Adaptar ....... ajusta a um contexto, usuário ou domínio sem retreinar
+Escalar ....... faz funcionar maior: horizonte, contexto, número de agentes
+```
+
+`Treinar` é a décima, e a razão de ela existir está em
+`docs/adr-002-a-lista-de-vertentes.md`: o desenho previa que a lista **perderia**
+duas vertentes e ela ganhou uma.
+
+#### O que a grade mede hoje
+
+Medição completa em `docs/relatorio-massa-grade-v2.md`
+(`run-20260908-173724`, 3.166 papers). O retrato:
+
+| | |
+|---|---|
+| cobertura | 3.158 papers com par primário (99,7%), 587 com par secundário (18,5%), 3.166 com ao menos uma vertente (100%), 680 com duas (21,5%) |
+| áreas maiores | Modelo & treino 872 · Geração de mídia 577 · Avaliação & instrumentação 493 · Percepção & robótica 358 |
+| vertentes maiores | Treinar 45,3% · Medir 31,8% · Baratear 16,6% |
+| fila de revisão | 81 não-encaixes (2,6% da base): 49 de sub-área, 30 de área, **2 de vertente** |
+
+**As duas checagens da spec continuam falhando, e isso está registrado, não
+esquecido:**
+
+- **Checagem A** — nenhuma sub-área acima de ~25% da sua área: **FALHA**, 7
+  acima do teto (eram 15 na v1). A pior é *Internos do modelo >
+  Interpretabilidade & sondas*, com 63,0% — e o que está estreito ali é a
+  **área**, não a sub-área: "os pesos como objeto de estudo" quer dizer
+  interpretabilidade.
+- **Checagem B** — nenhuma vertente abaixo de ~2%: **FALHA**, 2 abaixo do piso.
+  *Adaptar* 1,2% e *Especificar* 1,1%. É a pendência declarada do ADR 002; as
+  duas são as primeiras candidatas de uma v3, e nenhuma foi absorvida ainda
+  porque absorver reescreve pontes e exige rodada de reclassificação.
+
+A grade tem **~19% de instabilidade intrínseca**: o mesmo paper, mesma
+configuração, temperatura 0, recebe pares diferentes em cerca de uma rodada em
+cada cinco (81-82% de auto-concordância, três medições em 08/09/2026). É o número
+que impede tratar qualquer rótulo a poucos pontos de um limiar pelo valor seco.
+
+#### Como medir a grade de novo
+
+```bash
+# SEMPRE com o segundo argumento. Sem ele o script grava em
+# docs/relatorio-massa-grade-v1.md, em silêncio — e aquele relatório é a causa
+# registrada da grade v2, que o banco de hoje já não reproduz.
+/opt/miniconda3/envs/digest-hf/bin/python scripts/relatorio_massa.py \
+    run-AAAAMMDD-HHMMSS docs/relatorio-massa-grade-v3.md
+```
+
+O relatório traz cobertura, distribuição por área e sub-área com o veredito de
+cada regra, distribuição por vertente com a coluna de dominantes, não-encaixes
+por eixo, custo real contra o estimado, roteamento por provedor e a lista de
+rótulos perto de um limiar. As duas checagens saem calculadas.
+
+#### O que ficou de fora, e por quê
+
+Três ausências que são decisão, não pendência:
+
+- **Corte por vertente no painel.** A vertente é o único eixo transversal e é a
+  candidata natural a filtro — "tudo que barateia, seja em serving, contexto ou
+  harness". Fica fora porque o painel é a última peça a mexer justamente por
+  depender de ver a distribuição real, e a distribuição ainda se mexeu entre a v1
+  e a v2 (*Baratear* caiu pela metade). Construí-lo antes significaria refazê-lo.
+  A vertente já viaja nos Parquet e no card do paper; o filtro é o que falta.
+- **Versionamento da taxonomia antiga.** Decidido contra, pelo princípio do
+  ADR 001: uma fonte de verdade por decisão. A grade de tópicos foi **removida**
+  do banco em vez de conviver com uma coluna de versão — conviver custaria um
+  filtro permanente em toda consulta, para sempre, por causa de dado que ninguém
+  vai querer. A rastreabilidade vem do `run_id` em `fato_triagem` e do histórico
+  de `config/taxonomia_inicial.json` no git.
+- **Terceira faceta de domínio de aplicação.** Avaliada e recusada: o único
+  domínio recorrente na base é código, e ele já cai em *Harness & orquestração >
+  Engenharia de código com agente*. Uma faceta cujo único valor recorrente é
+  dedutível de outra não é eixo, é redundância — o erro que a própria spec veio
+  consertar. A fila de não-encaixe sustenta a recusa por outro lado: as famílias
+  que pediram vocabulário novo pediram **área** (neurociência e sinal biomédico,
+  finanças, ciência natural fora de LLM), e nenhuma pediu domínio de aplicação.
+
 ### O que mudou para quem monta o Power BI
 
-Três coisas novas, todas já nos Parquet de `marts/`:
+Seis coisas novas, todas já nos Parquet de `marts/`:
 
+- **`ponte_paper_area`** (`paper_id`, `area`, `subarea`, `is_primaria`) —
+  substitui a ponte de área plana. **É um-para-muitos**: um paper pode ter par
+  primário e secundário, e o secundário pode repetir a área do primário com
+  sub-área diferente. `is_primaria = 1` é o par principal; para "a área do
+  paper", filtre por ele, senão a contagem por área infla em ~18,5%.
+- **`ponte_paper_vertente`** (`paper_id`, `vertente`, `ordem`) — o eixo
+  transversal, com a **ordem** que separa a dominante (`1`) da secundária (`2`).
+  Também um-para-muitos: 3.166 linhas de ordem 1 e 680 de ordem 2. Ranking de
+  vertente que não filtra `ordem = 1` está somando acompanhamento com
+  dominância — e as duas coisas divergem (*Baratear* tem 524 atribuições e 383
+  dominantes; *Escalar*, 152 e 77).
+- **`dim_area[area_pai]`** — nulo em área raiz, preenchido em sub-área. Sem essa
+  coluna a dimensão chega ao Power BI como 74 rótulos planos, sem dizer qual é
+  raiz nem de quem cada sub-área é filha. É o que permite a hierarquia
+  área > sub-área numa matriz.
 - **`ponte_paper_criterio`** (`paper_id`, `criterio`) — os critérios que
   sustentam o veredito de um aprovado, do enum de dez (cinco de estrito, cinco
   de amplo; ver *Regras de classificação*). **É um-para-muitos**: um paper
@@ -554,8 +781,8 @@ Três coisas novas, todas já nos Parquet de `marts/`:
   fecha a rodada é o `run_id` único em toda a `fato_triagem`.
 
 Não há `.pbix` no repositório: o Power BI lê os Parquet e o modelo vive fora do
-git (`docs/adr-001-fora-de-escopo-do-mapa.md`, decisão 2). Estas três colunas são
-o contrato; montar as visuais é trabalho manual no Desktop.
+git (`docs/adr-001-fora-de-escopo-do-mapa.md`, decisão 2). Estas colunas são o
+contrato; montar as visuais é trabalho manual no Desktop.
 
 ## Refresh escalonado
 
@@ -586,14 +813,20 @@ escrita atômica (`os.replace`) — pode rodar com o Power BI aberto.
 - `marts/_manifest.json` registra data/hora, `run_id` e a contagem de linhas de
   cada arquivo — é como conferir no Power BI que o dado é fresco.
 
-São 13 arquivos (um por tabela), `ponte_paper_criterio.parquet` incluído.
+São 13 arquivos (um por tabela), `ponte_paper_area.parquet` e
+`ponte_paper_vertente.parquet` incluídos.
 
 No Power BI Desktop: Obter Dados → Parquet, apontar para `marts/`. Marcar
 `dim_calendario` como tabela de datas e relacionar
 `fato_metrica[data_snapshot] → dim_calendario[data]`,
-`fato_metrica[paper_id] → dim_paper[paper_id]` e
-`ponte_paper_criterio[paper_id] → dim_paper[paper_id]` (muitos-para-um, com a
-armadilha de contagem descrita em *Modelo de dados*).
+`fato_metrica[paper_id] → dim_paper[paper_id]`,
+`ponte_paper_criterio[paper_id] → dim_paper[paper_id]`,
+`ponte_paper_area[paper_id] → dim_paper[paper_id]` e
+`ponte_paper_vertente[paper_id] → dim_paper[paper_id]` (todas muitos-para-um, com
+a armadilha de contagem descrita em *Modelo de dados* — as três pontes
+multiplicam linhas). `dim_area` se relaciona duas vezes com a ponte de área, uma
+por `area` e outra por `subarea`; a segunda entra como relação inativa e sobe com
+`USERELATIONSHIP`, porque a mesma dimensão serve aos dois níveis.
 
 ## Regras de classificação
 
@@ -682,10 +915,12 @@ scripts/
 ├── run_daily.sh        pipeline diário (launchd, 07:30)
 ├── gerar_painel.sh     wrapper do painel (launchd, WatchPaths em _manifest.json)
 ├── gerar_painel.py     monta relatorios/painel.html a partir dos Parquet
-└── painel_app.js       app do painel (porte do artboard da Claude Design)
+├── painel_app.js       app do painel (porte do artboard da Claude Design)
+├── coleta_retroativa.py  varre dias anteriores ao início do pipeline (sem LLM)
+└── relatorio_massa.py    mede a grade: distribuição, checagens A e B, roteamento
 prompts/            regras versionadas
-config/             taxonomia_inicial.json — o vocabulário de bootstrap
-docs/               spec do mapa e ADRs
+config/             taxonomia_inicial.json — a grade vigente, recarregável
+docs/               specs, ADRs, relatórios de massa e os tickets
 marts/              ← o Power BI aponta para cá
 relatorios/         artefatos de leitura: painel.html
 data/               o banco SQLite

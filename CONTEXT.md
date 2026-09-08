@@ -45,6 +45,51 @@ ou aprovado↔fora. Sempre acompanhada da **contraparte**: a regra de descarte o
 o critério que quase venceu.
 _Avoid_: caso limite, borderline
 
+### Taxonomia
+
+**Grade**:
+O vocabulário controlado vigente, inteiro: as áreas com suas sub-áreas e as
+vertentes. Tem versão (v1, v2) e a versão avança por **medição**, não por
+opinião. Vive no banco e é exportável para `config/taxonomia_inicial.json`.
+_Avoid_: taxonomia (quando o assunto é o conteúdo e não o módulo), vocabulário
+(ambíguo com as keywords do HF)
+
+**Faceta**:
+Um dos dois eixos ortogonais que localizam um paper. Área responde *em que peça
+do sistema o trabalho mexe*; vertente responde *que movimento ele faz com essa
+peça*. Nenhuma coordenada é dedutível da outra — é esse o teste que a grade de
+tópicos falhava.
+_Avoid_: dimensão, campo, tag
+
+**Área** e **sub-área**:
+Os dois níveis do eixo hierárquico, na mesma tabela: área raiz tem `area_pai`
+nulo, sub-área aponta para a sua área. Uma sub-área é filha de **exatamente
+uma** área. As dez áreas raiz são decisão de desenho; as sub-áreas são hipóteses
+que a medição confirma ou funde.
+_Avoid_: categoria, tema, tópico (o tópico era o campo que a faceta substituiu)
+
+**Par**:
+A coordenada de área de um paper: área > sub-área. O **primário** é obrigatório
+e único; o **secundário** é opcional e pode repetir a área do primário desde que
+a sub-área difira.
+_Avoid_: área primária sozinha (o par é que localiza; a área sozinha não)
+
+**Vertente**:
+O eixo transversal, plano, que atravessa todas as áreas. Um paper recebe uma ou
+duas, **ordenadas**: a de ordem 1 é a **dominante**, e é a que responde quando
+um ranking precisa de uma resposta só. O teto de duas é aplicado na
+persistência, não só pedido no prompt.
+_Avoid_: tópico, verbo, ação
+
+**Não-encaixe** (`tax_nao_encaixe`):
+A declaração do Estágio A de que nenhuma célula da grade servia, com o **eixo**
+em que o encaixe falhou (`area`, `subarea` ou `vertente`) e a justificativa. É
+fila de revisão, não recusa de classificar: o paper sai com par e vertente
+mesmo assim. **A classificação nunca cria rótulo**; quem promove é a revisão da
+grade, por quórum. Substituiu o candidato, que pedia um nome inventado e
+acumulou sinônimos.
+_Avoid_: candidato, rótulo sugerido, novo tópico
+
 ### Operação
 
 **Pendente**:
@@ -60,11 +105,11 @@ Substitui a distinção "recente vs. backfill". Desde a reclassificação total 
 _Avoid_: recentes, backfill, herdado
 
 **Reclassificação total**:
-A rodada única que passa todos os papers da base pelo pipeline de novo, com o
-vocabulário de critérios vigente. A marca dela é o `run_id` compartilhado por
-toda linha de `fato_triagem` — não `revisao`, que sobe 1 em cada linha e deixa a
-importada em 1. Roda com o vocabulário congelado: candidato novo é registrado,
-mas promovido só depois, à mão.
+A rodada que passa todos os papers da base pelo pipeline de novo, com o
+vocabulário vigente. A marca dela é o `run_id` compartilhado por toda linha de
+`fato_triagem` — não `revisao`, que sobe 1 em cada linha e deixa a importada em
+1. Roda com a grade congelada: o não-encaixe é registrado, e nenhum rótulo nasce
+dela.
 _Avoid_: migração, backfill, "revisão ≥ 2"
 
 **Concorrência** (`llm.concorrencia`, `--concorrencia`):

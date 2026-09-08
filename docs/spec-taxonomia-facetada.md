@@ -1,9 +1,33 @@
 # Spec — Taxonomia facetada: Área > Sub-área × Vertente
 
 - **Data**: 2026-09-07
-- **Estado**: proposta
+- **Estado**: **implementada** em 2026-09-08 (tickets 01 a 10)
 - **Precede**: reescrita da classificação do Estágio A
 - **Respeita**: `adr-001-fora-de-escopo-do-mapa.md` (uma fonte de verdade por decisão)
+- **Corrigida por**: `adr-002-a-lista-de-vertentes.md` (a lista de nove verbos virou dez)
+
+> **Leitura desta spec, agora que ela foi executada.** O texto abaixo está como
+> foi escrito em 07/09, e o *Problem Statement* descreve a grade de tópicos que
+> deixou de existir — é a causa registrada, não uma descrição do sistema atual.
+> Onde o desenho foi derrubado pela medição, a nota está no ponto. O estado
+> atual do sistema está no README (seção *A taxonomia facetada*); a medição
+> vigente, em `relatorio-massa-grade-v2.md`.
+>
+> **O que a execução mudou em relação ao que esta spec previa:**
+>
+> | | previsto aqui | medido |
+> |---|---|---|
+> | base a classificar | ~2.600 papers | **3.166** (a coleta retroativa trouxe 2.641, +26% sobre a estimativa) |
+> | sub-áreas | ~45 | 47 na v1, **64** na v2 |
+> | vertentes | 9, com *Adaptar* e *Explicar* a sumir | **10**: nenhuma sumiu e `Treinar` entrou — ver ADR 002 |
+> | custo total | ~US$ 1,35 | **US$ 3,30** de fatura (`log_llm`: rodada 1 US$ 1,2326, rodada 2 US$ 2,0675). O que virou triagem (`log_execucao`) foi US$ 3,27 |
+> | tempo de máquina | ~3 h | **1,54 h** (31 min + 61,5 min, concorrência 4) |
+> | par secundário | ~20% dos aprovados | **18,5% da base inteira** |
+>
+> As duas checagens objetivas do passo 5 da *Operação* **falham na v2**, e isso
+> está registrado, não esquecido: 7 sub-áreas acima de 25% (eram 15) e 2
+> vertentes abaixo de 2% (*Adaptar* 1,2%, *Especificar* 1,1%). A pendência é do
+> ADR 002.
 
 ## Problem Statement
 
@@ -219,6 +243,14 @@ o não-encaixe. O `tipo` aceita `area`, `subarea` e `vertente`; o registro carre
 justificativa do modelo. A tabela é truncada na migração — os 168 candidatos existentes
 descrevem uma grade que deixou de existir.
 
+> **Implementado diferente, e melhor (ticket 04).** A tabela não mudou de propósito:
+> foi **derrubada** e substituída por `tax_nao_encaixe`, com a coluna chamada `eixo`
+> (não `tipo`) e chave primária em `paper_id`, não em `(paper_id, eixo)`. A razão da
+> chave: o contrato do Estágio A traz no máximo uma declaração por paper, então
+> reclassificar substitui a anterior em vez de deixar a de ontem pendurada num eixo
+> que o modelo abandonou. Mudar de propósito uma tabela que guardava rótulo proposto
+> teria deixado o nome mentindo sobre o conteúdo.
+
 A migração **trunca e repovoa** as quatro tabelas de taxonomia. Não há coluna de versão
 e não há convivência entre as duas grades: pelo princípio do ADR 001, uma fonte de
 verdade por decisão. A rastreabilidade vem do `run_id` em `fato_triagem` e do histórico
@@ -325,6 +357,12 @@ preenchidas; e não-encaixe registrado nos três eixos.
 
 ## Out of Scope
 
+> **Depois da execução, as três exclusões que o ticket 10 nomeia — corte por
+> vertente no painel, versionamento da taxonomia antiga e terceira faceta de
+> domínio de aplicação — continuam de pé.** A razão de cada uma, com o que a
+> medição acrescentou, está em `README.md`, seção *O que ficou de fora, e por
+> quê*: é lá que o leitor vai procurar, e uma razão só tem uma casa.
+
 - **Corte por vertente no painel.** A vertente é o único eixo transversal e é candidata
   natural a filtro, mas o painel é a última peça a mexer justamente porque depende de
   ver a distribuição real — e a grade ainda passa por uma segunda versão.
@@ -354,6 +392,14 @@ A hipótese mais frágil é a lista de nove vertentes. Na classificação manual
 ficaria com cerca de 40 dos 127 e *Adaptar* com 3. Se a distribuição se confirmar em
 2.600 papers, *Adaptar* e *Explicar* devem ser absorvidas. É por isso que a vertente
 aceita o registro de não-encaixe: é o instrumento que mede o erro do próprio desenho.
+
+> **O parágrafo acima acertou a fragilidade e errou a previsão — `adr-002`.** O
+> instrumento funcionou: 12 dos 13 não-encaixes de eixo `vertente` pediram
+> literalmente o mesmo verbo, e a grade **ganhou** `Treinar` em vez de perder duas
+> vertentes. *Explicar* ficou em 6,3% na v1, com folga de três vezes o piso; quem
+> reprovou foi *Especificar* (1,5%), que esta spec não cita uma única vez. A régua
+> dos 127 aprovados mede o que o produto **aprova**, e a grade classifica o que a
+> base **tem** — 65% da qual é descartada.
 
 A sub-área foi considerada como **substituta** da vertente, e os dados a recusaram
 nesse papel: ela é 100% dedutível da área por construção, então não comunica informação
