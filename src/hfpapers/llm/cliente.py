@@ -87,6 +87,56 @@ def _escolha_unica(resposta: Any) -> Any:
     raise ErroProvedor(f"resposta sem choices: {detalhe or 'sem detalhe do provedor'}")
 
 
+class ErroPrazo(RuntimeError):
+    """A chamada passou do prazo total e foi abandonada.
+
+    Existe porque `llm.timeout_s` nao protege: ele e read timeout do httpx, e o
+    keep-alive do OpenRouter (`: OPENROUTER PROCESSING`) o reinicia a cada
+    linha. Medido em 2026-09-08: uma chamada de 409,8 s atravessou inteira um
+    teto de 180 s sem erro, sem retentativa e sem linha em `log_llm`, e sozinha
+    consumiu 68% da parede de uma rodada de 30 papers.
+
+    Herda de `RuntimeError` para cair na retentativa generica de rede - que e o
+    ponto: a instancia seguinte costuma responder em segundos.
+    """
+
+
+def _com_prazo(chamada: Callable[[], Any], prazo_s: float) -> Any:
+    """Executa `chamada` numa thread e desiste dela ao fim de `prazo_s`.
+
+    Nao existe cancelamento de verdade: a thread abandonada segue presa no I/O
+    ate o OpenRouter responder, e a resposta dela e paga e descartada. E barato
+    perto do que se evita - a chamada abandonada custa ~US$ 0,0004, e esperar
+    por ela custou 409 s de uma rodada.
+
+    O custo dela tambem nao entra em `log_llm`: a linha do corte sai com uso
+    zero, porque a resposta que traria os tokens nunca foi lida. `log_llm`
+    subestima o gasto exatamente nas chamadas cortadas - conte-as pelo
+    `erro LIKE 'ErroPrazo%'` quando for conferir a fatura.
+
+    `daemon=True` e obrigatorio: `ThreadPoolExecutor` faz join das suas threads
+    no fim do interpretador, entao uma orfa penduraria a saida do processo -
+    trocando uma rodada travada por um processo que nao termina.
+    """
+    caixa: dict[str, Any] = {}
+    pronto = threading.Event()
+
+    def alvo() -> None:
+        try:
+            caixa["valor"] = chamada()
+        except BaseException as e:  # noqa: BLE001 - reerguida no chamador, intacta
+            caixa["erro"] = e
+        finally:
+            pronto.set()
+
+    threading.Thread(target=alvo, daemon=True, name="llm-prazo").start()
+    if not pronto.wait(prazo_s):
+        raise ErroPrazo(f"prazo de {prazo_s:g}s estourado; chamada abandonada")
+    if "erro" in caixa:
+        raise caixa["erro"]
+    return caixa["valor"]
+
+
 class ErroValidacao(ValueError):
     """Resposta bem formada pelo schema, mas invalida pelas regras da secao 4.4.
 
@@ -310,11 +360,15 @@ class ClienteLLM:
                     mensagens.append({"role": "system", "content": sistema})
                 mensagens.append({"role": "user", "content": prompt_atual})
 
-                corpo_extra: dict[str, Any] = {
-                    "provider": {
-                        "require_parameters": self.cfg.llm.provider.require_parameters
-                    }
+                provedores: dict[str, Any] = {
+                    "require_parameters": self.cfg.llm.provider.require_parameters
                 }
+                if self.cfg.llm.provider.preferidos:
+                    provedores["order"] = list(self.cfg.llm.provider.preferidos)
+                    # Preferencia, nao exclusividade: se os preferidos estiverem
+                    # fora do ar ou saturados, o resto do catalogo atende.
+                    provedores["allow_fallbacks"] = True
+                corpo_extra: dict[str, Any] = {"provider": provedores}
                 # Medido em 2026-09-08, 140 papers e 420 chamadas: sem esta
                 # linha o GLM 5.3 flash gasta 2.343 tokens de rascunho para
                 # produzir 540 caracteres de JSON, e a chamada passa de 13 s
@@ -333,14 +387,18 @@ class ClienteLLM:
                 if self.aceita(modelo, "temperature"):
                     extras["temperature"] = temperatura
 
-                r = self.openai.chat.completions.create(
-                    model=modelo,
-                    messages=mensagens,
-                    max_tokens=teto_saida,
-                    response_format=response_format,
-                    extra_body=corpo_extra,
-                    **extras,
-                )
+                def _criar() -> Any:
+                    return self.openai.chat.completions.create(
+                        model=modelo,
+                        messages=mensagens,
+                        max_tokens=teto_saida,
+                        response_format=response_format,
+                        extra_body=corpo_extra,
+                        **extras,
+                    )
+
+                prazo = self.cfg.llm.prazo_total_s
+                r = _com_prazo(_criar, prazo) if prazo > 0 else _criar()
                 provedor = getattr(r, "provider", None)
                 escolha = _escolha_unica(r)
                 conteudo = escolha.message.content or ""

@@ -73,6 +73,17 @@ class EstagioLLM(BaseModel):
 
 class ProviderLLM(BaseModel):
     require_parameters: bool = True
+    # Endpoints tentados primeiro, na ordem. Vazio deixa o balanceador do
+    # OpenRouter escolher, que e o padrao. A lista existe porque os endpoints do
+    # mesmo modelo nao se comportam igual e a diferenca nao aparece no catalogo:
+    # em 2026-09-08, 170 chamadas medidas deram Together com 3,3 s de media e
+    # 13,8 s de pior caso, contra 14,6 s e 195 s do Sail Research - e foi a cauda
+    # deste que pendurou a rodada 1 do ticket 07 com quatro threads paradas.
+    #
+    # O fallback fica sempre ligado: preferencia nao e exclusividade, e uma lista
+    # de um nome so sem fallback recria a armadilha do provedor unico (o 429 do
+    # pool compartilhado sem para onde ir, que ja custou um dia de operacao).
+    preferidos: list[str] = Field(default_factory=list)
 
 
 class RetryLLM(BaseModel):
@@ -85,6 +96,18 @@ class LLM(BaseModel):
     referer: str = "https://github.com/samuelrochamotta/hf-papers-db"
     titulo_app: str = "hf-papers-db"
     timeout_s: float = 180
+    # Teto de ponta a ponta por chamada, em segundos. Nao e o mesmo que
+    # `timeout_s`: aquele e read timeout do httpx, e o keep-alive do OpenRouter
+    # (`: OPENROUTER PROCESSING`) o reinicia a cada linha, entao uma chamada de
+    # 409,8 s atravessa um teto de 180 s sem erro, sem retentativa e sem linha
+    # em `log_llm`. Foi assim que a rodada 1 do ticket 07 parou.
+    #
+    # 90 s vem da medicao de 2026-09-08, ja sob `esforco_raciocinio`: em 195
+    # chamadas, o pior caso legitimo foi 55,5 s no estagio A e 13,8 s no
+    # estagio B, e o proximo valor depois de 55,5 era 409,8 s. O teto cai no
+    # vazio entre os dois. `0` desliga, e a escotilha para quando o modelo
+    # mudar e a distribuicao junto.
+    prazo_total_s: float = 90
     # Quantas chamadas ao OpenRouter podem estar no ar ao mesmo tempo no
     # estagio 3. O padrao e 1 - sequencial, o caminho de sempre - porque a
     # rodada diaria classifica ~30 papers e nao ganha nada com paralelismo,

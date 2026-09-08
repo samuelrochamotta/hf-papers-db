@@ -250,6 +250,7 @@ def reclassificar(
     data: Optional[str] = None,
     tudo: bool = False,
     concorrencia: Optional[int] = None,
+    so_estagio_a: bool = False,
     cliente_llm: Optional[ClienteLLM] = None,
 ) -> ResultadoRun:
     """Roda so o estagio 3, sobre papers ja vistos, e registra a rodada.
@@ -273,6 +274,11 @@ def reclassificar(
     `concorrencia=None` usa a do `config.yaml` (padrao 1). E aqui que ela
     importa: a rodada total sao ~482 papers de chamada sequencial, e este e o
     unico chamador que pede a base inteira de uma vez.
+
+    `so_estagio_a` para a varredura no Estagio A: e a rodada que mede a massa
+    da grade antes de gastar com ficha (spec, secao Operacao, passo 4). O
+    candidato sai dela sem triagem nova - a faceta ele recebe, o veredito nao -,
+    e por isso ela nao fecha o criterio de `conferir`.
     """
     cfg = cfg or config()
     fechar_conn = conn is None
@@ -305,6 +311,7 @@ def reclassificar(
             classificacao.rodar(
                 conn, llm, papers, run_id=run_id, cfg=cfg,
                 concorrencia=cfg.llm.concorrencia if concorrencia is None else concorrencia,
+                so_estagio_a=so_estagio_a,
                 res=parcial,
             )
         finally:

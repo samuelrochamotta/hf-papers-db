@@ -262,3 +262,25 @@ def test_conferir_le_o_criterio_de_conclusao_da_rodada(cfg, base):
     )
     base.commit()
     assert execucao.conferir(base, r.run_id) == {"outro_run_id": 1, "sem_triagem": 1}
+
+
+def test_reclassificar_so_estagio_a_classifica_sem_gerar_ficha(cfg, base):
+    """A rodada 1 da grade facetada mede a massa antes de gastar com ficha
+    (spec, secao Operacao, passo 4): toda a base recebe area, sub-area e
+    vertente, e nenhum paper chega ao Estagio B. O preco disso e que o
+    candidato fica sem triagem nova - e a rodada 2 que lhe da veredito."""
+    _papers(base, 3)
+    duble = LLMDuble(base, cfg)
+    r = execucao.reclassificar(
+        cfg=cfg, conn=base, tudo=True, so_estagio_a=True, cliente_llm=duble
+    )
+
+    assert r.selecionados == 3
+    assert r.fichas == 0
+    assert db.contar(base, "dim_ficha") == 0
+    assert [etapa for etapa, _ in duble.chamadas] == ["estagio_a"] * 3
+    # as tres facetas valem para a base inteira, `fora` e candidato igualmente
+    assert db.contar(base, "ponte_paper_area") == 3
+    assert db.contar(base, "ponte_paper_vertente") == 3
+    # so os dois `fora` tem veredito: o candidato foi adiado, nao classificado
+    assert db.contar(base, "fato_triagem", "run_id = ?", (r.run_id,)) == 2

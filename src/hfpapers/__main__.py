@@ -140,6 +140,15 @@ def reclassificar(
             "(ate ~18 min no pior caso) - espere, nao mate o processo."
         ),
     ),
+    so_estagio_a: bool = typer.Option(
+        False,
+        "--so-estagio-a",
+        help=(
+            "Para no Estagio A: classifica as tres facetas e nao gera ficha. "
+            "O candidato sai sem veredito novo, entao a rodada nao fecha a "
+            "conferencia - e a varredura que mede a grade antes de gastar."
+        ),
+    ),
 ) -> None:
     """Roda a classificacao de novo, incrementando `revisao`.
 
@@ -161,7 +170,7 @@ def reclassificar(
     try:
         r = execucao.reclassificar(
             cfg=cfg, conn=conn, ids=[paper] if paper else None, data=data, tudo=tudo,
-            concorrencia=concorrencia,
+            concorrencia=concorrencia, so_estagio_a=so_estagio_a,
         )
         if not r.selecionados:
             typer.echo("nada a reclassificar")

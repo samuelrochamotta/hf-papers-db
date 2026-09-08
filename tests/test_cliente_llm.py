@@ -13,6 +13,7 @@ OpenRouter:
 """
 
 import json
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -339,3 +340,126 @@ def test_provedor_e_registrado_tambem_quando_a_chamada_falha(cfg, conn):
     c.drenar_registros(conn)
     provedores = [r["provedor"] for r in conn.execute("SELECT provedor FROM log_llm")]
     assert provedores == ["Wafer", "Wafer", "Wafer"]
+
+
+# ── preferencia de provedor ─────────────────────────────────────────────────
+#
+# Em 2026-09-08 a rodada 1 do ticket 07 parou: quatro threads cairam ao mesmo
+# tempo na cauda do Sail Research, que levou 195 s para devolver 178 tokens.
+# Medido em 170 chamadas do mesmo dia: Together com media de 3,3 s e pior caso
+# de 13,8 s; Sail Research com 14,6 s e 55,5 s. A preferencia expressa o que a
+# medicao mostrou, e `allow_fallbacks` impede que ela vire a armadilha do
+# provedor unico - com um nome so na lista, o 429 do pool compartilhado nao tem
+# para onde ir.
+
+
+def test_ordem_de_provedor_vai_no_corpo_com_fallback(cfg):
+    cfg.llm.provider.preferidos = ["Together"]
+    c = _cliente(cfg, [(json.dumps(RESPOSTA), "stop")], {})
+    _chamar(c)
+    prov = c.openai.chamadas[0]["extra_body"]["provider"]
+    assert prov["order"] == ["Together"]
+    assert prov["allow_fallbacks"] is True
+
+
+def test_sem_preferencia_nao_manda_ordem(cfg):
+    """A lista vazia e o padrao: deixa o balanceador do OpenRouter escolher."""
+    c = _cliente(cfg, [(json.dumps(RESPOSTA), "stop")], {})
+    _chamar(c)
+    prov = c.openai.chamadas[0]["extra_body"]["provider"]
+    assert "order" not in prov
+    assert "allow_fallbacks" not in prov
+
+
+# ── prazo total por chamada ─────────────────────────────────────────────────
+#
+# O 6o modo de falha do OpenRouter: `llm.timeout_s` e read timeout do httpx, e o
+# keep-alive `: OPENROUTER PROCESSING` o reinicia a cada linha. Uma chamada de
+# 409,8 s passa inteira sob um teto de 180 s sem erro, sem retentativa e sem
+# linha em `log_llm` - foi assim que a rodada 1 do ticket 07 parou com quatro
+# threads em voo e zero chamadas concluidas.
+#
+# Trocar de provedor nao resolve: a de 409,8 s foi do Together, o endpoint de
+# melhor mediana (3,2 s em 28 chamadas). A cauda nao tem dono, entao o teto
+# precisa ser nosso.
+
+
+class OpenAILento(OpenAIDuble):
+    """Dorme antes de responder, imitando a chamada que fica pendurada."""
+
+    def __init__(self, respostas, atrasos):
+        super().__init__(respostas)
+        self.atrasos = list(atrasos)
+
+    def _create(self, **kw):
+        time.sleep(self.atrasos.pop(0) if self.atrasos else 0)
+        return super()._create(**kw)
+
+
+def _cliente_lento(cfg, atrasos, *, conn=None, respostas=None, n=3):
+    return ClienteLLM(
+        cfg,
+        cliente=OpenAILento(respostas or [(json.dumps(RESPOSTA), "stop")] * n, atrasos),
+        precos={"modelo/teste-b": Preco(2e-6, 1e-5)},
+        parametros={},
+        conn=conn,
+    )
+
+
+def test_chamada_que_passa_do_prazo_e_abandonada(cfg):
+    cfg.llm.prazo_total_s = 0.05
+    c = _cliente_lento(cfg, [5.0] * 3)
+    with pytest.raises(ErroLLM) as e:
+        _chamar(c)
+    assert "0,05" in str(e.value).replace(".", ",") or "prazo" in str(e.value)
+
+
+def test_chamada_dentro_do_prazo_passa_intacta(cfg):
+    cfg.llm.prazo_total_s = 5.0
+    c = _cliente_lento(cfg, [0.0])
+    assert _chamar(c).dados == RESPOSTA
+
+
+def test_prazo_estourado_retenta_e_a_seguinte_vale(cfg):
+    """O ganho todo esta aqui: abandonar cedo devolve a chamada ao pool.
+
+    Sem teto, a rodada esperava os 409,8 s ate o fim; com ele, a segunda
+    tentativa cai noutra instancia e responde em segundos.
+    """
+    cfg.llm.prazo_total_s = 0.05
+    c = _cliente_lento(cfg, [5.0, 0.0])
+    assert _chamar(c).dados == RESPOSTA
+    assert c.openai.chamadas[-1]["model"] == "modelo/teste-b"
+
+
+def test_prazo_estourado_e_registrado_em_log_llm(cfg, conn):
+    """Sem esta linha o sintoma continua invisivel - era o pior do 6o modo."""
+    cfg.llm.prazo_total_s = 0.05
+    c = _cliente_lento(cfg, [5.0] * 3, conn=conn)
+    with pytest.raises(ErroLLM):
+        _chamar(c)
+    c.drenar_registros(conn)
+    erros = [r["erro"] for r in conn.execute("SELECT erro FROM log_llm WHERE erro IS NOT NULL")]
+    assert len(erros) == 3
+    assert all("ErroPrazo" in e for e in erros)
+
+
+def test_prazo_zerado_desliga_o_teto(cfg):
+    """Escotilha de emergencia: 0 volta ao comportamento antigo, sem teto."""
+    cfg.llm.prazo_total_s = 0
+    c = _cliente_lento(cfg, [0.2])
+    assert _chamar(c).dados == RESPOSTA
+
+
+def test_erro_do_provedor_atravessa_o_prazo_sem_virar_erro_de_prazo(cfg):
+    """A thread do prazo nao pode engolir nem trocar a excecao de dentro."""
+    cfg.llm.prazo_total_s = 5.0
+    c = ClienteLLM(
+        cfg,
+        cliente=OpenAISemChoices(),
+        precos={"modelo/teste-b": Preco(2e-6, 1e-5)},
+        parametros={},
+    )
+    with pytest.raises(ErroLLM) as e:
+        _chamar(c)
+    assert "Provider returned error" in str(e.value)
