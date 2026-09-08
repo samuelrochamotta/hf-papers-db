@@ -202,7 +202,8 @@ def reclassificar(
 
 @app_tax.command("listar")
 def taxonomia_listar() -> None:
-    """Areas, topicos e candidatos, com quantos papers cada rotulo carrega."""
+    """Areas (com as sub-areas), topicos, vertentes e candidatos, com quantos
+    papers cada rotulo carrega."""
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:
@@ -210,9 +211,26 @@ def taxonomia_listar() -> None:
     finally:
         conn.close()
 
-    typer.echo(f"AREAS ({len(dados['areas'])}/{dados['tetos']['areas']})")
+    # o teto vale so para a grade plana, como em `taxonomia._quantidade`: somar as
+    # duas grades imprimiria 19/10 e anunciaria um estouro que nao existe
+    planas = [a for a in dados["areas"] if not a["subareas"]]
+    subareas = sum(len(a["subareas"]) for a in dados["areas"])
+    typer.echo(
+        f"AREAS ({len(planas)}/{dados['tetos']['areas']} na grade plana + "
+        f"{len(dados['areas']) - len(planas)} facetadas com {subareas} sub-areas)"
+    )
     for a in dados["areas"]:
         typer.echo(f"  {a['papers']:>4}  {a['rotulo']}")
+        for s in a["subareas"]:
+            typer.echo(f"  {s['papers']:>4}    {s['rotulo']}")
+    typer.echo(f"\nVERTENTES ({len(dados['vertentes'])})")
+    for v in dados["vertentes"]:
+        # a dominante entre parenteses: uma vertente que so aparece em segundo
+        # lugar tem massa sem ter nenhum paper que ela defina
+        typer.echo(
+            f"  {v['papers']:>4}  ({v['dominantes']:>4} dom.)  "
+            f"{v['rotulo']} — {v['definicao']}"
+        )
     typer.echo(f"\nTOPICOS ({len(dados['topicos'])}/{dados['tetos']['topicos']})")
     for t in dados["topicos"]:
         typer.echo(f"  {t['papers']:>4}  {t['rotulo']}")
@@ -285,7 +303,8 @@ def taxonomia_exportar(
         None, "--destino", help=f"Arquivo JSON de saida (padrao: {TAXONOMIA_INICIAL})."
     ),
 ) -> None:
-    """Grava areas e topicos do banco num JSON versionavel. Candidatos nao entram."""
+    """Grava areas, sub-areas, topicos e vertentes do banco num JSON versionavel.
+    Candidatos nao entram."""
     cfg = _preparar()
     destino = _taxonomia_inicial(cfg, destino)
     conn = db.abrir(cfg)
@@ -299,7 +318,10 @@ def taxonomia_exportar(
         json.dumps(dados, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     typer.echo(
-        f"{len(dados['areas'])} areas e {len(dados['topicos'])} topicos em {destino}"
+        f"{len(dados['areas'])} areas com "
+        f"{sum(len(a['subareas']) for a in dados['areas'])} sub-areas, "
+        f"{len(dados['topicos'])} topicos e {len(dados['vertentes'])} vertentes "
+        f"em {destino}"
     )
 
 
@@ -324,7 +346,8 @@ def taxonomia_carregar(
     finally:
         conn.close()
     typer.echo(
-        f"{r['areas']} areas e {r['topicos']} topicos inseridos "
+        f"{r['areas']} areas, {r['subareas']} sub-areas, {r['topicos']} topicos e "
+        f"{r['vertentes']} vertentes inseridos "
         f"({r['ja_existiam']} rotulos ja existiam, intocados)"
     )
 

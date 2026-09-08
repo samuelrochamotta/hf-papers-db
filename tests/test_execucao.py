@@ -6,7 +6,7 @@ import json
 import httpx
 import pytest
 import respx
-from conftest import LLMDuble, LLMQuebrado
+from conftest import LLMDuble, LLMQuebrado, povoar_vocabulario
 
 from hfpapers import db, execucao, taxonomia
 from hfpapers.estagios import classificacao
@@ -20,8 +20,7 @@ HOJE = dt.date(2026, 8, 26)
 def base(cfg, daily_bruto):
     conn = db.abrir(cfg)
     with db.transacao(conn):
-        db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
-        db.upsert_topico(conn, {"topico": "Agentes de codificação", "definicao": "d"})
+        povoar_vocabulario(conn)
     yield conn
     conn.close()
 

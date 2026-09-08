@@ -188,3 +188,87 @@ def test_somente_precos_nao_fala_com_a_rede(cfg):
     assert c.openai is None
     assert c.estimar("m", 1_000_000, 0) == pytest.approx(1.0)
     assert c.uso == Uso()
+
+
+# ── esforco de raciocinio e corpo de erro sem `choices` ─────────────────────
+#
+# Os dois nasceram da mesma rodada real, em 2026-09-08. O GLM 5.3 flash raciocina
+# de forma obrigatoria (`reasoning.enabled: false` volta HTTP 400) e, com o prompt
+# da grade facetada, gastava 2.343 tokens de rascunho para produzir 540 caracteres
+# de JSON: 174 s por chamada, 33% de truncamento no Estagio B. Medido em 140 papers
+# e 420 chamadas, `reasoning.effort` derruba a saida para 220 tokens sem mexer na
+# classificacao - a concordancia entre `low` e `medium` (87%) e maior que a de
+# `low` consigo mesmo (82%), ou seja, a diferenca entre os dois some no ruido.
+
+
+class OpenAISemChoices:
+    """O OpenRouter devolvendo corpo de erro com HTTP 200 e `choices` nulo.
+
+    Nao e hipotese: capturado em 2026-09-08 com
+    `{"error": {"message": "Provider returned error", "code": 429}}`. O SDK nao
+    levanta nada, entao `r.choices[0]` estourava `TypeError` e queimava a
+    tentativa sem dizer o motivo.
+    """
+
+    def __init__(self, mensagem="Provider returned error"):
+        self.mensagem = mensagem
+        self.chamadas = []
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    def _create(self, **kw):
+        self.chamadas.append(kw)
+        return SimpleNamespace(
+            choices=None, usage=None, error={"message": self.mensagem, "code": 429}
+        )
+
+
+def test_esforco_de_raciocinio_vai_no_corpo_quando_configurado(cfg):
+    cfg.llm.estagio_b.esforco_raciocinio = "medium"
+    c = _cliente(cfg, [(json.dumps(RESPOSTA), "stop")], {})
+    _chamar(c, esforco_raciocinio=cfg.llm.estagio_b.esforco_raciocinio)
+    assert c.openai.chamadas[0]["extra_body"]["reasoning"] == {"effort": "medium"}
+
+
+def test_esforco_de_raciocinio_ausente_nao_manda_o_campo(cfg):
+    """Modelo que nao anuncia `reasoning` some da lista sob `require_parameters`.
+
+    E a armadilha do `temperature` de novo (issue #1), entao o campo so vai
+    quando alguem o pediu.
+    """
+    c = _cliente(cfg, [(json.dumps(RESPOSTA), "stop")], {})
+    _chamar(c)
+    assert "reasoning" not in c.openai.chamadas[0]["extra_body"]
+
+
+def test_corpo_de_erro_sem_choices_vira_erro_nomeado(cfg):
+    c = ClienteLLM(
+        cfg,
+        cliente=OpenAISemChoices(),
+        precos={"modelo/teste-b": Preco(2e-6, 1e-5)},
+        parametros={},
+    )
+    with pytest.raises(ErroLLM) as e:
+        _chamar(c)
+    # A mensagem do provedor tem de sobreviver ate aqui: sem ela o operador ve
+    # `TypeError` e vai procurar bug no nosso codigo.
+    assert "Provider returned error" in str(e.value)
+    assert len(c.openai.chamadas) == 3
+
+
+def test_corpo_de_erro_sem_choices_e_registrado_em_log_llm(cfg, conn):
+    c = ClienteLLM(
+        cfg,
+        cliente=OpenAISemChoices(),
+        precos={"modelo/teste-b": Preco(2e-6, 1e-5)},
+        parametros={},
+        conn=conn,
+    )
+    with pytest.raises(ErroLLM):
+        _chamar(c)
+    c.drenar_registros(conn)
+    erros = [
+        r["erro"]
+        for r in conn.execute("SELECT erro FROM log_llm WHERE erro IS NOT NULL")
+    ]
+    assert len(erros) == 3
+    assert all("sem choices" in e for e in erros)

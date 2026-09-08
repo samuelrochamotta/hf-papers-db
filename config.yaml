@@ -27,13 +27,28 @@ llm:
   # e rajada é o que dispara o 429/404 da issue #1. Quem precisa é a
   # reclassificação total: `reclassificar --tudo --concorrencia 4`. Teto: 8.
   concorrencia: 1
+  # O GLM 5.3 flash raciocina de forma obrigatoria - `reasoning.enabled: false`
+  # volta HTTP 400 -, e com o prompt da grade facetada (14 mil caracteres, 47
+  # sub-areas definidas) ele gastava 2.343 tokens de rascunho para produzir 540
+  # caracteres de JSON. Medido em 2026-09-08 com 140 papers e 420 chamadas:
+  # `effort` derruba a saida para 220 tokens e a latencia de 174 s para 12 s,
+  # sem mexer na classificacao - `low` e `medium` concordam entre si em 87% do
+  # par area>sub-area, mais do que `low` concorda consigo mesmo (82%).
+  esforco_raciocinio: &esforco "medium"
   estagio_a:
     modelo: "z-ai/glm-5.3-flash"
     temperatura: 0.0
-    max_tokens: 2400   # modelo que raciocina antes do JSON trunca com teto baixo
+    esforco_raciocinio: *esforco
+    # Teto, nao gasto: chamada que produz 200 tokens continua custando 200.
+    # Voltou de 6000 para 2400 junto com o `esforco_raciocinio`: em 420 chamadas
+    # medidas a maior saida foi de 532 tokens, entao 2400 da 4,5x de folga.
+    max_tokens: 2400
   estagio_b:
     modelo: "z-ai/glm-5.3-flash"
     temperatura: 0.2
+    esforco_raciocinio: *esforco
+    # Fica em 8000 ate ser medido: os 33% de truncamento vistos em 2026-09-08
+    # sao de antes do `esforco_raciocinio`, e provavelmente somem com ele.
     max_tokens: 8000
   provider:
     require_parameters: true  # só roteia para provedores com saída estruturada
@@ -51,7 +66,6 @@ taxonomia:
   max_areas: 10
   max_topicos: 24
   min_papers_novo_rotulo: 2
-  max_topicos_por_paper: 5
 
 guardrails:
   taxa_fora_min: 0.50

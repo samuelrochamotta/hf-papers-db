@@ -8,7 +8,7 @@ aqui.
 """
 
 import pytest
-from conftest import RESPOSTA_B, LLMDuble, LLMQuebrado
+from conftest import RESPOSTA_B, LLMDuble, LLMQuebrado, povoar_vocabulario
 
 from hfpapers import db
 from hfpapers.estagios import classificacao
@@ -19,8 +19,7 @@ from hfpapers.llm.estagio_a import PaperEntrada
 @pytest.fixture()
 def base(conn):
     with db.transacao(conn):
-        db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
-        db.upsert_topico(conn, {"topico": "Agentes de codificação", "definicao": "d"})
+        povoar_vocabulario(conn)
         db.upsert_paper(
             conn, {"paper_id": "2608.00001", "titulo": "P", "primeiro_visto_em": db.agora()}
         )

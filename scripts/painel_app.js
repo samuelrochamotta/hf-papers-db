@@ -123,6 +123,14 @@
     return (porPalavra.trim() ? porPalavra : corte.trim()) + '…';
   }
 
+  /* O par que localiza o paper na arquitetura: a peca do sistema em que ele
+     mexe e a sub-area dela. Os dois juntos, porque a sub-area sozinha nao diz
+     de quem e filha e a area sozinha e a informacao que o painel ja dava. */
+  function parArea(p) {
+    if (!p.a) return '\u2014';
+    return p.sa ? p.a + ' \u203a ' + p.sa : p.a;
+  }
+
   function setState(patch) {
     for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) state[k] = patch[k];
     render();
@@ -777,7 +785,7 @@
         }
         corpo += '<div style="display: flex; gap: 20px; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #242a30;">' +
             '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px;">' + esc(p.id) + ' ↗</a>' +
-            '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.tp.join(' · ')) + '</span>' +
+            '<span style="font-size: 11.5px; color: #6d7178;">' + esc((p.vt || []).join(' · ')) + '</span>' +
             (p.uq ? '<span style="font-size: 11.5px; color: #5f636a;">votos medidos em ' + esc(diaCurto(p.uq)) + '</span>' : '') +
           '</div>' +
           '</div>';
@@ -791,7 +799,7 @@
             '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.t) + '</span>' +
             '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.org || '—') + (p.f ? '' : ' · sem ficha') + '</span>' +
           '</div>' +
-          '<span style="font-size: 11.5px; color: #8b8f96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.a || '—') + '</span>' +
+          '<span style="font-size: 11.5px; color: #8b8f96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(parArea(p)) + '</span>' +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12.5px; color: #ecebe6; text-align: right;">' + p.u + '</span>' +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #6d7178; text-align: right;">' + diaCurto(p.d) + '</span>' +
         '</div>' + corpo +
@@ -2217,7 +2225,7 @@
           ' bottom: ' + y + '%; margin-bottom: -6px; font-size: 10.5px; color: #8b8f96; white-space: nowrap; pointer-events: none;">' + esc(rotuloCurto(p.t, 34)) + '</span>'
         : '';
       return '<a class="mark" href="' + esc(p.url) + '" target="_blank" rel="noopener"' +
-        ev('e', mostraTip(p.t, p.u + ' votos · ' + p.gs + ' stars · ' + p.c + ' comentários · ' + p.v + ' · ' + (p.a || 'sem área') + ' · ' + (p.org || 'sem organização') +
+        ev('e', mostraTip(p.t, p.u + ' votos · ' + p.gs + ' stars · ' + p.c + ' comentários · ' + p.v + ' · ' + (p.a ? parArea(p) : 'sem área') + ' · ' + (p.org || 'sem organização') +
           (hojeNum !== null && diaNum(p.d) !== null ? ' · ' + (hojeNum - diaNum(p.d)) + 'd no HF' : ''))) +
         ev('l', escondeTip()) +
         ' style="position: absolute; left: ' + x + '%; bottom: ' + y + '%; ' + forma +
@@ -2309,7 +2317,7 @@
         }
         corpo += '<div style="display: flex; gap: 20px; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #242a30;">' +
             '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px;">' + esc(p.id) + ' ↗</a>' +
-            '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.tp.join(' · ')) + '</span>' +
+            '<span style="font-size: 11.5px; color: #6d7178;">' + esc((p.vt || []).join(' · ')) + '</span>' +
           '</div>' +
           '</div>';
       }
@@ -2321,7 +2329,7 @@
             '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.t) + '</span>' +
             '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.org || '—') + (p.f ? '' : ' · sem ficha') + '</span>' +
           '</div>' +
-          '<span style="font-size: 11.5px; color: #8b8f96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.a || '—') + '</span>' +
+          '<span style="font-size: 11.5px; color: #8b8f96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(parArea(p)) + '</span>' +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12.5px; color: #ecebe6; text-align: right;">' + p.u + '</span>' +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #6d7178; text-align: right;">' + diaCurto(p.d) + '</span>' +
         '</div>' + corpo +

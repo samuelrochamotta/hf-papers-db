@@ -6,7 +6,7 @@ resultado da rodada com o `paper_id` anexado.
 """
 
 import pytest
-from conftest import RESPOSTA_B, LLMDuble
+from conftest import RESPOSTA_B, LLMDuble, povoar_vocabulario
 
 from hfpapers import db
 from hfpapers.estagios import classificacao
@@ -18,8 +18,7 @@ PID = "2608.00001"
 @pytest.fixture()
 def base(conn):
     with db.transacao(conn):
-        db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
-        db.upsert_topico(conn, {"topico": "Agentes de codificação", "definicao": "d"})
+        povoar_vocabulario(conn)
         db.upsert_paper(conn, {"paper_id": PID, "titulo": "P", "primeiro_visto_em": db.agora()})
     return conn
 

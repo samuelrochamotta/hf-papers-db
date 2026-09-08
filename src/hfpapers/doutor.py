@@ -9,7 +9,7 @@ import datetime as dt
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from . import db
+from . import db, taxonomia
 from .config import Config, ambiente, config
 
 OK, AVISO, ERRO = "ok", "aviso", "erro"
@@ -166,21 +166,39 @@ def checar_banco(cfg: Config) -> list[Item]:
 
 
 def checar_vocabulario(cfg: Config) -> Item:
-    """Banco sem area ou sem topico nao classifica: `schema_estagio_a` recusa o
-    enum vazio antes da primeira chamada. Aviso, e nao erro, porque o banco
-    recem-criado passa por aqui legitimamente - o conserto e uma linha."""
+    """Banco sem area, sem sub-area ou sem vertente nao classifica:
+    `schema_estagio_a` recusa o enum vazio antes da primeira chamada. Aviso, e
+    nao erro, porque o banco recem-criado passa por aqui legitimamente - o
+    conserto e uma linha.
+
+    A area contada e a da grade facetada, e nao `dim_area` inteira: a grade
+    plana anterior ainda convive na tabela ate a contracao do ticket 05, e
+    conta-la aqui faria o diagnostico dizer que ha vocabulario onde o Estagio A
+    nao encontra nenhum. `dim_topico` saiu da conta pelo motivo simetrico: o
+    topico deixou de alimentar o Estagio A no ticket 03, e cobra-lo aqui
+    reprovaria um banco que classifica.
+    """
     conn = db.abrir(cfg)
     try:
-        n_areas = db.contar(conn, "dim_area")
-        n_topicos = db.contar(conn, "dim_topico")
+        grade = taxonomia.areas_facetadas(conn)
+        n_vertentes = db.contar(conn, "dim_vertente")
     finally:
         conn.close()
 
-    dados = {"areas": n_areas, "topicos": n_topicos}
-    if n_areas and n_topicos:
-        return Item("vocabulario", OK, f"{n_areas} areas, {n_topicos} topicos", dados)
+    n_areas = len(grade)
+    n_subareas = sum(len(a.subareas) for a in grade)
+    dados = {"areas": n_areas, "subareas": n_subareas, "vertentes": n_vertentes}
+    if n_areas and n_vertentes:
+        return Item(
+            "vocabulario",
+            OK,
+            f"{n_areas} areas com {n_subareas} sub-areas, {n_vertentes} vertentes",
+            dados,
+        )
 
-    falta = " e ".join(n for n, q in (("dim_area", n_areas), ("dim_topico", n_topicos)) if not q)
+    falta = " e ".join(
+        n for n, q in (("dim_area", n_areas), ("dim_vertente", n_vertentes)) if not q
+    )
     return Item(
         "vocabulario",
         AVISO,

@@ -18,8 +18,11 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator, Mapping, Optional, Sequence
 
 from .config import Config, config
+from .log import logger
 
 SCHEMA_SQL = Path(__file__).with_name("schema.sql")
+
+log = logger("db")
 
 NOMES_MES = [
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -32,7 +35,8 @@ NOMES_DIA_SEMANA = [
 
 TABELAS_ESPERADAS = [
     "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
-    "dim_area", "dim_topico", "ponte_paper_area", "ponte_paper_topico",
+    "dim_area", "dim_topico", "dim_vertente",
+    "ponte_paper_area", "ponte_paper_topico", "ponte_paper_vertente",
     "ponte_paper_criterio",
     "tax_candidato", "ponte_paper_keyword", "ponte_paper_autor",
     "log_execucao", "log_llm", "dim_calendario",
@@ -66,15 +70,20 @@ def abrir(cfg: Optional[Config] = None, **kwargs: Any) -> sqlite3.Connection:
 # fonte para banco criado do zero. Formato: (tabela, coluna, tipo SQL).
 COLUNAS_MIGRADAS = [
     ("fato_triagem", "fronteira_contraparte", "TEXT"),
+    # A auto-referencia entra por ALTER TABLE, que o SQLite so aceita com
+    # default NULL - o que e exatamente o que a area raiz quer.
+    ("dim_area", "area_pai", "TEXT NULL REFERENCES dim_area(area)"),
 ]
 
 
 def migrar(conn: sqlite3.Connection) -> None:
-    """Aplica schema.sql e as colunas de `COLUNAS_MIGRADAS`. Idempotente: tudo
-    la e IF NOT EXISTS, e a coluna so e adicionada quando falta."""
+    """Aplica schema.sql, as colunas de `COLUNAS_MIGRADAS` e a reconstrucao de
+    `ponte_paper_area`. Idempotente: tudo la e IF NOT EXISTS, a coluna so e
+    adicionada quando falta e a tabela so e reconstruida uma vez."""
     conn.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
     for tabela, coluna, tipo in COLUNAS_MIGRADAS:
         _garantir_coluna(conn, tabela, coluna, tipo)
+    _migrar_ponte_paper_area(conn)
 
 
 def colunas(conn: sqlite3.Connection, tabela: str) -> list[str]:
@@ -85,6 +94,37 @@ def _garantir_coluna(conn: sqlite3.Connection, tabela: str, coluna: str, tipo: s
     if coluna in colunas(conn, tabela):
         return
     conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
+
+
+def _migrar_ponte_paper_area(conn: sqlite3.Connection) -> None:
+    """Reconstroi `ponte_paper_area` com a sub-area dentro da chave primaria.
+
+    Nao e `ALTER TABLE`: a chave `(paper_id, area)` proibia o par secundario de
+    mesma area com sub-area diferente, e chave primaria o SQLite so troca
+    recriando a tabela.
+
+    **A tabela volta vazia, e isso e deliberado.** As linhas antigas sao da
+    grade plana, que nao tem nivel de sub-area, entao nao ha valor honesto para
+    a coluna NOT NULL que entra: repetir a area no lugar da sub-area gravaria um
+    par que `taxonomia.aplicar_classificacao` passa a recusar por falta de
+    parentesco. Elas tambem nao sobreviveriam ao ticket 05, que apaga a grade
+    plana de `dim_area` e as deixaria com chave estrangeira pendurada. Quem
+    repovoa a ponte para a base inteira e a reclassificacao do ticket 07.
+
+    Idempotente e a prova de queda no meio: `migrar` roda o schema.sql antes,
+    entao um processo morto entre o DROP e a recriacao recria a tabela na
+    passagem seguinte.
+    """
+    if "subarea" in colunas(conn, "ponte_paper_area"):
+        return
+    descartadas = contar(conn, "ponte_paper_area")
+    conn.execute("DROP TABLE ponte_paper_area")
+    conn.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
+    log.warning(
+        "ponte_paper_area reconstruida com a sub-area na chave primaria: "
+        "%d pares da grade plana descartados (repovoados pela reclassificacao)",
+        descartadas,
+    )
 
 
 @contextmanager
@@ -236,6 +276,10 @@ def upsert_area(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
 
 def upsert_topico(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
     upsert(conn, "dim_topico", dados, chave=["topico"])
+
+
+def upsert_vertente(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
+    upsert(conn, "dim_vertente", dados, chave=["vertente"])
 
 
 def upsert_candidato(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:

@@ -187,7 +187,7 @@ interessante, recomendar leitura. A ficha é útil ou o paper não entra.
 **Palavras-chave do HF:** {KEYWORDS}
 
 **Área primária atribuída na triagem:** {AREA}
-**Tópicos atribuídos na triagem:** {TOPICOS}
+**Vertentes atribuídas na triagem:** {VERTENTES}
 
 **Abstract:**
 {ABSTRACT}

@@ -244,8 +244,8 @@ def montar_hall(
     papers: list[dict],
     triagem: dict[str, dict],
     fichas: dict[str, dict],
-    area_primaria: dict[str, str],
-    topicos_por_paper: dict[str, list[str]],
+    par_primario: dict[str, tuple[str, str]],
+    vertentes_por_paper: dict[str, list[str]],
     ultimo_voto: dict[str, str],
     criterios_por_paper: dict[str, list[str]],
     *,
@@ -310,13 +310,15 @@ def montar_hall(
             f = fichas.get(pid, {})
             t = triagem.get(pid, {})
             j, h = justificativa_exibivel(t)
+            area, subarea = par_primario.get(pid, (None, None))
             entradas_aprov.append({
                 "id": pid,
                 "t": p.get("titulo") or "",
                 "d": iso(p.get("data_hf_daily")),
                 "v": veredito(pid),
-                "a": area_primaria.get(pid),
-                "tp": topicos_por_paper.get(pid, []),
+                "a": area,
+                "sa": subarea,
+                "vt": vertentes_por_paper.get(pid, []),
                 "u": p.get("upvotes_atual") or 0,
                 "uq": ultimo_voto.get(pid),
                 "org": p.get("organizacao"),
@@ -416,20 +418,33 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
                 if p.get("data_hf_daily") and p["data_hf_daily"] < corte_hall}
     ids_uteis = ids | ids_hall
 
-    area_primaria: dict[str, str] = {}
+    # O par inteiro, e nao so a area: os dois niveis viajam juntos porque
+    # sub-area solta nao diz de quem e filha - o mesmo motivo de `taxonomia`
+    # aninhar a sub-area sob a area em vez de listar as duas lado a lado.
+    par_primario: dict[str, tuple[str, str]] = {}
     areas_sec: dict[str, list[str]] = defaultdict(list)
     for r in ler("ponte_paper_area"):
         if r["paper_id"] not in ids_uteis:
             continue
         if r.get("is_primaria"):
-            area_primaria[r["paper_id"]] = r["area"]
+            par_primario[r["paper_id"]] = (r["area"], r["subarea"])
         else:
             areas_sec[r["paper_id"]].append(r["area"])
 
+    # O topico saiu do contrato do Estagio A no ticket 03 e a ponte dele so
+    # tem o que a grade anterior deixou; ele nao aparece mais no card, so nos
+    # dois cortes que o ticket 05 remove junto com a tabela.
     topicos_por_paper: dict[str, list[str]] = defaultdict(list)
     for r in ler("ponte_paper_topico"):
         if r["paper_id"] in ids_uteis:
             topicos_por_paper[r["paper_id"]].append(r["topico"])
+
+    # Ordenada pela `ordem`: a dominante e a primeira que o card exibe, e sem a
+    # ordenacao aqui a ordem em que o Parquet devolve as linhas decidiria isso.
+    vertentes_por_paper: dict[str, list[str]] = defaultdict(list)
+    for r in sorted(ler("ponte_paper_vertente"), key=lambda x: (x["paper_id"], x["ordem"])):
+        if r["paper_id"] in ids_uteis:
+            vertentes_por_paper[r["paper_id"]].append(r["vertente"])
 
     # Criterios de veredito por paper. Ordenados e sem repeticao pelo mesmo
     # motivo de `por_voto` desempatar: o painel e commitado todo dia e a ordem
@@ -462,6 +477,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         pid = p["paper_id"]
         t = triagem[pid]
         veredito_p = t["veredito"]
+        area, subarea = par_primario.get(pid, (None, None))
         entrada = {
             "id": pid,
             "t": p.get("titulo") or "",
@@ -470,9 +486,11 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "v": veredito_p,
             "rf": t.get("regra_fora"),
             "art": t.get("tem_artefato_nomeado"),
-            "a": area_primaria.get(pid),
+            "a": area,
+            "sa": subarea,
             "as": areas_sec.get(pid, []),
             "tp": topicos_por_paper.get(pid, []),
+            "vt": vertentes_por_paper.get(pid, []),
             "oa": 1 if p.get("tem_codigo_aberto") else 0,
             "pp": 1 if p.get("tem_project_page") else 0,
             "u": p.get("upvotes_atual") or 0,
@@ -498,7 +516,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         lista.append(entrada)
 
     hall = montar_hall(
-        papers, triagem, fichas, area_primaria, topicos_por_paper, ultimo_voto,
+        papers, triagem, fichas, par_primario, vertentes_por_paper, ultimo_voto,
         criterios_por_paper,
         corte=corte_hall,
     )

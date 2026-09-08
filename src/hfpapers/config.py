@@ -60,6 +60,11 @@ class EstagioLLM(BaseModel):
     modelo: str = "PREENCHER"
     temperatura: float = 0.0
     max_tokens: int = 1200
+    # Quanto o modelo raciocina antes de responder, quando ele oferece o botao.
+    # `None` nao manda o campo: modelo que nao anuncia `reasoning` sai da lista
+    # de provedores sob `require_parameters` e a chamada volta 404 - a mesma
+    # armadilha do `temperature` (issue #1).
+    esforco_raciocinio: Optional[str] = None
 
     @property
     def configurado(self) -> bool:
@@ -104,7 +109,6 @@ class Taxonomia(BaseModel):
     max_areas: int = 10
     max_topicos: int = 24
     min_papers_novo_rotulo: int = 2
-    max_topicos_por_paper: int = 5
 
 
 class Guardrails(BaseModel):

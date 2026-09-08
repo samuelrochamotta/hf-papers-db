@@ -14,7 +14,7 @@ import threading
 import time
 
 import pytest
-from conftest import RESPOSTA_A, RESPOSTA_A_FORA, RESPOSTA_B, LLMDuble
+from conftest import RESPOSTA_A, RESPOSTA_A_FORA, RESPOSTA_B, LLMDuble, povoar_vocabulario
 
 from hfpapers import db
 from hfpapers.estagios import classificacao
@@ -102,8 +102,7 @@ class LLMConcorrente(LLMDuble):
 @pytest.fixture()
 def base(conn):
     with db.transacao(conn):
-        db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
-        db.upsert_topico(conn, {"topico": "Agentes de codificação", "definicao": "d"})
+        povoar_vocabulario(conn)
         for i in range(1, 9):
             db.upsert_paper(
                 conn,
@@ -170,8 +169,7 @@ def test_concorrencia_4_produz_o_mesmo_banco_que_1(cfg, tmp_path, base):
     outra = db.conectar(tmp_path / "paralela.db")
     try:
         with db.transacao(outra):
-            db.upsert_area(outra, {"area": "Agentes & automação", "definicao": "d"})
-            db.upsert_topico(outra, {"topico": "Agentes de codificação", "definicao": "d"})
+            povoar_vocabulario(outra)
             for i in range(1, 9):
                 db.upsert_paper(
                     outra,

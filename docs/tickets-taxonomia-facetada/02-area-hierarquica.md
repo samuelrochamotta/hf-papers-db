@@ -28,15 +28,15 @@ ignora-se a atribuição, não se derruba a classificação.
 
 **Bloqueado por:** 01.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] O contrato de saída do Estágio A pede área e sub-área primárias, e área e
+- [x] O contrato de saída do Estágio A pede área e sub-área primárias, e área e
       sub-área secundárias opcionais
-- [ ] O prompt declara em uma frase que a área responde *onde o trabalho mexe*
-- [ ] O prompt apresenta as sub-áreas aninhadas sob a área a que pertencem
-- [ ] O prompt afirma que o par secundário nulo é resposta esperada, não falha
-- [ ] Sub-área que não é filha da área declarada é ignorada, sem derrubar o paper
-- [ ] Par secundário com a mesma área do primário e sub-área diferente é gravado
-- [ ] Rodar um dia real grava o par primário para 100% dos papers classificados,
+- [x] O prompt declara em uma frase que a área responde *onde o trabalho mexe*
+- [x] O prompt apresenta as sub-áreas aninhadas sob a área a que pertencem
+- [x] O prompt afirma que o par secundário nulo é resposta esperada, não falha
+- [x] Sub-área que não é filha da área declarada é ignorada, sem derrubar o paper
+- [x] Par secundário com a mesma área do primário e sub-área diferente é gravado
+- [x] Rodar um dia real grava o par primário para 100% dos papers classificados,
       inclusive os `fora`
-- [ ] Os Parquet e o painel expõem a sub-área
+- [x] Os Parquet e o painel expõem a sub-área

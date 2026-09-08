@@ -19,13 +19,13 @@ ALTER TABLE dim_area ADD COLUMN area_pai TEXT NULL REFERENCES dim_area(area);
 
 **Bloqueado por:** nenhum (pode começar imediatamente).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] O arquivo de taxonomia traz as 10 áreas, cada uma com suas sub-áreas, e as 9
+- [x] O arquivo de taxonomia traz as 10 áreas, cada uma com suas sub-áreas, e as 9
       vertentes com a definição-complemento
-- [ ] A migração de schema roda sobre o banco existente sem perder nenhuma linha
-- [ ] Toda área raiz tem pai nulo e toda sub-área aponta para exatamente uma área
-- [ ] O comando de listar a taxonomia mostra a hierarquia aninhada e as vertentes
-- [ ] Exportar a taxonomia e recarregá-la num banco vazio reproduz a grade idêntica
-- [ ] A rodada diária continua gravando área e tópico na grade antiga, sem erro
-- [ ] Os testes de taxonomia existentes seguem verdes
+- [x] A migração de schema roda sobre o banco existente sem perder nenhuma linha
+- [x] Toda área raiz tem pai nulo e toda sub-área aponta para exatamente uma área
+- [x] O comando de listar a taxonomia mostra a hierarquia aninhada e as vertentes
+- [x] Exportar a taxonomia e recarregá-la num banco vazio reproduz a grade idêntica
+- [x] A rodada diária continua gravando área e tópico na grade antiga, sem erro
+- [x] Os testes de taxonomia existentes seguem verdes

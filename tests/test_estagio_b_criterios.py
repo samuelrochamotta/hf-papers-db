@@ -60,7 +60,7 @@ def test_seis_regras_na_ordem_de_teste():
 
 
 def test_estagio_a_so_ve_as_regras_de_conteudo():
-    s = schemas.schema_estagio_a(["a"], ["t"])
+    s = schemas.schema_estagio_a(["a"], ["s"], ["t"])
     assert s["properties"]["regra_fora"]["enum"] == [*schemas.REGRAS_FORA_CONTEUDO, None]
     assert "portabilidade_reprovada" not in s["properties"]["regra_fora"]["enum"]
 

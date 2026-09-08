@@ -66,6 +66,27 @@ class ErroTruncado(RuntimeError):
     """
 
 
+class ErroProvedor(RuntimeError):
+    """O OpenRouter devolveu corpo de erro no lugar da resposta.
+
+    Acontece com HTTP 200: `{"error": {"message": "Provider returned error",
+    "code": 429}}` e `choices` nulo. O SDK nao levanta nada, entao sem esta
+    checagem `r.choices[0]` estoura `TypeError` e o operador ve um bug nosso
+    onde ha um provedor fora do ar (2026-09-08: 7 chamadas numa rodada de 57).
+    Herda de `RuntimeError` para cair na retentativa generica de rede.
+    """
+
+
+def _escolha_unica(resposta: Any) -> Any:
+    """A primeira escolha, ou o erro do provedor com a mensagem dele."""
+    escolhas = getattr(resposta, "choices", None)
+    if escolhas:
+        return escolhas[0]
+    erro = getattr(resposta, "error", None) or {}
+    detalhe = erro.get("message") if isinstance(erro, dict) else str(erro)
+    raise ErroProvedor(f"resposta sem choices: {detalhe or 'sem detalhe do provedor'}")
+
+
 class ErroValidacao(ValueError):
     """Resposta bem formada pelo schema, mas invalida pelas regras da secao 4.4.
 
@@ -261,6 +282,7 @@ class ClienteLLM:
         response_format: dict[str, Any],
         temperatura: float = 0.0,
         max_tokens: int = 1200,
+        esforco_raciocinio: Optional[str] = None,
         paper_id: Optional[str] = None,
         validar: Optional[Callable[[dict], None]] = None,
     ) -> Resposta:
@@ -285,6 +307,22 @@ class ClienteLLM:
                     mensagens.append({"role": "system", "content": sistema})
                 mensagens.append({"role": "user", "content": prompt_atual})
 
+                corpo_extra: dict[str, Any] = {
+                    "provider": {
+                        "require_parameters": self.cfg.llm.provider.require_parameters
+                    }
+                }
+                # Medido em 2026-09-08, 140 papers e 420 chamadas: sem esta
+                # linha o GLM 5.3 flash gasta 2.343 tokens de rascunho para
+                # produzir 540 caracteres de JSON, e a chamada passa de 13 s
+                # para 174 s. Desligar o raciocinio nao e opcao (`enabled:
+                # false` volta HTTP 400, "Reasoning is mandatory"); baixar o
+                # esforco e, e nao muda a classificacao - `low` e `medium`
+                # concordam mais entre si (87%) do que `low` consigo mesmo
+                # (82%).
+                if esforco_raciocinio:
+                    corpo_extra["reasoning"] = {"effort": esforco_raciocinio}
+
                 extras: dict[str, Any] = {}
                 # `temperature` so vai se o modelo a anunciar: com
                 # `require_parameters` ligado, um parametro nao suportado zera a
@@ -297,14 +335,10 @@ class ClienteLLM:
                     messages=mensagens,
                     max_tokens=teto_saida,
                     response_format=response_format,
-                    extra_body={
-                        "provider": {
-                            "require_parameters": self.cfg.llm.provider.require_parameters
-                        }
-                    },
+                    extra_body=corpo_extra,
                     **extras,
                 )
-                escolha = r.choices[0]
+                escolha = _escolha_unica(r)
                 conteudo = escolha.message.content or ""
                 uso = self._contabilizar(r, modelo)
                 if getattr(escolha, "finish_reason", None) == "length":

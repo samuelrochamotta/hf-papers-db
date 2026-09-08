@@ -1,7 +1,8 @@
 """Governanca do vocabulario controlado - agora em codigo, nao por convencao.
 
-Tetos (config `taxonomia`): 10 areas, 24 topicos, 5 topicos por paper, e 2
-papers distintos para promover um candidato.
+Tetos (config `taxonomia`): 10 areas, 24 topicos, e 2 papers distintos para
+promover um candidato. O teto de vertentes por paper nao e configuravel - ver
+`MAX_VERTENTES_POR_PAPER`.
 
 Promocao e automatica. **Fusao de rotulos e manual** e exige comando explicito:
 vocabulario grande demais deixa de separar qualquer coisa, e escolher qual par
@@ -21,6 +22,13 @@ from .log import logger
 
 log = logger("taxonomia")
 
+# Teto de vertentes por paper. Constante, e nao chave de `config`: a spec trata
+# a cardinalidade como trava - ela nao se mexe nem na correcao automatica da
+# grade -, e um teto configuravel convidaria a afrouxa-la sem que ninguem
+# tivesse decidido isso. `llm/schemas.py` importa daqui para declarar o mesmo
+# numero no contrato: duas copias do teto seriam duas chances de divergir.
+MAX_VERTENTES_POR_PAPER = 2
+
 
 @dataclass
 class ResultadoCandidato:
@@ -31,15 +39,104 @@ class ResultadoCandidato:
     aviso: Optional[str] = None
 
 
+@dataclass
+class Area:
+    """Uma area da grade com as sub-areas sob ela.
+
+    A sub-area e uma `Area` de `subareas` vazia, e nao um tipo proprio, porque
+    e o mesmo tipo de coisa - a razao de as duas morarem em `dim_area`.
+    """
+
+    rotulo: str
+    definicao: str
+    subareas: list["Area"] = field(default_factory=list)
+
+
 # ── leitura ─────────────────────────────────────────────────────────────────
 
 
-def areas(conn: sqlite3.Connection) -> list[str]:
-    return [r["area"] for r in conn.execute("SELECT area FROM dim_area ORDER BY area")]
+def hierarquia(conn: sqlite3.Connection) -> dict[str, Optional[str]]:
+    """Cada rotulo de `dim_area` com o pai dele; a area raiz aponta para None.
+
+    E o que responde "esta sub-area e filha desta area?" numa consulta so. O
+    enum do Estagio A e plano - JSON Schema nao expressa sub-area valida *dado*
+    que a area e X -, entao o parentesco e cobrado na persistencia.
+    """
+    return {
+        r["area"]: r["area_pai"]
+        for r in conn.execute("SELECT area, area_pai FROM dim_area")
+    }
+
+
+def arvore_de_areas(conn: sqlite3.Connection) -> list[Area]:
+    """`dim_area` inteira em dois niveis: toda raiz, com as filhas sob ela.
+
+    A raiz da grade plana anterior vem junto, de `subareas` vazia. Quem quer so
+    uma das duas grades filtra pela forma - `areas_facetadas` e
+    `areas_grade_antiga` sao os dois lados desse filtro.
+    """
+    filhas: dict[str, list[Area]] = {}
+    for r in conn.execute(
+        "SELECT area, definicao, area_pai FROM dim_area "
+        "WHERE area_pai IS NOT NULL ORDER BY area"
+    ):
+        filhas.setdefault(r["area_pai"], []).append(Area(r["area"], r["definicao"] or ""))
+    return [
+        Area(r["area"], r["definicao"] or "", filhas.get(r["area"], []))
+        for r in conn.execute(
+            "SELECT area, definicao FROM dim_area WHERE area_pai IS NULL ORDER BY area"
+        )
+    ]
+
+
+def areas_facetadas(conn: sqlite3.Connection) -> list[Area]:
+    """A grade facetada: so a raiz que tem sub-area, aninhada.
+
+    E o que o prompt e o enum do Estagio A oferecem. A raiz sem filha fica de
+    fora porque e da grade plana anterior, que ainda convive em `dim_area` ate a
+    contracao do ticket 05.
+    """
+    return [a for a in arvore_de_areas(conn) if a.subareas]
+
+
+def areas_grade_antiga(conn: sqlite3.Connection) -> list[tuple[str, str]]:
+    """A grade plana anterior - area sem pai e sem filha -, com a definicao.
+
+    As duas grades convivem em `dim_area` desde o passo de expand, e nada as
+    distingue alem da forma: por isso a hierarquia e o filtro. Desde o ticket 02
+    a classificacao roda na grade facetada (`areas_facetadas`) e esta funcao
+    sobrou para o teto de vocabulario, que continua contando so a grade plana
+    para nao congelar a promocao de rotulo. A plana sai do banco no ticket 05.
+    """
+    return [
+        (r["area"], r["definicao"])
+        for r in conn.execute(
+            "SELECT area, definicao FROM dim_area WHERE area_pai IS NULL "
+            "  AND area NOT IN (SELECT area_pai FROM dim_area WHERE area_pai IS NOT NULL) "
+            "ORDER BY area"
+        )
+    ]
 
 
 def topicos(conn: sqlite3.Connection) -> list[str]:
     return [r["topico"] for r in conn.execute("SELECT topico FROM dim_topico ORDER BY topico")]
+
+
+def vertentes(conn: sqlite3.Connection) -> list[str]:
+    return [
+        r["vertente"]
+        for r in conn.execute("SELECT vertente FROM dim_vertente ORDER BY vertente")
+    ]
+
+
+def vertente_dominante(conn: sqlite3.Connection, paper_id: str) -> Optional[str]:
+    """A vertente de ordem 1 do paper - a resposta unica que ranking e
+    agregacao precisam quando o paper tem duas (user story 10)."""
+    row = conn.execute(
+        "SELECT vertente FROM ponte_paper_vertente WHERE paper_id = ? AND ordem = 1",
+        (paper_id,),
+    ).fetchone()
+    return row["vertente"] if row else None
 
 
 def _tabela(tipo: str) -> tuple[str, str]:
@@ -51,6 +148,10 @@ def _teto(tipo: str, cfg: ConfigTaxonomia) -> int:
 
 
 def _quantidade(conn: sqlite3.Connection, tipo: str) -> int:
+    # a area conta so a grade plana: somar as duas grades bateria no teto e
+    # congelaria a promocao de rotulo sem que ninguem tivesse pedido isso
+    if tipo == "area":
+        return len(areas_grade_antiga(conn))
     tabela, _ = _tabela(tipo)
     return db.contar(conn, tabela)
 
@@ -63,39 +164,90 @@ def aplicar_classificacao(
     paper_id: str,
     *,
     area_primaria: str,
-    areas_secundarias: Sequence[str] = (),
-    topicos_paper: Sequence[str] = (),
-    cfg: Optional[ConfigTaxonomia] = None,
+    subarea_primaria: str,
+    area_secundaria: Optional[str] = None,
+    subarea_secundaria: Optional[str] = None,
+    vertentes_paper: Sequence[str] = (),
 ) -> None:
-    """Reescreve as pontes de um paper. Rotulo desconhecido e ignorado com aviso
-    - a LLM nao cria vocabulario, e o enum ja deveria ter impedido isso."""
-    cfg = cfg or ConfigTaxonomia()
-    validos_area = set(areas(conn))
-    validos_topico = set(topicos(conn))
+    """Reescreve as pontes de um paper: os pares (area > sub-area) e as vertentes.
+
+    Par invalido e ignorado com aviso, e o paper segue classificado: e o mesmo
+    tratamento que o rotulo desconhecido sempre teve aqui - a LLM nao cria
+    vocabulario, e derrubar a classificacao por causa de um rotulo custaria a
+    triagem inteira do paper.
+
+    Duas coisas tornam um par invalido, e a segunda e a que o enum nao pega:
+    rotulo fora de `dim_area`, e sub-area que nao e filha da area declarada. O
+    schema do Estagio A oferece a sub-area num enum plano - JSON Schema nao
+    expressa "sub-area valida *dado* que a area e X" sem um `oneOf` de dez ramos
+    que nem todo provedor trata -, entao o parentesco so pode ser cobrado aqui.
+
+    `vertentes_paper` chega ordenada, a dominante primeiro, e e a ordem que a
+    ponte grava. **O teto de duas e aplicado aqui, e nao so pedido no prompt**
+    (user story 29): `maxItems` sob `strict: true` nao e cumprido por todo
+    provedor, e uma terceira vertente aceita em silencio faria a dominante
+    perder o sentido - se tudo cabe, nada e dominante.
+
+    A ponte de topico e apagada e nao reescrita: o topico saiu do contrato do
+    Estagio A neste ticket, e deixar o antigo de pe daria ao paper uma vertente
+    da grade nova ao lado de um topico da grade que deixou de existir. A tabela
+    inteira sai no ticket 05, e com ela esta linha.
+
+    Sem `cfg`: o unico teto que esta funcao lia era o de topicos por paper, que
+    saiu junto com o campo. O de vertentes e constante do modulo porque a spec
+    trata a cardinalidade como trava.
+    """
+    pai_de = hierarquia(conn)
+    validas_vertente = set(vertentes(conn))
 
     conn.execute("DELETE FROM ponte_paper_area WHERE paper_id = ?", (paper_id,))
     conn.execute("DELETE FROM ponte_paper_topico WHERE paper_id = ?", (paper_id,))
+    conn.execute("DELETE FROM ponte_paper_vertente WHERE paper_id = ?", (paper_id,))
 
-    if area_primaria in validos_area:
+    def _par(area: Optional[str], subarea: Optional[str], *, primaria: bool) -> None:
+        if not area and not subarea:
+            return                       # par secundario nulo e a resposta comum
+        if not subarea or pai_de.get(subarea) != area:
+            log.warning(
+                "par (area > sub-area) ignorado em %s: %s > %s", paper_id, area, subarea
+            )
+            return
         db.inserir_ignorando(
             conn,
             "ponte_paper_area",
-            {"paper_id": paper_id, "area": area_primaria, "is_primaria": 1},
+            {
+                "paper_id": paper_id,
+                "area": area,
+                "subarea": subarea,
+                "is_primaria": int(primaria),
+            },
         )
-    elif area_primaria:
-        log.warning("area desconhecida ignorada em %s: %s", paper_id, area_primaria)
 
-    for a in areas_secundarias:
-        if a in validos_area and a != area_primaria:
-            db.inserir_ignorando(
-                conn, "ponte_paper_area", {"paper_id": paper_id, "area": a, "is_primaria": 0}
+    _par(area_primaria, subarea_primaria, primaria=True)
+    if (area_secundaria, subarea_secundaria) != (area_primaria, subarea_primaria):
+        _par(area_secundaria, subarea_secundaria, primaria=False)
+
+    # A ordem sai da posicao na lista *depois* de descartar o desconhecido: uma
+    # vertente inventada em primeiro lugar nao pode deixar a valida seguinte
+    # como secundaria de ninguem.
+    ordem = 0
+    for v in dict.fromkeys(vertentes_paper):
+        if v not in validas_vertente:
+            if v:
+                log.warning("vertente desconhecida ignorada em %s: %s", paper_id, v)
+            continue
+        ordem += 1
+        if ordem > MAX_VERTENTES_POR_PAPER:
+            log.warning(
+                "vertente alem do teto de %d ignorada em %s: %s",
+                MAX_VERTENTES_POR_PAPER, paper_id, v,
             )
-
-    for t in list(dict.fromkeys(topicos_paper))[: cfg.max_topicos_por_paper]:
-        if t in validos_topico:
-            db.inserir_ignorando(conn, "ponte_paper_topico", {"paper_id": paper_id, "topico": t})
-        elif t:
-            log.warning("topico desconhecido ignorado em %s: %s", paper_id, t)
+            break
+        db.inserir_ignorando(
+            conn,
+            "ponte_paper_vertente",
+            {"paper_id": paper_id, "vertente": v, "ordem": ordem},
+        )
 
 
 # ── candidatos ──────────────────────────────────────────────────────────────
@@ -281,19 +433,35 @@ def fundir(conn: sqlite3.Connection, *, de: str, para: str, tipo: str) -> dict[s
 
 
 def exportar(conn: sqlite3.Connection) -> dict[str, Any]:
-    """dim_area / dim_topico -> dicionario serializavel (rotulo e definicao).
+    """dim_area / dim_topico / dim_vertente -> dicionario serializavel.
 
     `desde` fica de fora de proposito: num banco novo a data em que o rotulo
     passou a valer e a da carga, nao a do banco de origem.
+
+    A sub-area viaja aninhada sob a area, e nao com o nome do pai num campo ao
+    lado: aninhada, ela nao consegue declarar dois pais, e e a forma de que
+    `carregar` precisa para gravar o pai antes da filha.
     """
     return {
         "areas": [
-            {"rotulo": r["area"], "definicao": r["definicao"] or ""}
-            for r in conn.execute("SELECT area, definicao FROM dim_area ORDER BY area")
+            {
+                "rotulo": a.rotulo,
+                "definicao": a.definicao,
+                "subareas": [
+                    {"rotulo": s.rotulo, "definicao": s.definicao} for s in a.subareas
+                ],
+            }
+            for a in arvore_de_areas(conn)
         ],
         "topicos": [
             {"rotulo": r["topico"], "definicao": r["definicao"] or ""}
             for r in conn.execute("SELECT topico, definicao FROM dim_topico ORDER BY topico")
+        ],
+        "vertentes": [
+            {"rotulo": r["vertente"], "definicao": r["definicao"] or ""}
+            for r in conn.execute(
+                "SELECT vertente, definicao FROM dim_vertente ORDER BY vertente"
+            )
         ],
     }
 
@@ -306,43 +474,86 @@ def carregar(conn: sqlite3.Connection, dados: dict[str, Any]) -> dict[str, int]:
     nao upsert - rodar duas vezes nao muda nada e nao desfaz fusao nenhuma.
     """
     desde = db.hoje().isoformat()
-    contagem = {"areas": 0, "topicos": 0, "ja_existiam": 0}
-    for chave, tabela, coluna in (
-        ("areas", "dim_area", "area"),
-        ("topicos", "dim_topico", "topico"),
-    ):
-        for item in dados.get(chave) or []:
-            rotulo = (item.get("rotulo") or "").strip()
-            if not rotulo:
-                log.warning("entrada sem rotulo ignorada em %s", chave)
-                continue
-            entrou = db.inserir_ignorando(
-                conn,
-                tabela,
-                {coluna: rotulo, "definicao": item.get("definicao") or "", "desde": desde},
-            )
-            if entrou:
-                contagem[chave] += 1
-            else:
-                contagem["ja_existiam"] += 1
+    contagem = {"areas": 0, "subareas": 0, "topicos": 0, "vertentes": 0, "ja_existiam": 0}
+
+    def _inserir(chave: str, tabela: str, coluna: str, item: dict, **extra: Any) -> str:
+        """Grava um rotulo e devolve o que foi gravado - '' se nao havia rotulo."""
+        rotulo = (item.get("rotulo") or "").strip()
+        if not rotulo:
+            log.warning("entrada sem rotulo ignorada em %s", chave)
+            return ""
+        entrou = db.inserir_ignorando(
+            conn,
+            tabela,
+            {coluna: rotulo, "definicao": item.get("definicao") or "", "desde": desde, **extra},
+        )
+        contagem[chave if entrou else "ja_existiam"] += 1
+        return rotulo
+
+    for item in dados.get("areas") or []:
+        pai = _inserir("areas", "dim_area", "area", item)
+        if not pai:
+            continue   # sem pai gravado a FK da auto-referencia recusaria as filhas
+        for sub in item.get("subareas") or []:
+            _inserir("subareas", "dim_area", "area", sub, area_pai=pai)
+    for item in dados.get("topicos") or []:
+        _inserir("topicos", "dim_topico", "topico", item)
+    for item in dados.get("vertentes") or []:
+        _inserir("vertentes", "dim_vertente", "vertente", item)
     return contagem
 
 
 def listar(conn: sqlite3.Connection, cfg: Optional[ConfigTaxonomia] = None) -> dict[str, Any]:
+    """O vocabulario vigente com quantos papers cada rotulo carrega.
+
+    A sub-area vem aninhada sob a area, como no arquivo: quem lista quer ver a
+    grade, e uma sub-area solta na lista de areas nao diz de quem e filha.
+
+    A vertente conta paper distinto, e nao linha da ponte, pelo mesmo motivo da
+    area - e essa contagem que o ticket 08 le para decidir qual vertente e ruido
+    de um mes e qual sobrevive. `dominantes` a parte porque uma vertente pode
+    viver so como segunda escolha, e uma que nunca e dominante nao esta
+    dizendo o mesmo que uma que e.
+
+    A contagem procura o rotulo nas duas colunas da ponte porque cada um so
+    aparece na sua: a raiz em `area`, a filha em `subarea`. E conta paper
+    distinto, e nao linha: desde que o par secundario pode repetir a area do
+    primario, um paper so chega a ter duas linhas na mesma area.
+    """
     cfg = cfg or ConfigTaxonomia()
-    def _com_uso(tabela: str, coluna: str, ponte: str) -> list[dict]:
-        return [
-            dict(r)
-            for r in conn.execute(
-                f"SELECT d.{coluna} AS rotulo, d.definicao, d.desde, "
-                f"       (SELECT COUNT(*) FROM {ponte} p WHERE p.{coluna} = d.{coluna}) AS papers "
-                f"FROM {tabela} d ORDER BY papers DESC, rotulo"
-            )
-        ]
+    por_pai: dict[Optional[str], list[dict]] = {}
+    for r in conn.execute(
+        "SELECT d.area AS rotulo, d.definicao, d.desde, d.area_pai, "
+        "       (SELECT COUNT(DISTINCT p.paper_id) FROM ponte_paper_area p "
+        "         WHERE p.area = d.area OR p.subarea = d.area) AS papers "
+        "FROM dim_area d ORDER BY papers DESC, rotulo"
+    ):
+        linha = dict(r)
+        por_pai.setdefault(linha.pop("area_pai"), []).append(linha)
 
     return {
-        "areas": _com_uso("dim_area", "area", "ponte_paper_area"),
-        "topicos": _com_uso("dim_topico", "topico", "ponte_paper_topico"),
+        "areas": [
+            {**a, "subareas": por_pai.get(a["rotulo"], [])} for a in por_pai.get(None, [])
+        ],
+        "topicos": [
+            dict(r)
+            for r in conn.execute(
+                "SELECT d.topico AS rotulo, d.definicao, d.desde, "
+                "       (SELECT COUNT(*) FROM ponte_paper_topico p WHERE p.topico = d.topico) AS papers "
+                "FROM dim_topico d ORDER BY papers DESC, rotulo"
+            )
+        ],
+        "vertentes": [
+            dict(r)
+            for r in conn.execute(
+                "SELECT d.vertente AS rotulo, d.definicao, d.desde, "
+                "       (SELECT COUNT(*) FROM ponte_paper_vertente p "
+                "         WHERE p.vertente = d.vertente) AS papers, "
+                "       (SELECT COUNT(*) FROM ponte_paper_vertente p "
+                "         WHERE p.vertente = d.vertente AND p.ordem = 1) AS dominantes "
+                "FROM dim_vertente d ORDER BY papers DESC, rotulo"
+            )
+        ],
         "candidatos": [
             {**dict(r), "papers": json.loads(r["papers"])}
             for r in conn.execute(

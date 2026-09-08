@@ -88,7 +88,8 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
 
     esperados = {
         "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
-        "dim_area", "dim_topico", "ponte_paper_area", "ponte_paper_topico",
+        "dim_area", "dim_topico", "dim_vertente",
+        "ponte_paper_area", "ponte_paper_topico", "ponte_paper_vertente",
         "ponte_paper_keyword", "ponte_paper_autor", "dim_calendario", "fato_execucao",
         "ponte_paper_criterio",
     }
@@ -100,6 +101,56 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
     assert manifest["run_id"] == "run-teste"
     assert manifest["linhas"]["dim_paper"] == 1
     assert manifest["linhas"]["ponte_paper_criterio"] == 2
+
+
+def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
+    """O analista corta o acervo pelos dois niveis da area, e a coluna precisa
+    chegar ate o Power BI - o painel le o mesmo arquivo."""
+    _semear(conn)
+    with db.transacao(conn):
+        db.upsert_area(conn, {"area": "Contexto & recuperação", "definicao": "d"})
+        db.upsert_area(
+            conn,
+            {"area": "Memória de longo prazo", "definicao": "d",
+             "area_pai": "Contexto & recuperação"},
+        )
+        db.inserir_ignorando(
+            conn,
+            "ponte_paper_area",
+            {"paper_id": "2608.00001", "area": "Contexto & recuperação",
+             "subarea": "Memória de longo prazo", "is_primaria": 1},
+        )
+    export.rodar(conn, cfg, hoje=HOJE)
+
+    ponte = pq.read_table(cfg.dir_marts / "ponte_paper_area.parquet").to_pylist()
+    assert ponte == [{
+        "paper_id": "2608.00001",
+        "area": "Contexto & recuperação",
+        "subarea": "Memória de longo prazo",
+        "is_primaria": True,
+    }]
+
+
+def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
+    """User story 27: sem a ordem no Parquet o analista nao separa a dominante
+    da secundaria, e as duas viram a mesma medida."""
+    _semear(conn)
+    with db.transacao(conn):
+        for v in ("Baratear", "Escalar"):
+            db.upsert_vertente(conn, {"vertente": v, "definicao": "d"})
+        for v, ordem in (("Baratear", 1), ("Escalar", 2)):
+            db.inserir_ignorando(
+                conn,
+                "ponte_paper_vertente",
+                {"paper_id": "2608.00001", "vertente": v, "ordem": ordem},
+            )
+    export.rodar(conn, cfg, hoje=HOJE)
+
+    ponte = pq.read_table(cfg.dir_marts / "ponte_paper_vertente.parquet").to_pylist()
+    assert sorted(ponte, key=lambda r: r["ordem"]) == [
+        {"paper_id": "2608.00001", "vertente": "Baratear", "ordem": 1},
+        {"paper_id": "2608.00001", "vertente": "Escalar", "ordem": 2},
+    ]
 
 
 def test_ponte_paper_criterio_e_fronteira_contraparte_saem_no_parquet(conn, cfg):

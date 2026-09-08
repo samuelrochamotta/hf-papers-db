@@ -9,10 +9,22 @@ from hfpapers.llm import estagio_a as ea
 from hfpapers.llm import estagio_b as eb
 from hfpapers.llm import schemas
 from hfpapers.llm.cliente import ErroValidacao
+from hfpapers.taxonomia import Area
 
 VOCAB = ea.Vocabulario(
-    areas=[("Agentes & automação", "def a"), ("Avaliação & confiabilidade", "def b")],
-    topicos=[("Agentes de codificação", "def t"), ("Ataque adversarial", "def u")],
+    areas=[
+        Area("Harness & orquestração", "o laço que chama o modelo", [
+            Area("Engenharia de código com agente", "def s1"),
+            Area("Sistemas multiagente", "def s2"),
+        ]),
+        Area("Avaliação & instrumentação", "como o comportamento é medido", [
+            Area("Benchmark de agente", "def s3"),
+        ]),
+    ],
+    vertentes=[
+        ("Automatizar", "tira o humano do laço: auto-evolução, síntese, busca automática"),
+        ("Medir", "cria o instrumento: benchmark, protocolo, métrica, auditoria"),
+    ],
 )
 
 PAPER = ea.PaperEntrada(
@@ -20,8 +32,8 @@ PAPER = ea.PaperEntrada(
     titulo="Um framework de agentes",
     abstract="Nosso sistema melhora a taxa de sucesso em 14%.",
     keywords=["agentic", "harness"],
-    area_primaria="Agentes & automação",
-    topicos=["Agentes de codificação"],
+    area_primaria="Harness & orquestração",
+    vertentes=["Automatizar"],
 )
 
 
@@ -40,9 +52,11 @@ def _base_a(**over):
         "veredito_preliminar": "candidato",
         "regra_fora": None,
         "justificativa": JUSTIFICATIVA_A,
-        "area_primaria": "Agentes & automação",
-        "areas_secundarias": [],
-        "topicos": ["Agentes de codificação"],
+        "area_primaria": "Harness & orquestração",
+        "subarea_primaria": "Engenharia de código com agente",
+        "area_secundaria": None,
+        "subarea_secundaria": None,
+        "vertentes": ["Automatizar"],
         "candidato_novo_rotulo": None,
     }
     d.update(over)
@@ -78,21 +92,59 @@ def _base(**over):
 # ── schema ──────────────────────────────────────────────────────────────────
 
 
-def test_enum_de_area_e_topico_e_injetado():
-    s = schemas.schema_estagio_a(VOCAB.rotulos_area, VOCAB.rotulos_topico)
+def _schema_a():
+    return schemas.schema_estagio_a(
+        VOCAB.rotulos_area, VOCAB.rotulos_subarea, VOCAB.rotulos_vertente
+    )
+
+
+def test_enum_de_area_e_vertente_e_injetado():
+    s = _schema_a()
     assert s["properties"]["area_primaria"]["enum"] == VOCAB.rotulos_area
-    assert s["properties"]["topicos"]["items"]["enum"] == VOCAB.rotulos_topico
-    assert s["properties"]["topicos"]["maxItems"] == 5
+    assert s["properties"]["vertentes"]["items"]["enum"] == VOCAB.rotulos_vertente
+
+
+def test_contrato_pede_de_uma_a_duas_vertentes_e_nao_pede_mais_topicos():
+    """O campo de topicos sai do contrato e a vertente entra no lugar dele, com
+    o teto que a persistencia tambem cobra."""
+    s = _schema_a()
+    assert "topicos" not in s["properties"] and "topicos" not in s["required"]
+    assert "vertentes" in s["required"]
+    assert (s["properties"]["vertentes"]["minItems"],
+            s["properties"]["vertentes"]["maxItems"]) == (1, 2)
+
+
+def test_enum_de_subarea_e_plano_e_traz_as_filhas_de_todas_as_areas():
+    """JSON Schema estrito nao expressa "sub-area valida dado que a area e X":
+    o enum lista todas, e o parentesco e cobrado na persistencia."""
+    s = _schema_a()
+    assert s["properties"]["subarea_primaria"]["enum"] == [
+        "Engenharia de código com agente",
+        "Sistemas multiagente",
+        "Benchmark de agente",
+    ]
+
+
+def test_par_secundario_aceita_nulo_no_enum():
+    """Nulo e a resposta esperada na maioria dos papers - se o enum nao o
+    aceitasse, o caminho comum seria erro de validacao."""
+    s = _schema_a()
+    for campo in ("area_secundaria", "subarea_secundaria"):
+        assert None in s["properties"][campo]["enum"]
+        assert s["properties"][campo]["type"] == ["string", "null"]
 
 
 def test_schema_a_recusa_vocabulario_vazio():
     with pytest.raises(ValueError):
-        schemas.schema_estagio_a([], [])
+        schemas.schema_estagio_a([], [], [])
+    # grade plana carregada, sem sub-area nenhuma: tambem nao classifica
+    with pytest.raises(ValueError):
+        schemas.schema_estagio_a(VOCAB.rotulos_area, [], VOCAB.rotulos_vertente)
 
 
 def test_os_dois_campos_de_justificativa_declaram_piso_e_teto():
     """Issue #7: teto sem piso deixava `"..."` passar pela saida estruturada."""
-    a = schemas.schema_estagio_a(VOCAB.rotulos_area, VOCAB.rotulos_topico)
+    a = _schema_a()
     for campo in (
         a["properties"]["justificativa"],
         schemas.SCHEMA_ESTAGIO_B["properties"]["justificativa_veredito"],
@@ -269,12 +321,90 @@ def test_paper_entrada_nao_carrega_upvotes():
 
 def test_prompt_injeta_o_vocabulario_e_o_paper(cfg):
     a = _payload_estagio_a(cfg)
-    assert "Agentes & automação" in a and "Ataque adversarial" in a
+    assert "Harness & orquestração" in a and "Automatizar" in a
     assert PAPER.titulo in a and PAPER.abstract in a
     assert "{AREAS}" not in a and "{TITULO}" not in a
+
+
+def test_prompt_declara_o_eixo_da_area_e_apresenta_a_grade_aninhada(cfg):
+    """A causa raiz do problema que a grade facetada ataca e o prompt nunca ter
+    dito em que eixo a area responde, e ter mostrado uma lista plana."""
+    a = _payload_estagio_a(cfg)
+
+    assert "onde o trabalho mexe" in a
+    # a sub-area aparece indentada sob a area de que e filha, e nao solta
+    pai = a.index("- **Harness & orquestração**")
+    filha = a.index("`Engenharia de código com agente`")
+    irma_de_outra = a.index("`Benchmark de agente`")
+    assert pai < filha < a.index("- **Avaliação & instrumentação**") < irma_de_outra
+    assert "    - `Engenharia de código com agente`" in a
+
+
+def test_prompt_declara_o_eixo_da_vertente_e_o_teste_de_decisao(cfg):
+    """A frase que faltava: os dois campos respondem perguntas de tipos
+    diferentes, e o teste de decisao e o que separa medir de fazer."""
+    a = _payload_estagio_a(cfg)
+
+    assert "que movimento o paper faz" in a
+    assert "o paper mede isso, ou faz isso?" in a
+    # a ordem e informacao, e o prompt precisa dizer qual das duas e a dominante
+    assert "a primeira é a\n  dominante" in a
+
+
+def test_prompt_traz_as_nove_vertentes_com_o_complemento(cfg):
+    """O complemento e o que impede a vertente de ser lida como tema: "Medir"
+    sozinho vira assunto, "Medir - cria o instrumento" nao."""
+    from pathlib import Path
+
+    dados = json.loads(
+        (Path(__file__).parents[1] / "config" / "taxonomia_inicial.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    vocab = ea.Vocabulario(
+        areas=VOCAB.areas,
+        vertentes=[(v["rotulo"], v["definicao"]) for v in dados["vertentes"]],
+    )
+    a = ea.montar_prompt(PAPER, vocab, cfg)
+
+    assert len(dados["vertentes"]) == 9
+    for v in dados["vertentes"]:
+        assert f"**{v['rotulo']}** — {v['definicao']}" in a
+
+
+def test_prompt_diz_que_o_par_secundario_nulo_e_resposta_esperada(cfg):
+    """A lista vazia de `areas_secundarias` virou excecao porque o prompt nunca
+    disse que ela era comum; o par novo nao repete o erro."""
+    assert "os dois nulos é a resposta" in _payload_estagio_a(cfg)
 
 
 def test_prompt_b_declara_a_ordem_do_raciocinio(cfg):
     b = eb.montar_prompt(PAPER, cfg)
     assert b.index("padrao_extraido") < b.index("`veredito`")
     assert "antes de o veredito ser decidido" in b
+
+
+def test_vocabulario_do_estagio_a_e_a_grade_facetada(conn):
+    """A virada do ticket 02: o prompt e o enum passam a oferecer a grade
+    hierarquica. A grade plana anterior ainda mora no banco ate a contracao do
+    ticket 05, e nao pode vazar para o vocabulario junto - seriam dois
+    vocabularios dizendo a mesma coisa em resolucoes diferentes."""
+    from pathlib import Path
+
+    from hfpapers import db, taxonomia
+
+    dados = json.loads(
+        (Path(__file__).parents[1] / "config" / "taxonomia_inicial.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    with db.transacao(conn):
+        taxonomia.carregar(conn, dados)
+
+    vocab = ea.carregar_vocabulario(conn)
+    facetadas = [a for a in dados["areas"] if a["subareas"]]
+    assert set(vocab.rotulos_area) == {a["rotulo"] for a in facetadas}
+    assert set(vocab.rotulos_subarea) == {
+        s["rotulo"] for a in facetadas for s in a["subareas"]
+    }
+    assert set(vocab.rotulos_vertente) == {v["rotulo"] for v in dados["vertentes"]}

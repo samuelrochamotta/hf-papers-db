@@ -290,7 +290,7 @@ def montar_prompt(paper: PaperEntrada, cfg: Optional[Config] = None) -> str:
         TITULO=paper.titulo,
         KEYWORDS=", ".join(paper.keywords) or "(nenhuma)",
         AREA=paper.area_primaria or "(nao atribuida)",
-        TOPICOS=", ".join(paper.topicos) or "(nenhum)",
+        VERTENTES=", ".join(paper.vertentes) or "(nenhuma)",
         ABSTRACT=paper.abstract or "(abstract indisponivel)",
         RESUMO_HF=resumo,
     )
@@ -310,6 +310,7 @@ def avaliar(
         response_format=schemas.response_format("avaliacao_ficha", schemas.SCHEMA_ESTAGIO_B),
         temperatura=est.temperatura,
         max_tokens=est.max_tokens,
+        esforco_raciocinio=est.esforco_raciocinio,
         paper_id=paper.paper_id,
         validar=validador,
     )

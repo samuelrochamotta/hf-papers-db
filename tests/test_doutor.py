@@ -288,27 +288,45 @@ def test_vocabulario_vazio_e_aviso(cfg, base):
     item = checar_vocabulario(cfg)
     assert item.estado == AVISO
     assert "taxonomia carregar" in item.detalhe
-    assert item.dados == {"areas": 0, "topicos": 0}
+    assert item.dados == {"areas": 0, "subareas": 0, "vertentes": 0}
 
 
 def test_so_areas_ainda_e_aviso(cfg, base):
     """Os dois enums do Estagio A precisam existir; um so nao basta."""
-    db.upsert_area(base, {"area": "Agentes & automação", "definicao": "d"})
+    from conftest import AREA_TESTE, SUBAREA_TESTE
+
+    db.upsert_area(base, {"area": AREA_TESTE, "definicao": "d"})
+    db.upsert_area(base, {"area": SUBAREA_TESTE, "definicao": "d", "area_pai": AREA_TESTE})
     base.commit()
 
     item = checar_vocabulario(cfg)
     assert item.estado == AVISO
-    assert "dim_topico" in item.detalhe and "dim_area" not in item.detalhe
+    assert "dim_vertente" in item.detalhe and "dim_area" not in item.detalhe
+
+
+def test_grade_so_plana_e_aviso(cfg, base):
+    """A grade anterior sem sub-area nenhuma nao classifica ninguem desde o
+    ticket 02: contar `dim_area` inteira faria o diagnostico dizer OK onde o
+    Estagio A cai com "vocabulario vazio"."""
+    db.upsert_area(base, {"area": "Agentes & automação", "definicao": "d"})
+    db.upsert_vertente(base, {"vertente": "Medir", "definicao": "d"})
+    base.commit()
+
+    item = checar_vocabulario(cfg)
+    assert item.estado == AVISO
+    assert item.dados == {"areas": 0, "subareas": 0, "vertentes": 1}
 
 
 def test_vocabulario_povoado_e_ok(cfg, base):
-    db.upsert_area(base, {"area": "Agentes & automação", "definicao": "d"})
-    db.upsert_topico(base, {"topico": "Agentes de codificação", "definicao": "d"})
+    from conftest import povoar_vocabulario
+
+    with db.transacao(base):
+        povoar_vocabulario(base)
     base.commit()
 
     item = checar_vocabulario(cfg)
     assert item.estado == OK
-    assert item.dados == {"areas": 1, "topicos": 1}
+    assert item.dados == {"areas": 1, "subareas": 2, "vertentes": 1}
 
 
 # ── `fora` sem regra de descarte ────────────────────────────────────────────
@@ -361,13 +379,12 @@ def test_fora_sem_regra_bloqueia_o_doutor(cfg, base):
 def test_reclassificar_dirigido_vira_corte_de_pendencia(cfg, base):
     """A rodada de `reclassificar` entra em `log_execucao` (spec, secao 2) e,
     por isso, passa a valer como prova de que o pendente teve chance."""
-    from conftest import LLMDuble
+    from conftest import LLMDuble, povoar_vocabulario
 
     from hfpapers import execucao
 
     with db.transacao(base):
-        db.upsert_area(base, {"area": "Agentes & automação", "definicao": "d"})
-        db.upsert_topico(base, {"topico": "Agentes de codificação", "definicao": "d"})
+        povoar_vocabulario(base)
     _paper(base, "2609.00001", "2026-09-03T07:00:00")
     _triagem(base, "2609.00001")
     _paper(base, "2609.00002", "2026-09-03T07:00:00")    # pendente, e antigo

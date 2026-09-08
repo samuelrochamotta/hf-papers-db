@@ -1,4 +1,5 @@
-"""Criterios de veredito e contraparte de fronteira dentro de `DADOS`.
+"""O contrato de `DADOS`: criterios de veredito, contraparte de fronteira e o
+par area > sub-area.
 
 O painel passou a responder duas perguntas novas - "por que o pipeline aprova"
 (o grafico) e "por que ESTE paper e estrito" (a ficha) - e as duas leem os
@@ -19,13 +20,14 @@ DIA = dt.date(2020, 1, 1)
 JANELA_LONGA = 100_000
 
 
-def _tabelas(papers, triagem, criterios, fichas=None):
+def _tabelas(papers, triagem, criterios, fichas=None, areas=None, vertentes=None):
     return {
         "dim_paper": papers,
         "fato_triagem": triagem,
         "dim_ficha": fichas or [],
-        "ponte_paper_area": [],
+        "ponte_paper_area": areas or [],
         "ponte_paper_topico": [],
+        "ponte_paper_vertente": vertentes or [],
         "ponte_paper_criterio": criterios,
         "fato_metrica": [],
         "dim_area": [],
@@ -33,13 +35,16 @@ def _tabelas(papers, triagem, criterios, fichas=None):
     }
 
 
-def _montar(tmp_path, monkeypatch, papers, triagem, criterios, *, dias_hall=JANELA_LONGA):
+def _montar(
+    tmp_path, monkeypatch, papers, triagem, criterios, *, areas=None, vertentes=None,
+    dias_hall=JANELA_LONGA,
+):
     import gerar_painel
 
     (tmp_path / "_manifest.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(gerar_painel, "DIR_MARTS", tmp_path)
     monkeypatch.setattr(gerar_painel, "CONFIG", tmp_path / "config-inexistente.yaml")
-    tabelas = _tabelas(papers, triagem, criterios)
+    tabelas = _tabelas(papers, triagem, criterios, areas=areas, vertentes=vertentes)
     monkeypatch.setattr(gerar_painel, "ler", lambda nome: tabelas.get(nome, []))
     dados, _ = gerar_painel.montar_dados(janela=JANELA_LONGA, dias_hall=dias_hall)
     return dados
@@ -57,6 +62,23 @@ def _triado(pid, veredito, **extra):
 
 
 # ══════════════ a lista da janela viva ══════════════
+
+def test_paper_carrega_a_vertente_com_a_dominante_em_primeiro(tmp_path, monkeypatch):
+    """O painel exibe a vertente no lugar do topico, e a ordem e informacao: a
+    de ordem 1 e a dominante e precisa aparecer primeiro no card, qualquer que
+    seja a ordem em que o Parquet devolveu as linhas."""
+    dados = _montar(
+        tmp_path, monkeypatch,
+        [_paper("p1")],
+        [_triado("p1", "estrito")],
+        [],
+        vertentes=[
+            {"paper_id": "p1", "vertente": "Escalar", "ordem": 2},
+            {"paper_id": "p1", "vertente": "Baratear", "ordem": 1},
+        ],
+    )
+    assert dados["papers"][0]["vt"] == ["Baratear", "Escalar"]
+
 
 def test_aprovado_carrega_a_lista_de_criterios(tmp_path, monkeypatch):
     dados = _montar(
@@ -231,3 +253,47 @@ def test_criterio_de_um_paper_nao_vaza_para_o_outro(tmp_path, monkeypatch):
     por_id = {p["id"]: p for p in dados["papers"]}
     assert por_id["p1"]["cr"] == ["artefato_aberto"]
     assert por_id["p2"]["cr"] == ["panorama"]
+
+
+# ══════════════ o par area > sub-area ══════════════
+
+PAR_PRIMARIO = {
+    "paper_id": "p1",
+    "area": "Contexto & recuperação",
+    "subarea": "Memória de longo prazo",
+    "is_primaria": True,
+}
+
+
+def test_a_subarea_do_par_primario_chega_ao_painel(tmp_path, monkeypatch):
+    """Quem le o painel enxerga em que peca do sistema o paper mexe e em que
+    sub-area dela - o par inteiro, nao so o nivel de cima."""
+    dados = _montar(
+        tmp_path, monkeypatch,
+        [_paper("p1")],
+        [_triado("p1", "estrito")],
+        [],
+        areas=[PAR_PRIMARIO],
+    )
+    p = dados["papers"][0]
+    assert (p["a"], p["sa"]) == ("Contexto & recuperação", "Memória de longo prazo")
+
+
+def test_a_subarea_acompanha_o_paper_ate_a_aba_historica(tmp_path, monkeypatch):
+    """O hall e derivado dos mesmos Parquet: perder a sub-area la deixaria o
+    podio dizendo menos do que a janela viva."""
+    dados = _montar(
+        tmp_path, monkeypatch,
+        [_paper("p1")],
+        [_triado("p1", "estrito")],
+        [],
+        areas=[PAR_PRIMARIO],
+        dias_hall=-1,      # corte no futuro: o paper sai da janela e entra no hall
+    )
+    entrada = dados["hall"][0]["ap"][0]
+    assert (entrada["a"], entrada["sa"]) == ("Contexto & recuperação", "Memória de longo prazo")
+
+
+def test_paper_sem_par_nao_inventa_subarea(tmp_path, monkeypatch):
+    dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1", "amplo")], [])
+    assert (dados["papers"][0]["a"], dados["papers"][0]["sa"]) == (None, None)

@@ -12,6 +12,7 @@ unico chamador que a expoe na linha de comando.
 """
 
 import pytest
+from conftest import povoar_vocabulario
 from test_classificacao_concorrencia import LLMConcorrente
 
 from hfpapers import db, doutor, execucao
@@ -57,8 +58,7 @@ class LLMExplode(LLMConcorrente):
 def base(cfg):
     conn = db.abrir(cfg)
     with db.transacao(conn):
-        db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
-        db.upsert_topico(conn, {"topico": "Agentes de codificação", "definicao": "d"})
+        povoar_vocabulario(conn)
         for i in range(5):
             db.upsert_paper(
                 conn,

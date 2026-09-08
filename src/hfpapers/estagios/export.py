@@ -373,10 +373,23 @@ _SCHEMAS_SIMPLES = {
     "dim_topico": pa.schema(
         [("topico", pa.string()), ("definicao", pa.string()), ("desde", pa.string())]
     ),
+    "dim_vertente": pa.schema(
+        [("vertente", pa.string()), ("definicao", pa.string()), ("desde", pa.string())]
+    ),
     "ponte_paper_area": pa.schema(
-        [("paper_id", pa.string()), ("area", pa.string()), ("is_primaria", pa.bool_())]
+        [
+            ("paper_id", pa.string()),
+            ("area", pa.string()),
+            ("subarea", pa.string()),
+            ("is_primaria", pa.bool_()),
+        ]
     ),
     "ponte_paper_topico": pa.schema([("paper_id", pa.string()), ("topico", pa.string())]),
+    # `ordem` vai como coluna, e nao so a linha da dominante: e ela que separa
+    # a vertente dominante (1) da secundaria (2) nas medidas do Power BI.
+    "ponte_paper_vertente": pa.schema(
+        [("paper_id", pa.string()), ("vertente", pa.string()), ("ordem", pa.int32())]
+    ),
     "ponte_paper_criterio": pa.schema([("paper_id", pa.string()), ("criterio", pa.string())]),
     "ponte_paper_keyword": pa.schema([("paper_id", pa.string()), ("keyword", pa.string())]),
     "ponte_paper_autor": pa.schema(

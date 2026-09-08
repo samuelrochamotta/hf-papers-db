@@ -2,39 +2,296 @@
   "areas": [
     {
       "rotulo": "Agentes & automação",
-      "definicao": "Sistemas que decidem e agem em vários passos: laços de agente, harness, uso de ferramentas, orquestração e autonomia delimitada."
+      "definicao": "Sistemas que decidem e agem em vários passos: laços de agente, harness, uso de ferramentas, orquestração e autonomia delimitada.",
+      "subareas": []
     },
     {
       "rotulo": "Avaliação & confiabilidade",
-      "definicao": "Como se mede se a saída presta: benchmark, LLM avaliador, verificação, calibração de confiança e supervisão de sistemas que erram."
+      "definicao": "Como se mede se a saída presta: benchmark, LLM avaliador, verificação, calibração de confiança e supervisão de sistemas que erram.",
+      "subareas": []
+    },
+    {
+      "rotulo": "Avaliação & instrumentação",
+      "definicao": "como o comportamento é medido",
+      "subareas": [
+        {
+          "rotulo": "Benchmark de agente",
+          "definicao": "Mede o laço agêntico: tarefa de vários passos, com ferramenta e ambiente, não uma resposta só."
+        },
+        {
+          "rotulo": "Benchmark de domínio",
+          "definicao": "Mede conhecimento ou perícia de um campo, como medicina, direito ou matemática."
+        },
+        {
+          "rotulo": "Custo da avaliação",
+          "definicao": "O preço de medir: tamanho do conjunto, número de execuções, gasto de rodar o juiz."
+        },
+        {
+          "rotulo": "Diagnóstico de falha",
+          "definicao": "Abrir o erro para dizer por que aconteceu, em vez de só contar que aconteceu."
+        },
+        {
+          "rotulo": "LLM como avaliador",
+          "definicao": "O modelo na cadeira do juiz, e o quanto o julgamento dele bate com o humano."
+        },
+        {
+          "rotulo": "Protocolo & metodologia",
+          "definicao": "Como se mede, não o que se mede: desenho do experimento, contaminação, comparação justa."
+        }
+      ]
+    },
+    {
+      "rotulo": "Contexto & recuperação",
+      "definicao": "o que entra na janela e de onde vem",
+      "subareas": [
+        {
+          "rotulo": "Compressão & alocação de contexto",
+          "definicao": "Que parte do que já se tem cabe na janela finita, e o que é resumido ou descartado para caber."
+        },
+        {
+          "rotulo": "Memória de longo prazo",
+          "definicao": "O que persiste entre sessões e é relido depois, não o que cabe na janela desta."
+        },
+        {
+          "rotulo": "RAG & recuperação",
+          "definicao": "Buscar trecho num acervo externo e trazê-lo para a janela desta pergunta."
+        },
+        {
+          "rotulo": "Skills & conhecimento compilado",
+          "definicao": "Procedimento destilado em artefato reusável que o sistema carrega quando a tarefa pede, em vez de redescobrir."
+        },
+        {
+          "rotulo": "Verificação de fonte & citação",
+          "definicao": "Amarrar a afirmação ao trecho que a sustenta e checar se a fonte diz mesmo aquilo."
+        }
+      ]
     },
     {
       "rotulo": "Dados & previsão",
-      "definicao": "Trabalho sobre dados tabulares e séries: geração sintética, previsão numérica, eventos raros e qualidade do conjunto de treino."
+      "definicao": "Trabalho sobre dados tabulares e séries: geração sintética, previsão numérica, eventos raros e qualidade do conjunto de treino.",
+      "subareas": []
     },
     {
       "rotulo": "Eficiência & custo de inferência",
-      "definicao": "Fazer o mesmo trabalho gastando menos: tokens, latência, FLOPs, roteamento entre modelos e alocação de orçamento em tempo de execução."
+      "definicao": "Fazer o mesmo trabalho gastando menos: tokens, latência, FLOPs, roteamento entre modelos e alocação de orçamento em tempo de execução.",
+      "subareas": []
     },
     {
       "rotulo": "Engenharia de software",
-      "definicao": "Produção e manutenção de código: refatoração, invariantes arquiteturais, especificação, revisão, regressão e processo de desenvolvimento."
+      "definicao": "Produção e manutenção de código: refatoração, invariantes arquiteturais, especificação, revisão, regressão e processo de desenvolvimento.",
+      "subareas": []
+    },
+    {
+      "rotulo": "Geração de mídia",
+      "definicao": "como o sistema sintetiza saída que não é texto: pixel, quadro, forma de onda e cena",
+      "subareas": [
+        {
+          "rotulo": "3D & cena",
+          "definicao": "Sintetizar geometria e cena com volume, de que se pode ver outro ângulo."
+        },
+        {
+          "rotulo": "Imagem & difusão",
+          "definicao": "Sintetizar quadro parado, e o processo de difusão que o produz."
+        },
+        {
+          "rotulo": "Vídeo & animação",
+          "definicao": "Sintetizar sequência com coerência de um quadro para o seguinte, não imagens soltas."
+        },
+        {
+          "rotulo": "World models generativos",
+          "definicao": "Simulador aprendido do mundo, que responde a ação e prevê o estado seguinte."
+        },
+        {
+          "rotulo": "Áudio & música",
+          "definicao": "Sintetizar som que não é fala: música, efeito, trilha."
+        }
+      ]
+    },
+    {
+      "rotulo": "Guardrails & controle",
+      "definicao": "o que é barrado antes de acontecer",
+      "subareas": [
+        {
+          "rotulo": "Detecção de alucinação",
+          "definicao": "Flagrar a afirmação inventada antes que ela saia como resposta."
+        },
+        {
+          "rotulo": "Guard models",
+          "definicao": "O modelo auxiliar que inspeciona entrada ou saída e barra o que não passa."
+        },
+        {
+          "rotulo": "Injeção & delegação",
+          "definicao": "Instrução hostil que chega pelo conteúdo ou por outro agente e assume o laço."
+        },
+        {
+          "rotulo": "Política & conformidade",
+          "definicao": "A regra escrita que o sistema tem de obedecer, e como ela vira restrição executável."
+        },
+        {
+          "rotulo": "Risco & dano",
+          "definicao": "Que estrago o sistema pode causar no mundo, e como medir e limitar essa exposição."
+        }
+      ]
+    },
+    {
+      "rotulo": "Harness & orquestração",
+      "definicao": "o laço que chama o modelo: o que executar, em que ordem, com quais ferramentas",
+      "subareas": [
+        {
+          "rotulo": "Auto-evolução do harness",
+          "definicao": "O laço reescreve a si mesmo, prompt ou ferramenta, sem que alguém edite o código."
+        },
+        {
+          "rotulo": "Elicitação & requisito",
+          "definicao": "Arrancar do humano o que ele quer antes de executar, virando pedido vago em especificação."
+        },
+        {
+          "rotulo": "Engenharia de código com agente",
+          "definicao": "O agente como programador: lê o repositório, edita arquivo, roda teste e conserta o que quebrou."
+        },
+        {
+          "rotulo": "Laço de execução & trajetória",
+          "definicao": "A sequência de passos de uma execução: quando chamar ferramenta, quando parar, o que reter do que já ocorreu."
+        },
+        {
+          "rotulo": "Pesquisa autônoma",
+          "definicao": "O agente conduz a investigação inteira, da pergunta ao relatório, sem passo humano no meio."
+        },
+        {
+          "rotulo": "Sistemas multiagente",
+          "definicao": "Vários agentes dividindo a tarefa, com o protocolo entre eles como objeto."
+        }
+      ]
+    },
+    {
+      "rotulo": "Interface & modalidade",
+      "definicao": "como humano e sistema trocam sinal",
+      "subareas": [
+        {
+          "rotulo": "Documento & extração",
+          "definicao": "Tirar estrutura de página, PDF ou tabela: leiaute, OCR, campo com valor."
+        },
+        {
+          "rotulo": "Fala & áudio",
+          "definicao": "Som como canal de conversa: reconhecimento, síntese de voz, diálogo falado."
+        },
+        {
+          "rotulo": "GUI & visão de tela",
+          "definicao": "Ler a tela e agir nela como um usuário: clicar, digitar, navegar pela interface."
+        },
+        {
+          "rotulo": "Vídeo & streaming",
+          "definicao": "Sinal contínuo entendido enquanto chega, e não um arquivo inteiro de uma vez."
+        }
+      ]
+    },
+    {
+      "rotulo": "Internos do modelo",
+      "definicao": "o que acontece dentro dos pesos, como objeto de estudo",
+      "subareas": [
+        {
+          "rotulo": "Atalhos & espúrios",
+          "definicao": "A correlação superficial que o modelo aprendeu no lugar da regra, e que quebra fora da distribuição."
+        },
+        {
+          "rotulo": "Fidelidade do raciocínio",
+          "definicao": "Se o raciocínio exibido é o que produziu a resposta, ou uma narrativa montada depois."
+        },
+        {
+          "rotulo": "Interpretabilidade & sondas",
+          "definicao": "Abrir pesos e ativações para achar onde uma informação mora e o que a move."
+        }
+      ]
     },
     {
       "rotulo": "Memória & contexto",
-      "definicao": "Como o sistema guarda, recupera e reaproveita informação ao longo do tempo ou de um acervo: memória de longo prazo, RAG e ponderação de fontes."
+      "definicao": "Como o sistema guarda, recupera e reaproveita informação ao longo do tempo ou de um acervo: memória de longo prazo, RAG e ponderação de fontes.",
+      "subareas": []
+    },
+    {
+      "rotulo": "Modelo & treino",
+      "definicao": "como os pesos ficaram do jeito que estão",
+      "subareas": [
+        {
+          "rotulo": "Dados de treino & sintéticos",
+          "definicao": "O corpus que entra no treino: curadoria, filtragem, e dado gerado por modelo."
+        },
+        {
+          "rotulo": "Destilação & quantização",
+          "definicao": "Encolher o modelo, em parâmetros ou em bits, preservando o que ele sabia fazer."
+        },
+        {
+          "rotulo": "Pré-treino & arquitetura",
+          "definicao": "A forma da rede e o treino de base que a produziu, antes de qualquer alinhamento."
+        },
+        {
+          "rotulo": "Pós-treino & RL",
+          "definicao": "O que se faz com o modelo já treinado para mudar o comportamento: SFT, recompensa, preferência."
+        }
+      ]
     },
     {
       "rotulo": "Multimodal & percepção",
-      "definicao": "Entrada que não é texto: imagem, vídeo, áudio, fala e a combinação delas com linguagem."
+      "definicao": "Entrada que não é texto: imagem, vídeo, áudio, fala e a combinação delas com linguagem.",
+      "subareas": []
+    },
+    {
+      "rotulo": "Percepção & robótica",
+      "definicao": "como o sistema lê o mundo físico e age sobre ele",
+      "subareas": [
+        {
+          "rotulo": "Navegação & mundo físico",
+          "definicao": "Deslocar-se num espaço real: mapa, rota, obstáculo, corpo que anda."
+        },
+        {
+          "rotulo": "Rastreamento & detecção",
+          "definicao": "Achar e seguir objeto em imagem ou vídeo, quadro a quadro."
+        },
+        {
+          "rotulo": "Sensores & percepção 3D",
+          "definicao": "Reconstruir profundidade e geometria a partir do sensor: nuvem de pontos, LiDAR, estéreo."
+        },
+        {
+          "rotulo": "VLA & manipulação",
+          "definicao": "Da imagem e da instrução ao comando de atuador: pegar, mover, montar."
+        }
+      ]
     },
     {
       "rotulo": "Segurança & robustez",
-      "definicao": "Ataque, defesa e falha sob adversário ou entrada hostil: vulnerabilidade explorável, manipulação, mitigação e conteúdo enganoso."
+      "definicao": "Ataque, defesa e falha sob adversário ou entrada hostil: vulnerabilidade explorável, manipulação, mitigação e conteúdo enganoso.",
+      "subareas": []
+    },
+    {
+      "rotulo": "Serving & inferência",
+      "definicao": "como o token sai, da requisição ao hardware",
+      "subareas": [
+        {
+          "rotulo": "Atenção, kernel & cache",
+          "definicao": "O que a máquina executa por token: núcleo de atenção, cache de chave-valor, memória ocupada."
+        },
+        {
+          "rotulo": "Escala em tempo de inferência",
+          "definicao": "Gastar mais computação na hora da resposta, amostrando ou revisando, para acertar mais."
+        },
+        {
+          "rotulo": "Infraestrutura & deployment",
+          "definicao": "Servir o modelo em produção: lote, fila, paralelismo, escalonamento entre máquinas."
+        },
+        {
+          "rotulo": "Orçamento de token visual",
+          "definicao": "Quantos tokens uma imagem ou um vídeo consome, e como cortá-los sem perder o que importa."
+        },
+        {
+          "rotulo": "Roteamento de modelos",
+          "definicao": "Escolher qual modelo atende cada requisição, trocando qualidade por preço a cada chamada."
+        }
+      ]
     },
     {
       "rotulo": "Treino & pós-treino",
-      "definicao": "Métodos de treino ou pós-treino de modelos: destilação, RL, SFT, ajuste de arquitetura e alinhamento por recompensa."
+      "definicao": "Métodos de treino ou pós-treino de modelos: destilação, RL, SFT, ajuste de arquitetura e alinhamento por recompensa.",
+      "subareas": []
     }
   ],
   "topicos": [
@@ -129,6 +386,44 @@
     {
       "rotulo": "Áudio & fala",
       "definicao": "Entrada sonora: voz, gravação, sinal acústico."
+    }
+  ],
+  "vertentes": [
+    {
+      "rotulo": "Adaptar",
+      "definicao": "ajusta a um contexto, usuário ou domínio sem retreinar"
+    },
+    {
+      "rotulo": "Automatizar",
+      "definicao": "tira o humano do laço: auto-evolução, síntese, busca automática"
+    },
+    {
+      "rotulo": "Baratear",
+      "definicao": "reduz custo, latência, memória ou tokens"
+    },
+    {
+      "rotulo": "Confiabilizar",
+      "definicao": "reduz o erro silencioso: alucinação, calibração, atribuição"
+    },
+    {
+      "rotulo": "Endurecer",
+      "definicao": "sustenta o comportamento sob ataque, ruído ou entrada fora da distribuição"
+    },
+    {
+      "rotulo": "Escalar",
+      "definicao": "faz funcionar maior: horizonte, contexto, número de agentes"
+    },
+    {
+      "rotulo": "Especificar",
+      "definicao": "formaliza o que se quer antes de executar: contrato, verificação, política"
+    },
+    {
+      "rotulo": "Explicar",
+      "definicao": "torna legível o que já acontece: interpretabilidade, sondas, causalidade"
+    },
+    {
+      "rotulo": "Medir",
+      "definicao": "cria o instrumento: benchmark, protocolo, métrica, auditoria"
     }
   ]
 }

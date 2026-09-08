@@ -16,15 +16,48 @@ FIXTURES = Path(__file__).parent / "fixtures"
 # importados pelo pytest - um `from conftest import ...` reaproveita essa
 # instancia unica, em vez de arriscar duas copias divergentes do mesmo dublê.
 
+# A grade minima que os dublês respondem. Mora aqui pelo mesmo motivo deles: e
+# o vocabulario que `RESPOSTA_A` pressupoe, e duas copias divergentes deixariam
+# metade dos testes sem par primario. A area e hierarquica porque desde o
+# ticket 02 e a grade facetada que o Estagio A oferece - `carregar_vocabulario`
+# so enxerga area raiz que tenha sub-area.
+AREA_TESTE = "Harness & orquestração"
+SUBAREA_TESTE = "Engenharia de código com agente"
+SUBAREA_IRMA_TESTE = "Sistemas multiagente"
+TOPICO_TESTE = "Agentes de codificação"
+VERTENTE_TESTE = "Automatizar"
+
+
+def povoar_vocabulario(conn) -> None:
+    """Uma area raiz com duas sub-areas irmas, um topico e uma vertente. Sem
+    transacao: quem chama ja esta dentro da sua.
+
+    O topico continua aqui porque `tax_candidato` ainda promove rotulo do tipo
+    `topico` ate o ticket 05; ele nao alimenta mais o Estagio A."""
+    db.upsert_area(conn, {"area": AREA_TESTE, "definicao": "o laço que chama o modelo"})
+    for sub in (SUBAREA_TESTE, SUBAREA_IRMA_TESTE):
+        db.upsert_area(conn, {"area": sub, "definicao": "d", "area_pai": AREA_TESTE})
+    db.upsert_topico(conn, {"topico": TOPICO_TESTE, "definicao": "d"})
+    db.upsert_vertente(
+        conn, {"vertente": VERTENTE_TESTE, "definicao": "tira o humano do laço"}
+    )
+
+
 RESPOSTA_A = {
     "veredito_preliminar": "candidato",
     "regra_fora": None,
     # Longa de proposito: `validar` exige piso de 80 caracteres uteis nos dois
     # estagios (issue #7), e os dublês passam por `validar` como o cliente real.
     "justificativa": "Propoe um harness de agentes reutilizavel fora do benchmark dos autores, entao segue para o Estagio B em vez de cair numa regra de descarte.",
-    "area_primaria": "Agentes & automação",
-    "areas_secundarias": [],
-    "topicos": ["Agentes de codificação"],
+    "area_primaria": AREA_TESTE,
+    "subarea_primaria": SUBAREA_TESTE,
+    # Nulo de proposito: e a resposta esperada e a mais comum, e o dublê que
+    # imita o caminho comum e o que protege esse caminho de regressao.
+    "area_secundaria": None,
+    "subarea_secundaria": None,
+    # Uma vertente so: e o caminho comum, e o dublê que o imita e o que protege
+    # esse caminho de exigir uma segunda por inercia.
+    "vertentes": [VERTENTE_TESTE],
     "candidato_novo_rotulo": None,
 }
 RESPOSTA_A_FORA = {

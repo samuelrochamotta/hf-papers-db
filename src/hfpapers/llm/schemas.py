@@ -1,8 +1,8 @@
 """JSON Schemas dos dois estagios (secoes 4.3 e 4.4 do PROMPT).
 
-Os `enum` de area e topico do Estagio A sao injetados em tempo de execucao a
-partir do banco. E isso que impede a LLM de inventar rotulo e fragmentar os
-filtros do Power BI.
+Os `enum` de area, sub-area e vertente do Estagio A sao injetados em tempo de
+execucao a partir do banco. E isso que impede a LLM de inventar rotulo e
+fragmentar os filtros do Power BI.
 
 No Estagio B a **ordem das propriedades e normativa**: ela reproduz a ordem do
 raciocinio (o padrao e escrito e testado antes de o veredito ser decidido). Nao
@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any, Optional, Sequence
 
 from ..log import logger
+from ..taxonomia import MAX_VERTENTES_POR_PAPER
 from .cliente import ErroValidacao
 
 log = logger("llm")
@@ -107,10 +108,26 @@ PISO_LETRAS_JUSTIFICATIVA = 40
 TETO_JUSTIFICATIVA = 300
 
 
-def schema_estagio_a(areas: Sequence[str], topicos: Sequence[str]) -> dict[str, Any]:
+def schema_estagio_a(
+    areas: Sequence[str], subareas: Sequence[str], vertentes: Sequence[str]
+) -> dict[str, Any]:
+    """O contrato da triagem, com o vocabulario vigente injetado nos `enum`.
+
+    **A sub-area entra num enum plano, com todas as filhas de todas as areas.**
+    JSON Schema so expressaria "sub-area valida *dado* que a area e X" com um
+    `oneOf` de um ramo por area, e nem todo provedor trata isso sob
+    `strict: true`. O parentesco e cobrado depois, na persistencia
+    (`taxonomia.aplicar_classificacao`), onde o par que nao fecha e ignorado sem
+    derrubar a classificacao do paper.
+
+    O teto de duas vertentes e declarado aqui e **cobrado de novo** na mesma
+    persistencia: `maxItems` sob `strict: true` nao e cumprido por todo provedor,
+    e o numero vem de `taxonomia` para que os dois lugares nao possam divergir.
+    """
     areas = list(areas)
-    topicos = list(topicos)
-    if not areas or not topicos:
+    subareas = list(subareas)
+    vertentes = list(vertentes)
+    if not areas or not subareas or not vertentes:
         raise ValueError(
             "vocabulario vazio: rode `hfpapers taxonomia carregar`"
         )
@@ -122,8 +139,10 @@ def schema_estagio_a(areas: Sequence[str], topicos: Sequence[str]) -> dict[str, 
             "regra_fora",
             "justificativa",
             "area_primaria",
-            "areas_secundarias",
-            "topicos",
+            "subarea_primaria",
+            "area_secundaria",
+            "subarea_secundaria",
+            "vertentes",
             "candidato_novo_rotulo",
         ],
         "properties": {
@@ -137,16 +156,18 @@ def schema_estagio_a(areas: Sequence[str], topicos: Sequence[str]) -> dict[str, 
                 "maxLength": TETO_JUSTIFICATIVA,
             },
             "area_primaria": {"type": "string", "enum": areas},
-            "areas_secundarias": {
-                "type": "array",
-                "maxItems": 3,
-                "items": {"type": "string", "enum": areas},
-            },
-            "topicos": {
+            "subarea_primaria": {"type": "string", "enum": subareas},
+            # O par secundario e nulo na maioria dos papers, e o `null` no enum
+            # e o que torna isso uma resposta e nao uma falha de validacao.
+            "area_secundaria": {"type": ["string", "null"], "enum": [*areas, None]},
+            "subarea_secundaria": {"type": ["string", "null"], "enum": [*subareas, None]},
+            # Ordenada, a dominante primeiro: e a posicao no array que vira a
+            # `ordem` da ponte, e o prompt diz isso em prosa.
+            "vertentes": {
                 "type": "array",
                 "minItems": 1,
-                "maxItems": 5,
-                "items": {"type": "string", "enum": topicos},
+                "maxItems": MAX_VERTENTES_POR_PAPER,
+                "items": {"type": "string", "enum": vertentes},
             },
             "candidato_novo_rotulo": {
                 "type": ["object", "null"],
@@ -256,7 +277,7 @@ def validar_justificativa(texto: Any, campo: str) -> None:
     `_validar_tamanho` da migracao da issue #3 (commit `fa840aa`) estourava nos
     dois limites, mas la o custo de estourar era uma linha nao migrada e uma
     entrada no relatorio de diff. Aqui o custo e outro: `ErroLLM` no Estagio A
-    faz `classificacao` pular o paper, que fica sem area e sem topico - o buraco
+    faz `classificacao` pular o paper, que fica sem area e sem vertente - o buraco
     que a issue #3 existiu para tapar - e ainda marca a rodada como `parcial`.
     Perder a taxonomia de um paper bem classificado por 5 caracteres a mais e
     pior do que gravar 305 caracteres numa coluna `TEXT` sem constraint, que o

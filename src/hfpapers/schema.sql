@@ -89,8 +89,18 @@ CREATE TABLE IF NOT EXISTS dim_ficha (
 );
 
 -- ══════════════ VOCABULÁRIO CONTROLADO ══════════════
+-- Área e sub-área são a mesma coisa em dois níveis, e por isso moram na mesma
+-- tabela: área raiz tem `area_pai` NULL, sub-área aponta para o pai. Uma tabela
+-- irmã só deixaria as duas definições de área divergirem.
 CREATE TABLE IF NOT EXISTS dim_area (
     area        TEXT PRIMARY KEY,
+    definicao   TEXT NOT NULL,
+    desde       DATE,
+    area_pai    TEXT NULL REFERENCES dim_area(area)   -- coluna adicionada por migração em db.migrar
+);
+-- O eixo transversal: que movimento o paper faz com a peça em que mexe.
+CREATE TABLE IF NOT EXISTS dim_vertente (
+    vertente    TEXT PRIMARY KEY,
     definicao   TEXT NOT NULL,
     desde       DATE
 );
@@ -99,16 +109,31 @@ CREATE TABLE IF NOT EXISTS dim_topico (
     definicao   TEXT NOT NULL,
     desde       DATE
 );
+-- O par (área > sub-área) que localiza o paper na grade. A sub-área entra na
+-- chave primária porque o par secundário pode repetir a área do primário desde
+-- que a sub-área difira: com a chave `(paper_id, area)` esse par era proibido.
+-- Tabela reconstruída por migração em db.migrar nos bancos que já existiam.
 CREATE TABLE IF NOT EXISTS ponte_paper_area (
     paper_id    TEXT NOT NULL REFERENCES dim_paper(paper_id),
     area        TEXT NOT NULL REFERENCES dim_area(area),
-    is_primaria INTEGER NOT NULL,   -- 1 = área primária, 0 = secundária
-    PRIMARY KEY (paper_id, area)
+    subarea     TEXT NOT NULL REFERENCES dim_area(area),
+    is_primaria INTEGER NOT NULL,   -- 1 = par primário, 0 = secundário
+    PRIMARY KEY (paper_id, area, subarea)
 );
 CREATE TABLE IF NOT EXISTS ponte_paper_topico (
     paper_id    TEXT NOT NULL REFERENCES dim_paper(paper_id),
     topico      TEXT NOT NULL REFERENCES dim_topico(topico),
     PRIMARY KEY (paper_id, topico)
+);
+-- De uma a duas vertentes por paper. A `ordem` é o que distingue a dominante
+-- (1) da secundária (2): sem ela as duas seriam intercambiáveis e nenhuma
+-- agregação teria resposta única. Tabela nova, então `CREATE TABLE IF NOT
+-- EXISTS` basta - não há linha antiga para migrar.
+CREATE TABLE IF NOT EXISTS ponte_paper_vertente (
+    paper_id    TEXT NOT NULL REFERENCES dim_paper(paper_id),
+    vertente    TEXT NOT NULL REFERENCES dim_vertente(vertente),
+    ordem       INTEGER NOT NULL,   -- 1 = dominante
+    PRIMARY KEY (paper_id, vertente)
 );
 CREATE TABLE IF NOT EXISTS tax_candidato (
     rotulo      TEXT NOT NULL,

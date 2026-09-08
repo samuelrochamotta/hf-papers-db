@@ -190,7 +190,7 @@ def _gravar_criterios(
     conn: sqlite3.Connection, paper_id: str, criterios: Sequence[str]
 ) -> None:
     """Reescreve a ponte de criterios do paper - o mesmo gesto de
-    `taxonomia.aplicar_classificacao` com as pontes de area e topico: apaga o
+    `taxonomia.aplicar_classificacao` com as pontes de area e vertente: apaga o
     que a classificacao anterior deixou e grava o de agora. `fora` grava ponte
     vazia, entao um paper que era aprovado e caiu nao fica com criterio orfao
     contradizendo o veredito."""
@@ -277,7 +277,7 @@ def _entrada_b(paper: ea.PaperEntrada, a: ea.ResultadoA) -> ea.PaperEntrada:
         keywords=paper.keywords,
         ai_summary=paper.ai_summary,
         area_primaria=a.area_primaria,
-        topicos=a.topicos,
+        vertentes=a.vertentes,
     )
 
 
@@ -304,9 +304,10 @@ def _aplicar_estagio_a(
             conn,
             paper.paper_id,
             area_primaria=a.area_primaria,
-            areas_secundarias=a.areas_secundarias,
-            topicos_paper=a.topicos,
-            cfg=cfg.taxonomia,
+            subarea_primaria=a.subarea_primaria,
+            area_secundaria=a.area_secundaria,
+            subarea_secundaria=a.subarea_secundaria,
+            vertentes_paper=a.vertentes,
         )
         if a.candidato_novo_rotulo:
             c = taxonomia.registrar_candidato(

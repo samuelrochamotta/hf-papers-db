@@ -23,15 +23,15 @@ CREATE TABLE ponte_paper_vertente (
 **Bloqueado por:** 02 — não por dependência técnica, mas para que o contrato de saída e
 o prompt sejam tocados uma vez de cada vez.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] O contrato de saída do Estágio A pede de uma a duas vertentes, ordenadas
-- [ ] O prompt declara em uma frase que a vertente responde *que movimento o paper faz*
-- [ ] O prompt traz as nove vertentes com o complemento que fixa o sentido de cada uma
-- [ ] O prompt traz o teste de decisão que separa medir de fazer
-- [ ] O teto de duas vertentes é aplicado na persistência, não só pedido no prompt
-- [ ] Paper com uma vertente só é o caminho comum e não exige a segunda
-- [ ] A vertente de ordem 1 é recuperável como dominante em consulta e nos Parquet
-- [ ] Rodar um dia real grava vertente para 100% dos papers classificados, inclusive
+- [x] O contrato de saída do Estágio A pede de uma a duas vertentes, ordenadas
+- [x] O prompt declara em uma frase que a vertente responde *que movimento o paper faz*
+- [x] O prompt traz as nove vertentes com o complemento que fixa o sentido de cada uma
+- [x] O prompt traz o teste de decisão que separa medir de fazer
+- [x] O teto de duas vertentes é aplicado na persistência, não só pedido no prompt
+- [x] Paper com uma vertente só é o caminho comum e não exige a segunda
+- [x] A vertente de ordem 1 é recuperável como dominante em consulta e nos Parquet
+- [x] Rodar um dia real grava vertente para 100% dos papers classificados, inclusive
       os `fora`
-- [ ] O painel exibe a vertente no lugar do tópico
+- [x] O painel exibe a vertente no lugar do tópico
