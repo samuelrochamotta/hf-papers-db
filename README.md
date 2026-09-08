@@ -83,7 +83,7 @@ python -m hfpapers reclassificar --paper 2608.23552
 python -m hfpapers reclassificar --tudo                    # a base inteira, horas
 python -m hfpapers reclassificar --tudo --concorrencia 4   # 1 = sequencial, teto 8
 python -m hfpapers taxonomia listar
-python -m hfpapers taxonomia promover --rotulo "X" --tipo topico
+python -m hfpapers taxonomia nao-encaixes [--eixo area|subarea|vertente]
 python -m hfpapers taxonomia fundir --de "X" --para "Y" --tipo topico
 python -m hfpapers taxonomia exportar [--destino config/taxonomia_inicial.json]
 python -m hfpapers taxonomia carregar [config/taxonomia_inicial.json]
@@ -119,12 +119,14 @@ Nenhuma linha se perde: o gasto desses papers está em `log_llm` e aparece em
 que virou triagem. Com `--concorrencia 1` nada é chamado adiante do paper que
 estoura.
 
-`taxonomia exportar` grava áreas e tópicos do banco (rótulo + definição, sem
-candidatos) no JSON versionado; `carregar` é o inverso, para banco vazio, e é
-idempotente — rótulo que já existe não é tocado. `promover` transforma um
-candidato de `taxonomia listar` em rótulo do vocabulário, usando a definição do
-próprio candidato: é o passo manual depois da reclassificação total, que roda com
-o vocabulário congelado.
+`taxonomia exportar` grava áreas e tópicos do banco (rótulo + definição, sem a
+fila de revisão) no JSON versionado; `carregar` é o inverso, para banco vazio, e
+é idempotente — rótulo que já existe não é tocado. `taxonomia nao-encaixes` lê a
+fila de revisão da grade: os papers em que o Estágio A declarou que nenhuma
+célula servia, com o eixo que falhou (`area`, `subarea` ou `vertente`) e a
+justificativa. **Ninguém promove rótulo a partir dela dentro do pipeline**: a
+classificação nunca cria vocabulário, e a promoção é da revisão da grade, por
+quórum.
 
 ### Papers que chegam pelo refresh
 
@@ -235,10 +237,10 @@ python -m hfpapers reclassificar --paper 2608.23552
 #    zero papers sem triagem); o doutor confirma o zero `fora` sem regra
 python -m hfpapers doutor --sem-rede
 
-# 5. candidatos com quórum, à mão — a rodada total roda com o vocabulário
-#    congelado de propósito, senão os já classificados ficariam sem o rótulo novo
+# 5. ler a fila de revisão da grade que a rodada deixou — nenhum rótulo foi
+#    criado por ela; quem promove é a revisão da grade, por quórum
 python -m hfpapers taxonomia listar
-python -m hfpapers taxonomia promover --rotulo "..." --tipo topico
+python -m hfpapers taxonomia nao-encaixes --eixo subarea
 
 # 6. publicar
 python -m hfpapers export && scripts/gerar_painel.sh --force
@@ -511,7 +513,8 @@ a cada abertura de conexão — tudo `IF NOT EXISTS`):
 | `fato_metrica` | série temporal: 1 linha por paper por dia (upvotes, comentários, stars, artefatos) |
 | `fato_triagem` | veredito (`fora`/`amplo`/`estrito`), regra de descarte, teste de portabilidade, fronteira e sua contraparte |
 | `dim_ficha` | os cinco campos da ficha, só para aprovados |
-| `dim_area`, `dim_topico`, `tax_candidato` | vocabulário controlado e candidatos |
+| `dim_area`, `dim_topico`, `dim_vertente` | vocabulário controlado (área hierárquica, tópico da grade antiga, vertente) |
+| `tax_nao_encaixe` | fila de revisão da grade: paper, eixo em que o encaixe falhou, justificativa |
 | `ponte_paper_*` | área, tópico, critério de veredito, keyword, autor (muitos-para-muitos) |
 | `log_execucao`, `log_llm` | operação, tokens e custo |
 | `dim_calendario` | inteligência temporal do Power BI |
@@ -645,9 +648,10 @@ Três invariantes que os testes cobrem:
    dos 20 papers mais votados são `fora`.
 2. **O Padrão Extraído é escrito e testado antes do veredito.** A ordem das
    propriedades no schema do Estágio B é normativa.
-3. **A LLM não cria rótulo de área ou tópico.** O enum é injetado do banco;
-   rótulo novo vira candidato em `tax_candidato` e só é promovido com 2 papers
-   distintos e folga no teto.
+3. **A LLM não cria rótulo, e não propõe nenhum.** O enum é injetado do banco;
+   quando nada serve, ela declara em qual dos três eixos o encaixe falhou e por
+   quê, e isso vai para `tax_nao_encaixe`. Mesmo assim o paper sai com par e
+   vertente: não-encaixe é fila de revisão, não recusa de classificar.
 
 ## Testes
 

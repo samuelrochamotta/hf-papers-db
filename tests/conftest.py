@@ -32,8 +32,8 @@ def povoar_vocabulario(conn) -> None:
     """Uma area raiz com duas sub-areas irmas, um topico e uma vertente. Sem
     transacao: quem chama ja esta dentro da sua.
 
-    O topico continua aqui porque `tax_candidato` ainda promove rotulo do tipo
-    `topico` ate o ticket 05; ele nao alimenta mais o Estagio A."""
+    O topico continua aqui porque `dim_topico` e a ponte dele so saem do banco
+    no ticket 05; ele nao alimenta mais o Estagio A."""
     db.upsert_area(conn, {"area": AREA_TESTE, "definicao": "o laço que chama o modelo"})
     for sub in (SUBAREA_TESTE, SUBAREA_IRMA_TESTE):
         db.upsert_area(conn, {"area": sub, "definicao": "d", "area_pai": AREA_TESTE})
@@ -58,7 +58,9 @@ RESPOSTA_A = {
     # Uma vertente so: e o caminho comum, e o dublê que o imita e o que protege
     # esse caminho de exigir uma segunda por inercia.
     "vertentes": [VERTENTE_TESTE],
-    "candidato_novo_rotulo": None,
+    # Nulo de proposito, como o par secundario: a grade serviu, e servir e o
+    # caso comum. Quem exercita o nao-encaixe e `LLMComNaoEncaixe`.
+    "nao_coube": None,
 }
 RESPOSTA_A_FORA = {
     **RESPOSTA_A,
@@ -122,6 +124,25 @@ class LLMDuble(ClienteLLM):
         uso = Uso(100, 50, 0.0001, 1)
         self.uso.somar(uso)
         return Resposta(dados, uso, modelo, 1, 10)
+
+
+class LLMComNaoEncaixe(LLMDuble):
+    """Todo Estagio A declara que a sub-area nao coube, e classifica assim
+    mesmo - que e o que o prompt manda fazer."""
+
+    NAO_COUBE = {
+        "eixo": "subarea",
+        "justificativa": (
+            "Cache semântico entre requisições não é nenhuma das filhas de "
+            "Serving & inferência, e a mais próxima trata de cache de atenção."
+        ),
+    }
+
+    def chamar(self, *, etapa, **kw):
+        r = super().chamar(etapa=etapa, **kw)
+        if etapa == "estagio_a":
+            r.dados = {**r.dados, "nao_coube": self.NAO_COUBE}
+        return r
 
 
 class LLMQuebrado(LLMDuble):

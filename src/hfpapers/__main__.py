@@ -202,21 +202,19 @@ def reclassificar(
 
 @app_tax.command("listar")
 def taxonomia_listar() -> None:
-    """Areas (com as sub-areas), topicos, vertentes e candidatos, com quantos
-    papers cada rotulo carrega."""
+    """Areas (com as sub-areas), topicos e vertentes, com quantos papers cada
+    rotulo carrega, mais o quanto a grade esta devendo por eixo."""
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:
-        dados = mod_tax.listar(conn, cfg.taxonomia)
+        dados = mod_tax.listar(conn)
     finally:
         conn.close()
 
-    # o teto vale so para a grade plana, como em `taxonomia._quantidade`: somar as
-    # duas grades imprimiria 19/10 e anunciaria um estouro que nao existe
     planas = [a for a in dados["areas"] if not a["subareas"]]
     subareas = sum(len(a["subareas"]) for a in dados["areas"])
     typer.echo(
-        f"AREAS ({len(planas)}/{dados['tetos']['areas']} na grade plana + "
+        f"AREAS ({len(planas)} na grade plana + "
         f"{len(dados['areas']) - len(planas)} facetadas com {subareas} sub-areas)"
     )
     for a in dados["areas"]:
@@ -231,36 +229,40 @@ def taxonomia_listar() -> None:
             f"  {v['papers']:>4}  ({v['dominantes']:>4} dom.)  "
             f"{v['rotulo']} — {v['definicao']}"
         )
-    typer.echo(f"\nTOPICOS ({len(dados['topicos'])}/{dados['tetos']['topicos']})")
+    typer.echo(f"\nTOPICOS ({len(dados['topicos'])})")
     for t in dados["topicos"]:
         typer.echo(f"  {t['papers']:>4}  {t['rotulo']}")
-    typer.echo("\nCANDIDATOS")
-    for c in dados["candidatos"]:
-        marca = "promovido" if c["promovido"] else f"{len(c['papers'])} paper(s)"
-        typer.echo(f"  [{c['tipo']}] {c['rotulo']} — {marca}")
+    typer.echo("\nNAO-ENCAIXE (`taxonomia nao-encaixes` para ler a fila)")
+    for eixo in mod_tax.EIXOS:
+        typer.echo(f"  {dados['nao_encaixes'].get(eixo, 0):>4}  {eixo}")
 
 
-@app_tax.command("promover")
-def taxonomia_promover(
-    rotulo: str = typer.Option(..., "--rotulo", help="Rotulo do candidato a promover."),
-    tipo: str = typer.Option("topico", "--tipo", help="area | topico"),
+@app_tax.command("nao-encaixes")
+def taxonomia_nao_encaixes(
+    eixo: Optional[str] = typer.Option(
+        None, "--eixo", help="area | subarea | vertente (padrao: os tres)"
+    ),
 ) -> None:
-    """Promove um candidato de `taxonomia listar` a rotulo do vocabulario.
+    """A fila de revisao da grade: onde ela nao serviu, e por que.
 
-    A definicao vem do proprio candidato. Operacao manual, por desenho - e o
-    passo depois da reclassificacao total, que roda com o vocabulario
-    congelado.
+    Le por eixo porque a leitura de cada um e diferente: area nova e evento
+    raro e grave, sub-area nova e rotina, e vertente nova quase nao devia
+    acontecer. Quem promove a partir desta fila e a revisao da grade, por
+    quorum - nunca a classificacao.
     """
+    if eixo and eixo not in mod_tax.EIXOS:
+        typer.echo(f"eixo invalido: {eixo} (use {' | '.join(mod_tax.EIXOS)})")
+        raise typer.Exit(code=2)
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:
-        r = mod_tax.promover_candidato(conn, rotulo=rotulo, tipo=tipo, cfg=cfg.taxonomia)
-    except ValueError as e:
-        typer.echo(str(e))
-        raise typer.Exit(code=2)
+        fila = mod_tax.nao_encaixes(conn, eixo=eixo)
     finally:
         conn.close()
-    typer.echo(f"'{r['rotulo']}' agora e {r['tipo']} ({r['papers']} paper(s) o citaram)")
+
+    typer.echo(f"NAO-ENCAIXES ({len(fila)})")
+    for r in fila:
+        typer.echo(f"  [{r['eixo']}] {r['paper_id']} — {r['justificativa']}")
 
 
 @app_tax.command("fundir")

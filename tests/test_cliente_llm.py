@@ -272,3 +272,70 @@ def test_corpo_de_erro_sem_choices_e_registrado_em_log_llm(cfg, conn):
     ]
     assert len(erros) == 3
     assert all("sem choices" in e for e in erros)
+
+
+# ── qual provedor atendeu ───────────────────────────────────────────────────
+#
+# O OpenRouter roteia entre 24 endpoints do mesmo modelo, e eles nao se comportam
+# igual: em 2026-09-08 duas rodadas da mesma configuracao, com uma hora de
+# diferenca, deram 15,0 e 1,6 chamadas por minuto. A causa era o provedor
+# sorteado - um deles anuncia `reasoning` no catalogo e ignora o `effort`, com
+# 6.100 tokens e 532 s numa chamada -, e nao dava para provar porque `log_llm`
+# nao guardava quem tinha atendido.
+
+
+class OpenAIComProvedor(OpenAIDuble):
+    """Como o dublê base, mas devolvendo o `provider` que o OpenRouter anexa."""
+
+    def __init__(self, respostas, provedor):
+        super().__init__(respostas)
+        self.provedor = provedor
+
+    def _create(self, **kw):
+        r = super()._create(**kw)
+        r.provider = self.provedor
+        return r
+
+
+def _cliente_com_provedor(cfg, conn, provedor, respostas=None):
+    return ClienteLLM(
+        cfg,
+        cliente=OpenAIComProvedor(respostas or [(json.dumps(RESPOSTA), "stop")], provedor),
+        precos={"modelo/teste-b": Preco(2e-6, 1e-5)},
+        parametros={},
+        conn=conn,
+    )
+
+
+def test_provedor_que_atendeu_e_registrado(cfg, conn):
+    c = _cliente_com_provedor(cfg, conn, "Together")
+    _chamar(c)
+    c.drenar_registros(conn)
+    assert conn.execute("SELECT provedor FROM log_llm").fetchone()["provedor"] == "Together"
+
+
+def test_provedor_ausente_nao_quebra_o_registro(cfg, conn):
+    """Nem todo gateway anexa o campo, e a chamada vale sem ele."""
+    c = ClienteLLM(
+        cfg,
+        cliente=OpenAIDuble([(json.dumps(RESPOSTA), "stop")]),
+        precos={"modelo/teste-b": Preco(2e-6, 1e-5)},
+        parametros={},
+        conn=conn,
+    )
+    _chamar(c)
+    c.drenar_registros(conn)
+    assert conn.execute("SELECT provedor FROM log_llm").fetchone()["provedor"] is None
+
+
+def test_provedor_e_registrado_tambem_quando_a_chamada_falha(cfg, conn):
+    """E o caso que importa: a cauda lenta esta nas tentativas que falham.
+
+    Registrar so o sucesso deixaria invisivel justamente o provedor que trunca.
+    """
+    c = _cliente_com_provedor(cfg, conn, "Wafer", respostas=[('{"a"', "length")] * 3)
+    with pytest.raises(ErroLLM):
+        _chamar(c)
+    c.drenar_registros(conn)
+    provedores = [r["provedor"] for r in conn.execute("SELECT provedor FROM log_llm")]
+    assert provedores == ["Wafer", "Wafer", "Wafer"]

@@ -301,6 +301,9 @@ class ClienteLLM:
 
         for tentativa in range(1, tentativas + 1):
             uso = Uso()
+            # Reiniciado a cada volta: a tentativa que morre antes da resposta
+            # nao tem provedor, e herdar o da anterior seria acusar inocente.
+            provedor: Optional[str] = None
             try:
                 mensagens = []
                 if sistema:
@@ -338,6 +341,7 @@ class ClienteLLM:
                     extra_body=corpo_extra,
                     **extras,
                 )
+                provedor = getattr(r, "provider", None)
                 escolha = _escolha_unica(r)
                 conteudo = escolha.message.content or ""
                 uso = self._contabilizar(r, modelo)
@@ -350,7 +354,8 @@ class ClienteLLM:
                     validar(dados)
             except ErroTruncado as e:
                 ultimo_erro = e
-                self._registrar(etapa, modelo, paper_id, uso, tentativa, str(e))
+                self._registrar(etapa, modelo, paper_id, uso, tentativa, str(e),
+                                provedor=provedor)
                 teto_saida *= 2
                 log.warning(
                     "resposta truncada (%s, tentativa %s); novo teto de saida: %s",
@@ -358,7 +363,8 @@ class ClienteLLM:
                 )
             except ErroValidacao as e:
                 ultimo_erro = e
-                self._registrar(etapa, modelo, paper_id, uso, tentativa, str(e))
+                self._registrar(etapa, modelo, paper_id, uso, tentativa, str(e),
+                                provedor=provedor)
                 log.warning("validacao falhou (%s, tentativa %s): %s", paper_id, tentativa, e)
                 prompt_atual = (
                     f"{prompt}\n\n---\n\n"
@@ -367,17 +373,20 @@ class ClienteLLM:
                 )
             except json.JSONDecodeError as e:
                 ultimo_erro = e
-                self._registrar(etapa, modelo, paper_id, uso, tentativa, f"json invalido: {e}")
+                self._registrar(etapa, modelo, paper_id, uso, tentativa,
+                                f"json invalido: {e}", provedor=provedor)
                 log.warning("json invalido (%s, tentativa %s)", paper_id, tentativa)
             except Exception as e:  # noqa: BLE001 - erro de rede/provedor
                 ultimo_erro = e
                 self._registrar(
-                    etapa, modelo, paper_id, Uso(), tentativa, f"{type(e).__name__}: {e}"
+                    etapa, modelo, paper_id, Uso(), tentativa, f"{type(e).__name__}: {e}",
+                    provedor=provedor,
                 )
                 log.warning("chamada falhou (%s, tentativa %s): %s", paper_id, tentativa, type(e).__name__)
             else:
                 latencia = int((time.monotonic() - t0) * 1000)
-                self._registrar(etapa, modelo, paper_id, uso, tentativa, None, latencia)
+                self._registrar(etapa, modelo, paper_id, uso, tentativa, None, latencia,
+                                provedor=provedor)
                 return Resposta(dados, uso, modelo, tentativa, latencia)
 
             if tentativa < tentativas:
@@ -460,6 +469,7 @@ class ClienteLLM:
         tentativa: int,
         erro: Optional[str],
         latencia_ms: Optional[int] = None,
+        provedor: Optional[str] = None,
     ) -> None:
         if self.conn is None:
             return
@@ -474,6 +484,7 @@ class ClienteLLM:
             "latencia_ms": latencia_ms,
             "tentativas": tentativa,
             "erro": erro,
+            "provedor": provedor,
             "criado_em": db.agora(),
         }
         with _TRAVA:

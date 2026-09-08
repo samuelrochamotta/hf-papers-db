@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any, Optional, Sequence
 
 from ..log import logger
-from ..taxonomia import MAX_VERTENTES_POR_PAPER
+from ..taxonomia import EIXOS, MAX_VERTENTES_POR_PAPER
 from .cliente import ErroValidacao
 
 log = logger("llm")
@@ -143,7 +143,7 @@ def schema_estagio_a(
             "area_secundaria",
             "subarea_secundaria",
             "vertentes",
-            "candidato_novo_rotulo",
+            "nao_coube",
         ],
         "properties": {
             "veredito_preliminar": {"type": "string", "enum": ["fora", "candidato"]},
@@ -169,14 +169,23 @@ def schema_estagio_a(
                 "maxItems": MAX_VERTENTES_POR_PAPER,
                 "items": {"type": "string", "enum": vertentes},
             },
-            "candidato_novo_rotulo": {
+            # Uma constatacao, e nao um rotulo: o campo antigo pedia um nome
+            # inventado e o que se acumulou foram sinonimos. Aqui o modelo diz
+            # em qual dos tres eixos o encaixe falhou e por que - quem promove
+            # rotulo e a revisao da grade, por quorum, nunca a classificacao.
+            # Nulo e a resposta comum, como no par secundario. Sem `minLength`
+            # e sem rede em `validar`, ao contrario da justificativa do
+            # veredito: piso aqui viraria `ErroValidacao` e, esgotada a
+            # retentativa, deixaria pendente um paper que o modelo classificou
+            # bem - a declaracao de nao-encaixe nao pode custar a atribuicao.
+            # Justificativa vazia e descartada na persistencia, com aviso.
+            "nao_coube": {
                 "type": ["object", "null"],
                 "additionalProperties": False,
-                "required": ["rotulo", "tipo", "definicao"],
+                "required": ["eixo", "justificativa"],
                 "properties": {
-                    "rotulo": {"type": "string"},
-                    "tipo": {"type": "string", "enum": ["area", "topico"]},
-                    "definicao": {"type": "string"},
+                    "eixo": {"type": "string", "enum": list(EIXOS)},
+                    "justificativa": {"type": "string"},
                 },
             },
         },

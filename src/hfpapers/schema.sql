@@ -135,15 +135,21 @@ CREATE TABLE IF NOT EXISTS ponte_paper_vertente (
     ordem       INTEGER NOT NULL,   -- 1 = dominante
     PRIMARY KEY (paper_id, vertente)
 );
-CREATE TABLE IF NOT EXISTS tax_candidato (
-    rotulo      TEXT NOT NULL,
-    tipo        TEXT NOT NULL CHECK (tipo IN ('area','topico')),
-    definicao   TEXT NOT NULL,
-    papers      TEXT NOT NULL,   -- JSON array de paper_id
-    promovido   INTEGER NOT NULL DEFAULT 0,
-    criado_em   TIMESTAMP NOT NULL,
-    PRIMARY KEY (rotulo, tipo)
+-- A fila de revisão da grade: onde ela não serviu, e por quê. Substitui
+-- `tax_candidato`, que guardava o rótulo que o modelo inventava — daí vinham
+-- as seis variantes de robótica e as três de world models. Aqui o modelo não
+-- propõe nome nenhum: constata em qual dos três eixos o encaixe falhou. Quem
+-- promove é a revisão da grade, por quórum, e não o ato de classificar.
+-- Chave por paper, e não por (paper, eixo): o contrato do Estágio A traz no
+-- máximo uma declaração por paper, então reclassificar substitui a anterior
+-- em vez de deixar a de ontem pendurada num eixo que o modelo abandonou.
+CREATE TABLE IF NOT EXISTS tax_nao_encaixe (
+    paper_id        TEXT PRIMARY KEY REFERENCES dim_paper(paper_id),
+    eixo            TEXT NOT NULL CHECK (eixo IN ('area','subarea','vertente')),
+    justificativa   TEXT NOT NULL,
+    registrado_em   TIMESTAMP NOT NULL
 );
+CREATE INDEX IF NOT EXISTS ix_nao_encaixe_eixo ON tax_nao_encaixe(eixo);
 
 -- ══════════════ FACETA NÃO CONTROLADA (keywords do HF) ══════════════
 CREATE TABLE IF NOT EXISTS ponte_paper_keyword (
@@ -195,6 +201,10 @@ CREATE TABLE IF NOT EXISTS log_llm (
     latencia_ms     INTEGER,
     tentativas      INTEGER NOT NULL DEFAULT 1,
     erro            TEXT,
+    -- Quem do outro lado atendeu. O OpenRouter roteia entre dezenas de
+    -- endpoints do mesmo modelo, e eles nao se comportam igual: sem esta
+    -- coluna, "a rodada ficou 9x mais lenta" nao tem a quem ser atribuido.
+    provedor        TEXT,
     criado_em       TIMESTAMP NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_llm_run ON log_llm(run_id);

@@ -1,23 +1,24 @@
 """Governanca do vocabulario controlado - agora em codigo, nao por convencao.
 
-Tetos (config `taxonomia`): 10 areas, 24 topicos, e 2 papers distintos para
-promover um candidato. O teto de vertentes por paper nao e configuravel - ver
-`MAX_VERTENTES_POR_PAPER`.
+**Classificar nao cria rotulo.** O que existia disso - candidato acumulando
+quorum, promocao automatica, teto de vocabulario para segura-la - saiu com
+`tax_candidato`: o Estagio A registra em que eixo a grade nao serviu
+(`aplicar_classificacao`, `nao_encaixes`) e quem promove e a revisao da grade,
+que le essa fila. O teto de vertentes por paper continua aqui, e continua
+constante - ver `MAX_VERTENTES_POR_PAPER`.
 
-Promocao e automatica. **Fusao de rotulos e manual** e exige comando explicito:
-vocabulario grande demais deixa de separar qualquer coisa, e escolher qual par
-fundir e julgamento humano.
+**Fusao de rotulos e manual** e exige comando explicito: vocabulario grande
+demais deixa de separar qualquer coisa, e escolher qual par fundir e julgamento
+humano.
 """
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from . import db
-from .config import Taxonomia as ConfigTaxonomia
 from .log import logger
 
 log = logger("taxonomia")
@@ -29,14 +30,28 @@ log = logger("taxonomia")
 # numero no contrato: duas copias do teto seriam duas chances de divergir.
 MAX_VERTENTES_POR_PAPER = 2
 
+# Os tres eixos em que o encaixe pode falhar. A leitura de cada um e diferente
+# e deliberada: area nova e evento raro e grave - uma peca de sistema que nao
+# existia; sub-area nova e rotina saudavel, o campo se ramifica; vertente nova
+# deveria ser quase impossivel, e e por isso que ela precisa do instrumento -
+# a lista de nove verbos e a hipotese mais fragil do desenho, e nao convinha
+# que fosse o unico eixo sem detector de erro. `llm/schemas.py` importa daqui
+# para montar o enum do contrato, pelo mesmo motivo de `MAX_VERTENTES_POR_PAPER`.
+EIXOS = ("area", "subarea", "vertente")
+
 
 @dataclass
-class ResultadoCandidato:
-    rotulo: str
-    tipo: str
-    papers: list[str]
-    promovido: bool = False
-    aviso: Optional[str] = None
+class NaoEncaixe:
+    """A constatacao de que nenhuma celula da grade serve, e em que eixo.
+
+    Nao carrega rotulo proposto, e essa ausencia e o ticket inteiro: quem
+    sugeria nome era `tax_candidato`, e o que se acumulou la foram sinonimos -
+    seis variantes de robotica, tres de world models. Aqui o modelo constata a
+    falha; quem promove rotulo e a revisao da grade, por quorum.
+    """
+
+    eixo: str
+    justificativa: str
 
 
 @dataclass
@@ -72,8 +87,7 @@ def arvore_de_areas(conn: sqlite3.Connection) -> list[Area]:
     """`dim_area` inteira em dois niveis: toda raiz, com as filhas sob ela.
 
     A raiz da grade plana anterior vem junto, de `subareas` vazia. Quem quer so
-    uma das duas grades filtra pela forma - `areas_facetadas` e
-    `areas_grade_antiga` sao os dois lados desse filtro.
+    a grade facetada filtra pela forma - e o que `areas_facetadas` faz.
     """
     filhas: dict[str, list[Area]] = {}
     for r in conn.execute(
@@ -97,25 +111,6 @@ def areas_facetadas(conn: sqlite3.Connection) -> list[Area]:
     contracao do ticket 05.
     """
     return [a for a in arvore_de_areas(conn) if a.subareas]
-
-
-def areas_grade_antiga(conn: sqlite3.Connection) -> list[tuple[str, str]]:
-    """A grade plana anterior - area sem pai e sem filha -, com a definicao.
-
-    As duas grades convivem em `dim_area` desde o passo de expand, e nada as
-    distingue alem da forma: por isso a hierarquia e o filtro. Desde o ticket 02
-    a classificacao roda na grade facetada (`areas_facetadas`) e esta funcao
-    sobrou para o teto de vocabulario, que continua contando so a grade plana
-    para nao congelar a promocao de rotulo. A plana sai do banco no ticket 05.
-    """
-    return [
-        (r["area"], r["definicao"])
-        for r in conn.execute(
-            "SELECT area, definicao FROM dim_area WHERE area_pai IS NULL "
-            "  AND area NOT IN (SELECT area_pai FROM dim_area WHERE area_pai IS NOT NULL) "
-            "ORDER BY area"
-        )
-    ]
 
 
 def topicos(conn: sqlite3.Connection) -> list[str]:
@@ -143,19 +138,6 @@ def _tabela(tipo: str) -> tuple[str, str]:
     return ("dim_area", "area") if tipo == "area" else ("dim_topico", "topico")
 
 
-def _teto(tipo: str, cfg: ConfigTaxonomia) -> int:
-    return cfg.max_areas if tipo == "area" else cfg.max_topicos
-
-
-def _quantidade(conn: sqlite3.Connection, tipo: str) -> int:
-    # a area conta so a grade plana: somar as duas grades bateria no teto e
-    # congelaria a promocao de rotulo sem que ninguem tivesse pedido isso
-    if tipo == "area":
-        return len(areas_grade_antiga(conn))
-    tabela, _ = _tabela(tipo)
-    return db.contar(conn, tabela)
-
-
 # ── classificacao de um paper ───────────────────────────────────────────────
 
 
@@ -168,6 +150,7 @@ def aplicar_classificacao(
     area_secundaria: Optional[str] = None,
     subarea_secundaria: Optional[str] = None,
     vertentes_paper: Sequence[str] = (),
+    nao_coube: Optional[NaoEncaixe] = None,
 ) -> None:
     """Reescreve as pontes de um paper: os pares (area > sub-area) e as vertentes.
 
@@ -193,6 +176,19 @@ def aplicar_classificacao(
     da grade nova ao lado de um topico da grade que deixou de existir. A tabela
     inteira sai no ticket 05, e com ela esta linha.
 
+    `nao_coube` entra por aqui, e nao por uma chamada propria de quem
+    classifica, porque **e a mesma reescrita**: tudo o que a classificacao diz
+    sobre o lugar do paper na grade - os dois pares, as vertentes e a
+    constatacao de que a grade nao serviu - passa a valer de uma vez ou nao
+    passa. Nulo apaga o registro anterior pelo mesmo motivo que a ponte e
+    reescrita: a declaracao de ontem nao pode sobreviver a uma rodada em que o
+    paper encaixou.
+
+    **O nao-encaixe nunca custa a atribuicao do paper.** Ele e registrado ao
+    lado do par e da vertente, nao no lugar deles: o paper que nao coube segue
+    com a melhor atribuicao possivel, senao a declaracao viraria buraco na
+    base - exatamente o que ela existe para evitar.
+
     Sem `cfg`: o unico teto que esta funcao lia era o de topicos por paper, que
     saiu junto com o campo. O de vertentes e constante do modulo porque a spec
     trata a cardinalidade como trava.
@@ -203,6 +199,7 @@ def aplicar_classificacao(
     conn.execute("DELETE FROM ponte_paper_area WHERE paper_id = ?", (paper_id,))
     conn.execute("DELETE FROM ponte_paper_topico WHERE paper_id = ?", (paper_id,))
     conn.execute("DELETE FROM ponte_paper_vertente WHERE paper_id = ?", (paper_id,))
+    conn.execute("DELETE FROM tax_nao_encaixe WHERE paper_id = ?", (paper_id,))
 
     def _par(area: Optional[str], subarea: Optional[str], *, primaria: bool) -> None:
         if not area and not subarea:
@@ -249,144 +246,59 @@ def aplicar_classificacao(
             {"paper_id": paper_id, "vertente": v, "ordem": ordem},
         )
 
+    _registrar_nao_encaixe(conn, paper_id, nao_coube)
 
-# ── candidatos ──────────────────────────────────────────────────────────────
+
+# ── nao-encaixe ─────────────────────────────────────────────────────────────
 
 
-def registrar_candidato(
-    conn: sqlite3.Connection,
-    *,
-    rotulo: str,
-    tipo: str,
-    definicao: str,
-    paper_id: str,
-    cfg: Optional[ConfigTaxonomia] = None,
-    promover: bool = True,
-) -> ResultadoCandidato:
-    """Acrescenta o paper ao candidato e promove quando houver quorum e folga.
+def _registrar_nao_encaixe(
+    conn: sqlite3.Connection, paper_id: str, nao_coube: Optional[NaoEncaixe]
+) -> None:
+    """Grava a declaracao de nao-encaixe do paper, se houver uma utilizavel.
 
-    `promover=False` grava o candidato e a associacao com o paper, mas nao
-    promove nem com quorum e folga. E o modo da reclassificacao total
-    (`reclassificar --tudo`): promover no meio de uma rodada que varre a base
-    inteira deixaria os papers ja classificados sem o rotulo novo - eles
-    passaram pelo Estagio A com um vocabulario menor e ninguem volta para
-    reavalia-los. Com o vocabulario congelado, a promocao vira decisao manual
-    depois da rodada (`taxonomia listar`, `taxonomia promover`).
+    Declaracao malformada e ignorada com aviso, como o rotulo desconhecido do
+    par: eixo fora dos tres nao tem fila em que entrar, e justificativa em
+    branco nao e legivel como fila de revisao - a grade so se corrige a partir
+    do *porque*. Nenhum dos dois derruba a classificacao, que ja esta gravada
+    quando esta funcao roda.
     """
-    cfg = cfg or ConfigTaxonomia()
-    rotulo = (rotulo or "").strip()
-    if not rotulo or tipo not in ("area", "topico"):
-        return ResultadoCandidato(rotulo, tipo, [], aviso="candidato_invalido")
-
-    tabela, coluna = _tabela(tipo)
-    ja_existe = conn.execute(
-        f"SELECT 1 FROM {tabela} WHERE {coluna} = ?", (rotulo,)
-    ).fetchone()
-    if ja_existe:
-        return ResultadoCandidato(rotulo, tipo, [], aviso=None)
-
-    row = conn.execute(
-        "SELECT papers, promovido FROM tax_candidato WHERE rotulo = ? AND tipo = ?",
-        (rotulo, tipo),
-    ).fetchone()
-    papers = json.loads(row["papers"]) if row else []
-    if paper_id not in papers:
-        papers.append(paper_id)
-
-    db.upsert_candidato(
+    if nao_coube is None:
+        return
+    justificativa = (nao_coube.justificativa or "").strip()
+    if nao_coube.eixo not in EIXOS or not justificativa:
+        log.warning(
+            "nao-encaixe ignorado em %s: eixo '%s', %d caracteres de justificativa",
+            paper_id, nao_coube.eixo, len(justificativa),
+        )
+        return
+    db.inserir_ignorando(
         conn,
+        "tax_nao_encaixe",
         {
-            "rotulo": rotulo,
-            "tipo": tipo,
-            "definicao": definicao,
-            "papers": json.dumps(papers, ensure_ascii=False),
-            "promovido": int(bool(row["promovido"])) if row else 0,
-            "criado_em": db.agora(),
+            "paper_id": paper_id,
+            "eixo": nao_coube.eixo,
+            "justificativa": justificativa,
+            "registrado_em": db.agora(),
         },
     )
 
-    res = ResultadoCandidato(rotulo, tipo, papers)
-    if not promover or len(papers) < cfg.min_papers_novo_rotulo:
-        return res
 
-    if _quantidade(conn, tipo) >= _teto(tipo, cfg):
-        res.aviso = f"teto_vocabulario:{tipo}:{rotulo}"
-        log.warning(
-            "candidato '%s' com quorum mas teto de %s atingido - fusao manual necessaria",
-            rotulo, tipo,
-        )
-        return res
+def nao_encaixes(
+    conn: sqlite3.Connection, *, eixo: Optional[str] = None
+) -> list[dict[str, Any]]:
+    """A fila de revisao da grade, opcionalmente de um eixo so.
 
-    _promover(conn, rotulo=rotulo, tipo=tipo, definicao=definicao)
-    res.promovido = True
-    log.info("candidato promovido a %s: %s", tipo, rotulo)
-    return res
-
-
-def _promover(
-    conn: sqlite3.Connection, *, rotulo: str, tipo: str, definicao: str
-) -> None:
-    """Grava o rotulo no vocabulario. Privada: quem promove entra por
-    `registrar_candidato` (automatico) ou `promover_candidato` (a mao), que sao
-    os dois que sabem checar quorum, teto e duplicata."""
-    tabela, coluna = _tabela(tipo)
-    db.upsert(
-        conn,
-        tabela,
-        {coluna: rotulo, "definicao": definicao, "desde": db.hoje().isoformat()},
-        chave=[coluna],
-    )
-    conn.execute(
-        "UPDATE tax_candidato SET promovido = 1 WHERE rotulo = ? AND tipo = ?",
-        (rotulo, tipo),
-    )
-
-
-def promover_candidato(
-    conn: sqlite3.Connection,
-    *,
-    rotulo: str,
-    tipo: str = "topico",
-    cfg: Optional[ConfigTaxonomia] = None,
-) -> dict[str, Any]:
-    """Promove a mao um candidato de `tax_candidato`, com a definicao dele.
-
-    Existe para o passo manual depois da reclassificacao total, onde a promocao
-    automatica fica desligada: o operador le `taxonomia listar` e decide, um a
-    um, quem vira vocabulario e quem devia ter sido fusao. Recusa - com
-    ValueError, como `fundir` - o rotulo que nao e candidato, o que ja e
-    vocabulario e o que esbarra no teto, porque nenhum dos tres tem conserto
-    dentro deste comando.
+    Sai na ordem do `paper_id` para que duas leituras da mesma base deem a
+    mesma fila - quem le isto e a revisao da grade, que precisa contar familias
+    e nao pode depender da ordem fisica das linhas.
     """
-    cfg = cfg or ConfigTaxonomia()
-    rotulo = (rotulo or "").strip()
-    if tipo not in ("area", "topico"):
-        raise ValueError(f"tipo invalido: {tipo} (use 'area' ou 'topico')")
-
-    tabela, coluna = _tabela(tipo)
-    if conn.execute(f"SELECT 1 FROM {tabela} WHERE {coluna} = ?", (rotulo,)).fetchone():
-        raise ValueError(f"'{rotulo}' ja e {tipo} do vocabulario - nada a promover")
-
-    row = conn.execute(
-        "SELECT definicao, papers FROM tax_candidato WHERE rotulo = ? AND tipo = ?",
-        (rotulo, tipo),
-    ).fetchone()
-    if not row:
-        raise ValueError(f"nao ha candidato a {tipo} com o rotulo '{rotulo}'")
-
-    quantidade, teto = _quantidade(conn, tipo), _teto(tipo, cfg)
-    if quantidade >= teto:
-        raise ValueError(
-            f"teto de {tipo} atingido ({quantidade}/{teto}) - funda dois rotulos "
-            "antes (`hfpapers taxonomia fundir`)"
-        )
-
-    definicao = row["definicao"] or ""
-    with db.transacao(conn):
-        _promover(conn, rotulo=rotulo, tipo=tipo, definicao=definicao)
-    papers = json.loads(row["papers"] or "[]")
-    log.info("candidato promovido a mao a %s: %s (%s papers)", tipo, rotulo, len(papers))
-    return {"rotulo": rotulo, "tipo": tipo, "definicao": definicao, "papers": len(papers)}
+    sql = "SELECT paper_id, eixo, justificativa FROM tax_nao_encaixe"
+    params: list[Any] = []
+    if eixo:
+        sql += " WHERE eixo = ?"
+        params.append(eixo)
+    return [dict(r) for r in conn.execute(sql + " ORDER BY paper_id", params)]
 
 
 # ── fusao (manual) ──────────────────────────────────────────────────────────
@@ -428,8 +340,8 @@ def fundir(conn: sqlite3.Connection, *, de: str, para: str, tipo: str) -> dict[s
 # O vocabulario vivo mora no banco, e o banco nao esta versionado. `exportar` o
 # retrata num JSON que entra no git (`config/taxonomia_inicial.json`) e
 # `carregar` o repoe num banco novo - e so isso: nao e migracao nem sincronia.
-# Candidato nao entra no arquivo porque candidato e fila de promocao, estado de
-# uma base especifica, e nao vocabulario vigente.
+# Nao-encaixe nao entra no arquivo porque e fila de revisao, estado de uma base
+# especifica, e nao vocabulario vigente.
 
 
 def exportar(conn: sqlite3.Connection) -> dict[str, Any]:
@@ -503,7 +415,7 @@ def carregar(conn: sqlite3.Connection, dados: dict[str, Any]) -> dict[str, int]:
     return contagem
 
 
-def listar(conn: sqlite3.Connection, cfg: Optional[ConfigTaxonomia] = None) -> dict[str, Any]:
+def listar(conn: sqlite3.Connection) -> dict[str, Any]:
     """O vocabulario vigente com quantos papers cada rotulo carrega.
 
     A sub-area vem aninhada sob a area, como no arquivo: quem lista quer ver a
@@ -520,7 +432,6 @@ def listar(conn: sqlite3.Connection, cfg: Optional[ConfigTaxonomia] = None) -> d
     distinto, e nao linha: desde que o par secundario pode repetir a area do
     primario, um paper so chega a ter duas linhas na mesma area.
     """
-    cfg = cfg or ConfigTaxonomia()
     por_pai: dict[Optional[str], list[dict]] = {}
     for r in conn.execute(
         "SELECT d.area AS rotulo, d.definicao, d.desde, d.area_pai, "
@@ -554,12 +465,14 @@ def listar(conn: sqlite3.Connection, cfg: Optional[ConfigTaxonomia] = None) -> d
                 "FROM dim_vertente d ORDER BY papers DESC, rotulo"
             )
         ],
-        "candidatos": [
-            {**dict(r), "papers": json.loads(r["papers"])}
+        # Contagem, e nao a fila inteira: `listar` e o retrato do vocabulario
+        # vigente, e o nao-encaixe so entra nele para dizer quanto a grade esta
+        # devendo por eixo. Quem quer a fila chama `nao_encaixes`.
+        "nao_encaixes": {
+            r["eixo"]: r["papers"]
             for r in conn.execute(
-                "SELECT rotulo, tipo, definicao, papers, promovido FROM tax_candidato "
-                "ORDER BY promovido, rotulo"
+                "SELECT eixo, COUNT(*) AS papers FROM tax_nao_encaixe "
+                "GROUP BY eixo ORDER BY eixo"
             )
-        ],
-        "tetos": {"areas": cfg.max_areas, "topicos": cfg.max_topicos},
+        },
     }

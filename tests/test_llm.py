@@ -57,7 +57,7 @@ def _base_a(**over):
         "area_secundaria": None,
         "subarea_secundaria": None,
         "vertentes": ["Automatizar"],
-        "candidato_novo_rotulo": None,
+        "nao_coube": None,
     }
     d.update(over)
     return d

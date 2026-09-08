@@ -262,6 +262,37 @@ def test_banco_antigo_ganha_a_ponte_de_vertente_ao_abrir(tmp_path):
         conn.close()
 
 
+def test_banco_antigo_perde_tax_candidato_ao_abrir(tmp_path):
+    """Os candidatos acumulados descrevem uma grade que deixou de existir, e a
+    informacao que carregavam ja foi extraida no desenho da nova. A tabela sai
+    inteira: o que a substitui - `tax_nao_encaixe` - nao guarda rotulo nenhum."""
+    import sqlite3
+
+    caminho = tmp_path / "com_candidato.db"
+    db.conectar(caminho).close()
+    bruto = sqlite3.connect(caminho)
+    bruto.executescript(
+        "CREATE TABLE tax_candidato ("
+        "  rotulo TEXT NOT NULL, tipo TEXT NOT NULL, definicao TEXT NOT NULL,"
+        "  papers TEXT NOT NULL, promovido INTEGER NOT NULL DEFAULT 0,"
+        "  criado_em TIMESTAMP NOT NULL, PRIMARY KEY (rotulo, tipo));"
+        "INSERT INTO tax_candidato VALUES ('World models', 'topico', 'd', '[]', 0, 'x');"
+    )
+    bruto.commit()
+    bruto.close()
+
+    conn = db.conectar(caminho)
+    try:
+        assert db.colunas(conn, "tax_candidato") == []
+        assert db.colunas(conn, "tax_nao_encaixe") == [
+            "paper_id", "eixo", "justificativa", "registrado_em"
+        ]
+        db.migrar(conn)   # segunda vez: idempotente, nao tenta apagar de novo
+        assert db.diagnostico_banco(conn)["tabelas_faltando"] == []
+    finally:
+        conn.close()
+
+
 def test_a_ponte_de_area_aceita_duas_subareas_irmas_do_mesmo_paper(conn):
     """O par secundario de mesma area com sub-area diferente, que a chave
     `(paper_id, area)` proibia (user story 33)."""

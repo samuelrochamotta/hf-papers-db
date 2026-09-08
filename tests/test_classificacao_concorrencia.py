@@ -21,10 +21,9 @@ from hfpapers.estagios import classificacao
 from hfpapers.llm.cliente import ErroLLM, Resposta, Uso
 from hfpapers.llm.estagio_a import PaperEntrada
 
-CANDIDATO = {
-    "rotulo": "Compiladores de prompt",
-    "tipo": "topico",
-    "definicao": "Ferramental que compila prompt em artefato executavel.",
+NAO_COUBE = {
+    "eixo": "subarea",
+    "justificativa": "Compilar prompt em artefato executavel nao e nenhuma das filhas de Harness.",
 }
 
 
@@ -42,14 +41,14 @@ class LLMConcorrente(LLMDuble):
     """
 
     def __init__(
-        self, conn, cfg, *, fora=(), falha_b_uma_vez=(), falha_a=(), candidatos=(),
+        self, conn, cfg, *, fora=(), falha_b_uma_vez=(), falha_a=(), nao_couberam=(),
         atraso=0.02,
     ):
         super().__init__(conn, cfg, um_a_cada=1)
         self.fora = set(fora)
         self.falha_b_uma_vez = set(falha_b_uma_vez)
         self.falha_a = set(falha_a)
-        self.candidatos = set(candidatos)
+        self.nao_couberam = set(nao_couberam)
         self.atraso = atraso
         self.mutex = threading.Lock()
         self.simultaneas = 0
@@ -83,8 +82,8 @@ class LLMConcorrente(LLMDuble):
 
             if etapa == "estagio_a":
                 dados = dict(RESPOSTA_A_FORA if paper_id in self.fora else RESPOSTA_A)
-                if paper_id in self.candidatos:
-                    dados["candidato_novo_rotulo"] = CANDIDATO
+                if paper_id in self.nao_couberam:
+                    dados["nao_coube"] = NAO_COUBE
             else:
                 dados = RESPOSTA_B
             if validar:
@@ -123,7 +122,7 @@ def _lote() -> list[PaperEntrada]:
 # equivalencia so provaria que o caminho feliz e deterministico.
 FORA = ("2608.00002", "2608.00005")
 FALHA_B = ("2608.00003", "2608.00007")
-CANDIDATOS = ("2608.00001", "2608.00006")  # dois: da quorum e exercita a promocao
+NAO_COUBERAM = ("2608.00001", "2608.00006")  # dois: o nao-encaixe entra na fila por paper
 
 # Colunas de relogio: mudam entre duas rodadas por definicao, e nao e delas que
 # o teste de equivalencia trata.
@@ -151,7 +150,7 @@ def _estado(conn) -> dict[str, list[tuple]]:
 
 def _rodar(conn, cfg, concorrencia: int):
     llm = LLMConcorrente(
-        conn, cfg, fora=FORA, falha_b_uma_vez=FALHA_B, candidatos=CANDIDATOS
+        conn, cfg, fora=FORA, falha_b_uma_vez=FALHA_B, nao_couberam=NAO_COUBERAM
     )
     res = classificacao.rodar(
         conn, llm, _lote(), run_id="run-1", cfg=cfg, concorrencia=concorrencia
@@ -163,8 +162,8 @@ def test_concorrencia_4_produz_o_mesmo_banco_que_1(cfg, tmp_path, base):
     """O teste central: paralelizar o I/O nao pode mudar o resultado.
 
     Duas bases identicas, o mesmo lote, so a concorrencia muda. Compara o banco
-    inteiro (inclusive a ordem das linhas e a lista de papers do candidato de
-    taxonomia, que e onde a ordem de gravacao vira dado) e as contagens.
+    inteiro - inclusive a ordem fisica das linhas, que e onde a ordem de
+    gravacao vira dado - e as contagens.
     """
     outra = db.conectar(tmp_path / "paralela.db")
     try:
@@ -185,7 +184,6 @@ def test_concorrencia_4_produz_o_mesmo_banco_que_1(cfg, tmp_path, base):
             seq.fichas, seq.nao_classificados, seq.pulados
         )
         assert par.avisos == seq.avisos
-        assert par.candidatos_taxonomia == seq.candidatos_taxonomia
         assert par.uso.chamadas == seq.uso.chamadas
         assert par.uso.custo_usd == pytest.approx(seq.uso.custo_usd)
         # o lote de fato exercitou os tres caminhos
@@ -241,8 +239,8 @@ def test_falha_de_um_paper_nao_contamina_os_outros(cfg, base):
 
 
 def test_ordem_de_gravacao_segue_a_ordem_do_lote(cfg, base):
-    """A ordem das gravacoes e contrato, nao acaso: e ela que faz
-    `registrar_candidato` acumular quorum sempre igual.
+    """A ordem das gravacoes e contrato, nao acaso: e ela que faz `revisao` de
+    `fato_triagem` e o `id` de `log_llm` sairem sempre iguais.
 
     Quem a torna observavel e `log_llm`, cujo `id` e AUTOINCREMENT: o duble
     dorme e as threads terminam fora de ordem, mas as linhas tem de sair na

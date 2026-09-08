@@ -62,11 +62,6 @@ refresh:
   # acima de 90 dias: congelado, sem refresh
   enriquecimento_semanal: true   # numTotal* da janela quente, via papers/{id}
 
-taxonomia:
-  max_areas: 10
-  max_topicos: 24
-  min_papers_novo_rotulo: 2
-
 guardrails:
   taxa_fora_min: 0.50
   taxa_fora_faixa_normal: [0.60, 0.80]

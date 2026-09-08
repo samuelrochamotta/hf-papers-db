@@ -270,9 +270,6 @@ def reclassificar(
     guardrails tambem nao rodam - eles calibram o volume de um dia coletado, e
     dizer "volume atipico" de uma varredura de 482 papers seria ruido.
 
-    `tudo=True` congela o vocabulario (`promover_taxonomia=False`): ver
-    `taxonomia.registrar_candidato`.
-
     `concorrencia=None` usa a do `config.yaml` (padrao 1). E aqui que ela
     importa: a rodada total sao ~482 papers de chamada sequencial, e este e o
     unico chamador que pede a base inteira de uma vez.
@@ -307,7 +304,6 @@ def reclassificar(
         try:
             classificacao.rodar(
                 conn, llm, papers, run_id=run_id, cfg=cfg,
-                promover_taxonomia=not tudo,
                 concorrencia=cfg.llm.concorrencia if concorrencia is None else concorrencia,
                 res=parcial,
             )

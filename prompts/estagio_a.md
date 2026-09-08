@@ -83,11 +83,28 @@ vertente do movimento que ele faz (`Baratear`, `Confiabilizar`, `Endurecer`…),
 mesmo que o paper meça o resultado para provar que funcionou — medir o próprio
 resultado é o que todo paper faz, e não é o payload dele.
 
-Se o paper claramente pede um rótulo que não existe na lista, preencha
-`candidato_novo_rotulo` com `{rotulo, tipo, definicao}` — a definição em uma frase,
-no mesmo estilo das existentes. Mesmo assim, **classifique com os rótulos vigentes
-mais próximos**: nenhum paper pode ficar sem classificação. Quando nada faltar,
-`candidato_novo_rotulo` é `null`.
+## Quando a grade não serve
+
+**Não invente rótulo.** Se a grade não tem onde pôr este paper, o que se pede é uma
+constatação, não um nome: preencha `nao_coube` com `{eixo, justificativa}`, dizendo em
+**qual dos três eixos** o encaixe falhou e por quê, em uma ou duas frases.
+
+- `eixo: "area"` — o paper mexe numa peça do sistema que **nenhuma das áreas nomeia**.
+  É o caso raro e grave: as dez áreas cobrem o sistema inteiro, e uma faltando significa
+  que existe peça que o desenho não previu. Não use este eixo quando o paper cabe numa
+  área e o que falta é resolução.
+- `eixo: "subarea"` — a área está certa, mas **nenhuma filha dela** descreve o trabalho.
+  É o caso comum e esperado: o campo se ramifica, e a grade acompanha depois.
+- `eixo: "vertente"` — **nenhum dos nove verbos** é o movimento que o paper faz. Diga
+  qual movimento é, com suas palavras. Este eixo existe porque a lista de nove é a parte
+  mais frágil do desenho e precisa do próprio detector de erro; ainda assim, antes de
+  usá-lo, releia o complemento de cada verbo — ele é mais largo que o rótulo sozinho.
+
+Um eixo só, o que falhou primeiro. E **mesmo declarando o não-encaixe, classifique com
+os rótulos vigentes mais próximos**: nenhum paper pode ficar sem par e sem vertente. A
+declaração é fila de revisão da grade, não recusa de classificar.
+
+Quando a grade serviu — o caso comum —, `nao_coube` é `null`.
 
 ## Justificativa
 

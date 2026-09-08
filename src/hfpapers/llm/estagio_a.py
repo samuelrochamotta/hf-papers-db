@@ -96,7 +96,9 @@ class ResultadoA:
     # Ordenada: a dominante em primeiro. E essa ordem que vira a `ordem` da
     # ponte em `taxonomia.aplicar_classificacao`.
     vertentes: list[str]
-    candidato_novo_rotulo: Optional[dict[str, Any]]
+    # A constatacao de que nenhuma celula serviu, quando ela veio. Nao e rotulo
+    # proposto: quem promove e a revisao da grade, nao esta classificacao.
+    nao_coube: Optional[taxonomia.NaoEncaixe]
     uso: Uso = field(default_factory=Uso)
 
     @property
@@ -194,6 +196,20 @@ def classificar(
         # secundaria. O teto nao e aplicado aqui: quem o aplica e a persistencia
         # (`taxonomia.aplicar_classificacao`), num lugar so.
         vertentes=list(dict.fromkeys(d.get("vertentes") or [])),
-        candidato_novo_rotulo=d.get("candidato_novo_rotulo"),
+        nao_coube=_nao_coube(d.get("nao_coube")),
         uso=resposta.uso,
+    )
+
+
+def _nao_coube(bruto: Any) -> Optional[taxonomia.NaoEncaixe]:
+    """O dicionario da resposta vira o tipo do dominio, ou None.
+
+    Aqui so a forma e conferida - eixo e justificativa sao julgados na
+    persistencia, num lugar so, junto do rotulo desconhecido do par.
+    """
+    if not isinstance(bruto, dict):
+        return None
+    return taxonomia.NaoEncaixe(
+        eixo=str(bruto.get("eixo") or ""),
+        justificativa=str(bruto.get("justificativa") or ""),
     )

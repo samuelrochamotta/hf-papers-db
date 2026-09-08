@@ -86,7 +86,6 @@ class ResultadoClassificacao:
     pulados: int = 0
     nao_classificados: int = 0
     fichas: int = 0
-    candidatos_taxonomia: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
     uso: Uso = field(default_factory=Uso)
 
@@ -287,8 +286,6 @@ def _aplicar_estagio_a(
     a: ea.ResultadoA,
     *,
     run_id: str,
-    cfg: Config,
-    promover_taxonomia: bool,
     so_estagio_a: bool,
     res: ResultadoClassificacao,
 ) -> bool:
@@ -298,6 +295,11 @@ def _aplicar_estagio_a(
     gravar exatamente a mesma coisa, na mesma ordem: e o que faz uma rodada com
     `concorrencia=4` terminar com o banco identico ao de `concorrencia=1`. **So
     a thread principal chama.**
+
+    Uma chamada so para toda a taxonomia do paper, inclusive o nao-encaixe: a
+    classificacao nao promove rotulo nenhum, e por isso nao ha aqui nem quorum
+    a acumular nem vocabulario a congelar - o que existia disso saiu com
+    `tax_candidato`.
     """
     with db.transacao(conn):
         taxonomia.aplicar_classificacao(
@@ -308,21 +310,8 @@ def _aplicar_estagio_a(
             area_secundaria=a.area_secundaria,
             subarea_secundaria=a.subarea_secundaria,
             vertentes_paper=a.vertentes,
+            nao_coube=a.nao_coube,
         )
-        if a.candidato_novo_rotulo:
-            c = taxonomia.registrar_candidato(
-                conn,
-                rotulo=a.candidato_novo_rotulo.get("rotulo", ""),
-                tipo=a.candidato_novo_rotulo.get("tipo", "topico"),
-                definicao=a.candidato_novo_rotulo.get("definicao", ""),
-                paper_id=paper.paper_id,
-                cfg=cfg.taxonomia,
-                promover=promover_taxonomia,
-            )
-            if c.rotulo:
-                res.candidatos_taxonomia.append(c.rotulo)
-            if c.aviso:
-                res.avisos.append(c.aviso)
 
     if not a.candidato:
         with db.transacao(conn):
@@ -376,7 +365,6 @@ def _varrer_sequencial(
     run_id: str,
     cfg: Config,
     so_estagio_a: bool,
-    promover_taxonomia: bool,
     res: ResultadoClassificacao,
     falhas_b: list[tuple[ea.ResultadoA, ea.PaperEntrada]],
 ) -> None:
@@ -392,8 +380,7 @@ def _varrer_sequencial(
         res.uso.somar(a.uso)
 
         if not _aplicar_estagio_a(
-            conn, paper, a, run_id=run_id, cfg=cfg,
-            promover_taxonomia=promover_taxonomia, so_estagio_a=so_estagio_a, res=res,
+            conn, paper, a, run_id=run_id, so_estagio_a=so_estagio_a, res=res
         ):
             continue
 
@@ -450,7 +437,6 @@ def _varrer_paralelo(
     run_id: str,
     cfg: Config,
     so_estagio_a: bool,
-    promover_taxonomia: bool,
     concorrencia: int,
     res: ResultadoClassificacao,
     falhas_b: list[tuple[ea.ResultadoA, ea.PaperEntrada]],
@@ -464,10 +450,13 @@ def _varrer_paralelo(
 
     **A ordem e a mesma de `_varrer_sequencial`** porque os `Future` sao
     drenados na ordem em que foram submetidos - a de `papers` - e toda gravacao
-    acontece aqui, na thread principal. Isso nao e enfeite: `registrar_candidato`
-    acumula quorum e promove, entao drenar por ordem de chegada daria
-    vocabulario diferente a cada rodada. `log_llm` segue a mesma regra, drenado
-    paper a paper (ver `drenar_registros`).
+    acontece aqui, na thread principal. Isso nao e enfeite: `revisao` de
+    `fato_triagem` e lida-e-incrementada, e `log_llm` tem `id` AUTOINCREMENT,
+    entao drenar por ordem de chegada daria um banco diferente a cada rodada.
+    A taxonomia deixou de depender disso quando a promocao saiu da
+    classificacao - o nao-encaixe e por paper e nao acumula quorum -, mas a
+    ordem continua sendo contrato pelos outros dois. `log_llm` e drenado paper
+    a paper (ver `drenar_registros`).
     """
     with cliente.registros_adiados():
         pool = ThreadPoolExecutor(max_workers=concorrencia, thread_name_prefix="estagio3")
@@ -487,9 +476,7 @@ def _varrer_paralelo(
 
                 res.uso.somar(a.uso)
                 if not _aplicar_estagio_a(
-                    conn, paper, a, run_id=run_id, cfg=cfg,
-                    promover_taxonomia=promover_taxonomia, so_estagio_a=so_estagio_a,
-                    res=res,
+                    conn, paper, a, run_id=run_id, so_estagio_a=so_estagio_a, res=res
                 ):
                     continue
                 assert entrada_b is not None  # `_aplicar_estagio_a` so aprova quem tem B
@@ -595,15 +582,10 @@ def rodar(
     run_id: str,
     cfg: Optional[Config] = None,
     so_estagio_a: bool = False,
-    promover_taxonomia: bool = True,
     concorrencia: int = 1,
     res: Optional[ResultadoClassificacao] = None,
 ) -> ResultadoClassificacao:
-    """`promover_taxonomia=False` congela o vocabulario durante a varredura: o
-    candidato e gravado, mas nenhum rotulo novo passa a valer no meio dela (ver
-    `taxonomia.registrar_candidato`). E o modo de `reclassificar --tudo`.
-
-    `concorrencia` e quantas chamadas ao OpenRouter podem estar no ar. Com 1 -
+    """`concorrencia` e quantas chamadas ao OpenRouter podem estar no ar. Com 1 -
     o padrao, e o que a rodada diaria usa - o caminho e o sequencial de sempre.
     Acima disso, so o I/O e paralelo; ver `_varrer_paralelo`.
 
@@ -629,13 +611,13 @@ def rodar(
     if concorrencia == 1:
         _varrer_sequencial(
             conn, cliente, papers, vocab, run_id=run_id, cfg=cfg,
-            so_estagio_a=so_estagio_a, promover_taxonomia=promover_taxonomia,
+            so_estagio_a=so_estagio_a,
             res=res, falhas_b=falhas_b,
         )
     else:
         _varrer_paralelo(
             conn, cliente, papers, vocab, run_id=run_id, cfg=cfg,
-            so_estagio_a=so_estagio_a, promover_taxonomia=promover_taxonomia,
+            so_estagio_a=so_estagio_a,
             concorrencia=concorrencia, res=res, falhas_b=falhas_b,
         )
 

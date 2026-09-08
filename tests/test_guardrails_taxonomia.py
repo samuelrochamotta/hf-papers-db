@@ -5,7 +5,6 @@ import pytest
 
 from hfpapers import db, taxonomia
 from hfpapers.config import Guardrails as CfgGuard
-from hfpapers.config import Taxonomia as CfgTax
 from hfpapers.guardrails import Contagens, avaliar
 
 
@@ -254,59 +253,101 @@ def test_reclassificar_troca_as_vertentes_em_vez_de_acumula_las(base_facetada):
     assert _vertentes(base_facetada) == [("Medir", 1)]
 
 
-def test_candidato_promove_com_dois_papers(base):
-    cfg = CfgTax()
-    with db.transacao(base):
-        r1 = taxonomia.registrar_candidato(
-            base, rotulo="Séries temporais", tipo="topico", definicao="d",
-            paper_id="2608.00000", cfg=cfg,
+# ── nao-encaixe ─────────────────────────────────────────────────────────────
+
+
+def test_nao_encaixe_e_registrado_nos_tres_eixos_e_consultavel_por_eixo(base_facetada):
+    """A fila de revisao da grade, lida eixo a eixo: area nova e evento raro,
+    sub-area nova e rotina, vertente nova quase nao devia acontecer."""
+    razoes = {
+        "area": "Prova de teorema formal nao mexe em nenhuma das dez pecas da grade.",
+        "subarea": "Cache semantico entre requisicoes nao e nenhuma das filhas de Serving.",
+        "vertente": "O paper nem mede nem transforma: ele cataloga o que ja existe.",
+    }
+    for i, (eixo, razao) in enumerate(razoes.items()):
+        with db.transacao(base_facetada):
+            taxonomia.aplicar_classificacao(
+                base_facetada,
+                f"2608.0000{i}",
+                area_primaria="Contexto & recuperação",
+                subarea_primaria="Memória de longo prazo",
+                vertentes_paper=["Medir"],
+                nao_coube=taxonomia.NaoEncaixe(eixo, razao),
+            )
+
+    assert [(r["paper_id"], r["eixo"]) for r in taxonomia.nao_encaixes(base_facetada)] == [
+        ("2608.00000", "area"),
+        ("2608.00001", "subarea"),
+        ("2608.00002", "vertente"),
+    ]
+    fila = taxonomia.nao_encaixes(base_facetada, eixo="subarea")
+    assert [r["paper_id"] for r in fila] == ["2608.00001"]
+    assert fila[0]["justificativa"] == razoes["subarea"]
+
+
+def test_nao_encaixe_nao_impede_a_melhor_atribuicao_nem_cria_rotulo(base_facetada):
+    """Os dois lados do mesmo criterio: quem declara nao-encaixe continua
+    saindo com par e vertente, e a classificacao nao promove nada - o
+    vocabulario tem os mesmos rotulos depois da chamada que antes dela."""
+    antes = (taxonomia.arvore_de_areas(base_facetada), taxonomia.vertentes(base_facetada))
+    with db.transacao(base_facetada):
+        taxonomia.aplicar_classificacao(
+            base_facetada,
+            "2608.00000",
+            area_primaria="Contexto & recuperação",
+            subarea_primaria="Memória de longo prazo",
+            vertentes_paper=["Medir"],
+            nao_coube=taxonomia.NaoEncaixe(
+                "area", "Prova de teorema formal nao mexe em nenhuma das dez pecas."
+            ),
         )
-        r2 = taxonomia.registrar_candidato(
-            base, rotulo="Séries temporais", tipo="topico", definicao="d",
-            paper_id="2608.00001", cfg=cfg,
+
+    assert _pares(base_facetada) == [("Contexto & recuperação", "Memória de longo prazo", 1)]
+    assert _vertentes(base_facetada) == [("Medir", 1)]
+    assert (taxonomia.arvore_de_areas(base_facetada), taxonomia.vertentes(base_facetada)) == antes
+
+
+def test_nao_encaixe_malformado_e_ignorado_sem_derrubar_o_paper(base_facetada):
+    """Eixo fora dos tres nao tem fila em que entrar e justificativa vazia nao
+    e legivel como fila; nenhum dos dois pode custar a taxonomia do paper."""
+    for i, ruim in enumerate(
+        (
+            taxonomia.NaoEncaixe("topico", "A grade antiga tinha topico; a nova nao tem."),
+            taxonomia.NaoEncaixe("subarea", "   "),
         )
-    assert r1.promovido is False and r2.promovido is True
-    assert "Séries temporais" in taxonomia.topicos(base)
-
-
-def test_teto_de_vocabulario_bloqueia_promocao(base):
-    cfg = CfgTax(max_topicos=1)
-    with db.transacao(base):
-        for pid in ("2608.00000", "2608.00001"):
-            r = taxonomia.registrar_candidato(
-                base, rotulo="Novo", tipo="topico", definicao="d", paper_id=pid, cfg=cfg
+    ):
+        with db.transacao(base_facetada):
+            taxonomia.aplicar_classificacao(
+                base_facetada,
+                f"2608.0000{i}",
+                area_primaria="Contexto & recuperação",
+                subarea_primaria="Memória de longo prazo",
+                vertentes_paper=["Medir"],
+                nao_coube=ruim,
             )
-    assert r.promovido is False
-    assert r.aviso.startswith("teto_vocabulario")
-    assert "Novo" not in taxonomia.topicos(base)
+        assert _pares(base_facetada, f"2608.0000{i}") == [
+            ("Contexto & recuperação", "Memória de longo prazo", 1)
+        ]
+    assert taxonomia.nao_encaixes(base_facetada) == []
 
 
-def test_promover_false_registra_mas_nao_promove(base):
-    """Vocabulario congelado da reclassificacao total: o candidato acumula
-    papers, mas nenhum rotulo novo passa a valer no meio da rodada."""
-    cfg = CfgTax()
-    with db.transacao(base):
-        for pid in ("2608.00000", "2608.00001"):
-            r = taxonomia.registrar_candidato(
-                base, rotulo="Séries temporais", tipo="topico", definicao="d",
-                paper_id=pid, cfg=cfg, promover=False,
+def test_reclassificar_sem_nao_encaixe_apaga_a_declaracao_anterior(base_facetada):
+    """A declaracao de ontem nao sobrevive a uma rodada em que o paper coube:
+    seria fila de revisao pedindo conserto de um encaixe que ja funciona."""
+    for nao_coube in (
+        taxonomia.NaoEncaixe("vertente", "Nenhum dos nove verbos descreve catalogar."),
+        None,
+    ):
+        with db.transacao(base_facetada):
+            taxonomia.aplicar_classificacao(
+                base_facetada,
+                "2608.00000",
+                area_primaria="Contexto & recuperação",
+                subarea_primaria="Memória de longo prazo",
+                vertentes_paper=["Medir"],
+                nao_coube=nao_coube,
             )
-    assert r.promovido is False
-    assert r.papers == ["2608.00000", "2608.00001"]
-    assert "Séries temporais" not in taxonomia.topicos(base)
-    # o candidato ficou gravado, com os dois papers: a promocao manual e possivel
-    assert db.contar(base, "tax_candidato", "rotulo = 'Séries temporais'") == 1
-
-
-def test_candidato_repetido_nao_duplica_paper(base):
-    cfg = CfgTax(min_papers_novo_rotulo=5)
-    with db.transacao(base):
-        for _ in range(3):
-            r = taxonomia.registrar_candidato(
-                base, rotulo="Novo", tipo="topico", definicao="d",
-                paper_id="2608.00000", cfg=cfg,
-            )
-    assert r.papers == ["2608.00000"]
+    assert taxonomia.nao_encaixes(base_facetada) == []
 
 
 def test_fusao_reescreve_pontes(base):
@@ -326,53 +367,6 @@ def test_fusao_recusa_rotulo_inexistente(base):
         taxonomia.fundir(base, de="Nao existe", para="Agentes de codificação", tipo="topico")
 
 
-# ── promocao manual ─────────────────────────────────────────────────────────
-
-
-def _candidato(base, rotulo="Séries temporais", papers=("2608.00000",), cfg=None):
-    cfg = cfg or CfgTax(min_papers_novo_rotulo=99)   # alto: nao promove sozinho
-    with db.transacao(base):
-        for pid in papers:
-            taxonomia.registrar_candidato(
-                base, rotulo=rotulo, tipo="topico",
-                definicao="Previsão sobre sequências indexadas no tempo.",
-                paper_id=pid, cfg=cfg,
-            )
-
-
-def test_promover_candidato_usa_a_definicao_do_candidato(base):
-    _candidato(base)
-    r = taxonomia.promover_candidato(base, rotulo="Séries temporais", tipo="topico")
-
-    assert "Séries temporais" in taxonomia.topicos(base)
-    assert r["papers"] == 1
-    definicoes = {t["rotulo"]: t["definicao"] for t in taxonomia.exportar(base)["topicos"]}
-    assert definicoes["Séries temporais"].startswith("Previsão")
-    # o candidato fica marcado como promovido, para `listar` nao repetir a oferta
-    assert db.contar(base, "tax_candidato", "promovido = 1") == 1
-
-
-def test_promover_candidato_recusa_rotulo_desconhecido(base):
-    with pytest.raises(ValueError, match="candidato"):
-        taxonomia.promover_candidato(base, rotulo="Nao existe", tipo="topico")
-
-
-def test_promover_candidato_recusa_rotulo_que_ja_e_vocabulario(base):
-    with pytest.raises(ValueError, match="ja"):
-        taxonomia.promover_candidato(base, rotulo="Agentes de codificação", tipo="topico")
-
-
-def test_promover_candidato_recusa_com_o_teto_batido(base):
-    _candidato(base)
-    with pytest.raises(ValueError, match="teto"):
-        taxonomia.promover_candidato(
-            base, rotulo="Séries temporais", tipo="topico", cfg=CfgTax(max_topicos=1)
-        )
-    assert "Séries temporais" not in taxonomia.topicos(base)
-
-
-# ── bootstrap do vocabulario (exportar / carregar) ──────────────────────────
-
 
 def test_exportar_traz_rotulo_e_definicao(base):
     dados = taxonomia.exportar(base)
@@ -384,17 +378,6 @@ def test_exportar_traz_rotulo_e_definicao(base):
     assert dados["topicos"] == [{"rotulo": "Agentes de codificação", "definicao": "d"}]
     assert dados["vertentes"] == []
 
-
-def test_exportar_nao_leva_candidatos(base):
-    """O arquivo versionado e vocabulario vigente, nao fila de promocao."""
-    with db.transacao(base):
-        taxonomia.registrar_candidato(
-            base, rotulo="Novo tópico", tipo="topico", definicao="d",
-            paper_id="2608.00000", cfg=CfgTax(),
-        )
-    dados = taxonomia.exportar(base)
-    assert "candidatos" not in dados
-    assert [t["rotulo"] for t in dados["topicos"]] == ["Agentes de codificação"]
 
 
 def test_carregar_e_o_inverso_de_exportar(base, conn2):
@@ -571,6 +554,38 @@ def test_rodada_grava_a_vertente_para_todo_paper_inclusive_os_fora(cfg, conn):
     ]
     assert taxonomia.vertente_dominante(conn, "2608.00001") == VERTENTE_TESTE
     assert db.contar(conn, "ponte_paper_topico") == 0
+
+
+def test_rodada_registra_o_nao_encaixe_sem_criar_rotulo(cfg, conn):
+    """O criterio deste ticket, de ponta a ponta: a declaracao de nao-encaixe
+    atravessa o schema novo, a validacao e a persistencia ate a fila de
+    revisao - e o vocabulario sai da rodada com os mesmos rotulos com que
+    entrou, porque a promocao saiu do ato de classificar."""
+    from conftest import AREA_TESTE, SUBAREA_TESTE, VERTENTE_TESTE, LLMComNaoEncaixe
+
+    from hfpapers.estagios import classificacao
+
+    with db.transacao(conn):
+        for i in (1, 2):
+            db.upsert_paper(
+                conn,
+                {"paper_id": f"2608.0000{i}", "titulo": f"P{i}", "primeiro_visto_em": db.agora()},
+            )
+        taxonomia.carregar(conn, _arquivo_versionado())
+    rotulos_antes = (taxonomia.arvore_de_areas(conn), taxonomia.vertentes(conn))
+
+    papers = classificacao.selecionar(conn, force=True)
+    classificacao.rodar(
+        conn, LLMComNaoEncaixe(conn, cfg, um_a_cada=2), papers, run_id="run-1", cfg=cfg
+    )
+
+    fila = taxonomia.nao_encaixes(conn, eixo="subarea")
+    assert [r["paper_id"] for r in fila] == ["2608.00001", "2608.00002"]
+    assert fila[0]["justificativa"].startswith("Cache semântico")
+    # o paper que nao coube nao ficou sem lugar: par e vertente saem do mesmo ato
+    assert _pares(conn, "2608.00001") == [(AREA_TESTE, SUBAREA_TESTE, 1)]
+    assert taxonomia.vertente_dominante(conn, "2608.00001") == VERTENTE_TESTE
+    assert (taxonomia.arvore_de_areas(conn), taxonomia.vertentes(conn)) == rotulos_antes
 
 
 def test_listar_aninha_a_subarea_sob_a_area_e_traz_as_vertentes(base_facetada):

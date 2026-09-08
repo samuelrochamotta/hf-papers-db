@@ -1,12 +1,11 @@
 """Pipeline ponta a ponta com HF e LLM dublados: idempotencia e dry-run."""
 
 import datetime as dt
-import json
 
 import httpx
 import pytest
 import respx
-from conftest import LLMDuble, LLMQuebrado, povoar_vocabulario
+from conftest import LLMComNaoEncaixe, LLMDuble, LLMQuebrado, povoar_vocabulario
 
 from hfpapers import db, execucao, taxonomia
 from hfpapers.estagios import classificacao
@@ -141,37 +140,24 @@ def test_dry_run_nao_grava_nem_gasta_token(cfg, base, daily_bruto):
     assert db.contar(base, "log_llm") == 0
 
 
-class LLMComCandidato(LLMDuble):
-    """Todo Estagio A propoe o mesmo rotulo novo - o quorum de 2 papers cai
-    na segunda chamada."""
-
-    def chamar(self, *, etapa, **kw):
-        r = super().chamar(etapa=etapa, **kw)
-        if etapa == "estagio_a":
-            r.dados = {
-                **r.dados,
-                "candidato_novo_rotulo": {
-                    "rotulo": "Séries temporais",
-                    "tipo": "topico",
-                    "definicao": "Previsão sobre sequências indexadas no tempo.",
-                },
-            }
-        return r
-
-
 @respx.mock
-def test_candidato_de_taxonomia_e_registrado(cfg, base, daily_bruto, paper_bruto):
+def test_nao_encaixe_da_rodada_entra_na_fila_de_revisao(cfg, base, daily_bruto, paper_bruto):
+    """A rodada diaria alimenta a fila de revisao da grade e nao promove nada:
+    quem promove e a revisao da grade, por quorum, fora do ato de classificar."""
     respx.get("https://huggingface.co/api/daily_papers").mock(
         return_value=httpx.Response(200, json=daily_bruto[:2])
     )
     respx.get(url__regex=r"https://huggingface\.co/api/papers/.+").mock(
         return_value=httpx.Response(200, json=paper_bruto)
     )
+    vocabulario_antes = (taxonomia.arvore_de_areas(base), taxonomia.vertentes(base))
     execucao.rodar(cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE,
-                   cliente_hf=_hf(), cliente_llm=LLMComCandidato(base, cfg))
+                   cliente_hf=_hf(), cliente_llm=LLMComNaoEncaixe(base, cfg))
 
-    # dois papers distintos citaram o mesmo rotulo -> promovido
-    assert "Séries temporais" in taxonomia.topicos(base)
+    fila = taxonomia.nao_encaixes(base, eixo="subarea")
+    assert len(fila) == db.contar(base, "fato_triagem") > 0
+    assert fila[0]["justificativa"].startswith("Cache semântico")
+    assert (taxonomia.arvore_de_areas(base), taxonomia.vertentes(base)) == vocabulario_antes
 
 
 # ── reclassificar ───────────────────────────────────────────────────────────
@@ -235,29 +221,20 @@ def test_reclassificar_sem_alvo_nao_abre_execucao(cfg, base):
     assert db.contar(base, "log_execucao") == 0
 
 
-def test_reclassificar_tudo_congela_a_taxonomia(cfg, base):
-    """Promover no meio da varredura deixaria sem o rotulo novo justamente quem
-    ja passou - o candidato fica gravado, a promocao e manual depois."""
+def test_reclassificar_registra_o_nao_encaixe_e_nao_cria_rotulo(cfg, base):
+    """A varredura em massa nao precisa mais congelar vocabulario nenhum: a
+    classificacao deixou de promover, entao a rodada dirigida e a total tem o
+    mesmo efeito sobre a grade - nenhum."""
     _papers(base, 3)
-    execucao.reclassificar(
-        cfg=cfg, conn=base, tudo=True, cliente_llm=LLMComCandidato(base, cfg)
-    )
-
-    assert "Séries temporais" not in taxonomia.topicos(base)
-    candidato = base.execute(
-        "SELECT papers, promovido FROM tax_candidato WHERE rotulo = 'Séries temporais'"
-    ).fetchone()
-    assert candidato["promovido"] == 0
-    assert len(json.loads(candidato["papers"])) == 3
-
-
-def test_reclassificar_dirigido_continua_promovendo(cfg, base):
-    """So `--tudo` congela: a rodada dirigida e pequena e segue a regra diaria."""
-    _papers(base, 3)
-    execucao.reclassificar(
-        cfg=cfg, conn=base, data="2026-08-25", cliente_llm=LLMComCandidato(base, cfg)
-    )
-    assert "Séries temporais" in taxonomia.topicos(base)
+    vocabulario_antes = (taxonomia.arvore_de_areas(base), taxonomia.vertentes(base))
+    for alvo in ({"tudo": True}, {"data": "2026-08-25"}):
+        execucao.reclassificar(
+            cfg=cfg, conn=base, cliente_llm=LLMComNaoEncaixe(base, cfg), **alvo
+        )
+        assert [r["paper_id"] for r in taxonomia.nao_encaixes(base, eixo="subarea")] == [
+            "2608.00000", "2608.00001", "2608.00002"
+        ]
+        assert (taxonomia.arvore_de_areas(base), taxonomia.vertentes(base)) == vocabulario_antes
 
 
 def test_reclassificar_lista_os_papers_que_o_estagio_b_derrubou(cfg, base):

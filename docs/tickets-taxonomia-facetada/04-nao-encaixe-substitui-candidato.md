@@ -16,13 +16,13 @@ existir, e a informação que carregavam já foi extraída no desenho desta.
 
 **Bloqueado por:** 03.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] O contrato de saída do Estágio A troca o rótulo sugerido por uma declaração de
+- [x] O contrato de saída do Estágio A troca o rótulo sugerido por uma declaração de
       não-encaixe com eixo e justificativa
-- [ ] Os três eixos aceitam a declaração
-- [ ] O registro de não-encaixe é consultável por eixo, para leitura como fila de revisão
-- [ ] A promoção sai do ato da classificação: o Estágio A registra o não-encaixe e
+- [x] Os três eixos aceitam a declaração
+- [x] O registro de não-encaixe é consultável por eixo, para leitura como fila de revisão
+- [x] A promoção sai do ato da classificação: o Estágio A registra o não-encaixe e
       nunca cria rótulo; quem promove é a revisão da grade, no ticket 08, por quórum
-- [ ] Os 168 candidatos anteriores saem da base
-- [ ] Não-encaixe declarado não impede o paper de receber sua melhor atribuição possível
+- [x] Os 168 candidatos anteriores saem da base
+- [x] Não-encaixe declarado não impede o paper de receber sua melhor atribuição possível

@@ -38,7 +38,7 @@ TABELAS_ESPERADAS = [
     "dim_area", "dim_topico", "dim_vertente",
     "ponte_paper_area", "ponte_paper_topico", "ponte_paper_vertente",
     "ponte_paper_criterio",
-    "tax_candidato", "ponte_paper_keyword", "ponte_paper_autor",
+    "tax_nao_encaixe", "ponte_paper_keyword", "ponte_paper_autor",
     "log_execucao", "log_llm", "dim_calendario",
 ]
 
@@ -73,17 +73,20 @@ COLUNAS_MIGRADAS = [
     # A auto-referencia entra por ALTER TABLE, que o SQLite so aceita com
     # default NULL - o que e exatamente o que a area raiz quer.
     ("dim_area", "area_pai", "TEXT NULL REFERENCES dim_area(area)"),
+    ("log_llm", "provedor", "TEXT"),
 ]
 
 
 def migrar(conn: sqlite3.Connection) -> None:
-    """Aplica schema.sql, as colunas de `COLUNAS_MIGRADAS` e a reconstrucao de
-    `ponte_paper_area`. Idempotente: tudo la e IF NOT EXISTS, a coluna so e
-    adicionada quando falta e a tabela so e reconstruida uma vez."""
+    """Aplica schema.sql, as colunas de `COLUNAS_MIGRADAS`, a reconstrucao de
+    `ponte_paper_area` e a saida de `tax_candidato`. Idempotente: tudo la e IF
+    NOT EXISTS, a coluna so e adicionada quando falta, e as duas tabelas so sao
+    tocadas uma vez."""
     conn.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
     for tabela, coluna, tipo in COLUNAS_MIGRADAS:
         _garantir_coluna(conn, tabela, coluna, tipo)
     _migrar_ponte_paper_area(conn)
+    _remover_tax_candidato(conn)
 
 
 def colunas(conn: sqlite3.Connection, tabela: str) -> list[str]:
@@ -124,6 +127,28 @@ def _migrar_ponte_paper_area(conn: sqlite3.Connection) -> None:
         "ponte_paper_area reconstruida com a sub-area na chave primaria: "
         "%d pares da grade plana descartados (repovoados pela reclassificacao)",
         descartadas,
+    )
+
+
+def _remover_tax_candidato(conn: sqlite3.Connection) -> None:
+    """Apaga `tax_candidato` e os candidatos que ela guardava.
+
+    Nao ha migracao de conteudo para `tax_nao_encaixe` porque nao ha conteudo a
+    migrar: o candidato era um rotulo *proposto* para uma grade que deixou de
+    existir - as seis variantes de robotica, as tres de world models -, e a
+    informacao que essas familias carregavam ja foi extraida e usada no desenho
+    da grade facetada. O nao-encaixe nem tem campo de rotulo onde po-las.
+
+    Idempotente pela propria pergunta: tabela ausente nao tem o que apagar.
+    """
+    if not colunas(conn, "tax_candidato"):
+        return
+    descartados = contar(conn, "tax_candidato")
+    conn.execute("DROP TABLE tax_candidato")
+    log.warning(
+        "tax_candidato removida: %d candidato(s) descartados - a fila de revisao "
+        "agora e tax_nao_encaixe, que registra o eixo em vez de propor rotulo",
+        descartados,
     )
 
 
@@ -280,10 +305,6 @@ def upsert_topico(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
 
 def upsert_vertente(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
     upsert(conn, "dim_vertente", dados, chave=["vertente"])
-
-
-def upsert_candidato(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
-    upsert(conn, "tax_candidato", dados, chave=["rotulo", "tipo"])
 
 
 def upsert_execucao(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:

@@ -105,12 +105,6 @@ class Refresh(BaseModel):
     enriquecimento_semanal: bool = True
 
 
-class Taxonomia(BaseModel):
-    max_areas: int = 10
-    max_topicos: int = 24
-    min_papers_novo_rotulo: int = 2
-
-
 class Guardrails(BaseModel):
     taxa_fora_min: float = 0.50
     taxa_fora_faixa_normal: tuple[float, float] = (0.60, 0.80)
@@ -129,7 +123,6 @@ class Config(BaseModel):
     hf: HF = HF()
     llm: LLM = LLM()
     refresh: Refresh = Refresh()
-    taxonomia: Taxonomia = Taxonomia()
     guardrails: Guardrails = Guardrails()
     export: Export = Export()
 
