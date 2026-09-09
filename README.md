@@ -430,6 +430,22 @@ As cores têm significados constantes: **azul `#3987e5` para estrito**, **laranj
 a taxa ou o total de aprovados**. Roxo `#9085e9` identifica a curva de votos;
 âmbar `#d9a441` marca seleção e destaque.
 
+**Barra de recorte** — os números da barra descrevem o **recorte em vigor**,
+não a janela inteira: marcado `estrito`, o menu de área passa a dizer 7 em
+"Modelo & treino" (que tem 524 papers na janela) e as áreas sem nenhum estrito
+caem para o fim da lista, com zero. Cada seletor se conta com a **sua própria**
+dimensão solta — senão marcar a primeira área zeraria as demais linhas do
+próprio menu e a segunda ficaria inalcançável. Vale igual para os chips de
+veredito, que por isso continuam mostrando o tamanho dos três baldes quando um
+deles está marcado.
+
+Área, sub-área, vertente e dia mantêm no menu a linha que zerou, com o zero
+visível: ali o zero é informação de grade — diz que aquela célula do
+vocabulário não produz estrito nenhum. Organização é a exceção: são 564 nomes
+na janela, dos quais 368 zeram só de o recorte virar estrito, e a lista de
+zeros não informa nada que a busca do menu já não resolva. Some — menos a que
+estiver marcada, que nunca sai do próprio menu.
+
 **01 · Volume e seletividade** — volume por dia ou semana, dividido por
 veredito, e taxa de aprovação. Os controles permitem explorar o lote e sua
 seletividade no recorte ativo.
