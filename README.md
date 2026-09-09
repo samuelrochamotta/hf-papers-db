@@ -505,11 +505,19 @@ justificativa é mais escondida pela origem do veredito: ou ela aparece, ou
 aparece o aviso de que o pipeline não registrou motivo (linha antiga) ou de que
 o Estágio B não concluiu.
 
-### As duas abas
+### As três abas
 
-**Janela** — os últimos 90 dias (`--dias N` muda), com o filtro cruzado e as
-cinco seções. Sem recorte o arquivo cresceria para sempre: entram ~30 papers por
-dia de publicação.
+**Aprovados** — a tabela dos aprovados dos últimos 90 dias (`--dias N` muda),
+com a decisão e a ficha de cada um. É a aba inicial: abre ordenada por dia, com
+10 linhas e um "mostrar mais" para abrir as 10 seguintes, o resto de uma vez, ou
+recolher.
+
+**Panorama** — os tiles e as quatro seções de gráficos sobre a mesma janela:
+volume e seletividade, vocabulário da grade, regras do corte, atenção e adoção.
+
+As duas dividem a barra de filtro e o mesmo estado: o recorte escolhido numa
+vale na outra. Sem a janela o arquivo cresceria para sempre: entram ~30 papers
+por dia de publicação.
 
 **Registro histórico** — de cada trimestre já fora da janela, os **10 aprovados
 mais votados** com a ficha inteira e os **10 descartados mais votados** com a

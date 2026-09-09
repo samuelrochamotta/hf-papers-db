@@ -34,14 +34,19 @@
   var elTip = document.getElementById('tip');
 
   var state = {
-    aba: 'janela',
-    diasSel: [], vereditos: [], areas: [], vertentes: [], orgs: [],
+    aba: 'aprovados',
+    diasSel: [], vereditos: [], areas: [], subareas: [], vertentes: [], orgs: [],
     // recortes que so o grafico produz (nao ha menu para eles na barra de
     // filtro): `regrasFora` vem do clique no Pareto e `criterios` do clique no
     // card espelho dele ("Por que o pipeline aprova"). Entram em `filtrados()`
     // como qualquer dimensao.
     regrasFora: [], criterios: [],
-    busca: '', ordem: 'votos', aberta: null,
+    // 'dia' por padrao: a aba abre no que chegou hoje, nao no mais votado
+    busca: '', ordem: 'dia', aberta: null,
+    // "mostrar mais" da tabela de aprovados: quantas paginas alem da primeira
+    // estao abertas. Nao zera quando o recorte muda - quem pediu para ver mais
+    // uma vez quer continuar vendo mais.
+    maisAprovados: 0,
     menu: null, buscaMenu: '',
     perSel: null, abertaH: null,
     // Controles locais dos cards; não alteram o recorte global.
@@ -210,6 +215,7 @@
       if (s.vereditos.length && s.vereditos.indexOf(p.v) < 0) return false;
       // dentro de cada dimensao a selecao e OR; entre dimensoes, AND
       if (!livre('areas') && s.areas.length && s.areas.indexOf(p.a) < 0) return false;
+      if (!livre('subareas') && s.subareas.length && s.subareas.indexOf(p.sa) < 0) return false;
       // Vertente DOMINANTE, nao "tem a vertente": `p.vt` chega ordenado por
       // `ponte_paper_vertente.ordem` e a primeira e a que manda. O menu filtra
       // pelo mesmo criterio com que a vista "Vertentes" empilha - se um
@@ -616,7 +622,7 @@
       '</div>';
   }
 
-  /* Rodape comum as duas abas: a procedencia do dado e os modelos que o
+  /* Rodape comum as tres abas: a procedencia do dado e os modelos que o
      produziram nao mudam de aba para aba. */
   function rodape(esquerda) {
     return '<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 28px; padding-top: 24px; margin-top: 30px; border-top: 1px solid #242a30; font-size: 10.5px; letter-spacing: 0.1em; color: #5f636a;">' +
@@ -625,14 +631,18 @@
       '</div>';
   }
 
-  /* Navegacao entre as duas abas. Sublinhado em vez de pilula: as pilulas ja
+  /* Navegacao entre as tres abas. Sublinhado em vez de pilula: as pilulas ja
      significam "filtro" em todo o resto do painel, e uma aba nao filtra nada -
      ela troca a pergunta que a pagina responde. */
-  function navAbas() {
+  /* `aprovados` e a contagem do recorte vivo, nao da janela inteira: a nota
+     da primeira aba reage aos filtros para dizer quantas linhas a tabela tem
+     antes de a pessoa trocar para ela. As duas primeiras abas dividem a barra
+     de filtro e o mesmo `state`; a terceira nao passa por filtro nenhum. */
+  function navAbas(aprovados) {
     var s = state;
     var itens = [
-      { valor: 'janela', label: 'Janela', nota: DADOS.papers.length + ' papers · ' + DADOS.janela + 'd' +
-          (DADOS.pendentes ? ' · +' + DADOS.pendentes + ' na fila' : '') },
+      { valor: 'aprovados', label: 'Aprovados', nota: aprovados + ' no recorte' },
+      { valor: 'panorama', label: 'Panorama', nota: '4 seções' },
       { valor: 'historico', label: 'Registro histórico', nota: (DADOS.hall || []).length + ' trimestres' }
     ];
     return '<div style="display: flex; gap: 30px; margin-top: 26px; border-bottom: 1px solid #242a30;">' +
@@ -670,7 +680,7 @@
         '<div class="card" style="padding: 62px 26px; text-align: center;">' +
           '<div style="font-family: Newsreader, Georgia, serif; font-size: 28px; font-weight: 400; color: #f5f3ee; margin-bottom: 12px;">Nenhum período saiu da janela ainda</div>' +
           '<div style="font-size: 13px; line-height: 1.65; color: #8b8f96; max-width: 580px; margin: 0 auto;">Um paper entra no registro histórico quando completa ' +
-            (DADOS.diasRefresh || DADOS.diasHall) + ' dias — a mesma marca em que o pipeline para de reconsultar os votos dele. Até lá ele está na aba <em style="color: #a8a49b;">Janela</em>, com o número de votos ainda vivo.</div>' +
+            (DADOS.diasRefresh || DADOS.diasHall) + ' dias — a mesma marca em que o pipeline para de reconsultar os votos dele. Até lá ele está na aba <em style="color: #a8a49b;">Aprovados</em>, com o número de votos ainda vivo.</div>' +
         '</div>');
       out.push(rodape('REGISTRO HISTÓRICO · NENHUM PERÍODO FECHADO'));
       return out.join('');
@@ -685,7 +695,7 @@
       '<div class="card" style="margin: 26px 0 30px; padding: 20px 24px; display: flex; align-items: flex-start; gap: 16px;">' +
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.5v.01"></path></svg>' +
         '<div style="font-size: 12.5px; line-height: 1.7; color: #a8a49b; max-width: 880px; text-wrap: pretty;">' +
-          'A aba <em style="color: #ecebe6; font-style: normal;">Janela</em> mostra os últimos ' + DADOS.janela + ' dias. Aqui ficam, de cada trimestre já fora dela, os mais votados pela comunidade — ' +
+          'As abas <em style="color: #ecebe6; font-style: normal;">Aprovados</em> e <em style="color: #ecebe6; font-style: normal;">Panorama</em> mostram os últimos ' + DADOS.janela + ' dias. Aqui ficam, de cada trimestre já fora dela, os mais votados pela comunidade — ' +
           'os dez aprovados com a ficha inteira e os dez que o pipeline descartou. ' +
           '<span style="color: #6d7178;">Nada é apagado em lugar nenhum: a série completa continua no banco e nos Parquet. Os votos aqui estão congelados porque o refresh para de reconsultá-los aos ' + (DADOS.diasRefresh || DADOS.diasHall) + ' dias — medido, eles param de se mexer por volta do décimo quarto.</span>' +
         '</div>' +
@@ -876,6 +886,15 @@
             '<span style="font-size: 10px; letter-spacing: 0.16em; color: #6d7178;">JANELA</span>' +
             '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 14px; color: #ecebe6;">' +
               esc(dias.length ? diaCurto(dias[0]) + ' – ' + diaCurto(dias[dias.length - 1]) : '—') +
+              '<span style="color: #6d7178;"> · ' + DADOS.janela + 'd</span>' +
+            '</span>' +
+          '</div>' +
+          // Morava na aba "Janela", que deixou de existir: a contagem descreve
+          // as duas abas filtraveis, entao sobe para o cabecalho, que e de todas.
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<span style="font-size: 10px; letter-spacing: 0.16em; color: #6d7178;">PAPERS</span>' +
+            '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 14px; color: #ecebe6;">' + todos.length +
+              (DADOS.pendentes ? '<span style="color: #6d7178;"> · +' + DADOS.pendentes + ' na fila</span>' : '') +
             '</span>' +
           '</div>' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
@@ -886,7 +905,7 @@
       '</div>'
     );
 
-    out.push(navAbas());
+    out.push(navAbas(aprovados));
 
     /* A aba historica sai aqui. Ela nao passa pela barra de filtro de proposito:
        `filtrados()` recorta DADOS.papers, que e so a janela - deixar o filtro
@@ -942,6 +961,14 @@
       return { valor: a.a, label: a.a, n: contaArea[a.a] || 0 };
     }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
 
+    // Mesmo vocabulario completo usado nos tooltips, incluindo sub-areas
+    // sem papers na janela. A contagem usa o par primario, como o filtro.
+    var contaSubarea = {};
+    todos.forEach(function (p) { if (p.sa) contaSubarea[p.sa] = (contaSubarea[p.sa] || 0) + 1; });
+    var itensSubarea = Object.keys(DADOS.subdef || {}).map(function (sa) {
+      return { valor: sa, label: sa, n: contaSubarea[sa] || 0 };
+    }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
+
     // Contagem por DOMINANTE, o mesmo criterio do filtro. A lista sai de
     // `DADOS.vertentes` e nao das que aparecem no recorte: uma vertente que
     // zerou precisa continuar no menu, com o zero visivel, senao o painel
@@ -967,6 +994,7 @@
     if (s.diasSel.length) ativos.push(s.diasSel.length === 1 ? diaCurto(s.diasSel[0]) : s.diasSel.length + ' dias');
     if (s.vereditos.length) ativos.push(s.vereditos.join('+'));
     if (s.areas.length) ativos.push(s.areas.length === 1 ? s.areas[0] : s.areas.length + ' áreas');
+    if (s.subareas.length) ativos.push(s.subareas.length === 1 ? s.subareas[0] : s.subareas.length + ' sub-áreas');
     // "dominante": o resumo diz por qual criterio a vertente recorta, porque
     // um paper costuma ter mais de uma e sem isso o numero pareceria errado
     if (s.vertentes.length) ativos.push(s.vertentes.length === 1
@@ -987,8 +1015,8 @@
     // z-index 90 na linha do menu aberto: sem isso a cortina de fechar (80)
     // ficaria por cima do proprio menu e nenhum item seria clicavel.
     var zDia = s.menu === 'diasSel' ? 90 : 4;
-    // Os dois menus dividem a linha TEMA, entao ela sobe se qualquer um abrir.
-    var zTema = (s.menu === 'areas' || s.menu === 'vertentes') ? 90 : 2;
+    // Os tres menus dividem a linha TEMA, entao ela sobe se qualquer um abrir.
+    var zTema = (s.menu === 'areas' || s.menu === 'subareas' || s.menu === 'vertentes') ? 90 : 2;
     var zOrg = s.menu === 'orgs' ? 90 : 1;
 
     out.push(
@@ -1006,7 +1034,7 @@
                 ev('i', function (e) { setState({ busca: e.target.value, aberta: null, justExp: {} }); }) +
                 ' placeholder="buscar título ou organização" style="font-family: \'Instrument Sans\', sans-serif; font-size: 13px; padding: 9px 14px 9px 36px; width: 268px; border: 1px solid #2b3138; border-radius: 100px; background: #1b1f23; color: #ecebe6; outline: none;">' +
             '</div>' +
-            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], vertentes: [], regrasFora: [], criterios: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
+            '<div class="chip"' + ev('c', function () { setState({ diasSel: [], vereditos: [], areas: [], subareas: [], vertentes: [], regrasFora: [], criterios: [], orgs: [], busca: '', aberta: null, menu: null, buscaMenu: '', justExp: {} }); }) + ' style="' + estiloLimpar + '">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>limpar</span>' +
             '</div>' +
           '</div>' +
@@ -1039,6 +1067,7 @@
         '</div>' +
         linhaFiltro('TEMA', zTema,
           montaMenu('ÁREA', 'areas', itensArea, { todos: 'todas' }) +
+          montaMenu('SUB-ÁREA', 'subareas', itensSubarea, { todos: 'todas' }) +
           montaMenu('VERTENTE', 'vertentes', itensVert, { todos: 'todas' })) +
         linhaFiltro('AUTORIA', zOrg, montaMenu('ORGANIZAÇÃO', 'orgs', itensOrg, { todos: 'todas' })) +
       '</div>'
@@ -1047,6 +1076,12 @@
     if (s.menu) {
       out.push('<div' + ev('c', function () { setState({ menu: null, buscaMenu: '' }); }) + ' style="position: fixed; inset: 0; z-index: 80;"></div>');
     }
+
+    /* As duas abas filtraveis dividem tudo acima desta linha. O que vem
+       abaixo e exclusivo de cada uma: Panorama traz os tiles e as secoes 01 a
+       04; Aprovados traz a tabela. Os blocos ficam em `if` sem reindentar
+       porque o conteudo nao mudou - so a aba em que ele aparece. */
+    if (s.aba === 'panorama') {
 
     /* ══════════════ STAT TILES ══════════════ */
     var comFicha = sel.filter(function (p) { return p.f; }).length;
@@ -1779,8 +1814,10 @@
       '</div>'
     );
 
-    /* ══════════════ 05 · FICHAS ══════════════ */
-    out.push(secao('05', 'Por que passou, e o que ficou registrado'));
+    }  // fim da aba Panorama
+
+    /* ══════════════ APROVADOS · TABELA ══════════════ */
+    if (s.aba === 'aprovados') {
 
     var fichaPorId = {};
     DADOS.fichas.forEach(function (f) { fichaPorId[f.p] = f; });
@@ -1793,7 +1830,8 @@
     else if (s.ordem === 'dia') aprovadosCard.sort(function (a, b) { return (b.d || '').localeCompare(a.d || ''); });
     else aprovadosCard.sort(function (a, b) { return a.t.localeCompare(b.t); });
 
-    var limite = COMPACTA ? 10 : 16;
+    var pagina = 10;
+    var limite = pagina * (1 + s.maisAprovados);
     var linhasFicha = aprovadosCard.slice(0, limite).map(function (p) {
       var f = fichaPorId[p.id];
       var aberta = s.aberta === p.id;
@@ -1841,13 +1879,35 @@
     }).join('');
 
     var chipsOrdem = [
-      { label: 'votos', valor: 'votos' }, { label: 'dia', valor: 'dia' }, { label: 'título', valor: 'titulo' }
+      { label: 'dia', valor: 'dia' }, { label: 'votos', valor: 'votos' }, { label: 'título', valor: 'titulo' }
     ].map(function (c) {
       var on = s.ordem === c.valor;
       var menor = ' font-size: 11.5px; padding: 6px 12px;';
       return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' + ev('c', function () { setState({ ordem: c.valor }); }) +
         ' style="' + (on ? pillOn : pill(false)) + menor + '">' + c.label + '</div>';
     }).join('');
+
+    // "mostrar mais" abre mais uma pagina; "todos" abre o resto de uma vez;
+    // "recolher" volta a primeira pagina. Os tres so aparecem quando ha o que
+    // abrir ou fechar - com 10 aprovados ou menos o rodape e so a contagem.
+    var chipMenor = ' font-size: 11.5px; padding: 6px 12px;';
+    var rodapeMais = '';
+    if (aprovadosCard.length > limite) {
+      var restam = aprovadosCard.length - limite;
+      rodapeMais +=
+        '<div class="chip"' + ev('c', function () { setState({ maisAprovados: s.maisAprovados + 1 }); }) +
+          ' style="' + pill(false) + chipMenor + '">mostrar mais ' + Math.min(pagina, restam) + '</div>';
+      if (restam > pagina) {
+        rodapeMais +=
+          '<div class="chip"' + ev('c', function () { setState({ maisAprovados: Math.ceil(aprovadosCard.length / pagina) - 1 }); }) +
+            ' style="' + pill(false) + chipMenor + '">todos os ' + aprovadosCard.length + '</div>';
+      }
+    }
+    if (s.maisAprovados > 0 && aprovadosCard.length > pagina) {
+      rodapeMais +=
+        '<div class="chip"' + ev('c', function () { setState({ maisAprovados: 0, aberta: null, justExp: {} }); }) +
+          ' style="' + pill(false) + chipMenor + '">recolher</div>';
+    }
 
     out.push(
       '<div class="card" style="overflow-x: auto;">' +
@@ -1865,13 +1925,18 @@
         '</div>' +
         linhasFicha +
         (linhasFicha ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum paper aprovado dentro deste recorte.</div>') +
-        '<div style="padding: 15px 24px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #6d7178;">' +
-          (aprovadosCard.length > limite
-            ? 'Mostrando ' + limite + ' de ' + aprovadosCard.length + ' aprovados — refine o recorte para ver o resto.'
-            : aprovadosCard.length + ' aprovado(s) neste recorte.') +
+        '<div style="display: flex; align-items: center; gap: 14px; padding: 15px 24px;">' +
+          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #6d7178;">' +
+            (aprovadosCard.length > limite
+              ? 'Mostrando ' + limite + ' de ' + aprovadosCard.length + ' aprovados.'
+              : aprovadosCard.length + ' aprovado(s) neste recorte.') +
+          '</span>' +
+          rodapeMais +
         '</div>' +
       '</div>'
     );
+
+    }  // fim da aba Aprovados
 
     /* ══════════════ RODAPÉ ══════════════ */
     out.push(rodape('FONTE: data/hfpapers.db → marts/*.parquet · ' + todos.length + ' PAPERS · ' + DADOS.fichas.length + ' FICHAS'));

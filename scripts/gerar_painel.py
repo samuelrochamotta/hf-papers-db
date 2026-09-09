@@ -576,7 +576,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             {"a": a["area"], "def": a.get("definicao") or ""}
             for a in areas_raiz
         ],
-        # Definicoes das sub-areas, para o tooltip da vista "Sub-áreas".
+        # Sub-areas para o filtro SUB-ÁREA e os tooltips da vista "Sub-áreas".
         # Mapa plano porque a chave basta: os 64 nomes sao unicos entre si na
         # `dim_area` inteira (ela e uma tabela so, `area` e a PK), entao nao ha
         # como duas areas terem sub-area homonima. As 64 viajam, e nao so as do
