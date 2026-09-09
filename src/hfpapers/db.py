@@ -69,6 +69,9 @@ def abrir(cfg: Optional[Config] = None, **kwargs: Any) -> sqlite3.Connection:
 # nova precisa de `ALTER TABLE` proprio; a DDL em schema.sql continua sendo a
 # fonte para banco criado do zero. Formato: (tabela, coluna, tipo SQL).
 COLUNAS_MIGRADAS = [
+    ("dim_paper", "data_arxiv_informada_hf", "DATE"),
+    ("dim_paper", "data_arxiv_v1", "DATE"),
+    ("dim_paper", "arxiv_v1_verificado_em", "TEXT"),
     ("fato_triagem", "fronteira_contraparte", "TEXT"),
     # A auto-referencia entra por ALTER TABLE, que o SQLite so aceita com
     # default NULL - o que e exatamente o que a area raiz quer.
@@ -85,6 +88,8 @@ def migrar(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
     for tabela, coluna, tipo in COLUNAS_MIGRADAS:
         _garantir_coluna(conn, tabela, coluna, tipo)
+    conn.execute("UPDATE dim_paper SET data_arxiv_informada_hf = data_arxiv "
+                 "WHERE data_arxiv_informada_hf IS NULL AND data_arxiv IS NOT NULL")
     _migrar_ponte_paper_area(conn)
     _remover_tax_candidato(conn)
     _contrair_grade_antiga(conn)
@@ -290,6 +295,13 @@ def inserir_ignorando(
 
 
 def upsert_paper(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
+    if {"data_arxiv_v1", "arxiv_v1_verificado_em"} & dados.keys():
+        raise ValueError("v1 deve ser escrita exclusivamente por registrar_arxiv_v1")
+    dados = dict(dados)
+    if "data_arxiv_informada_hf" in dados:
+        dados["data_arxiv"] = dados["data_arxiv_informada_hf"]
+    elif "data_arxiv" in dados:
+        dados["data_arxiv_informada_hf"] = dados["data_arxiv"]
     upsert(
         conn,
         "dim_paper",
@@ -297,13 +309,23 @@ def upsert_paper(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
         chave=["paper_id"],
         nao_sobrescrever=["primeiro_visto_em"],
         manter_se_nulo=[
-            "abstract", "ai_summary", "ai_summary_model", "data_arxiv",
+            "abstract", "ai_summary", "ai_summary_model", "data_arxiv", "data_arxiv_informada_hf",
             "data_hf_daily", "project_page", "github_repo", "github_repo_added_by",
             "discussion_id", "thumbnail_url", "organizacao", "organizacao_nome_longo",
             "submetido_por", "submetido_por_nome", "autor_participa", "qtd_autores",
             "qtd_autores_verificados", "enriquecido_em",
         ],
     )
+
+
+def registrar_arxiv_v1(conn: sqlite3.Connection, pid: str, data: str, verificado: str) -> bool:
+    """Preenche uma vez; uma revalidacao divergente nunca sobrescreve a v1."""
+    dt.date.fromisoformat(data)
+    with transacao(conn):
+        conn.execute("UPDATE dim_paper SET data_arxiv_v1=?, arxiv_v1_verificado_em=? "
+                     "WHERE paper_id=? AND data_arxiv_v1 IS NULL", (data, verificado, pid))
+        row = conn.execute("SELECT data_arxiv_v1 FROM dim_paper WHERE paper_id=?", (pid,)).fetchone()
+    return bool(row and row[0] == data)
 
 
 def upsert_metrica(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
@@ -415,6 +437,7 @@ def garantir_calendario(conn: sqlite3.Connection, *, margem_dias: int = 400) -> 
         "SELECT MIN(d) AS d FROM ("
         "  SELECT MIN(data_hf_daily) AS d FROM dim_paper"
         "  UNION ALL SELECT MIN(data_arxiv) FROM dim_paper"
+        "  UNION ALL SELECT MIN(data_arxiv_v1) FROM dim_paper"
         "  UNION ALL SELECT MIN(data_snapshot) FROM fato_metrica"
         ")"
     ).fetchone()

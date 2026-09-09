@@ -23,7 +23,7 @@ from .log import logger
 
 log = logger("run")
 
-ESTAGIOS = ("coleta", "enriquecimento", "classificacao", "refresh", "export")
+ESTAGIOS = ("coleta", "enriquecimento", "classificacao", "refresh", "datas_arxiv", "export")
 
 
 @dataclass
@@ -200,6 +200,16 @@ def rodar(
             r = refresh.rodar(conn, hf, cfg.refresh, hoje=hoje)
             res.refresh_papers = r.papers_atualizados
             res.avisos.extend(r.avisos)
+
+        if "datas_arxiv" in etapas:
+            from .auditoria_arxiv import auditar
+            auditoria = auditar(conn, cache=cfg.caminho_banco.parent / 'cache_arxiv_v1',
+                               aplicar=True, apenas_pendentes=True)
+            res.avisos.extend('arxiv_' + p['resultado'] + ':' + p['paper_id']
+                             for p in auditoria['papers'] if p['resultado'] != 'verificado')
+            cfg.dir_relatorios.mkdir(parents=True, exist_ok=True)
+            (cfg.dir_relatorios / 'auditoria-arxiv-pendentes.json').write_text(
+                json.dumps(auditoria, ensure_ascii=False, indent=2))
 
         # ── guardrails (validacao, nao decisao) ─────────────────────────────
         dia_util = (data or hoje).isoweekday() <= 5

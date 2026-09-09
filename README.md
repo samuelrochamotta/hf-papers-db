@@ -104,14 +104,15 @@ precisão.
 
 ## Pipeline
 
-Cinco estágios, em sequência, cada um idempotente e com transação própria:
+Seis estágios, executados nesta ordem, com persistência incremental:
 
 ```
 [1] COLETA        → busca dias novos no HF, insere papers inéditos
 [2] ENRIQUECIMENTO→ para papers inéditos, busca campos do endpoint por-paper
 [3] CLASSIFICAÇÃO → Estágio A (barato) em todos; Estágio B (forte) nos sobreviventes
 [4] REFRESH       → re-consulta métricas vivas de papers já na base
-[5] EXPORT        → materializa os Parquet do Power BI
+[5] DATAS_ARXIV   → verifica a submissão v1 dos papers ainda pendentes de auditoria
+[6] EXPORT        → materializa os Parquet do Power BI
 ```
 
 Falha no estágio 3 não corrompe o que o 1 gravou: a rodada termina com
@@ -120,7 +121,7 @@ Falha no estágio 3 não corrompe o que o 1 gravou: a rodada termina com
 **Dia antigo é `run --data`.** Não existe carga histórica, comando especial nem
 diretório de insumo: `daily_papers?date=` devolve qualquer data passada, e a
 coleta trata 14/08 igual a ontem. Um dia que ficou de fora entra com
-`python -m hfpapers run --data 2026-08-14`, pelos mesmos cinco estágios e com o
+`python -m hfpapers run --data 2026-08-14`, pelos mesmos seis estágios e com o
 mesmo veredito que qualquer outro paper receberia. O único dado que já veio de
 fora do pipeline é o vocabulário controlado, e ele hoje mora em
 `config/taxonomia_inicial.json` (`taxonomia exportar|carregar`).
@@ -133,10 +134,14 @@ python -m hfpapers run --data 2026-08-25      # força uma data
 python -m hfpapers run --only coleta,export   # subconjunto de estágios
 python -m hfpapers run --dry-run              # estima custo, não chama LLM
 python -m hfpapers run --force                # reclassifica quem já tem triagem
-python -m hfpapers export
+python -m hfpapers export                     # só exporta, sem consultas externas
+python -m hfpapers auditar-datas-arxiv         # relatório de toda a base, sem alterar o banco
+python -m hfpapers auditar-datas-arxiv --aplicar
+python -m hfpapers run --only datas_arxiv,export  # verifica v1 pendentes e exporta
 python -m hfpapers reclassificar --data 2026-08-25
 python -m hfpapers reclassificar --paper 2608.23552
 python -m hfpapers reclassificar --tudo                    # a base inteira, horas
+python -m hfpapers reclassificar --tudo --so-estagio-a       # só taxonomia/Estágio A
 python -m hfpapers reclassificar --tudo --concorrencia 4   # 1 = sequencial, teto 8
 python -m hfpapers taxonomia listar
 python -m hfpapers taxonomia nao-encaixes [--eixo area|subarea|vertente]
@@ -148,6 +153,10 @@ python -m hfpapers custos --mes 2026-08       # quanto a LLM custou
 python -m hfpapers doutor [--sem-rede]        # chave, API, banco e pendências de triagem
 python -m hfpapers schema                     # DDL efetivo do banco
 ```
+
+`--so-estagio-a` encerra a reclassificação antes do Estágio B: candidatos não
+recebem novo veredito nem nova ficha. Serve para medir a grade, não para
+substituir a reclassificação completa.
 
 `reclassificar` roda só o estágio 3 sobre papers já vistos, incrementando
 `revisao`. `--tudo` é exclusivo com `--data`/`--paper` — ou se varre a base
@@ -335,8 +344,9 @@ python -m hfpapers doutor --sem-rede
 python -m hfpapers taxonomia listar
 python -m hfpapers taxonomia nao-encaixes --eixo subarea
 
-# 6. publicar
-python -m hfpapers export && scripts/gerar_painel.sh --force
+# 6. exportar e gerar o painel localmente
+python -m hfpapers export
+python scripts/gerar_painel.py --force
 ```
 
 O painel só é regenerado no passo 6: **não há transição visível** para quem lê.
@@ -392,11 +402,11 @@ a vitrine para quem não vai abrir o Power BI.
 O desenho é o do Artifact **Painel Daily Papers**, que nasceu como artboard da
 Claude Design. Aquele arquivo só roda dentro do runtime do canvas;
 `scripts/painel_app.js` é o mesmo layout portado para JS de navegador — cinco
-seções (01 volume e recência, 02 vocabulário e cruzamentos, 03 regras do corte,
+seções (01 volume e seletividade, 02 vocabulário da grade, 03 regras do corte,
 04 atenção e adoção, 05 por que passou), filtro cruzado por dia, veredito, área,
-área secundária, organização, regra de descarte e critério de veredito.
-`gerar_painel.py` não desenha nada: extrai os dados de `marts/`, serializa em
-`DADOS` e embute o app.
+vertente dominante, organização, regra de descarte e critério de veredito.
+`gerar_painel.py` extrai os dados de `marts/`, serializa em `DADOS` e embute
+o JavaScript e os estilos em um único HTML.
 
 **O gatilho é dependência real, não horário chutado.** O estágio de export
 escreve `marts/_manifest.json` por último e de forma atômica (`os.replace`),
@@ -415,39 +425,77 @@ Três defesas contra o disparo repetido ou perdido:
 
 ### O que o painel mostra
 
-**Verde `#4ec07a` significa aprovado**, em todo o painel: a linha da taxa de
-aprovação, a escala de aprovação do heatmap e a cor da matriz de áreas. O
-amarelo (`ACCENT`) voltou a ser só link e destaque — ele já significou
-"aprovado" nesses três lugares e brigava com o próprio papel de chamar atenção.
-Estrito continua azul e amplo laranja na distribuição por veredito; a curva do
-voto é roxa, porque não é nenhuma dessas coisas.
+As cores têm significados constantes: **azul `#3987e5` para estrito**, **laranja
+`#d95926` para amplo**, **cinza `#6b7480` para fora** e **verde `#4ec07a` para
+a taxa ou o total de aprovados**. Roxo `#9085e9` identifica a curva de votos;
+âmbar `#d9a441` marca seleção e destaque.
 
-Na seção **03 · Regras do corte**, dois cards espelhados:
+**01 · Volume e seletividade** — volume por dia ou semana, dividido por
+veredito, e taxa de aprovação. Os controles permitem explorar o lote e sua
+seletividade no recorte ativo.
 
-- **Onde o pipeline corta** (Pareto) — motivos de descarte em ordem de volume,
-  cada barra rotulada "n · % dos descartados". A linha do acumulado saiu: com
-  seis regras ela era decorativa. A barra "regra não registrada" continua no
-  código mesmo tendendo a zero — categoria que some quando zera esconde o dia em
-  que ela deixar de ser zero.
-- **Por que o pipeline aprova** (card novo) — uma barra horizontal por critério
-  de veredito, empilhada por veredito do paper (estrito no verde escuro, amplo
-  no verde claro), com separador entre o bloco dos critérios de estrito e o dos
-  de amplo. A contagem é **por ocorrência**: paper com dois critérios entra nas
-  duas barras, e a soma passa do total de aprovados — o subtítulo diz isso e
-  mostra a cobertura de critério do recorte. Clicar numa barra filtra o painel
-  inteiro, como no Pareto.
+**02 · Vocabulário da grade** — o card **Área primária** tem duas vistas,
+com as áreas ordenadas por volume:
 
-Na seção **02 · Vocabulário e cruzamentos**, duas peças. As barras por área
-raiz, empilhadas por veredito (estrito, amplo, fora), com "n · % aprovado" ao
-lado; clicar numa delas filtra o painel inteiro. E a matriz área primária ×
-secundária, que é matriz de bolhas: cor é a taxa de aprovação, tamanho é o
-total. Grande e verde é muito e muito aprovado; grande e cinza é muito e pouco.
+- **Distribuição:** largura proporcional ao número de papers, segmentos por
+  veredito e total com percentual aprovado. Clicar na área filtra o painel.
+- **Sub-áreas:** cada barra vale 100%, com fatias em ordem decrescente. Nomes e
+  percentuais aparecem abaixo da barra; o tooltip traz definição e contagem.
+  A composição usa marfim, areia e taupe (`#E8E0D4`, `#CFC0AD`, `#B3A18D`,
+  `#95816F`, `#786454`), com hachuras para ampliar a distinção entre fatias.
+  Esses estilos identificam segmentos localmente; não representam vereditos.
 
-O heatmap Tópico × tempo saiu junto com a grade de tópicos: sem o eixo, ele não
-media nada. **A vertente não virou filtro nesta versão** — ela aparece no card do
-paper (`p.vt`, a dominante primeiro) e em lugar nenhum da barra de filtro. É
-exclusão de escopo declarada, não pendência esquecida: ver *A taxonomia
-facetada*, mais abaixo.
+Fatias pequenas, abaixo de 2%, podem ser agrupadas em **outras**, que tem
+contorno e padrão próprios; o tooltip lista os membros e suas contagens. A
+cauda com um único membro mantém o nome dele. O agrupamento também limita a
+quantidade de estilos distintos na barra.
+
+A vista e o botão **Vertentes** foram removidos desse card. A vertente
+**dominante** continua disponível no filtro geral e nas fichas: é a primeira
+atribuição do paper, equivalente a `ponte_paper_vertente.ordem = 1`. Filtrar por
+ela é diferente de contar qualquer atribuição primária ou secundária. A matriz
+área primária × secundária e o heatmap Tópico × tempo também não fazem parte
+do painel atual.
+
+**03 · Regras do corte** — dois cards com a mesma altura e rolagem interna:
+
+- **Por que o pipeline aprova:** uma barra por critério, empilhada pelo
+  veredito final em azul/laranja. A contagem é por ocorrência: um paper com
+  dois critérios aparece em duas barras. Clicar filtra pelo critério.
+- **Onde o pipeline corta:** motivos de descarte em ordem de volume, com
+  contagem e percentual dos descartados. Barras e legenda usam o mesmo cinza
+  de `fora`. Clicar filtra pela regra; dados sem regra têm categoria própria.
+
+**04 · Atenção e adoção** — três gráficos:
+
+- **Os 10 papers que mais ganharam votos:** até dez papers, ordenados pelo
+  ganho absoluto entre a primeira e a última medição disponíveis nos últimos
+  sete dias, até a data de geração. Exige duas medições em datas distintas e
+  crescimento positivo; empate usa `paper_id`. Círculo vazio marca o valor
+  inicial e círculo cheio o final, ligados por uma linha em escala comum de
+  votos absolutos. O ganho aparece à direita, e os valores e datas abaixo.
+  As cores indicam veredito; o título abre o paper. O intervalo pode variar
+  entre papers, portanto o ranking não mede votos por dia.
+- **Quando os votos chegam a 90%?:** curva roxa da mediana do percentual
+  `votos na medição / último total observado do paper`, com faixa P25–P75 e
+  referência de 90%. O indicador D+ mostra a primeira idade medida em que a
+  mediana chega a 90%; **papers com histórico elegível** conta a coorte total.
+  Entram apenas papers com pelo menos duas medições, primeira no dia 0 ou 1
+  desde o HF Daily, última aos 14 dias ou depois e último total positivo.
+  Cada ponto usa somente as observações daquela idade, até o dia 30, e exige
+  ao menos cinco papers. A amostra varia entre pontos; lacunas não são
+  interpoladas. O último total ainda pode crescer: atingir 90% não confirma
+  estabilização definitiva.
+- **Upvotes no HF × stars no GitHub:** dispersão em escalas logarítmicas dos
+  papers com repositório, com cores por veredito e indicação de página de
+  projeto. Papers sem repositório ficam fora; zero stars fica na base do eixo.
+
+O gráfico de defasagem arXiv → HF Daily foi removido. As datas verificadas,
+o cálculo e a auditoria continuam disponíveis no banco, nos Parquet e no
+comando `auditar-datas-arxiv` (ver a seção de auditoria).
+
+**05 · Por que passou, e o que ficou registrado** — lista dos aprovados com
+justificativa da decisão, critérios e ficha, aberta ao clicar no paper.
 
 Na ficha do paper, a linha do veredito traz os critérios em português
 ("ESTRITO · artefato aberto + benchmark"); quando há contraparte de fronteira,
@@ -498,7 +546,7 @@ pode congelar sem mentir. A consequência prática: `--dias` continua sendo a
 válvula para encolher o arquivo — baixar o valor mostra menos, não empurra
 papers para o histórico.
 
-Congelar aos 90 dias não perde quase nada, e isso foi medido em `fato_metrica`
+Uma medição histórica do movimento dos votos foi feita em `fato_metrica`
 (idade contada a partir de `data_hf_daily`, não do índice do snapshot — os
 snapshots não começam no dia da publicação). Recalculado em 04/09/2026 sobre a
 coorte de 185 papers com 14 dias ou mais de idade — 184 entram na conta, porque
@@ -514,75 +562,51 @@ corte o último snapshot **até** aquele dia:
 | dia +14 | 1,00 | 9,2% |
 | dia +18 | 1,00 | 0,0% |
 
-A mediana atinge o valor final **no dia +10** e o movimento residual acaba por
-volta do **dia +18** — ainda dentro da janela quente de 30 dias, com folga de ~5x
+Naquela amostra, a mediana atingiu o último valor observado **no dia +10** e
+o movimento residual observado terminou por volta do **dia +18** — ainda dentro da janela quente de 30 dias, com folga de ~5x
 até o corte de 90 dias. O maior salto tardio observado foi 286 → 340 votos, depois
 do dia +10.
 
-Uma armadilha da tabela, que o dado atual expõe: **as idades +1 a +4 não têm
-snapshot nenhum** — o refresh não mede todo dia da primeira semana. As linhas
+Uma limitação daquela medição histórica: **as idades +1 a +4 não têm
+snapshot nenhum** naquela amostra; não se pode supor observação diária. As linhas
 +2 e +5 não medem aqueles dias; elas carregam para frente o valor do dia 0
 (mediana 0,805), e é por isso que sobem tão devagar.
 
-O card *Como o voto amadurece* usa outra régua e por isso dá outro número: ele
-marca o primeiro dia **medido** em que a mediana cruza **90%** do voto final, e
-em 04/09/2026 esse dia é o **+5** ("estabiliza por volta do dia +5"). Não é
-contradição com a tabela: aqui a pergunta é quando a mediana chega a 90%, lá é
-quando chega a 100% (que também é o dia +10 na régua do card). O card só desenha
-idades com pelo menos 5 papers medidos — o subtítulo dele diz isso — então os
-dias +1 a +4 ficam sem ponto e o +5 é o primeiro candidato depois do dia 0, com a
-amostra que essa régua tem naquela idade: 26 papers no dia +5, contra 184 no dia
-0. A coorte é a mesma da tabela — 185 papers com 14 dias ou mais, dos quais 184
-com razão utilizável.
+A tabela acima é uma medição histórica de 04/09/2026, com carregamento do
+último valor disponível até cada corte; não descreve a coorte atual do painel.
+O gráfico **Quando os votos chegam a 90%?** usa apenas medições reais por idade,
+sem carregar valores para dias sem observação, e os critérios descritos acima.
+Seu indicador e sua amostra são recalculados a cada geração e filtro.
 
 ### Tamanho
 
-O peso vem do texto das fichas embutido em `DADOS`, não de HTML por card.
-Medido em 08/09/2026, depois da rodada 2 da grade facetada — em KB de 1.000
-bytes, que é como o Finder e o `ls -l` contam; o ticket 09 mede o mesmo arquivo
-em KiB de 1.024 e diz 2.489: **2.492 KB para os
-1.970 papers da janela e 679 fichas**, dos quais 1.120 KB são fichas (~1,7 KB
-cada), 1.044 KB são os papers (~543 B cada), 228 KB é a série de métricas e
-27 KB a aba histórica.
+O HTML incorpora os papers, fichas, séries de métricas, resumo histórico,
+JavaScript e CSS. Na conferência de 08/09/2026, a versão atual ocupa cerca de
+**2,48 MB (2,36 MiB)** e inclui os **1.970 papers da janela de 90 dias**.
+O tamanho varia com o acervo e com os textos das fichas; números de versões
+anteriores nos relatórios de medição são retratos históricos.
 
-O salto de 856 KB para 2.492 KB em um dia é a coleta retroativa de três meses
-(ticket 06) chegando à janela viva: 455 papers viraram 1.970 e 170 fichas
-viraram 679. Não é regressão do gerador — é acervo que antes não existia.
+`--dias` reduz a janela viva sem apagar dados do banco ou dos Parquet. O
+histórico leva as fichas dos dez aprovados e as justificativas dos dez
+excluídos mais votados por trimestre, em vez de toda a série daquele período.
+O ranking desempata por `paper_id` para evitar reordenação arbitrária no HTML.
 
-O custo por entrada do histórico é assimétrico de propósito — é o que permite as
-duas listas terem tamanhos diferentes:
-
-| Lista | Conteúdo | Por entrada | Por trimestre |
-|---|---|---|---|
-| 10 aprovados | ficha inteira (5 campos) | ~2,5 KB | ~25 KB |
-| 10 descartados | regra + justificativa | ~0,3 KB | ~3 KB |
-
-**~28 KB por trimestre, ~115 KB por ano** — contra os **~1,1 MB/mês** que a
-janela viva acumularia se não fosse recortada (os 1.970 papers da janela pesam
-2.392 KB de payload, ou ~1,2 KB por paper, a ~30 papers por dia). Se doer,
-`--dias` é o botão para girar. O custo do descartado deixou de ser piso otimista:
-com a reclassificação total, todo descartado do histórico já carrega regra e
-justificativa de verdade.
-
-Vale lembrar que `painel.html` é commitado e empurrado todo dia (644 KB
-comprimido, ~229 MB/ano de repositório): cada KB adicionado se multiplica por
-365.
-Por isso o ranking desempata por `paper_id` — sem critério estável, dois papers
-empatados em votos trocariam de lugar entre rodadas e o commit diário ganharia
-diff sem significado.
+Para gerar ou revisar localmente, use o gerador Python. O wrapper
+`gerar_painel.sh` também cuida de logs e publicação: quando não recebe opções
+de prévia e o HTML mudou, ele faz commit e push para `origin main`.
 
 ```bash
-# gerar na mão
-scripts/gerar_painel.sh                 # janela padrão (90 dias)
-scripts/gerar_painel.sh --force         # ignora a trava de run_id
+# gerar localmente, sem commit ou push
+python scripts/gerar_painel.py          # janela padrão (90 dias)
+python scripts/gerar_painel.py --force  # necessário após editar JS/CSS sem novo run_id
 
 # inspecionar a aba histórica antes de o primeiro trimestre fechar.
 # SEMPRE com --destino: o painel publicado não é rascunho.
-scripts/gerar_painel.sh --dias 10 --dias-hall 10 --force --destino /tmp/previa.html
+python scripts/gerar_painel.py --dias 10 --dias-hall 10 --force --destino /tmp/previa.html
 
 # a mesma aba como ficará depois que o trimestre fechar, sem o aviso de
 # consolidação. O `=` é obrigatório: sem ele o argparse lê -30 como opção.
-scripts/gerar_painel.sh --dias 10 --dias-hall=-30 --force --destino /tmp/fechado.html
+python scripts/gerar_painel.py --dias 10 --dias-hall=-30 --force --destino /tmp/fechado.html
 
 # status / disparo manual do agente
 launchctl print    gui/$(id -u)/com.samuelrochamotta.hfpapers-painel
@@ -602,7 +626,8 @@ papers em vez de 455, e os 185 que sobravam não apareciam em aba nenhuma; hoje 
 janela padrão traz 1.970 e o desconto é proporcionalmente maior):
 
 - `gerar_painel.sh` não commita nem empurra quando recebe `--dias`, `--dias-hall`
-  ou `--destino` — só a geração diária, sem argumentos, publica;
+  ou `--destino`; sem essas opções, inclusive com `--force`, ele pode fazer
+  commit e push de `relatorios/painel.html` para `origin main`;
 - `gerar_painel.py` só carimba `marts/.painel_run_id` quando escreveu no destino
   padrão. Sem isso, uma prévia em `/tmp` deixaria a geração seguinte do painel de
   verdade saindo em no-op, e nem a rede de segurança das 08:30 desfaria.
@@ -627,9 +652,16 @@ a cada abertura de conexão — tudo `IF NOT EXISTS`):
 | `log_execucao`, `log_llm` | operação, tokens e custo; `log_llm.provedor` guarda qual endpoint do OpenRouter atendeu (nulo quando a chamada morreu antes da resposta) |
 | `dim_calendario` | inteligência temporal do Power BI |
 
-Duas datas, separadas de propósito: `data_arxiv` (`paper.publishedAt`) e
-`data_hf_daily` (`paper.submittedOnDailyAt`). Elas divergem em 35 de 35 papers no
-lote de 25/08 — a operação diária é organizada pela segunda.
+As datas têm papéis distintos:
+
+- `data_hf_daily`: entrada no HF Daily; organiza a coleta e a idade das métricas.
+- `data_arxiv_informada_hf`: `paper.publishedAt` recebido do HF, que pode apontar
+  para uma revisão. `data_arxiv` é seu alias legado, mantido por compatibilidade.
+- `data_arxiv_v1`: submissão inicial verificada no arXiv, com a proveniência
+  temporal em `arxiv_v1_verificado_em`. Revisões recebidas do HF não a sobrescrevem.
+
+A defasagem auditada usa `data_hf_daily - data_arxiv_v1`. A API arXiv fornece a
+data de submissão, que não é necessariamente a data do anúncio público.
 
 ### A taxonomia facetada
 
@@ -645,11 +677,17 @@ O teste que a grade anterior falhava e esta passa: `MemUse` e `LycheeMemory V2`
 vivem na mesma sub-área e antes eram indistinguíveis; com a vertente, um **mede**
 e o outro **barateia**.
 
-**Cardinalidade.** Um paper recebe exatamente um par primário (área > sub-área),
+**Cardinalidade esperada.** Um paper recebe exatamente um par primário (área > sub-área),
 no máximo um par secundário e de uma a duas vertentes ordenadas. **Toda a base
 recebe as três facetas, inclusive os `fora`** — é o que torna a regra de descarte
 revisável com dado em vez de memória ("Geração de mídia > World models
 generativos, descartado 95 vezes" é uma frase que a base sabe dizer).
+
+A persistência valida o parentesco área > sub-área. Um par inválido é rejeitado
+e registrado em `tax_nao_encaixe`; se o secundário for válido, ele vira primário.
+Se nenhum par sobreviver, a triagem permanece, mas o paper fica sem área até a
+revisão. Esse caso exige inspecionar e reclassificar o paper; não é uma categoria
+nova nem uma correção automática da taxonomia.
 
 Três decisões de schema, todas em `src/hfpapers/schema.sql`:
 
@@ -682,10 +720,10 @@ Escalar ....... faz funcionar maior: horizonte, contexto, número de agentes
 `docs/adr/002-a-lista-de-vertentes.md`: o desenho previa que a lista **perderia**
 duas vertentes e ela ganhou uma.
 
-#### O que a grade mede hoje
+#### Medições da grade e revisão posterior
 
 Medição completa em `docs/relatorios/massa-grade-v2.md`
-(`run-20260908-173724`, 3.166 papers). O retrato:
+(`run-20260908-173724`, 3.166 papers). O retrato histórico dessa rodada:
 
 | | |
 |---|---|
@@ -693,6 +731,12 @@ Medição completa em `docs/relatorios/massa-grade-v2.md`
 | áreas maiores | Modelo & treino 872 · Geração de mídia 577 · Avaliação & instrumentação 495 · Percepção & robótica 358 |
 | vertentes maiores | Treinar 45,3% · Medir 31,8% · Baratear 16,6% |
 | fila de revisão | 81 não-encaixes (2,6% da base): 49 de sub-área, 30 de área, **2 de vertente** |
+
+Depois dessa medição, quatro papers tiveram a classificação revisada na rodada
+`run-20260908-225106`. Na conferência de 08/09/2026, os **3.166 papers têm par
+primário**, 585 têm par secundário e 681 têm uma segunda vertente. Não há paper
+sem área primária. Os relatórios da rodada anterior preservam os números
+originais para rastreabilidade.
 
 **As duas checagens da spec continuam falhando, e isso está registrado, não
 esquecido:**
@@ -730,14 +774,10 @@ rótulos perto de um limiar. As duas checagens saem calculadas.
 
 #### O que ficou de fora, e por quê
 
-Três ausências que são decisão, não pendência:
+O filtro por vertente dominante já está implementado no painel; a remoção da
+vista Vertentes de Área primária não remove esse filtro nem a faceta dos dados.
+Duas decisões de escopo permanecem:
 
-- **Corte por vertente no painel.** A vertente é o único eixo transversal e é a
-  candidata natural a filtro — "tudo que barateia, seja em serving, contexto ou
-  harness". Fica fora porque o painel é a última peça a mexer justamente por
-  depender de ver a distribuição real, e a distribuição ainda se mexeu entre a v1
-  e a v2 (*Baratear* caiu pela metade). Construí-lo antes significaria refazê-lo.
-  A vertente já viaja nos Parquet e no card do paper; o filtro é o que falta.
 - **Versionamento da taxonomia antiga.** Decidido contra, pelo princípio do
   ADR 001: uma fonte de verdade por decisão. A grade de tópicos foi **removida**
   do banco em vez de conviver com uma coluna de versão — conviver custaria um
@@ -763,7 +803,8 @@ Seis coisas novas, todas já nos Parquet de `marts/`:
   paper", filtre por ele, senão a contagem por área infla em ~18,5%.
 - **`ponte_paper_vertente`** (`paper_id`, `vertente`, `ordem`) — o eixo
   transversal, com a **ordem** que separa a dominante (`1`) da secundária (`2`).
-  Também um-para-muitos: 3.166 linhas de ordem 1 e 680 de ordem 2. Ranking de
+  Também um-para-muitos: na medição da rodada total de 08/09, eram 3.166 linhas
+  de ordem 1 e 680 de ordem 2. Ranking de
   vertente que não filtra `ordem = 1` está somando acompanhamento com
   dominância — e as duas coisas divergem (*Baratear* tem 524 atribuições e 383
   dominantes; *Escalar*, 152 e 77).
@@ -826,7 +867,8 @@ escrita atômica (`os.replace`) — pode rodar com o Power BI aberto.
 - grão fino, sem pré-agregação (a agregação é papel do DAX);
 - `fato_metrica` traz `upvotes_delta_dia` e propaga `qtd_modelos/datasets/spaces`
   para frente com o último valor não nulo;
-- `dim_paper` traz `dias_desde_publicacao`, `tem_codigo_aberto`,
+- `dim_paper` inclui `data_arxiv_informada_hf`, `data_arxiv_v1` e
+  `arxiv_v1_verificado_em`, além de `dias_desde_publicacao`, `tem_codigo_aberto`,
   `tem_project_page`, `faixa_upvotes_atual`, `upvotes_atual`;
 - `marts/_manifest.json` registra data/hora, `run_id` e a contagem de linhas de
   cada arquivo — é como conferir no Power BI que o dado é fresco.
@@ -902,8 +944,9 @@ Três invariantes que os testes cobrem:
    propriedades no schema do Estágio B é normativa.
 3. **A LLM não cria rótulo, e não propõe nenhum.** O enum é injetado do banco;
    quando nada serve, ela declara em qual dos três eixos o encaixe falhou e por
-   quê, e isso vai para `tax_nao_encaixe`. Mesmo assim o paper sai com par e
-   vertente: não-encaixe é fila de revisão, não recusa de classificar.
+   quê, e isso vai para `tax_nao_encaixe`. A declaração de não-encaixe não recusa a triagem. Pares inválidos por
+   parentesco, porém, são rejeitados na persistência e podem deixar o paper sem
+   área primária até revisão.
 
 ## Testes
 
@@ -922,12 +965,13 @@ src/hfpapers/
 ├── config.py       config.yaml + .env
 ├── db.py           conexão, migração, upserts idempotentes, calendário
 ├── schema.sql
-├── execucao.py     orquestra os 5 estágios, a reclassificação e log_execucao
-├── taxonomia.py    governança do vocabulário: promoção, fusão, export/carga
+├── execucao.py     orquestra os 6 estágios, a reclassificação e log_execucao
+├── auditoria_arxiv.py  verificação de v1, cache e relatórios de divergência
+├── taxonomia.py    validação da grade, não-encaixes, fusão, export/carga
 ├── guardrails.py   avisos de volume
 ├── doutor.py       diagnóstico
 ├── log.py          logging com corte de segredo
-├── fontes/         hf_client.py (httpx, retry, rate limit) + modelos.py (pydantic)
+├── fontes/         clientes HF/arXiv (httpx, retry, rate limit) e modelos.py
 ├── llm/            cliente OpenRouter, schemas, estágios A e B
 └── estagios/       coleta, enriquecimento, classificação, refresh, export
 scripts/
@@ -949,7 +993,53 @@ relatorios/         artefatos de leitura: painel.html
 data/               o banco SQLite
 ```
 
-`relatorios/`, `marts/`, `data/` e `logs/` não são versionados. A diferença entre
+`marts/`, `data/`, `logs/` e os demais arquivos de `relatorios/` não são
+versionados. **`relatorios/painel.html` é a exceção versionada.** A diferença entre
 eles: `relatorios/` e `marts/` regeneram do banco; `data/` **é** a fonte. O
 `docs/relatorios/` é outra coisa e **é** versionado: cada medição de lá é a causa
 registrada de uma mudança na grade, e não se regenera.
+
+## Datas arXiv e auditoria da defasagem
+
+A defasagem é `data_hf_daily - data_arxiv_v1`, em dias corridos.
+`data_arxiv_v1` é a data de submissão inicial (`published` da entrada Atom da
+API arXiv), não o horário do anúncio público. Ela é usada na auditoria e fica
+disponível ao Power BI:
+o box plot que a mostrava saiu do painel em 08/09/2026, e com ele as duas datas
+do payload — as colunas continuam no banco e nos Parquet, que é de onde a
+auditoria e o Power BI leem.
+
+`data_arxiv_informada_hf` preserva `paper.publishedAt` do HF, que pode representar
+uma revisão. `data_arxiv` permanece como alias legado desse metadado para
+compatibilidade. Ambos podem mudar no refresh. A v1 é escrita separadamente,
+apenas quando ausente, junto de `arxiv_v1_verificado_em`; uma revalidação
+conflitante gera relatório e nunca substitui a data automaticamente.
+
+```bash
+# Consulta toda a base e escreve relatório, sem migrar ou modificar o banco:
+python -m hfpapers auditar-datas-arxiv --relatorio relatorios/auditoria-arxiv.json
+# Backup SQLite consistente, migração aditiva e preenchimento das v1 verificadas:
+python -m hfpapers auditar-datas-arxiv --aplicar --relatorio relatorios/auditoria-arxiv.json
+# Reconsulta inclusive datas já verificadas, para detectar conflitos:
+python -m hfpapers auditar-datas-arxiv --revalidar
+# Atualiza os artefatos após a aplicação:
+python -m hfpapers export
+python scripts/gerar_painel.py --force
+```
+
+A auditoria inclui defasagens negativas, positivas, zero e datas ausentes.
+Resultados válidos ficam em `data/cache_arxiv_v1/`; consultas falhas são
+registradas como pendentes e tentadas novamente na próxima execução.
+O estágio `datas_arxiv`, habilitado no pipeline completo, verifica apenas v1
+pendentes antes do export. `run --only export` e o comando `export` não acessam
+arXiv. O relatório da etapa diária fica em
+`relatorios/auditoria-arxiv-pendentes.json`; falhas de consulta entram nos avisos
+e não impedem o export. A migração de schema nunca consulta serviços externos.
+
+O relatório distingue divergência de metadados, conflito de revalidação e
+negativo remanescente. Este último confirma a ordem das **datas registradas**,
+não a ordem real dos eventos: a data HF ainda pode exigir investigação.
+
+Na auditoria concluída em 08/09/2026, os 3.166 papers da base tinham v1
+verificada, sem pendências nem defasagens negativas remanescentes. Novos papers
+podem alterar essa cobertura; o relatório de cada execução é a referência.

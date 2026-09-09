@@ -33,6 +33,13 @@ sem regra, 5 pendentes. Modelo `qwen/qwen3.8-flash` nos dois estágios.
 > - **§4, painel, e §5, `doutor`** — o heatmap *Tópico × tempo* saiu do painel
 >   junto com o eixo que ele media; o check de vocabulário vazio olha `dim_area`
 >   e `dim_vertente`, e conta só a área raiz que tem ao menos uma sub-área.
+> - **§4, matriz área primária × secundária** — a matriz de bolhas saiu em
+>   08/09/2026. Ela codificava taxa de aprovação na cor, e o tom era constante
+>   ao longo de cada linha: a cor dizia o que a posição da linha já dizia, em
+>   46 células ocas (n < 10) e 15 vazias de 100. A seção deixou de se chamar
+>   *Vocabulário e cruzamentos* e virou **Vocabulário da grade**; o card "Área
+>   primária" ganhou três vistas — *Distribuição* (a de sempre), *Sub-áreas* e
+>   *Vertentes* —, e a vertente **passou a ser filtro**, pela dominante.
 
 ## 0. O que já está implementado
 

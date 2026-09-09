@@ -107,6 +107,37 @@ def run(
 
 
 @app.command()
+def auditar_datas_arxiv(
+    aplicar: bool = typer.Option(False, "--aplicar"),
+    revalidar: bool = typer.Option(False, "--revalidar"),
+    relatorio: Path = typer.Option(Path("relatorios/auditoria-arxiv.json"), "--relatorio"),
+) -> None:
+    """Audita toda a base; so --aplicar migra e preenche datas v1 verificadas."""
+    from .auditoria_arxiv import auditar
+    cfg = _preparar()
+    caminho = cfg.caminho_banco
+    conn = sqlite3.connect(f"file:{caminho}?mode={'rw' if aplicar else 'ro'}", uri=True, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    try:
+        if aplicar:
+            backup = caminho.with_name(caminho.name + ".pre-arxiv-" + dt.datetime.now().strftime('%Y%m%dT%H%M%S%f'))
+            destino = sqlite3.connect(backup)
+            try:
+                conn.backup(destino)
+            finally:
+                destino.close()
+            typer.echo(f"Backup: {backup}")
+            db.migrar(conn)
+        resultado = auditar(conn, cache=caminho.parent / 'cache_arxiv_v1', aplicar=aplicar, revalidar=revalidar)
+        relatorio.parent.mkdir(parents=True, exist_ok=True)
+        relatorio.write_text(json.dumps(resultado, ensure_ascii=False, indent=2))
+        typer.echo(json.dumps(resultado['resumo'], ensure_ascii=False))
+        typer.echo(f"Relatorio: {relatorio}")
+    finally:
+        conn.close()
+
+
+@app.command()
 def export() -> None:
     """Materializa os Parquet do Power BI em marts/."""
     cfg = _preparar()

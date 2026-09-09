@@ -16,7 +16,9 @@ HOJE = dt.date(2026, 8, 26)
 
 
 @pytest.fixture()
-def base(cfg, daily_bruto):
+def base(cfg, daily_bruto, monkeypatch):
+    from hfpapers.fontes.arxiv_client import ClienteArxiv
+    monkeypatch.setattr(ClienteArxiv, "consultar", lambda self, ids: {pid: "2026-08-24" for pid in ids})
     conn = db.abrir(cfg)
     with db.transacao(conn):
         povoar_vocabulario(conn)

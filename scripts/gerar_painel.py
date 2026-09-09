@@ -140,17 +140,52 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
 .mark:hover { opacity: 1 !important; transform: scale(1.35); }
 .bar { transition: filter 120ms ease; cursor: pointer; }
 .bar:hover { filter: brightness(1.22) saturate(1.1); }
+/* O segmento das vistas de composicao nao usa `.bar` por dois motivos. Ele nao
+   e clicavel - quem filtra area e o rotulo da linha -, entao `cursor: pointer`
+   prometeria um clique que nao existe. E o realce por brilho sobe o L* em 8 a
+   12 pontos, que naquela rampa e um passo e meio: no exato momento em que o
+   leitor tenta casar a fatia com o verbete da legenda, a fatia passaria a ter
+   a cor da vizinha. O realce aqui e um contorno, que nao mexe na cor. */
+.seg { transition: box-shadow 120ms ease; }
+.seg:hover { box-shadow: inset 0 0 0 1.5px #f5f3ee; }
 .row { transition: background 120ms ease; cursor: pointer; }
 .row:hover { background: #191d21; }
 .mais { color: #d9a441; border-bottom: 1px solid rgba(217,164,65,0.3); transition: color 120ms ease, border-color 120ms ease; cursor: pointer; }
 .mais:hover { color: #ecc478; border-bottom-color: #ecc478; }
 .card { background: #16191c; border: 1px solid #242a30; border-radius: 5px; }
+.regras-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 34px; align-items: stretch; }
+.regras-grid > .card { margin-bottom: 0 !important; min-width: 0; height: 450px; box-sizing: border-box; }
+.regras-scroll { overflow-y: auto; min-height: 0; padding-right: 10px; scrollbar-gutter: stable; scrollbar-color: #6b7480 #1d2226; }
+.regras-scroll:focus-visible { outline: 1px solid #d9a441; outline-offset: 4px; }
+.votos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.voto-card { padding: 22px 24px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.voto-titulo { font-family: Newsreader, Georgia, serif; font-size: 26px; color: #f5f3ee; line-height: 1.15; }
+.voto-nota { font-size: 12px; color: #8b8f96; line-height: 1.6; }
+.voto-legenda { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 11.5px; color: #a8a49b; margin-top: 7px; }
+.voto-legenda > span { width: 10px; height: 8px; display: inline-block; border-radius: 2px; }
+.voto-ranking { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 10px; scrollbar-color: #6b7480 #1d2226; }
+.voto-item { display: grid; grid-template-columns: minmax(0, 1fr) 66px; gap: 14px; align-items: center; border: 0; color: #ecebe6; }
+.voto-item:hover { border: 0; }
+.voto-item-miolo { min-width: 0; }
+.voto-item-cab { font-size: 12.5px; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voto-item-ganho { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 400; text-align: right; color: #ecebe6; }
+.voto-item-detalhe { font-size: 10.5px; color: #8b8f96; }
+.voto-tracao { position: relative; height: 16px; margin: 4px 6px; }
+.voto-tracao-linha { position: absolute; top: 7px; height: 2px; opacity: 0.45; }
+.voto-tracao-inicio, .voto-tracao-fim { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; box-sizing: border-box; }
+.voto-tracao-inicio { width: 8px; height: 8px; background: #16191c; border: 1.5px solid; }
+.voto-tracao-fim { width: 10px; height: 10px; }
+.voto-resumo { display: flex; gap: 20px; padding: 14px 0; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; }
+.voto-resumo strong { display: block; color: #9085e9; font-family: "IBM Plex Mono", monospace; font-size: 26px; font-weight: 500; }
+@media (max-width: 800px) { .votos-grid { grid-template-columns: 1fr; } .voto-card { padding: 20px 16px; } }
+@media (max-width: 800px) { .regras-grid { grid-template-columns: 1fr; } }
 .busca::placeholder { color: #6d7178; }
 .busca:focus { border-color: #d9a441 !important; background: #1e2328 !important; }
-#tip { display: none; position: fixed; max-width: 350px; background: #22272c; border: 1px solid #333a41;
+#tip { display: none; position: fixed; width: max-content; max-width: min(350px, calc(100vw - 16px)); background: #22272c; border: 1px solid #333a41;
   padding: 10px 13px; border-radius: 5px; pointer-events: none; z-index: 90; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 #tip .tip1 { font-size: 12.5px; color: #f5f3ee; line-height: 1.4; margin-bottom: 4px; }
 #tip .tip2 { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #9aa0a8; }
+#tip .tipd { font-size: 12px; color: #a8a49b; line-height: 1.45; margin-bottom: 5px; text-wrap: pretty; }
 """
 
 
@@ -421,15 +456,14 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     # O par inteiro, e nao so a area: os dois niveis viajam juntos porque
     # sub-area solta nao diz de quem e filha - o mesmo motivo de `taxonomia`
     # aninhar a sub-area sob a area em vez de listar as duas lado a lado.
+    # So a primaria. O par secundario existe na ponte e continua no Parquet para
+    # o Power BI; ele viajava tambem no payload, em `p.as`, para a matriz area
+    # primaria x secundaria - que saiu do painel em 08/09/2026. Sem consumidor,
+    # eram 13 KB de nome de area repetido num arquivo distribuido por e-mail.
     par_primario: dict[str, tuple[str, str]] = {}
-    areas_sec: dict[str, list[str]] = defaultdict(list)
     for r in ler("ponte_paper_area"):
-        if r["paper_id"] not in ids_uteis:
-            continue
-        if r.get("is_primaria"):
+        if r["paper_id"] in ids_uteis and r.get("is_primaria"):
             par_primario[r["paper_id"]] = (r["area"], r["subarea"])
-        else:
-            areas_sec[r["paper_id"]].append(r["area"])
 
     # Ordenada pela `ordem`: a dominante e a primeira que o card exibe, e sem a
     # ordenacao aqui a ordem em que o Parquet devolve as linhas decidiria isso.
@@ -474,13 +508,15 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "id": pid,
             "t": p.get("titulo") or "",
             "d": iso(p.get("data_hf_daily")),
-            "da": iso(p.get("data_arxiv")),
+            # As datas do arXiv (`data_arxiv_v1` e `data_arxiv_informada_hf`) nao
+            # viajam mais: o unico consumidor era o grafico de defasagem, que saiu
+            # do painel em 08/09/2026. Elas continuam no banco e no Parquet, que e
+            # de onde a auditoria de datas le.
             "v": veredito_p,
             "rf": t.get("regra_fora"),
             "art": t.get("tem_artefato_nomeado"),
             "a": area,
             "sa": subarea,
-            "as": areas_sec.get(pid, []),
             "vt": vertentes_por_paper.get(pid, []),
             "oa": 1 if p.get("tem_codigo_aberto") else 0,
             "pp": 1 if p.get("tem_project_page") else 0,
@@ -512,6 +548,13 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         corte=corte_hall,
     )
 
+    # Ordenado aqui porque o export faz `SELECT * FROM dim_area` sem ORDER BY:
+    # a ordem que o Parquet devolve nao e garantida entre rodadas, e o painel e
+    # commitado e empurrado todo dia. Sem isto, uma fusao de rotulo bastaria
+    # para o commit diario ganhar um bloco reordenado que nao significa nada.
+    areas_todas = sorted(ler("dim_area"), key=lambda a: a["area"])
+    areas_raiz = [a for a in areas_todas if not a.get("area_pai")]
+
     modelo_a, modelo_b = modelos()
     dados = {
         "gerado": manifest.get("gerado_em") or dt.datetime.now().replace(microsecond=0).isoformat(),
@@ -526,12 +569,30 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         # So a raiz: `DADOS.areas` alimenta o filtro ÁREA, e o filtro compara
         # com `p.a`, que e sempre area raiz. Desde que `dim_area` ganhou dois
         # niveis (ticket 02) mandar a tabela inteira punha 64 sub-areas no menu,
-        # todas filtrando para o vazio. A sub-area acompanha o paper no card,
-        # em `p.sa`, e nao precisa de faceta propria.
+        # todas filtrando para o vazio. A sub-area continua sem faceta propria -
+        # ela acompanha o paper em `p.sa` e agora tambem tem vista propria no
+        # card "Área primária", que a agrega no navegador.
         "areas": [
             {"a": a["area"], "def": a.get("definicao") or ""}
-            for a in ler("dim_area")
-            if not a.get("area_pai")
+            for a in areas_raiz
+        ],
+        # Definicoes das sub-areas, para o tooltip da vista "Sub-áreas".
+        # Mapa plano porque a chave basta: os 64 nomes sao unicos entre si na
+        # `dim_area` inteira (ela e uma tabela so, `area` e a PK), entao nao ha
+        # como duas areas terem sub-area homonima. As 64 viajam, e nao so as do
+        # recorte, para o arquivo diario nao mudar de tamanho conforme o dia -
+        # sao 9,1 KB num arquivo de ~2,5 MB.
+        "subdef": {
+            a["area"]: a.get("definicao") or ""
+            for a in areas_todas if a.get("area_pai")
+        },
+        # As 10 vertentes com a definicao, para o filtro VERTENTE e para o
+        # tooltip da vista "Vertentes". Alfabetica, como tudo que e ordenado
+        # aqui e nao no app: a ordem de exibicao e decisao de desenho e mora em
+        # `painel_app.js`; esta aqui so precisa ser estavel entre rodadas.
+        "vertentes": [
+            {"v": v["vertente"], "def": v.get("definicao") or ""}
+            for v in sorted(ler("dim_vertente"), key=lambda x: x["vertente"])
         ],
         "papers": lista,
         "fichas": [

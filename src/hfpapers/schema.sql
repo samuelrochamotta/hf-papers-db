@@ -11,7 +11,10 @@ CREATE TABLE IF NOT EXISTS dim_paper (
     abstract                TEXT,
     ai_summary              TEXT,
     ai_summary_model        TEXT,
-    data_arxiv              DATE,        -- paper.publishedAt
+    data_arxiv              DATE,        -- legado: paper.publishedAt do HF, nao v1
+    data_arxiv_informada_hf  DATE,
+    data_arxiv_v1            DATE,        -- submissao inicial verificada no arXiv
+    arxiv_v1_verificado_em   TEXT,
     data_hf_daily           DATE,        -- paper.submittedOnDailyAt  (organiza a operação)
     url_arxiv               TEXT,        -- derivado: https://arxiv.org/abs/{id}
     url_hf                  TEXT,        -- derivado: https://huggingface.co/papers/{id}

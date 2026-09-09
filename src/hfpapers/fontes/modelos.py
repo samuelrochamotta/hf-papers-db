@@ -82,7 +82,7 @@ class Paper(_Base):
     title: str
     summary: Optional[str] = None
     authors: list[Autor] = Field(default_factory=list)
-    publishedAt: Optional[dt.date] = None          # data no arXiv
+    publishedAt: Optional[dt.date] = None          # data informada pelo HF; pode corresponder a uma revisao, nao v1
     submittedOnDailyAt: Optional[dt.date] = None   # entrada na lista diaria do HF
     submittedOnDailyBy: Optional[Usuario] = None
     upvotes: Optional[int] = None
@@ -157,7 +157,8 @@ def paper_para_dim(
         "abstract": paper.summary,
         "ai_summary": paper.ai_summary,
         "ai_summary_model": paper.ai_summary_model,
-        "data_arxiv": paper.publishedAt,
+        "data_arxiv": paper.publishedAt,  # alias legado
+        "data_arxiv_informada_hf": paper.publishedAt,
         "data_hf_daily": paper.submittedOnDailyAt,
         "url_arxiv": f"https://arxiv.org/abs/{paper.paper_id}",
         "url_hf": f"https://huggingface.co/papers/{paper.paper_id}",
