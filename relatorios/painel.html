@@ -274,15 +274,20 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
      opcoes de um seletor visiveis depois que ele ja filtrou (senao marcar a 2a
      area pelo grafico ficaria impossivel - a 1a teria apagado as demais
      barras). Aceita string ou array: a matriz de areas precisa soltar as duas
-     dimensoes de area de uma vez para nao virar uma unica celula acesa. */
+     dimensoes de area de uma vez para nao virar uma unica celula acesa.
+
+     TODAS as dimensoes sao soltaveis, inclusive `diasSel` e `vereditos`, que
+     por muito tempo nao eram: as contagens da barra de filtro dependem disso
+     (ver `construir`), e sem soltar o veredito o chip `estrito` teria de se
+     contar num universo do qual ele mesmo ja tirou os outros dois. */
   function filtrados(exceto) {
     var s = state;
     var q = (s.busca || '').trim().toLowerCase();
     var solta = typeof exceto === 'string' ? [exceto] : (exceto || []);
     function livre(dim) { return solta.indexOf(dim) >= 0; }
     return DADOS.papers.filter(function (p) {
-      if (s.diasSel.length && s.diasSel.indexOf(p.d) < 0) return false;
-      if (s.vereditos.length && s.vereditos.indexOf(p.v) < 0) return false;
+      if (!livre('diasSel') && s.diasSel.length && s.diasSel.indexOf(p.d) < 0) return false;
+      if (!livre('vereditos') && s.vereditos.length && s.vereditos.indexOf(p.v) < 0) return false;
       // dentro de cada dimensao a selecao e OR; entre dimensoes, AND
       if (!livre('areas') && s.areas.length && s.areas.indexOf(p.a) < 0) return false;
       if (!livre('subareas') && s.subareas.length && s.subareas.indexOf(p.sa) < 0) return false;
@@ -925,6 +930,22 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
     var sel = filtrados();
     var total = sel.length;
 
+    /* Um recorte por dimensao, cada um com a SUA solta. E o que faz os
+       numeros da barra de filtro descreverem o recorte em vigor em vez da
+       janela inteira: marcado `estrito`, o menu de area precisa dizer 7 em
+       "Modelo & treino", nao 524.
+
+       A dimensao se solta de si mesma porque senao o menu se apagaria depois
+       do primeiro clique - marcada uma area, todas as outras iriam a zero e a
+       segunda ficaria inalcancavel. E a mesma razao de `exceto` existir para
+       os graficos; aqui ela vale para o proprio seletor. */
+    var recDia = filtrados('diasSel');
+    var recVeredito = filtrados('vereditos');
+    var recArea = filtrados('areas');
+    var recSubarea = filtrados('subareas');
+    var recVert = filtrados('vertentes');
+    var recOrg = filtrados('orgs');
+
     var conta = { fora: 0, amplo: 0, estrito: 0 };
     sel.forEach(function (p) { if (conta[p.v] !== undefined) conta[p.v]++; });
     var aprovados = conta.amplo + conta.estrito;
@@ -998,7 +1019,7 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
     var criterioAtivo = s.criterios.length > 0;
     var chipsVeredito = ['estrito', 'amplo', 'fora'].map(function (v) {
       var on = s.vereditos.indexOf(v) >= 0;
-      var n = todos.filter(function (p) { return p.v === v; }).length;
+      var n = recVeredito.filter(function (p) { return p.v === v; }).length;
       var implicito = regraAtiva && v === 'fora' && !on;
       var anulado = (regraAtiva && v !== 'fora') || (criterioAtivo && v === 'fora');
       var extra = implicito
@@ -1018,15 +1039,20 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
         '</div>';
     }).join('');
 
+    // A LISTA de dias e a janela inteira, em ordem cronologica: dia que zerou
+    // continua no menu, com o zero visivel, e a ordem nao depende do recorte.
     var contaDia = {};
-    todos.forEach(function (p) { if (p.d) contaDia[p.d] = (contaDia[p.d] || 0) + 1; });
+    recDia.forEach(function (p) { if (p.d) contaDia[p.d] = (contaDia[p.d] || 0) + 1; });
     // mais recente primeiro: e por onde se comeca a ler o painel
     var itensDia = dias.slice().reverse().map(function (d) {
       return { valor: d, label: diaCurto(d), n: contaDia[d] || 0 };
     });
 
+    // Ordenado pela contagem DO RECORTE, entao o topo do menu e sempre o que
+    // existe nele: so entre os estritos, "Avaliacao & instrumentacao" (150)
+    // abre a lista e "Geracao de midia" cai para o fim, com zero.
     var contaArea = {};
-    todos.forEach(function (p) { if (p.a) contaArea[p.a] = (contaArea[p.a] || 0) + 1; });
+    recArea.forEach(function (p) { if (p.a) contaArea[p.a] = (contaArea[p.a] || 0) + 1; });
     var itensArea = DADOS.areas.map(function (a) {
       return { valor: a.a, label: a.a, n: contaArea[a.a] || 0 };
     }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
@@ -1034,7 +1060,7 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
     // Mesmo vocabulario completo usado nos tooltips, incluindo sub-areas
     // sem papers na janela. A contagem usa o par primario, como o filtro.
     var contaSubarea = {};
-    todos.forEach(function (p) { if (p.sa) contaSubarea[p.sa] = (contaSubarea[p.sa] || 0) + 1; });
+    recSubarea.forEach(function (p) { if (p.sa) contaSubarea[p.sa] = (contaSubarea[p.sa] || 0) + 1; });
     var itensSubarea = Object.keys(DADOS.subdef || {}).map(function (sa) {
       return { valor: sa, label: sa, n: contaSubarea[sa] || 0 };
     }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
@@ -1044,21 +1070,33 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
     // zerou precisa continuar no menu, com o zero visivel, senao o painel
     // esconde justamente a informacao de que ela zerou.
     var contaVert = {};
-    todos.forEach(function (p) { var k = dominante(p); contaVert[k] = (contaVert[k] || 0) + 1; });
+    recVert.forEach(function (p) { var k = dominante(p); contaVert[k] = (contaVert[k] || 0) + 1; });
     var itensVert = (DADOS.vertentes || []).map(function (v) {
       return { valor: v.v, label: v.v, n: contaVert[v.v] || 0 };
     }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
-    if (contaVert[VERTENTE_NULA]) {
-      itensVert.push({ valor: VERTENTE_NULA, label: 'sem vertente', n: contaVert[VERTENTE_NULA] });
+    // A linha do nulo so existe quando ha paper sem vertente no recorte - ou
+    // quando ela e o filtro em vigor, que nao pode sumir do proprio menu.
+    if (contaVert[VERTENTE_NULA] || s.vertentes.indexOf(VERTENTE_NULA) >= 0) {
+      itensVert.push({ valor: VERTENTE_NULA, label: 'sem vertente', n: contaVert[VERTENTE_NULA] || 0 });
     }
 
+    /* Organizacao e a excecao a regra dos zeros. Area, sub-area e vertente
+       mantem no menu a linha que zerou, porque ali o zero e informacao de
+       grade: diz que aquela celula do vocabulario nao produz estrito nenhum.
+       Organizacao nao e vocabulario controlado - sao 564 nomes na janela, dos
+       quais 368 zeram assim que o recorte fica so em estrito - e uma lista de
+       zeros nao informa nada que a busca do menu ja nao resolva. Some.
+       Menos a que estiver MARCADA: o filtro em vigor nunca sai do menu. */
     var contaOrg = {};
-    todos.forEach(function (p) { if (p.org) contaOrg[p.org] = (contaOrg[p.org] || 0) + 1; });
-    var semOrg = todos.filter(function (p) { return !p.org; }).length;
+    recOrg.forEach(function (p) { if (p.org) contaOrg[p.org] = (contaOrg[p.org] || 0) + 1; });
+    s.orgs.forEach(function (o) { if (o !== '__sem-org__' && !contaOrg[o]) contaOrg[o] = 0; });
+    var semOrg = recOrg.filter(function (p) { return !p.org; }).length;
     var itensOrg = Object.keys(contaOrg).map(function (o) {
       return { valor: o, label: o, n: contaOrg[o] };
     }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
-    itensOrg.push({ valor: '__sem-org__', label: 'sem organização', n: semOrg });
+    if (semOrg || s.orgs.indexOf('__sem-org__') >= 0) {
+      itensOrg.push({ valor: '__sem-org__', label: 'sem organização', n: semOrg });
+    }
 
     var ativos = [];
     if (s.diasSel.length) ativos.push(s.diasSel.length === 1 ? diaCurto(s.diasSel[0]) : s.diasSel.length + ' dias');
