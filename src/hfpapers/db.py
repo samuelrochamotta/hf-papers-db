@@ -77,6 +77,7 @@ COLUNAS_MIGRADAS = [
     # default NULL - o que e exatamente o que a area raiz quer.
     ("dim_area", "area_pai", "TEXT NULL REFERENCES dim_area(area)"),
     ("log_llm", "provedor", "TEXT"),
+    ("log_llm", "tokens_cache_leitura", "INTEGER"),
 ]
 
 

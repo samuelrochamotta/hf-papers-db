@@ -198,6 +198,10 @@ CREATE TABLE IF NOT EXISTS log_llm (
     -- endpoints do mesmo modelo, e eles nao se comportam igual: sem esta
     -- coluna, "a rodada ficou 9x mais lenta" nao tem a quem ser atribuido.
     provedor        TEXT,
+    -- `prompt_tokens_details.cached_tokens` da resposta: quanto do
+    -- `tokens_entrada` veio do cache do provedor (mais barato). NULL quando o
+    -- provedor nao devolve o campo - nao e o mesmo que zero.
+    tokens_cache_leitura INTEGER,
     criado_em       TIMESTAMP NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_llm_run ON log_llm(run_id);

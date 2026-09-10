@@ -151,12 +151,17 @@ class Uso:
     tokens_saida: int = 0
     custo_usd: float = 0.0
     chamadas: int = 0
+    # Quanto de `tokens_entrada` veio do cache do provedor - so diagnostico,
+    # nao entra em `custo_usd` porque a tabela de precos (`tabela_precos`) so
+    # tem o preco cheio de entrada/saida, sem a tarifa de leitura de cache.
+    tokens_cache_leitura: int = 0
 
     def somar(self, outro: "Uso") -> None:
         self.tokens_entrada += outro.tokens_entrada
         self.tokens_saida += outro.tokens_saida
         self.custo_usd += outro.custo_usd
         self.chamadas += outro.chamadas
+        self.tokens_cache_leitura += outro.tokens_cache_leitura
 
 
 @dataclass
@@ -460,8 +465,10 @@ class ClienteLLM:
         u = getattr(resposta, "usage", None)
         entrada = int(getattr(u, "prompt_tokens", 0) or 0)
         saida = int(getattr(u, "completion_tokens", 0) or 0)
+        detalhes = getattr(u, "prompt_tokens_details", None)
+        cache_leitura = int(getattr(detalhes, "cached_tokens", 0) or 0)
         with _TRAVA:  # `self.uso` e acumulador compartilhado entre as threads
-            uso = Uso(entrada, saida, self.preco(modelo).custo(entrada, saida), 1)
+            uso = Uso(entrada, saida, self.preco(modelo).custo(entrada, saida), 1, cache_leitura)
             self.uso.somar(uso)
         return uso
 
@@ -539,6 +546,7 @@ class ClienteLLM:
             "modelo": modelo,
             "tokens_entrada": uso.tokens_entrada,
             "tokens_saida": uso.tokens_saida,
+            "tokens_cache_leitura": uso.tokens_cache_leitura,
             "custo_usd": uso.custo_usd,
             "latencia_ms": latencia_ms,
             "tentativas": tentativa,
