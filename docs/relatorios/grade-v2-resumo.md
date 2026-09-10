@@ -1,7 +1,7 @@
 # Grade v2 — o que mudou, rótulo a rótulo
 
 - **Origem**: `docs/relatorios/massa-grade-v1.md`, rodada `run-20260908-162429`, 3.166 papers
-- **Regras**: `docs/tickets/taxonomia-facetada/08-grade-v2.md`, aplicadas em passada única, 1 → 4
+- **Regras**: regras de correção da grade v2 (ticket 08, já removido), aplicadas em passada única, 1 → 4
 - **Resultado**: 10 áreas raiz (intactas), **64 sub-áreas** (eram 47), **10 vertentes** (eram 9)
 
 Toda linha abaixo cita o número do relatório que a motivou. Onde a regra mandava mexer

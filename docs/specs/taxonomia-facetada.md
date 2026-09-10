@@ -30,8 +30,8 @@
 > - **eixo ÁREA** — 6 sub-áreas acima de 25% (eram 15 na v1, e uma sétima ficou
 >   exatamente em 25,0%). Quatro delas sem razão registrada, e a razão de uma
 >   quinta foi escrita sobre uma estimativa que errou por 22 pontos. A pendência
->   é de `docs/tickets/taxonomia-facetada/08-grade-v2.md`, seção *Por que a
->   checagem A ficou aberta*.
+>   ficou registrada no histórico de implementação da grade v2 (ticket 08,
+>   já removido), seção *Por que a checagem A ficou aberta*.
 > - **eixo VERTENTE** — 2 vertentes abaixo de 2% (*Adaptar* 1,2%, *Especificar*
 >   1,1%). A pendência é do ADR 002, que cobre só este eixo.
 
