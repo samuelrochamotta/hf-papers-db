@@ -22,9 +22,10 @@ Quatro decisoes que valem explicacao:
    O peso vem do texto das fichas embutido em `DADOS`, nao de HTML por card.
    Se ficar pesado para distribuir, `--dias` e o botao para girar.
 
-3. A aba historica (`hall`) guarda, por trimestre de publicacao, os 10
-   aprovados mais votados com a ficha inteira e os 10 descartados mais votados
-   com a regra e a justificativa. Ela NAO preserva dado nenhum contra perda:
+3. A aba historica (`hall`) guarda, por trimestre de publicacao, os 15
+   aprovados mais votados com a ficha inteira - seguindo o perfil de leitura
+   que o leitor escolheu no navegador - e os 5 descartados mais votados com a
+   regra e a justificativa, como auditoria. Ela NAO preserva dado nenhum contra perda:
    nada e apagado, nem do banco nem dos Parquet. O que ela resolve e
    visibilidade - impedir que o recorte de 90 dias esconda para sempre o que a
    comunidade mais votou. Por isso e derivada a cada geracao, sem tabela nova,
@@ -61,12 +62,25 @@ CONFIG = RAIZ / "config.yaml"
 JANELA_PADRAO = 90
 JANELA_HALL_PADRAO = 90
 
-# Dez e dez, por decisao editorial. O custo por entrada e assimetrico e e o que
-# justifica os dois tamanhos: um aprovado com a ficha inteira pesa ~2,5 KB; um
-# descartado com regra + justificativa pesa ~0,7 KB. Um trimestre inteiro
-# acrescenta ~32 KB ao arquivo, ~130 KB por ano.
-TOPO_APROVADOS = 10
-TOPO_DESCARTADOS = 10
+# Quinze e cinco, por decisao editorial (ADR 004): o registro historico e
+# leitura, e os descartados ficam so como auditoria do corte. O ranking dos
+# aprovados segue o perfil de leitura, que e escolhido no navegador - entao o
+# Python nao sabe qual conjunto de degraus vai ser pedido. Ele embute os 15 mais
+# votados DE CADA degrau: o top-15 de qualquer uniao de degraus esta contido na
+# uniao dos top-15 de cada um, e o app recorta dali sem errar. Custa ate seis
+# vezes o de um ranking unico (~2,5 KB por aprovado com ficha) - aceito para um
+# painel de consulta pessoal.
+TOPO_APROVADOS = 15
+TOPO_DESCARTADOS = 5
+
+# Degrau de um aprovado que ainda nao passou pela reclassificacao total do ADR
+# 004: as linhas migradas do regime estrito/amplo viraram `aprovado` sem
+# natureza nem pre-requisito. Elas NAO somem do painel - sumir faria a janela
+# encolher de um dia para o outro sem explicacao -, e tambem nao ganham um
+# degrau inventado. Viajam com este marcador, e o app as mostra como "nao
+# classificado": fora de qualquer perfil, visiveis em "Tudo" e na propria
+# pilula. Depois da reclassificacao total o marcador nao aparece mais.
+NAO_CLASSIFICADO = "__sem-degrau__"
 
 ORDINAL = {1: "1", 2: "2", 3: "3", 4: "4"}
 
@@ -108,7 +122,8 @@ def justificativa_exibivel(triagem: dict) -> tuple[str, int]:
     cabecalho oco (rotulo "POR QUE ESTRITO"/"POR QUE AMPLO" sem corpo) ou,
     pior, como frase que finge ser um motivo. Os dois codigos residuais sao a
     mesma nota de honestidade da issue #2 para as duas listas (aprovados e
-    descartados), que assim nao divergem na regra.
+    descartados), que assim nao divergem na regra. O rotulo do cabecalho e
+    "POR QUE ESTE DEGRAU" desde o ADR 004.
 
     O codigo 1 (paper sem justificativa propria, porque o veredito nao vinha do
     pipeline) nao existe mais: hoje todo veredito sai do pipeline. Os codigos
@@ -243,24 +258,27 @@ def periodo(d: dt.date) -> tuple[str, str, dt.date, dt.date]:
             ini, proximo - dt.timedelta(days=1))
 
 
-def criterios_e_fronteira(triagem: dict, criterios: list[str]) -> dict:
-    """Os dois campos que a linha do veredito da ficha precisa, para um aprovado.
+def classificacao(triagem: dict, paper: dict) -> dict:
+    """Os campos que um aprovado leva para o card e para o filtro.
 
-    `cr` sempre sai (lista vazia inclusive: aprovado de linha antiga, anterior a
-    `criterios_veredito`, existe e nao tem criterio nenhum); `fc` so quando ha
-    decisao de fronteira COM contraparte gravada, senao o app imprimiria
-    "fronteira: quase null". O selo generico de fronteira continua saindo pelo
-    `fr`, que e independente deste par.
-
-    Os enums nao viram rotulo aqui: o mapa enum -> portugues mora em
-    `painel_app.js`, que e o unico consumidor (a ficha e o grafico "por que o
-    pipeline aprova"). Um so mapa, do lado de quem desenha - traze-lo para ca
-    duplicaria 16 strings dentro de `DADOS` sem ninguem em Python para le-las.
+    `pr` e `nt` saem sempre - nulo vira o marcador de nao classificado no
+    degrau, e `None` na natureza -, porque o app filtra e conta por eles. Os
+    textos e os links so saem quando existem: a janela tem centenas de
+    aprovados, e chave vazia repetida vira quilobyte. Os rotulos dos enums nao
+    viajam aqui: vem uma vez so, em `DADOS.degraus` e `DADOS.naturezas`, lidos
+    de `dim_prerequisito` e `dim_natureza`.
     """
-    extra: dict = {"cr": criterios}
-    contraparte = triagem.get("fronteira_contraparte")
-    if triagem.get("decisao_fronteira") and contraparte:
-        extra["fc"] = contraparte
+    extra: dict = {
+        "pr": triagem.get("prerequisito") or NAO_CLASSIFICADO,
+        "nt": triagem.get("natureza"),
+        "ao": 1 if triagem.get("artefato_aberto") else 0,
+    }
+    for chave, campo in (("pc", "pratica_contradita"), ("fo", "falta_o_como")):
+        if triagem.get(campo):
+            extra[chave] = triagem[campo]
+    for chave, campo in (("gh", "github_repo"), ("pg", "project_page")):
+        if paper.get(campo):
+            extra[chave] = paper[campo]
     return extra
 
 
@@ -282,7 +300,6 @@ def montar_hall(
     par_primario: dict[str, tuple[str, str]],
     vertentes_por_paper: dict[str, list[str]],
     ultimo_voto: dict[str, str],
-    criterios_por_paper: dict[str, list[str]],
     *,
     corte: dt.date,
 ) -> list[dict]:
@@ -310,6 +327,9 @@ def montar_hall(
     # esta saindo aos poucos.
     total: Counter[str] = Counter()
     aprovados: Counter[str] = Counter()
+    # aprovados por degrau, por trimestre: o app soma os degraus do perfil
+    # para dizer "15 de N" sem conhecer o trimestre inteiro
+    aprovados_degrau: dict[str, Counter[str]] = defaultdict(Counter)
     descartados: Counter[str] = Counter()
     rotulos: dict[str, tuple[str, dt.date, dt.date]] = {}
     for p in papers:
@@ -320,8 +340,9 @@ def montar_hall(
         rotulos[chave] = (rotulo, ini, fim)
         total[chave] += 1
         v = veredito(p["paper_id"])
-        if v in ("estrito", "amplo"):
+        if v == "aprovado":
             aprovados[chave] += 1
+            aprovados_degrau[chave][triagem[p["paper_id"]].get("prerequisito") or NAO_CLASSIFICADO] += 1
         elif v == "fora":
             descartados[chave] += 1
 
@@ -336,11 +357,21 @@ def montar_hall(
         rotulo, ini, fim = rotulos[chave]
         grupo = saidos[chave]
 
-        aprov = por_voto([p for p in grupo if veredito(p["paper_id"]) in ("estrito", "amplo")])
+        aprov = por_voto([p for p in grupo if veredito(p["paper_id"]) == "aprovado"])
         desc = por_voto([p for p in grupo if veredito(p["paper_id"]) == "fora"])
 
+        # Os TOPO_APROVADOS de cada degrau, na ordem de voto do grupo: ver o
+        # comentario de TOPO_APROVADOS para por que nao e um ranking so.
+        por_degrau: Counter[str] = Counter()
+        escolhidos = []
+        for p in aprov:
+            degrau = triagem[p["paper_id"]].get("prerequisito") or NAO_CLASSIFICADO
+            if por_degrau[degrau] < TOPO_APROVADOS:
+                por_degrau[degrau] += 1
+                escolhidos.append(p)
+
         entradas_aprov = []
-        for p in aprov[:TOPO_APROVADOS]:
+        for p in escolhidos:
             pid = p["paper_id"]
             f = fichas.get(pid, {})
             t = triagem.get(pid, {})
@@ -363,12 +394,11 @@ def montar_hall(
                 # top-10 mentir sobre quem foi mais votado - e a linha so nao
                 # abre. `f` e o que o app usa para decidir isso.
                 "f": 1 if f else 0,
-                # cabecalho da decisao (issue #2): por que o veredito saiu
-                # estrito/amplo, independente de a ficha ter sido escrita.
+                # cabecalho da decisao (issue #2): por que este degrau e esta
+                # natureza, independente de a ficha ter sido escrita.
                 "j": j,
                 "h": h,
-                "fr": 1 if t.get("decisao_fronteira") else 0,
-                **criterios_e_fronteira(t, criterios_por_paper.get(pid, [])),
+                **classificacao(t, p),
                 "ach": f.get("achado") or "",
                 "pn": f.get("padrao_nome") or "",
                 "pm": f.get("padrao_mecanismo") or "",
@@ -404,6 +434,7 @@ def montar_hall(
             "fim": fim.isoformat(),
             "n": total[chave],
             "na": aprovados[chave],
+            "nad": dict(sorted(aprovados_degrau[chave].items())),
             "nd": descartados[chave],
             "nx": total[chave] - aprovados[chave] - descartados[chave],
             "cons": 1 if fim >= corte else 0,
@@ -413,11 +444,21 @@ def montar_hall(
     return hall
 
 
+def perfis() -> list[dict]:
+    degraus: dict[str, list[str]] = defaultdict(list)
+    for r in ler("ponte_perfil_prerequisito"):
+        degraus[r["perfil"]].append(r["prerequisito"])
+    return [
+        {"p": r["perfil"], "r": r.get("rotulo") or r["perfil"], "d": sorted(degraus.get(r["perfil"], []))}
+        for r in sorted(ler("dim_perfil"), key=lambda x: (x.get("ordem") or 0, x["perfil"]))
+    ]
+
+
 def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]:
     """Extrai de marts/ o objeto `DADOS` que o app le no navegador.
 
-    As chaves sao curtas de proposito: sao ~300 papers e ~100 fichas embutidos
-    no HTML, e nome longo repetido 300 vezes vira quilobyte de distribuicao.
+    As chaves sao curtas de proposito: sao milhares de papers e centenas de
+    fichas embutidos no HTML, e nome longo repetido vira quilobyte.
     """
     manifest = json.loads((DIR_MARTS / "_manifest.json").read_text(encoding="utf-8"))
 
@@ -472,18 +513,6 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         if r["paper_id"] in ids_uteis:
             vertentes_por_paper[r["paper_id"]].append(r["vertente"])
 
-    # Criterios de veredito por paper. Ordenados e sem repeticao pelo mesmo
-    # motivo de `por_voto` desempatar: o painel e commitado todo dia e a ordem
-    # em que o Parquet devolve as linhas nao e garantida entre rodadas - sem
-    # isso o commit diario ganharia um diff que nao significa nada. A ordem
-    # alfabetica basta aqui: quem ordena para exibir e o app, que tem a lista
-    # canonica (estrito antes de amplo) do `schemas.py`.
-    criterios_brutos: dict[str, set[str]] = defaultdict(set)
-    for r in ler("ponte_paper_criterio"):
-        if r["paper_id"] in ids_uteis:
-            criterios_brutos[r["paper_id"]].add(r["criterio"])
-    criterios_por_paper = {pid: sorted(cs) for pid, cs in criterios_brutos.items()}
-
     # Uma passada so: a serie completa para quem esta na janela, e a data da
     # ultima medicao para quem esta no hall (o "votos em" que honra o
     # congelamento do refresh).
@@ -514,11 +543,13 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             # de onde a auditoria de datas le.
             "v": veredito_p,
             "rf": t.get("regra_fora"),
-            "art": t.get("tem_artefato_nomeado"),
             "a": area,
             "sa": subarea,
             "vt": vertentes_por_paper.get(pid, []),
-            "oa": 1 if p.get("tem_codigo_aberto") else 0,
+            # Repositorio no HF, e nao "artefato aberto": e a coordenada da
+            # dispersao upvotes x stars, que vale tambem para os descartados.
+            # O artefato aberto do ADR 004 (evidencia + `liberado`) e `ao`.
+            "oa": 1 if p.get("github_repo") else 0,
             "pp": 1 if p.get("tem_project_page") else 0,
             "u": p.get("upvotes_atual") or 0,
             "c": p.get("comentarios_atual") or 0,
@@ -529,22 +560,17 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "url": p.get("url_hf"),
             "f": 1 if pid in fichas else 0,
         }
-        # cabecalho da decisao (issue #2): so os aprovados o renderizam, entao
-        # so eles carregam `j`/`h` - a janela tem ~2500 papers e a maioria e
-        # `fora`, e essa e a restricao de peso que a issue pede para respeitar.
-        # `cr`/`fc`/`fr` seguem a mesma regra e pelo mesmo motivo: criterio de
-        # veredito so existe para quem foi aprovado, e o selo de fronteira e
-        # desenhado pelo mesmo cabecalho - um `fr` num `fora` viajava em ~315
-        # papers da janela sem ninguem para le-lo.
-        if veredito_p != "fora":
+        # cabecalho da decisao (issue #2) e classificacao do ADR 004: so os
+        # aprovados os renderizam, entao so eles carregam `j`/`h`, degrau,
+        # natureza, textos e links - um `fora` com essas chaves vazias viajaria
+        # em centenas de papers da janela sem ninguem para le-las.
+        if veredito_p == "aprovado":
             entrada["j"], entrada["h"] = justificativa_exibivel(t)
-            entrada["fr"] = 1 if t.get("decisao_fronteira") else 0
-            entrada.update(criterios_e_fronteira(t, criterios_por_paper.get(pid, [])))
+            entrada.update(classificacao(t, p))
         lista.append(entrada)
 
     hall = montar_hall(
         papers, triagem, fichas, par_primario, vertentes_por_paper, ultimo_voto,
-        criterios_por_paper,
         corte=corte_hall,
     )
 
@@ -594,6 +620,24 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             {"v": v["vertente"], "def": v.get("definicao") or ""}
             for v in sorted(ler("dim_vertente"), key=lambda x: x["vertente"])
         ],
+        # O vocabulario do ADR 004, na ordem do banco: `ordem` de
+        # `dim_prerequisito` e a escada, e e ela que ordena os cards dentro do
+        # dia e as pilulas. Rotulo e definicao viajam uma vez, aqui.
+        "degraus": [
+            {"k": d["prerequisito"], "r": d.get("rotulo") or d["prerequisito"],
+             "def": d.get("definicao") or ""}
+            for d in sorted(ler("dim_prerequisito"), key=lambda x: (x.get("ordem") or 0, x["prerequisito"]))
+        ],
+        "naturezas": [
+            {"k": n["natureza"], "r": n.get("rotulo") or n["natureza"],
+             "def": n.get("definicao") or ""}
+            for n in sorted(ler("dim_natureza"), key=lambda x: (x.get("ordem") or 0, x["natureza"]))
+        ],
+        # Os perfis sao a unica fonte do preset de degraus (config.yaml ->
+        # dim_perfil + ponte_perfil_prerequisito). O painel nao le
+        # `ponte_paper_perfil`: as pilulas de degrau sao editaveis, e o recorte
+        # precisa do conjunto de degraus de qualquer jeito.
+        "perfis": perfis(),
         "papers": lista,
         "fichas": [
             {
@@ -652,13 +696,22 @@ def _parser() -> argparse.ArgumentParser:
                          "unica forma de ver um trimestre ja consolidado enquanto o corrente nao "
                          "terminou (com valor positivo o corte nunca passa de hoje, entao "
                          "`fim >= corte` mantem o trimestre marcado como em consolidacao).")
+    ap.add_argument("--marts", type=Path, default=None,
+                    help="Le os Parquet de outro diretorio (previa sobre a copia do piloto). "
+                         "So vale junto com --destino: o carimbo de run_id e do marts/ do repo.")
     ap.add_argument("--force", action="store_true",
                     help="Regera mesmo se o run_id nao mudou.")
     return ap
 
 
 def main() -> int:
+    global DIR_MARTS
     args = _parser().parse_args()
+    if args.marts is not None:
+        if args.destino == DESTINO_PADRAO:
+            print("ERRO: --marts so com --destino: a previa nao publica.", file=sys.stderr)
+            return 2
+        DIR_MARTS = args.marts
 
     manifest_path = DIR_MARTS / "_manifest.json"
     if not manifest_path.exists():
@@ -669,7 +722,7 @@ def main() -> int:
     anterior = CARIMBO.read_text(encoding="utf-8").strip() if CARIMBO.exists() else None
 
     # A trava que torna o disparo repetido do WatchPaths inofensivo.
-    if run_id and run_id == anterior and not args.force:
+    if run_id and run_id == anterior and not args.force and args.marts is None:
         print(f"sem novidade: painel ja gerado para {run_id} (use --force para regerar)")
         return 0
 

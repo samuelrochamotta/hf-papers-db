@@ -16,12 +16,13 @@ Um paper cai fora se o *payload principal* for, **nesta ordem de teste**:
    linguagem **entra**.
 2. `percepcao_robotica_embodied` — percepção, robótica, embodied, direção
    autônoma, visão discriminativa sem saída em linguagem (classificação,
-   detecção, CLIP, aprendizado contínuo visual). Modelo multimodal que responde
+   detecção, CLIP, aprendizado contínuo visual, OCR e texto em cena). Modelo multimodal que responde
    em texto **entra**; agente em jogo ou simulação só cai aqui com ação motora
    contínua.
 3. `fora_de_escopo` — o modelo central não recebe nem produz linguagem natural e
    não é componente de pipeline com modelo de linguagem (embedder, reranker e
-   parser de RAG são componentes, e entram).
+   parser de RAG são componentes, e entram; encoders tabulares e de séries
+   temporais, não).
 
 **Todo `fora` tem exatamente uma regra.** A primeira que bate na ordem basta:
 descarte é portão, não diagnóstico. `fora` sem regra é resposta inválida.
@@ -54,7 +55,7 @@ capacidade: cada degrau implica os anteriores.
 |---|---|
 | `nenhum` | mudar decisão, prompt ou configuração, sem escrever código |
 | `implementar` | escrever um componente pela descrição, ou rodar ferramenta, benchmark ou checkpoint de terceiros |
-| `acesso_interno` | ativações, pesos internos, KV cache, decodificação própria, engine ou kernel |
+| `acesso_interno` | ativações, pesos internos, KV cache, decodificação própria, engine ou kernel — mesmo que o leitor escreva o código pela descrição |
 | `treino` | atualização de gradiente: fine-tune, LoRA, RL, destilação |
 | `sem_acao` | nada a adotar: muda o entendimento, não a prática |
 
@@ -73,8 +74,11 @@ Réguas que decidem os casos difíceis:
 **Dois textos**, que valem como fato e não decidem nada:
 
 - `pratica_contradita` — a prática que o achado contradiz, **nomeada**: algo que
-  o leitor plausivelmente faz hoje. Conclusão sobre prática que ainda não existe
-  é contexto, não contradição.
+  o leitor plausivelmente faz hoje, e que o paper mostra produzir resultado
+  errado, pior ou enganoso. Um método novo que supera o anterior não contradiz o
+  anterior, e a crítica que só motiva o método na introdução não conta: a
+  prática tem de ser o objeto do achado central. Conclusão sobre prática que
+  ainda não existe é contexto. `null` é a resposta comum.
 - `falta_o_como` — o princípio é portável, mas o paper não diz como implementar.
 
 **Artefato aberto** tem evidência externa — repositório no HF, link no abstract,

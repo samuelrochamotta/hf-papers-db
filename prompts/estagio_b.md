@@ -34,10 +34,12 @@ passar um paper que claramente cai numa delas, nesta ordem:
   ASR quando a fala é o objeto do paper. Modelo omni com núcleo de modelo de
   linguagem que também fala **não** é mídia.
 - `percepcao_robotica_embodied` — percepção, robótica, embodied, direção
-  autônoma, visão discriminativa sem saída em linguagem. Modelo multimodal que
-  responde em texto sobre imagem ou vídeo **não** cai aqui.
+  autônoma, visão discriminativa sem saída em linguagem, OCR e reconhecimento
+  de texto em cena. Modelo multimodal que responde em texto sobre imagem ou
+  vídeo **não** cai aqui.
 - `fora_de_escopo` — o modelo central não recebe nem produz linguagem natural e
-  não é componente de pipeline com modelo de linguagem.
+  não é componente de pipeline com modelo de linguagem (ex.: encoders de dados
+  tabulares ou de séries temporais).
 
 Treino, pós-treino, arquitetura de modelo e relatório técnico **não** são
 descarte. Com `regra_fora` preenchida, **todos** os outros campos são `null`,
@@ -86,7 +88,11 @@ degrau implica os anteriores; escolha o **mais baixo** que entrega o ganho:
   ferramenta, benchmark ou checkpoint de terceiros**. Servir pesos abertos
   (vLLM, ollama) é `implementar`, não acesso interno.
 - `acesso_interno` — exige ativações, pesos internos, KV cache, decodificação
-  própria, engine ou kernel modificados.
+  própria, engine ou kernel modificados. **Vale mesmo que o leitor escreva o
+  código pela descrição**: se o componente lê ou altera ativações, atenção, KV
+  cache ou o laço de decodificação, é `acesso_interno`, não `implementar`.
+  Interpretabilidade sobre ativações e atenção esparsa na inferência são
+  `acesso_interno`.
 - `treino` — exige atualização de gradiente: fine-tune, LoRA, RL, destilação.
 - `sem_acao` — não há nada a adotar: o paper muda o entendimento, não a prática.
 
@@ -96,14 +102,17 @@ Réguas de desempate:
   `implementar`. Rodar um benchmark ou uma ferramenta de terceiros já é
   `implementar`.
 - **`implementar` × `acesso_interno`**: roda com o modelo só via API de chat,
-  com logprobs no máximo? Então é no máximo `implementar`.
+  com logprobs no máximo? Então é no máximo `implementar`. Precisa abrir o
+  modelo — ativações, atenção, decodificação, kernel? Então é
+  `acesso_interno`, por mais simples que seja o código.
 - **Pesos liberados**: se o ganho é **usar** o checkpoint, é `implementar`; se o
   ganho é a **receita** de treino, é `treino`.
 - **Relatório técnico de modelo de fundação**: `sem_acao`, ou `implementar` se
   os pesos são abertos.
 - **Achado que contradiz uma prática** (`pratica_contradita` preenchida): recebe
   o degrau necessário para **aplicar a correção**, não `sem_acao`. Contradizer um
-  detalhe de PPO é `treino`; contradizer um hábito de prompt é `nenhum`.
+  detalhe de PPO ou de destilação é `treino` — mesmo que o paper seja só um
+  estudo empírico; contradizer um hábito de prompt é `nenhum`.
 
 Invariantes que voltam para você refazer: `teoria` e `panorama` são sempre
 `sem_acao`; `proposta` nunca é `sem_acao`.
@@ -112,8 +121,23 @@ Invariantes que voltam para você refazer: `teoria` e `panorama` são sempre
 
 - `pratica_contradita` — **nomeie** a prática que o achado contradiz, em uma
   frase: algo que o leitor **plausivelmente já faz hoje** (de qualquer perfil),
-  nunca uma prática hipotética. Conclusão de benchmark sobre prática que ainda
-  não existe é contexto, não contradição. Sem contradição, `null`.
+  nunca uma prática hipotética. Sem contradição, `null` — e **`null` é a
+  resposta comum**: a maioria dos papers não contradiz nada.
+
+  Contradizer é mostrar, com evidência, que uma prática difundida **produz
+  resultado errado, pior ou enganoso** — não que existe algo melhor. **Um método
+  novo que supera o anterior não contradiz o anterior**: "usar recompensa só de
+  resultado" não é prática contradita por um paper que propõe recompensa de
+  processo e ganha alguns pontos. É contradição quando o paper mostra que a
+  prática falha: "tratar traços deliberativos como sinal de raciocínio melhor"
+  contradito por um estudo que mostra que eles não predizem acerto. Conclusão de
+  benchmark sobre prática que ainda não existe é contexto, não contradição.
+
+  **A prática tem de ser o objeto do achado central**, não a motivação do
+  método. Quase todo paper abre criticando o que veio antes para justificar a
+  própria proposta; essa crítica de introdução não conta. Pergunte: se o leitor
+  ler só os resultados, sai sabendo que a prática dele está errada? Se não,
+  `null`.
 - `falta_o_como` — o princípio é portável, mas o paper **não diz como
   implementar**: diga o que falta, em uma frase. Se o paper diz como, `null`.
 

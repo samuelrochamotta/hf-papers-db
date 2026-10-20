@@ -24,7 +24,8 @@ bate, nesta ordem:
    linguagem que também fala **não** é mídia: é `candidato`.
 2. `percepcao_robotica_embodied` — percepção, robótica, embodied, direção
    autônoma, e **visão discriminativa sem saída em linguagem**: classificação de
-   imagem, detecção, segmentação, CLIP, aprendizado contínuo visual. Modelo
+   imagem, detecção, segmentação, CLIP, aprendizado contínuo visual, OCR e
+   reconhecimento de texto em cena. Modelo
    multimodal que **responde em texto** sobre imagem ou vídeo **não** cai aqui:
    é `candidato`. Agente em jogo ou simulação só cai aqui se a ação for motora
    contínua.
@@ -32,7 +33,8 @@ bate, nesta ordem:
    natural** e **não é componente de um pipeline com modelo de linguagem**
    (embedder, reranker, parser de documento para RAG são componentes, e são
    `candidato`). Exemplos: econometria, ciência política, biologia sem modelo de
-   linguagem, geometria de dados sem modelo de linguagem.
+   linguagem, geometria de dados sem modelo de linguagem, encoders de dados
+   tabulares ou de séries temporais.
 
 **Todo `fora` tem exatamente uma regra.** `fora` com `regra_fora` nulo é resposta
 inválida e volta para você refazer. Só uma regra, mesmo que mais de uma se

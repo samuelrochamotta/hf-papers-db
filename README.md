@@ -62,6 +62,8 @@ python -m hfpapers run --dry-run                # estima custo, não chama LLM
 python -m hfpapers export                       # só exporta
 python -m hfpapers reclassificar --data 2026-08-25 | --paper 2608.23552
 python -m hfpapers reclassificar --tudo --concorrencia 4   # base inteira; teto 8
+python -m hfpapers reclassificar --ids-arquivo ids.txt      # lista, um id por linha
+python -m hfpapers reclassificar --tudo --retomar run-...   # continua a rodada que caiu
 python -m hfpapers taxonomia listar | nao-encaixes | fundir | exportar | carregar
 python -m hfpapers auditar-datas-arxiv [--aplicar] [--revalidar]
 python -m hfpapers custos --mes 2026-08
@@ -69,7 +71,7 @@ python -m hfpapers doutor [--sem-rede]          # código 1 se houver erro
 python -m hfpapers schema                       # DDL efetivo
 ```
 
-`reclassificar --tudo` é operação manual, dura cerca de uma hora com
+`reclassificar --tudo` é operação manual, dura de duas a três horas com
 `--concorrencia 4` e não entra no agendamento. Rode em terminal que sobreviva
 (`nohup`, `tmux`) e não mate o processo: Ctrl+C só age quando as chamadas em
 voo terminam. No fim, o comando imprime a lista de papers em que o Estágio B
@@ -96,10 +98,14 @@ tail -f logs/run_*.log
 
 `scripts/gerar_painel.py` lê os Parquet e embute dados, `scripts/painel_app.js`
 e CSS em um único HTML, sem dependência de rede. Três abas: **Aprovados**
-(últimos 90 dias, com ficha), **Panorama** (gráficos sobre a mesma janela) e
-**Registro histórico** (10 aprovados e 10 descartados mais votados por
-trimestre já fora da janela). O corte do histórico é
-`refresh.janela_morna_dias`, não `--dias`.
+(últimos 90 dias, um dia por página, do degrau mais barato ao mais caro e
+depois por voto; seletor de perfil que marca as pílulas de degrau, filtros de
+natureza, das marcas — artefato aberto, contradiz prática, como incompleto —,
+área, vertente e busca no texto da ficha), **Panorama** (lote diário por
+degrau, natureza × pré-requisito, área por degrau, onde o pipeline corta, votos)
+e **Registro histórico** (por trimestre já fora da janela, os aprovados mais
+votados seguindo o perfil, e os descartados mais votados como auditoria). O
+corte do histórico é `refresh.janela_morna_dias`, não `--dias`.
 
 ```bash
 python scripts/gerar_painel.py --force                         # após editar JS/CSS
@@ -120,12 +126,15 @@ aplicado a cada conexão, tudo `IF NOT EXISTS`):
 |---|---|
 | `dim_paper` | 1 linha por paper (id base, sem versão) |
 | `fato_metrica` | 1 linha por paper por dia: upvotes, comentários, stars, artefatos |
-| `fato_triagem` | veredito (`fora`/`amplo`/`estrito`), `regra_fora`, fronteira e contraparte, `revisao`, `run_id` |
-| `dim_ficha` | os cinco campos da ficha, só para aprovados |
+| `fato_triagem` | veredito (`aprovado`/`fora`), `regra_fora`, natureza, pré-requisito, prática contradita, falta o como, status do artefato, `revisao`, `run_id` |
+| `dim_ficha` | os campos da ficha, só para aprovados |
+| `dim_natureza`, `dim_prerequisito` | vocabulário fixo dos dois eixos de um aprovado; `ordem` é a ordenação |
+| `dim_perfil`, `ponte_perfil_prerequisito` | perfis de leitura, espelhados de `config.yaml` a cada conexão |
+| `vw_artefato`, `vw_paper_perfil` | views: evidência e artefato aberto; "dá para agir" por perfil |
 | `dim_area` | áreas e sub-áreas numa tabela: `area_pai` nulo é raiz |
 | `dim_vertente` | eixo transversal: que movimento o paper faz |
 | `tax_nao_encaixe` | fila de revisão da grade: paper, eixo, justificativa |
-| `ponte_paper_*` | área (`is_primaria`), vertente (`ordem`), critério, keyword, autor |
+| `ponte_paper_*` | área (`is_primaria`), vertente (`ordem`), keyword, autor |
 | `log_execucao`, `log_llm` | operação, tokens, custo e provedor do OpenRouter |
 | `dim_calendario` | inteligência temporal do Power BI |
 
@@ -145,25 +154,33 @@ A defasagem auditada é `data_hf_daily - data_arxiv_v1`.
 
 ## Export para o Power BI
 
-`export` escreve 13 Parquet em `marts/`, um por tabela, com escrita atômica.
+`export` escreve 17 Parquet em `marts/`, um por tabela ou view, com escrita
+atômica, e apaga os de tabelas que saíram (`ponte_paper_criterio`).
+`fato_triagem` sai com os booleanos já derivados (`contradiz_pratica`,
+`como_incompleto`, `artefato_aberto`) e `ponte_paper_perfil` com o "dá para
+agir" pronto, para o Power BI não reimplementar regra nenhuma.
 Datas como `date32`, grão fino, sem pré-agregação. `marts/_manifest.json`
 registra `run_id`, hora e contagem de linhas.
 
 ## Regras de classificação
 
 Vivem em `prompts/`, versionadas: `regras_classificacao.md` (normas),
-`estagio_a.md` (triagem barata + taxonomia) e `estagio_b.md` (portabilidade,
-critérios, veredito e ficha). O veredito é estruturado:
+`estagio_a.md` (triagem barata + taxonomia) e `estagio_b.md` (natureza,
+pré-requisito e ficha). O regime é o do ADR 004
+(`docs/adr/004-natureza-e-prerequisito.md`; desenho em
+`docs/specs/natureza-prerequisito.md`):
 
 - todo `fora` tem exatamente uma `regra_fora`, a primeira que bate na ordem
-  `treino_ou_postreino`, `geracao_de_midia`, `percepcao_robotica_embodied`,
-  `relatorio_tecnico_de_modelo`, `fora_de_escopo`, `portabilidade_reprovada`;
-- todo aprovado tem ao menos um critério de um enum de dez (cinco de estrito,
-  cinco de amplo); qualquer critério de estrito ⇒ estrito;
-- fronteira exige contraparte do lado oposto ao veredito.
+  `geracao_de_midia`, `percepcao_robotica_embodied`, `fora_de_escopo`; treino e
+  relatório técnico não são descarte;
+- todo aprovado tem `natureza` (proposta, achado empírico, teoria, panorama) e
+  `prerequisito` (nenhum < implementar < acesso interno < treino; sem ação);
+  teoria e panorama são `sem_acao`, proposta nunca é;
+- o perfil de leitura é um conjunto de degraus em `config.yaml`, fora do paper.
 
 Validações em `llm/estagio_a.py` e `llm/estagio_b.py` rejeitam `fora` sem
-regra, aprovado sem critério e veredito incoerente; o paper fica pendente em
+regra, aprovado sem natureza ou ficha, natureza incoerente com o pré-requisito e
+Padrão Extraído que cita o nome próprio dos autores; o paper fica pendente em
 vez de gravado errado. Upvote não entra em decisão nenhuma nem em prompt.
 
 ## Testes

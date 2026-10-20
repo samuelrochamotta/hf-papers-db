@@ -23,7 +23,7 @@ const FONTE = fs.readFileSync(APP, 'utf-8');
 const CAIXA_MENU = 'max-height: 288px; overflow-y: auto;';
 const CORTINA = /data-c="(\d+)" style="position: fixed; inset: 0; z-index: 80;"/;
 
-export function montarPainel(DADOS) {
+export function montarPainel(DADOS, { storage = null } = {}) {
   let html = '';
   const handlers = { c: new Map(), e: new Map(), l: new Map(), i: new Map() };
 
@@ -49,7 +49,9 @@ export function montarPainel(DADOS) {
   const ctx = vm.createContext({
     DADOS,
     console,
-    window: { innerWidth: 1600, innerHeight: 900 },
+    // sem `setTimeout` no contexto: o debounce da busca aplica na hora, que
+    // e o que um teste sincrono precisa
+    window: { innerWidth: 1600, innerHeight: 900, localStorage: storage },
     document: {
       activeElement: null,
       getElementById: (id) => (id === 'painel' ? painel : id === 'tip' ? tip : null),
@@ -81,20 +83,57 @@ export function montarPainel(DADOS) {
       return m ? m[1] : '';
     },
 
-    /* Clica no chip de veredito (`estrito`, `amplo`, `fora`). */
-    clicaVeredito(v) {
+    /* Clica numa pilula pelo rotulo: perfil, degrau, natureza, marca ou
+       veredito - todas tem o mesmo desenho (bolinha de cor, rotulo, contador). */
+    clicaPilula(rotulo) {
       fechaMenu();
       clica(achaUm(
-        new RegExp('data-c="(\\d+)"[^>]*>\\s*<span style="display: inline-block; width: 7px[^"]*"><\\/span>' + v + '<'),
-        'chip do veredito ' + v,
+        new RegExp('data-c="(\\d+)"[^>]*>\\s*<span style="display: inline-block; width: 7px[^"]*"><\\/span>' + escRe(rotulo) + '<'),
+        'pilula ' + rotulo,
       ));
     },
 
-    /* Contagem exibida no chip de veredito. */
-    contaVeredito(v) {
-      const m = html.match(new RegExp('>' + v + '<span style="margin-left: 7px[^"]*">(\\d+)<'));
-      if (!m) throw new Error('chip de veredito ausente: ' + v);
+    /* Contagem exibida na pilula. */
+    contaPilula(rotulo) {
+      const m = html.match(new RegExp('>' + escRe(rotulo) + '<span style="margin-left: 7px[^"]*">(\\d+)<'));
+      if (!m) throw new Error('pilula ausente: ' + rotulo);
       return +m[1];
+    },
+
+    /* A pilula esta acesa? */
+    acesa(rotulo) {
+      const re = new RegExp('<div class="chip chip-on"[^>]*>\\s*<span style="display: inline-block; width: 7px[^"]*"><\\/span>' + escRe(rotulo) + '<');
+      return re.test(html);
+    },
+
+    /* Digita no campo de busca (o debounce aplica na hora sem setTimeout). */
+    busca(valor) {
+      const m = html.match(/id="q-principal"[^>]*data-i="(\d+)"/);
+      if (!m) throw new Error('campo de busca ausente');
+      const fn = handlers.i.get(+m[1]);
+      fn({ target: { value: valor } });
+    },
+
+    /* Ids dos cards desenhados, na ordem da pagina. */
+    get cards() {
+      return [...html.matchAll(/data-card="([^"]+)"/g)].map((m) => m[1]);
+    },
+
+    /* O dia exibido na aba Aprovados (ISO), ou null. */
+    get diaAtual() {
+      const m = html.match(/data-dia-atual="([^"]+)"/);
+      return m ? m[1] : null;
+    },
+
+    /* Navega pelo botao de dia ('← dia anterior' ou 'dia seguinte →'). */
+    navegaDia(texto) {
+      clica(achaUm(new RegExp('data-nav-dia="' + escRe(texto) + '" data-c="(\\d+)"'), 'navegacao ' + texto));
+    },
+
+    /* Clica numa aba pelo rotulo. */
+    aba(rotulo) {
+      fechaMenu();
+      clica(achaUm(new RegExp('<div class="aba" data-c="(\\d+)"[^>]*>\\s*<span[^>]*>' + escRe(rotulo) + '<'), 'aba ' + rotulo));
     },
 
     /* Abre o menu do filtro e devolve as linhas dele: [{label, n}].
@@ -138,6 +177,10 @@ function linhasMenu(html) {
     label: desescapa(m[2]),
     n: m[3] === '' ? null : +m[3],
   }));
+}
+
+function escRe(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function desescapa(s) {

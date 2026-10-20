@@ -8,42 +8,73 @@ dois estágios, base SQLite e export para o Power BI e o painel HTML.
 ### Classificação
 
 **Veredito**:
-O resultado da classificação de um paper: `fora`, `amplo` ou `estrito`. Todo
-veredito sai do pipeline (Estágio A + Estágio B); não existe outra origem.
-_Avoid_: veredito herdado, veredito do digest, veredito importado (o backfill
-não classifica mais — o digest é conjunto de validação, não fonte)
+O resultado da triagem de um paper: `aprovado` ou `fora`. Todo veredito sai do
+pipeline (Estágio A + Estágio B); não existe outra origem. Desde o ADR 004 não
+há mais grau de aprovação: o que distingue um aprovado de outro é a natureza e o
+pré-requisito.
+_Avoid_: estrito, amplo (regime anterior ao ADR 004), veredito herdado
 
 **Regra de descarte** (`regra_fora`):
-O motivo, único, pelo qual um paper saiu `fora`. Todo `fora` tem uma; a
-primeira que bate na ordem basta.
-_Avoid_: motivo, categoria de descarte, regra (sozinho, quando pode confundir
-com critério)
+O motivo, único, pelo qual um paper saiu `fora`: `geracao_de_midia`,
+`percepcao_robotica_embodied` ou `fora_de_escopo`, testadas nessa ordem. Todo
+`fora` tem uma; a primeira que bate basta. Treino e relatório técnico deixaram
+de ser descarte no ADR 004.
+_Avoid_: motivo, categoria de descarte
 
-**Critério de veredito** (`criterios_veredito`):
-Por que um paper aprovado é estrito ou amplo. É uma lista com ao menos um item;
-um paper pode se qualificar por mais de um. Estrito prevalece quando os lados
-se misturam.
-_Avoid_: leque, tipo de artefato, motivo do veredito
+**Natureza** (`natureza`):
+Que tipo de afirmação um aprovado faz, pela contribuição que o abstract
+anuncia: `proposta`, `achado_empirico`, `teoria` ou `panorama`. Não diz *o que*
+o paper faz — isso é a vertente.
+_Avoid_: tipo de paper, categoria, critério
 
-**Prática corrente**:
-Algo que o leitor-alvo plausivelmente faz hoje. É a régua do critério
-`invalida_pratica`: conclusão sobre prática que ainda não existe é contexto,
-não achado.
+**Pré-requisito** (`prerequisito`) e **degrau**:
+O que o leitor precisa ter para obter o ganho principal de um aprovado. É uma
+escada — `nenhum` < `implementar` < `acesso_interno` < `treino` — mais
+`sem_acao`, quando não há nada a adotar. Cada valor é um **degrau**. A
+contradição de uma prática recebe o degrau necessário para aplicar a correção.
+_Avoid_: adoção, acionabilidade, estrito/amplo
+
+**Perfil**:
+Um conjunto de degraus em que um tipo de leitor consegue agir (produto:
+`nenhum`, `implementar`; treino/pesquisa: `acesso_interno`, `treino`,
+`sem_acao`). Fica **fora do paper**: vive em `config.yaml`, nenhum estágio o
+escolhe, e mudar a divisão não reclassifica nada. "Dá para agir" é o paper cujo
+degrau está no conjunto do perfil (`vw_paper_perfil`).
+_Avoid_: público-alvo, leitor-alvo (no singular), perfil do paper
+
+**"Treino", em quatro sentidos**:
+A palavra aparece em quatro eixos e não é a mesma coisa em nenhum deles: a
+vertente *Treinar* (o movimento que o paper faz), a área *Modelo & treino* (a
+peça em que ele mexe), o degrau `treino` (o que o leitor precisa para adotá-lo)
+e o perfil `pesquisa_treino` (quem lê). Coincidem muito, não sempre: um paper de
+treino que libera o checkpoint é vertente Treinar e degrau `implementar`.
+
+**Prática corrente** e **prática contradita** (`pratica_contradita`):
+Algo que o leitor, de qualquer perfil, plausivelmente faz hoje. Um achado que a
+contradiz grava a prática, nomeada, em `pratica_contradita`; conclusão sobre
+prática que ainda não existe é contexto, não contradição.
+
+**Falta o como** (`falta_o_como`):
+O princípio é portável, mas o paper não diz como implementar. Texto, não
+booleano: o booleano `como_incompleto` deriva dele no export.
+
+**Evidência de artefato** e **artefato aberto**:
+A evidência é externa e calculada em código (`vw_artefato`): repositório no HF,
+link do GitHub ou do HF no abstract, modelo ou dataset vinculado em qualquer
+snapshot. Só quando há evidência o Estágio B diz se o artefato foi `liberado` ou
+só `prometido`; artefato aberto é evidência + `liberado`, e existe só na view.
+_Avoid_: código aberto (era a coluna `tem_codigo_aberto`, que saiu)
+
+**Padrão Extraído**:
+A regra estrutural de uma `proposta`, impessoal e sem o nome próprio dos autores
+(o que vem antes do ":" no título). O código recusa o padrão que cita o nome — é
+o que sobrou do antigo teste de portabilidade, que o modelo autoavaliava.
+_Avoid_: teste de portabilidade, portabilidade reprovada (regime anterior)
 
 **Justificativa**:
-A frase, para quem lê o painel, que aplica a regra de descarte ou o critério de
-veredito ao paper. Não descreve o paper; explica o veredito.
-
-**Teste de portabilidade**:
-A prova a que o Padrão Extraído é submetido antes do veredito: reprova se só
-existe apoiado no nome próprio ou se colapsa em generalidade. Reprovar é
-descarte com regra `portabilidade_reprovada`.
-
-**Decisão de fronteira**:
-Veredito que poderia legitimamente ter ido para o outro lado — estrito↔amplo,
-ou aprovado↔fora. Sempre acompanhada da **contraparte**: a regra de descarte ou
-o critério que quase venceu.
-_Avoid_: caso limite, borderline
+A frase, para quem lê o painel, que aplica a classificação ao paper — por que
+este degrau e esta natureza, ou por que esta regra de descarte. Não descreve o
+paper.
 
 ### Taxonomia
 
@@ -106,7 +137,8 @@ _Avoid_: recentes, backfill, herdado
 
 **Reclassificação total**:
 A rodada que passa todos os papers da base pelo pipeline de novo, com o
-vocabulário vigente. A marca dela é o `run_id` compartilhado por toda linha de
+vocabulário vigente. Se cair no meio, `reclassificar --retomar <run_id>` a
+continua com o mesmo `run_id`. A marca dela é o `run_id` compartilhado por toda linha de
 `fato_triagem` — não `revisao`, que sobe 1 em cada linha e deixa a importada em
 1. Roda com a grade congelada: o não-encaixe é registrado, e nenhum rótulo nasce
 dela.

@@ -145,8 +145,9 @@ def test_lista_so_embute_justificativa_para_veredito_diferente_de_fora(tmp_path,
          "upvotes_atual": 5, "organizacao": "org", "url_hf": "https://x/b"},
     ]
     triagem = [
-        {"paper_id": "aprovado", "veredito": "estrito", "justificativa": "motivo forte"},
-        {"paper_id": "fora", "veredito": "fora", "justificativa": "motivo do descarte"},
+        {"paper_id": "aprovado", "veredito": "aprovado", "justificativa": "motivo forte"},
+        {"paper_id": "fora", "veredito": "fora", "regra_fora": "geracao_de_midia",
+         "justificativa": "motivo do descarte"},
     ]
     dados = _montar_dados_com(tmp_path, monkeypatch, papers, triagem)
     por_id = {p["id"]: p for p in dados["papers"]}
@@ -157,11 +158,14 @@ def test_lista_so_embute_justificativa_para_veredito_diferente_de_fora(tmp_path,
     assert "h" not in por_id["fora"]
 
 
-@pytest.mark.parametrize("veredito", ["estrito", "amplo"])
-def test_lista_embute_justificativa_para_qualquer_veredito_aprovado(tmp_path, monkeypatch, veredito):
+@pytest.mark.parametrize("prerequisito", ["nenhum", "treino", None])
+def test_lista_embute_justificativa_para_qualquer_aprovado(tmp_path, monkeypatch, prerequisito):
+    """Inclusive o nao classificado (linha migrada, sem pre-requisito): o
+    cabecalho da decisao vale para todo aprovado."""
     papers = [{"paper_id": "p1", "titulo": "A", "data_hf_daily": DIA, "data_arxiv": DIA,
                "upvotes_atual": 10, "organizacao": "org", "url_hf": "https://x/a"}]
-    triagem = [{"paper_id": "p1", "veredito": veredito, "justificativa": "motivo"}]
+    triagem = [{"paper_id": "p1", "veredito": "aprovado", "prerequisito": prerequisito,
+                "justificativa": "motivo"}]
     dados = _montar_dados_com(tmp_path, monkeypatch, papers, triagem)
     entrada = dados["papers"][0]
 
@@ -191,13 +195,13 @@ def test_lista_repassa_o_codigo_que_justificativa_exibivel_devolveu(
     consumidor que ignorasse `justificativa_exibivel` e sempre gravasse
     `h=0` passaria por eles do mesmo jeito. Aqui o `(j, h)` inteiro que
     `montar_dados` grava tem de bater com o que a funcao pura devolveria -
-    caso concreto e nao hipotetico: `estagios/classificacao.py` grava
-    `veredito="amplo"` com o prefixo de fallback quando o Estagio B falha,
-    e essa linha cai na janela viva do mesmo jeito que um "amplo" comum.
+    caso concreto: linhas legadas com o prefixo de fallback do Estagio B
+    viraram `aprovado` na migracao do ADR 004 e caem na janela viva do mesmo
+    jeito que um aprovado comum.
     """
     papers = [{"paper_id": "p1", "titulo": "A", "data_hf_daily": DIA, "data_arxiv": DIA,
                "upvotes_atual": 10, "organizacao": "org", "url_hf": "https://x/a"}]
-    triagem = [{"paper_id": "p1", "veredito": "amplo", **extra_triagem}]
+    triagem = [{"paper_id": "p1", "veredito": "aprovado", **extra_triagem}]
     dados = _montar_dados_com(tmp_path, monkeypatch, papers, triagem)
     entrada = dados["papers"][0]
 
