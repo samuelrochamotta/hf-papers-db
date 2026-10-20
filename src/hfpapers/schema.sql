@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS dim_paper (
     project_page            TEXT,
     github_repo             TEXT,
     github_repo_added_by    TEXT,
-    tem_codigo_aberto       INTEGER,     -- 0/1, derivado de github_repo IS NOT NULL
     discussion_id           TEXT,
     thumbnail_url           TEXT,
     organizacao             TEXT,        -- organization.name
@@ -52,29 +51,71 @@ CREATE TABLE IF NOT EXISTS fato_metrica (
 CREATE INDEX IF NOT EXISTS ix_metrica_data ON fato_metrica(data_snapshot);
 
 -- ══════════════ FATO: TRIAGEM ══════════════
+-- Regime do ADR 004: `aprovado`/`fora`, e o aprovado localizado por natureza ×
+-- pré-requisito. Só os invariantes sempre verdadeiros ficam em SQL; a coerência
+-- natureza↔pré-requisito é do validador do Estágio B e do `doutor`. O CHECK de
+-- `regra_fora` não lista os rótulos de propósito: as linhas anteriores à
+-- reclassificação total trazem regras que saíram, e quem as acusa é o `doutor`.
+-- Tabela reconstruída por migração em db.migrar nos bancos do regime anterior.
 CREATE TABLE IF NOT EXISTS fato_triagem (
     paper_id                TEXT PRIMARY KEY REFERENCES dim_paper(paper_id),
-    veredito                TEXT NOT NULL CHECK (veredito IN ('fora','amplo','estrito')),
-    regra_fora              TEXT,     -- regra de descarte (§1 das regras, 6 rótulos); obrigatória em todo 'fora', NULL se aprovado
+    veredito                TEXT NOT NULL CHECK (veredito IN ('fora','aprovado')),
+    regra_fora              TEXT,     -- regra de descarte; obrigatória em todo 'fora', NULL se aprovado
     justificativa           TEXT,
-    tem_artefato_nomeado    INTEGER,  -- 0/1
-    portabilidade_aprovada  INTEGER,  -- 0/1/NULL (NULL = não chegou a ser testada)
-    portab_depende_nome     INTEGER,  -- 0/1/NULL — falha tipo 1
-    portab_generalidade     INTEGER,  -- 0/1/NULL — falha tipo 2
-    decisao_fronteira       INTEGER DEFAULT 0,  -- 1 se o modelo marcou como poderia ter ido para o outro lado
-    fronteira_contraparte   TEXT,     -- o que quase venceu (regra de descarte ou critério); NULL sem fronteira. Coluna adicionada por migração em db.migrar
+    natureza                TEXT REFERENCES dim_natureza(natureza),          -- NULL se 'fora'
+    prerequisito            TEXT REFERENCES dim_prerequisito(prerequisito),  -- NULL se 'fora'
+    pratica_contradita      TEXT,     -- a prática que o achado contradiz, nomeada; NULL se não contradiz
+    falta_o_como            TEXT,     -- o que falta para implementar; NULL se o paper diz como
+    artefato_status         TEXT CHECK (artefato_status IN ('liberado','prometido')),  -- só com evidência (vw_artefato)
     classificado_em         TIMESTAMP NOT NULL,
     run_id                  TEXT NOT NULL,
-    revisao                 INTEGER NOT NULL DEFAULT 1
+    revisao                 INTEGER NOT NULL DEFAULT 1,
+    CHECK ((veredito = 'fora') = (regra_fora IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS ix_triagem_veredito ON fato_triagem(veredito);
 
--- Critérios de veredito (§3 das regras): por que um aprovado é estrito ou amplo.
--- Um paper pode ter vários; 'fora' não tem nenhum. Enum vive em llm/schemas.py.
-CREATE TABLE IF NOT EXISTS ponte_paper_criterio (
-    paper_id    TEXT NOT NULL REFERENCES dim_paper(paper_id),
-    criterio    TEXT NOT NULL,
-    PRIMARY KEY (paper_id, criterio)
+-- Os dois eixos de um aprovado. Vocabulário fixo, que só muda junto com o
+-- código (Enums em llm/schemas.py; um teste confere que batem). Por isso mora
+-- aqui, e não no JSON da grade, que é vocabulário que evolui por medição.
+CREATE TABLE IF NOT EXISTS dim_natureza (
+    natureza    TEXT PRIMARY KEY,
+    rotulo      TEXT NOT NULL,
+    definicao   TEXT NOT NULL,
+    ordem       INTEGER NOT NULL
+);
+INSERT OR IGNORE INTO dim_natureza VALUES
+    ('proposta',        'Proposta',        'Propõe algo adotável: método, sistema, ferramenta, benchmark.', 1),
+    ('achado_empirico', 'Achado empírico', 'Mostra ou mede algo; o método é veículo.', 2),
+    ('teoria',          'Teoria',          'Modelo formal ou conceitual, sem instrumento.', 3),
+    ('panorama',        'Panorama',        'Sistematiza o que existe: survey, taxonomia.', 4);
+
+-- A escada de capacidade: cada degrau implica os anteriores. `ordem` é a única
+-- cópia da ordenação (o Power BI classifica por ela; o painel também).
+CREATE TABLE IF NOT EXISTS dim_prerequisito (
+    prerequisito TEXT PRIMARY KEY,
+    rotulo       TEXT NOT NULL,
+    definicao    TEXT NOT NULL,
+    ordem        INTEGER NOT NULL
+);
+INSERT OR IGNORE INTO dim_prerequisito VALUES
+    ('nenhum',         'Nenhum',         'Muda decisão, prompt ou configuração, sem escrever código.', 1),
+    ('implementar',    'Implementar',    'Escrever um componente pela descrição, ou rodar ferramenta, benchmark ou checkpoint de terceiros.', 2),
+    ('acesso_interno', 'Acesso interno', 'Ativações, pesos internos, KV cache, decodificação própria, engine ou kernel modificados.', 3),
+    ('treino',         'Treino',         'Atualização de gradiente: fine-tune, LoRA, RL, destilação.', 4),
+    ('sem_acao',       'Sem ação',       'Nada a adotar: muda o entendimento, não a prática.', 5);
+
+-- Perfil de leitura: um conjunto de degraus. Fica fora do paper - nada é
+-- gravado por paper, e mudar a divisão não reclassifica nada. A fonte é
+-- `perfis` no config.yaml; db.sincronizar_perfis reescreve as duas tabelas.
+CREATE TABLE IF NOT EXISTS dim_perfil (
+    perfil      TEXT PRIMARY KEY,
+    rotulo      TEXT NOT NULL,
+    ordem       INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ponte_perfil_prerequisito (
+    perfil       TEXT NOT NULL REFERENCES dim_perfil(perfil),
+    prerequisito TEXT NOT NULL REFERENCES dim_prerequisito(prerequisito),
+    PRIMARY KEY (perfil, prerequisito)
 );
 
 -- ══════════════ DIMENSÃO: FICHA (só aprovados) ══════════════
@@ -172,8 +213,14 @@ CREATE TABLE IF NOT EXISTS log_execucao (
     qtd_novos           INTEGER,
     qtd_ja_vistos       INTEGER,
     qtd_fora            INTEGER,
-    qtd_amplo           INTEGER,
-    qtd_estrito         INTEGER,
+    qtd_amplo           INTEGER,         -- regime anterior ao ADR 004; NULL desde então
+    qtd_estrito         INTEGER,         -- idem
+    qtd_aprovados       INTEGER,
+    qtd_pr_nenhum       INTEGER,         -- aprovados por degrau de pré-requisito: o
+    qtd_pr_implementar  INTEGER,         -- único histórico da distribuição, porque
+    qtd_pr_acesso_interno INTEGER,       -- fato_triagem é sobrescrita a cada
+    qtd_pr_treino       INTEGER,         -- reclassificação
+    qtd_pr_sem_acao     INTEGER,
     taxa_fora           REAL,
     qtd_refresh         INTEGER,
     tokens_entrada      INTEGER,

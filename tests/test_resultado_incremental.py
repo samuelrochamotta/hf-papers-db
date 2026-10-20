@@ -1,7 +1,7 @@
 """O acumulado da classificacao pertence a quem chama, nao ao `return`.
 
 Achado da revisao do bloco 2: quando a varredura estourava no meio,
-`log_execucao` era fechada com `qtd_fora = qtd_amplo = qtd_estrito = 0`, porque
+`log_execucao` era fechada com `qtd_fora = qtd_aprovados = 0`, porque
 esses campos so eram preenchidos com o valor **devolvido** por
 `classificacao.rodar`. Numa rodada de horas isso perde a contagem de centenas
 de triagens ja gravadas - e ainda faz `doutor.checar_pendencias` recusar a
@@ -110,7 +110,7 @@ def test_log_execucao_guarda_o_que_a_rodada_alcancou(cfg, base):
 
     linha = base.execute("SELECT * FROM log_execucao ORDER BY iniciado_em").fetchone()
     assert linha["status"] == "erro"
-    assert linha["qtd_fora"] + linha["qtd_amplo"] + linha["qtd_estrito"] == 2
+    assert linha["qtd_fora"] + linha["qtd_aprovados"] == 2
     assert linha["custo_usd"] > 0
 
 
@@ -208,6 +208,6 @@ def test_rodada_diaria_guarda_o_que_alcancou_antes_do_estouro(cfg, base):
 
     linha = base.execute("SELECT * FROM log_execucao ORDER BY iniciado_em").fetchone()
     assert linha["status"] == "erro"
-    assert linha["qtd_fora"] + linha["qtd_amplo"] + linha["qtd_estrito"] == 2
+    assert linha["qtd_fora"] + linha["qtd_aprovados"] == 2
     assert linha["custo_usd"] > 0
     assert db.contar(base, "fato_triagem") == 2

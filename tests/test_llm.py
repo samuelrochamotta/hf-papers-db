@@ -65,19 +65,14 @@ def _base_a(**over):
 
 def _base(**over):
     d = {
-        "tem_artefato_nomeado": True,
-        "padrao_extraido": {"nome": "Contrato de preservar-e-estender", "mecanismo": "Uma versao nova so e promovida se mantiver o que a anterior resolvia."},
-        "teste_portabilidade": {
-            "depende_do_nome_proprio": False,
-            "colapsa_em_generalidade": False,
-            "aprovado": True,
-        },
-        "criterios_veredito": ["padrao_arquitetural"],
-        "veredito": "estrito",
         "regra_fora": None,
-        "justificativa_veredito": JUSTIFICATIVA_B,
-        "decisao_fronteira": False,
-        "fronteira_contraparte": None,
+        "natureza": "proposta",
+        "padrao_extraido": {"nome": "Contrato de preservar-e-estender", "mecanismo": "Uma versao nova so e promovida se mantiver o que a anterior resolvia."},
+        "prerequisito": "implementar",
+        "pratica_contradita": None,
+        "falta_o_como": None,
+        "artefato_status": None,
+        "justificativa": JUSTIFICATIVA_B,
         "ficha": {
             "achado": "a",
             "implicacao_pratica": "b",
@@ -147,7 +142,7 @@ def test_os_dois_campos_de_justificativa_declaram_piso_e_teto():
     a = _schema_a()
     for campo in (
         a["properties"]["justificativa"],
-        schemas.SCHEMA_ESTAGIO_B["properties"]["justificativa_veredito"],
+        schemas.SCHEMA_ESTAGIO_B["properties"]["justificativa"],
     ):
         assert campo["minLength"] == schemas.PISO_JUSTIFICATIVA
         assert campo["maxLength"] == schemas.TETO_JUSTIFICATIVA
@@ -155,16 +150,17 @@ def test_os_dois_campos_de_justificativa_declaram_piso_e_teto():
 
 def test_ordem_das_propriedades_do_estagio_b_e_normativa():
     props = list(schemas.SCHEMA_ESTAGIO_B["properties"])
-    assert props.index("padrao_extraido") < props.index("veredito")
-    assert props.index("teste_portabilidade") < props.index("veredito")
+    assert props.index("natureza") < props.index("prerequisito")
+    assert props.index("padrao_extraido") < props.index("prerequisito")
+    assert props.index("prerequisito") < props.index("justificativa")
     assert props == schemas.SCHEMA_ESTAGIO_B["required"]
 
 
 # ── validacoes da secao 4.4 ─────────────────────────────────────────────────
 
 
-# Um `fora` coerente do Estagio B: sem ficha, sem criterio, com regra.
-FORA = dict(veredito="fora", ficha=None, criterios_veredito=[], regra_fora="treino_ou_postreino")
+# Um `fora` coerente do Estagio B: sem ficha, sem classificacao, com regra.
+FORA = dict(regra_fora="fora_de_escopo", ficha=None, natureza=None, padrao_extraido=None, prerequisito=None)
 
 
 def test_fora_exige_ficha_nula():
@@ -177,38 +173,6 @@ def test_aprovado_exige_ficha_completa():
         eb.validar(_base(ficha=None))
     with pytest.raises(ErroValidacao):
         eb.validar(_base(ficha={"achado": " ", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d"}))
-
-
-def test_sem_artefato_nomeado_zera_padrao_e_teste():
-    with pytest.raises(ErroValidacao):
-        eb.validar(_base(tem_artefato_nomeado=False))
-    eb.validar(_base(tem_artefato_nomeado=False, padrao_extraido=None, teste_portabilidade=None))
-
-
-def test_reprovado_na_portabilidade_tem_de_sair_fora():
-    reprovado = {
-        "depende_do_nome_proprio": True,
-        "colapsa_em_generalidade": False,
-        "aprovado": False,
-    }
-    with pytest.raises(ErroValidacao):
-        eb.validar(_base(teste_portabilidade=reprovado))
-    eb.validar(
-        _base(teste_portabilidade=reprovado, **{**FORA, "regra_fora": "portabilidade_reprovada"})
-    )
-
-
-def test_aprovado_incoerente_com_as_duas_falhas():
-    with pytest.raises(ErroValidacao):
-        eb.validar(
-            _base(
-                teste_portabilidade={
-                    "depende_do_nome_proprio": True,
-                    "colapsa_em_generalidade": False,
-                    "aprovado": True,
-                }
-            )
-        )
 
 
 def test_padrao_com_segunda_pessoa_e_rejeitado():
@@ -250,7 +214,7 @@ DEGENERADAS = [
 @pytest.mark.parametrize("texto", DEGENERADAS)
 def test_justificativa_degenerada_e_rejeitada_no_estagio_b(texto):
     with pytest.raises(ErroValidacao):
-        eb.validar(_base(justificativa_veredito=texto))
+        eb.validar(_base(justificativa=texto))
 
 
 @pytest.mark.parametrize("texto", DEGENERADAS)
@@ -263,8 +227,8 @@ def test_reticencias_sao_rejeitadas_nos_dois_estagios():
     """O caso concreto da issue: `"..."` nao e vazio, entao atravessava a defesa
     do painel (`justificativa_exibivel`) e era exibido como se fosse conteudo."""
     with pytest.raises(ErroValidacao) as e_b:
-        eb.validar(_base(justificativa_veredito="..."))
-    assert "justificativa_veredito" in str(e_b.value)
+        eb.validar(_base(justificativa="..."))
+    assert "justificativa" in str(e_b.value)
     with pytest.raises(ErroValidacao) as e_a:
         ea.validar(_base_a(justificativa="..."))
     assert "justificativa" in str(e_a.value)
@@ -278,9 +242,9 @@ def test_justificativa_legitima_passa_nos_dois_estagios():
 def test_justificativa_no_limite_do_piso_passa():
     """80 caracteres uteis e o piso, nao o degrau abaixo dele."""
     texto = "o" + "l" * (schemas.PISO_JUSTIFICATIVA - 1)
-    eb.validar(_base(justificativa_veredito=f"  {texto}  "))
+    eb.validar(_base(justificativa=f"  {texto}  "))
     with pytest.raises(ErroValidacao):
-        eb.validar(_base(justificativa_veredito=texto[:-1]))
+        eb.validar(_base(justificativa=texto[:-1]))
 
 
 def test_justificativa_acima_do_teto_passa_e_so_avisa(caplog):
@@ -294,7 +258,7 @@ def test_justificativa_acima_do_teto_passa_e_so_avisa(caplog):
     longa = "Entrega artefato adotavel. " * 20
     assert len(longa) > schemas.TETO_JUSTIFICATIVA
     with caplog.at_level(logging.WARNING, logger="hfpapers.llm"):
-        eb.validar(_base(justificativa_veredito=longa))
+        eb.validar(_base(justificativa=longa))
     assert "acima do teto" in caplog.text
 
 
@@ -384,8 +348,9 @@ def test_prompt_diz_que_o_par_secundario_nulo_e_resposta_esperada(cfg):
 
 def test_prompt_b_declara_a_ordem_do_raciocinio(cfg):
     b = eb.montar_prompt(PAPER, cfg)
-    assert b.index("padrao_extraido") < b.index("`veredito`")
-    assert "antes de o veredito ser decidido" in b
+    assert b.index("1. `regra_fora`") < b.index("2. `natureza`") < b.index("4. `prerequisito`")
+    assert b.index("4. `prerequisito`") < b.index("8. `justificativa`")
+    assert "nao treina" not in b and "não treina" not in b   # o leitor deixou de ser um so (ADR 004)
 
 
 def test_vocabulario_do_estagio_a_e_a_grade_facetada(conn):

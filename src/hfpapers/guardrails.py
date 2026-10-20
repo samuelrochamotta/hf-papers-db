@@ -1,13 +1,18 @@
 """Guardrails de volume (secao 6.5) - validacao, nao decisao.
 
 Nenhum destes altera um veredito. Todos apenas gravam aviso em
-`log_execucao.avisos`. A taxa de FORA e a verificacao mais confiavel: entre 60%
-e 80% o filtro opera normalmente **mesmo com muitos aprovados**.
+`log_execucao.avisos`.
+
+As faixas de taxa de FORA e de aprovados/dia foram calibradas no regime
+anterior ao ADR 004, que descartava treino e relatorio tecnico. No regime novo
+elas sao provisorias (ver `config.yaml`) ate a recalibracao com a distribuicao
+da reclassificacao total. O aviso de distribuicao por degrau e novo: se
+`nenhum` domina os aprovados, o eixo de pre-requisito perdeu o sentido.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from .config import Guardrails as ConfigGuardrails
@@ -17,18 +22,14 @@ from .config import Guardrails as ConfigGuardrails
 class Contagens:
     coletados: int = 0
     fora: int = 0
-    amplo: int = 0
-    estrito: int = 0
+    aprovados: int = 0
+    por_prerequisito: dict[str, int] = field(default_factory=dict)
     nao_classificados: int = 0
     dia_util: bool = True
 
     @property
     def classificados(self) -> int:
-        return self.fora + self.amplo + self.estrito
-
-    @property
-    def aprovados(self) -> int:
-        return self.amplo + self.estrito
+        return self.fora + self.aprovados
 
     @property
     def taxa_fora(self) -> Optional[float]:
@@ -50,6 +51,12 @@ def _avisos_volume(c: Contagens, cfg: ConfigGuardrails) -> list[str]:
         avisos.append(f"volume_alto:{c.aprovados}")
     if c.aprovados == 0:
         avisos.append("dia_sem_aprovados")
+
+    # Distribuicao por degrau: com poucos aprovados a fracao e ruido, entao so
+    # le a partir de um minimo.
+    nenhum = c.por_prerequisito.get("nenhum", 0)
+    if c.aprovados >= cfg.prerequisito_min_aprovados and nenhum / c.aprovados > cfg.prerequisito_nenhum_max:
+        avisos.append(f"prerequisito_nenhum_alto:{nenhum / c.aprovados:.0%}")
 
     return avisos
 

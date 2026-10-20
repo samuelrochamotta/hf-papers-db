@@ -10,7 +10,9 @@ from typing import Optional
 
 import typer
 
-from . import db, doutor as doutor_mod, execucao, log, taxonomia as mod_tax
+from . import db, execucao, log
+from . import doutor as doutor_mod
+from . import taxonomia as mod_tax
 from .config import config
 from .estagios import classificacao
 from .estagios import export as mod_export
@@ -86,7 +88,7 @@ def run(
     )
     taxa = f"{r.taxa_fora:.0%}" if r.taxa_fora is not None else "—"
     typer.echo(
-        f"fora {r.fora} | amplo {r.amplo} | estrito {r.estrito} | fichas {r.fichas} | "
+        f"fora {r.fora} | aprovados {r.aprovados} {_degraus(r.por_prerequisito)} | fichas {r.fichas} | "
         f"pendentes {r.nao_classificados} | taxa FORA {taxa}"
     )
     typer.echo(
@@ -154,10 +156,41 @@ def export() -> None:
 # ── reclassificar ───────────────────────────────────────────────────────────
 
 
+def ler_ids(caminho: Path) -> list[str]:
+    """Um id por linha; linha vazia e o que vem depois de "#" sao ignorados, e
+    a primeira coluna de um TSV basta - o arquivo de estratos do piloto serve
+    direto."""
+    ids = []
+    for linha in caminho.read_text(encoding="utf-8").splitlines():
+        campo = linha.split("#", 1)[0].strip().split("\t", 1)[0].strip()
+        if campo:
+            ids.append(campo)
+    return list(dict.fromkeys(ids))
+
+
+def _degraus(por: dict[str, int]) -> str:
+    if not por:
+        return ""
+    return "(" + ", ".join(f"{k} {v}" for k, v in sorted(por.items())) + ")"
+
+
 @app.command()
 def reclassificar(
     data: Optional[str] = typer.Option(None, "--data", help="Reclassifica um dia inteiro."),
     paper: Optional[str] = typer.Option(None, "--paper", help="Reclassifica um paper."),
+    ids_arquivo: Optional[Path] = typer.Option(
+        None,
+        "--ids-arquivo",
+        help="Reclassifica os papers listados no arquivo, um id por linha (# comenta).",
+    ),
+    retomar: Optional[str] = typer.Option(
+        None,
+        "--retomar",
+        help=(
+            "Continua uma rodada que caiu no meio: reaproveita o run_id e leva so "
+            "quem ainda nao tem triagem dele. Combina com --tudo, --data ou --ids-arquivo."
+        ),
+    ),
     tudo: bool = typer.Option(
         False, "--tudo", help="Reclassifica a base inteira (rodada total, horas)."
     ),
@@ -188,25 +221,33 @@ def reclassificar(
 ) -> None:
     """Roda a classificacao de novo, incrementando `revisao`.
 
-    `--tudo` e exclusivo com `--data`/`--paper`: ou se varre a base inteira, ou
-    se dirige a varredura. A rodada entra em `log_execucao` nos tres casos.
+    `--tudo` e exclusivo com `--data`/`--paper`/`--ids-arquivo`: ou se varre a
+    base inteira, ou se dirige a varredura. A rodada entra em `log_execucao` em
+    todos os casos. `--retomar` continua uma rodada que caiu, com o mesmo
+    `run_id`.
 
     `--concorrencia` mora aqui e nao no `run` de proposito: e a rodada total
     que passa horas em chamada sequencial. A rodada diaria segue o config.
     """
     cfg = _preparar()
-    if tudo and (data or paper):
-        typer.echo("--tudo nao combina com --data nem --paper")
+    if tudo and (data or paper or ids_arquivo):
+        typer.echo("--tudo nao combina com --data, --paper nem --ids-arquivo")
         raise typer.Exit(code=2)
-    if not tudo and not data and not paper:
-        typer.echo("informe --tudo, --data ou --paper")
+    if not tudo and not data and not paper and not ids_arquivo:
+        typer.echo("informe --tudo, --data, --paper ou --ids-arquivo")
         raise typer.Exit(code=2)
+    ids = [paper] if paper else None
+    if ids_arquivo:
+        ids = [*(ids or []), *ler_ids(ids_arquivo)]
+        if not ids:
+            typer.echo(f"{ids_arquivo}: nenhum id")
+            raise typer.Exit(code=2)
 
     conn = db.abrir(cfg)
     try:
         r = execucao.reclassificar(
-            cfg=cfg, conn=conn, ids=[paper] if paper else None, data=data, tudo=tudo,
-            concorrencia=concorrencia, so_estagio_a=so_estagio_a,
+            cfg=cfg, conn=conn, ids=ids, data=data, tudo=tudo,
+            concorrencia=concorrencia, so_estagio_a=so_estagio_a, retomar=retomar,
         )
         if not r.selecionados:
             typer.echo("nada a reclassificar")
@@ -214,8 +255,8 @@ def reclassificar(
 
         typer.echo(f"\nrun_id: {r.run_id}  status: {r.status}  ({r.selecionados} papers)")
         typer.echo(
-            f"fora {r.fora} | amplo {r.amplo} | estrito {r.estrito} | fichas {r.fichas} | "
-            f"pendentes {r.nao_classificados} | US$ {r.uso.custo_usd:.4f}"
+            f"fora {r.fora} | aprovados {r.aprovados} {_degraus(r.por_prerequisito)} | "
+            f"fichas {r.fichas} | pendentes {r.nao_classificados} | US$ {r.uso.custo_usd:.4f}"
         )
         for aviso in r.avisos:
             typer.echo(f"  [aviso] {aviso}")

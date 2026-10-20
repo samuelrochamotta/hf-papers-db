@@ -165,7 +165,6 @@ def paper_para_dim(
         "project_page": paper.projectPage,
         "github_repo": paper.githubRepo,
         "github_repo_added_by": paper.githubRepoAddedBy,
-        "tem_codigo_aberto": int(bool(paper.githubRepo)),
         "discussion_id": paper.discussionId,
         "thumbnail_url": item.thumbnail if item else None,
         "organizacao": org.name if org else None,

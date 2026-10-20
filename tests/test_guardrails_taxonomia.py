@@ -4,29 +4,39 @@ from pathlib import Path
 import pytest
 
 from hfpapers import db, taxonomia
-from hfpapers.config import Guardrails as CfgGuard
 from hfpapers.guardrails import Contagens, avaliar
-
 
 # ── guardrails (secao 6.5) ──────────────────────────────────────────────────
 
 
 def test_faixa_normal_nao_gera_aviso():
-    c = Contagens(coletados=30, fora=21, amplo=3, estrito=5)
+    c = Contagens(coletados=40, fora=15, aprovados=25)
     assert avaliar(c) == []
 
 
 def test_criterio_frouxo():
-    c = Contagens(coletados=30, fora=10, amplo=10, estrito=10)
+    c = Contagens(coletados=30, fora=2, aprovados=28)
     avisos = avaliar(c)
     assert any(a.startswith("criterio_frouxo") for a in avisos)
 
 
 def test_volume_alto_e_atipico():
-    c = Contagens(coletados=40, fora=25, amplo=7, estrito=8)
+    c = Contagens(coletados=100, fora=20, aprovados=80)
     avisos = avaliar(c)
     assert any(a.startswith("volume_atipico") for a in avisos)
     assert any(a.startswith("volume_alto") for a in avisos)
+
+
+def test_prerequisito_nenhum_alto():
+    """Se `nenhum` domina os aprovados, o eixo de pre-requisito perdeu o sentido."""
+    c = Contagens(coletados=40, fora=15, aprovados=25,
+                  por_prerequisito={"nenhum": 15, "implementar": 10})
+    assert "prerequisito_nenhum_alto:60%" in avaliar(c)
+
+
+def test_prerequisito_nenhum_com_poucos_aprovados_nao_le():
+    c = Contagens(coletados=40, fora=31, aprovados=9, por_prerequisito={"nenhum": 9})
+    assert not any(a.startswith("prerequisito_nenhum_alto") for a in avaliar(c))
 
 
 def test_dia_sem_aprovados_e_valido():
@@ -42,7 +52,7 @@ def test_coleta_suspeita_so_em_dia_util():
 
 def test_guardrail_nao_altera_veredito():
     """Contrato da secao 6.5: a funcao devolve strings, nunca vereditos."""
-    avisos = avaliar(Contagens(coletados=30, fora=5, amplo=15, estrito=10))
+    avisos = avaliar(Contagens(coletados=30, fora=5, aprovados=25))
     assert all(isinstance(a, str) for a in avisos)
 
 
@@ -662,13 +672,13 @@ def test_rodada_grava_o_par_primario_para_todo_paper_inclusive_os_fora(cfg, conn
     )
 
     assert res.avisos == []
-    assert (res.fora, res.estrito) == (1, 1)
+    assert (res.fora, res.aprovados) == (1, 1)
     assert [tuple(r) for r in conn.execute(
         "SELECT t.paper_id, t.veredito, p.area, p.subarea, p.is_primaria "
         "FROM fato_triagem t JOIN ponte_paper_area p USING (paper_id) ORDER BY t.paper_id"
     )] == [
         ("2608.00001", "fora", AREA_TESTE, SUBAREA_TESTE, 1),
-        ("2608.00002", "estrito", AREA_TESTE, SUBAREA_TESTE, 1),
+        ("2608.00002", "aprovado", AREA_TESTE, SUBAREA_TESTE, 1),
     ]
 
 
@@ -693,14 +703,14 @@ def test_rodada_grava_a_vertente_para_todo_paper_inclusive_os_fora(cfg, conn):
         conn, LLMDuble(conn, cfg, um_a_cada=2), papers, run_id="run-1", cfg=cfg
     )
 
-    assert (res.fora, res.estrito) == (1, 1)
+    assert (res.fora, res.aprovados) == (1, 1)
     assert [tuple(r) for r in conn.execute(
         "SELECT t.paper_id, t.veredito, v.vertente, v.ordem "
         "FROM fato_triagem t JOIN ponte_paper_vertente v USING (paper_id) "
         "ORDER BY t.paper_id"
     )] == [
         ("2608.00001", "fora", VERTENTE_TESTE, 1),
-        ("2608.00002", "estrito", VERTENTE_TESTE, 1),
+        ("2608.00002", "aprovado", VERTENTE_TESTE, 1),
     ]
     assert taxonomia.vertente_dominante(conn, "2608.00001") == VERTENTE_TESTE
 

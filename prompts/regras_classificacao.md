@@ -1,125 +1,97 @@
 # Regras de negócio (normativas — transporte fiel)
 
-Esta seção é o núcleo. Ela vem de um pipeline em operação desde 14/08/2026 e as
-faixas numéricas vêm de execuções reais.
+Esta seção é o núcleo. O regime vigente é o do ADR 004
+(`docs/adr/004-natureza-e-prerequisito.md`), de 20/10/2026: o leitor tem
+perfis diferentes — quem constrói produto com modelos de linguagem e quem treina
+ou pesquisa modelos — e o pipeline não escolhe entre eles. Classifica o que o
+paper entrega e o que é preciso ter para usá-lo; o perfil é um filtro de
+leitura, fora do paper.
 
 ## 1. FORA — descarte primeiro, sem análise
 
-Um paper cai fora se o *payload principal* for:
+Um paper cai fora se o *payload principal* for, **nesta ordem de teste**:
 
-- método de treino ou pós-treino (destilação, RL, SFT, arquitetura de modelo);
-- geração de mídia (imagem, vídeo, 3D, áudio, mesh);
-- percepção, robótica, embodied, direção autônoma;
-- relatório técnico de modelo novo;
-- assunto fora do escopo: não é sobre LLM nem sobre engenharia de sistemas com
-  modelos de linguagem (econometria, ciência política, dataset de fala de baixo
-  nível, biologia sem modelo de linguagem…);
-- padrão que reprovou no teste de portabilidade (§2) — só o Estágio B pode
-  aplicar esta, porque só ele faz o teste.
-
-Esperado: **~70% do lote**. Abaixo de 50% indica critério frouxo.
-
-Os seis rótulos de regra são, **nesta ordem de teste**:
-`treino_ou_postreino`, `geracao_de_midia`, `percepcao_robotica_embodied`,
-`relatorio_tecnico_de_modelo`, `fora_de_escopo`, `portabilidade_reprovada`.
+1. `geracao_de_midia` — gerar ou editar imagem, vídeo, 3D, mesh ou áudio; TTS e
+   ASR quando a fala é o objeto do paper. Modelo omni com núcleo de modelo de
+   linguagem **entra**.
+2. `percepcao_robotica_embodied` — percepção, robótica, embodied, direção
+   autônoma, visão discriminativa sem saída em linguagem (classificação,
+   detecção, CLIP, aprendizado contínuo visual). Modelo multimodal que responde
+   em texto **entra**; agente em jogo ou simulação só cai aqui com ação motora
+   contínua.
+3. `fora_de_escopo` — o modelo central não recebe nem produz linguagem natural e
+   não é componente de pipeline com modelo de linguagem (embedder, reranker e
+   parser de RAG são componentes, e entram).
 
 **Todo `fora` tem exatamente uma regra.** A primeira que bate na ordem basta:
-descarte é portão, não diagnóstico. Um paper de treino que também reprovaria na
-portabilidade é `treino_ou_postreino`. `fora` sem regra é resposta inválida.
+descarte é portão, não diagnóstico. `fora` sem regra é resposta inválida.
 
-**Exceção: componente adotável por quem não treina.** `treino_ou_postreino` e
-`relatorio_tecnico_de_modelo` **não** valem quando o paper libera um componente
-pronto para quem não treina — guard model, classificador, reranker, embedder,
-dataset de avaliação. A regra de treino existe para cortar "como treinar", não
-"aqui está um modelo para você usar". Esse paper passa como candidato e o
-Estágio B decide entre `artefato_aberto` e fora. Relatório de modelo de
-fronteira (Llama, GPT, Gemini…) continua fora: não é componente, é o modelo.
+Treino, pós-treino, arquitetura de modelo e relatório técnico **não são
+descarte** desde o ADR 004. Saíram também `portabilidade_reprovada` (o teste
+virou validação do Padrão Extraído) e a meta de "~70% fora", que era do regime
+anterior.
 
-## 2. Teste de portabilidade — o filtro que faz o trabalho
+## 2. Natureza e pré-requisito — o que localiza um aprovado
 
-Só se aplica quando o paper propõe ou usa **framework, sistema ou ferramenta com
-nome próprio**. Achado puramente empírico (uma medição, uma vulnerabilidade sem
-ferramenta) **não recebe** o campo Padrão Extraído — o achado já é o padrão.
+**Natureza** — que tipo de afirmação o paper faz, pela contribuição que o
+abstract anuncia:
 
-Escreva a frase do padrão **antes** de decidir estrito/amplo. Duas formas de reprovar:
-
-1. **A frase só existe apoiada no nome próprio** — você não consegue descrevê-la sem
-   citar o framework/benchmark/ferramenta dos autores.
-2. **A frase colapsa numa generalidade óbvia** — "iterar com feedback ajuda", "mais
-   dado melhora o modelo". Se seria verdadeira de qualquer sistema do mesmo tipo,
-   não veio do paper.
-
-Reprovou em qualquer um dos dois ⇒ **FORA**, com a regra `portabilidade_reprovada`
-(a menos que uma regra de conteúdo anterior na ordem já tenha batido),
-independente do tipo de conteúdo.
-
-Caso frequente: o princípio de alto nível passa mas falta o "como" implementar.
-Nesse caso o paper fica em **AMPLO**, com o critério `principio_sem_o_como`, não
-some — e essa distinção é registrada na **Ressalva**, não no Padrão Extraído.
-
-## 3. ESTRITO vs AMPLO — por critério, não por impressão
-
-O veredito de um aprovado é a consequência dos **critérios** que ele satisfaz.
-Liste todos que valem (um ou mais); o veredito segue a lista: **qualquer
-critério de estrito ⇒ estrito**; só critérios de amplo ⇒ amplo. A lista é só o
-que **vale** — o "quase" mora na contraparte da fronteira (abaixo).
-
-**ESTRITO** — entrega algo que o leitor adota sem treinar modelo:
-
-| critério | definição |
+| natureza | definição |
 |---|---|
-| `padrao_arquitetural` | desenho reproduzível pela descrição, sem depender do código dos autores |
-| `artefato_aberto` | biblioteca, modelo, dataset, checkpoint ou kernel aberto e usável |
-| `invalida_pratica` | achado empírico que contradiz algo que o leitor faz hoje |
-| `vulnerabilidade` | falha explorável com mecanismo descrito |
-| `tecnica_de_avaliacao` | método de avaliação ou diagnóstico transferível para outro domínio |
+| `proposta` | algo adotável: método, sistema, ferramenta, benchmark, dataset, receita, modelo |
+| `achado_empirico` | mostra ou mede algo; o método é veículo |
+| `teoria` | modelo formal ou conceitual, sem instrumento |
+| `panorama` | sistematiza o que existe: survey, taxonomia |
 
-**AMPLO** — informa a decisão, não entrega o que adotar:
+Desempate: o título nomeia um instrumento → `proposta`; nomeia uma pergunta ou
+fenômeno → `achado_empirico`. Relatório técnico de modelo de fundação geral de
+família nomeada → `achado_empirico`.
 
-| critério | definição |
+**Pré-requisito** — o caminho mais barato até o ganho principal. Escada de
+capacidade: cada degrau implica os anteriores.
+
+| degrau | o leitor precisa |
 |---|---|
-| `benchmark` | mede capacidade; o artefato é o instrumento de medida |
-| `panorama` | sistematiza o que já existe (survey, taxonomia), sem propor nem medir nada novo |
-| `framework_conceitual` | modelo mental sem instrumento |
-| `principio_sem_o_como` | o padrão passou no teste de portabilidade, mas o paper não diz como implementar |
-| `exige_acesso_interno` | técnica válida que pede ativações, engine de inferência, kernel ou retreino para ser adotada |
+| `nenhum` | mudar decisão, prompt ou configuração, sem escrever código |
+| `implementar` | escrever um componente pela descrição, ou rodar ferramenta, benchmark ou checkpoint de terceiros |
+| `acesso_interno` | ativações, pesos internos, KV cache, decodificação própria, engine ou kernel |
+| `treino` | atualização de gradiente: fine-tune, LoRA, RL, destilação |
+| `sem_acao` | nada a adotar: muda o entendimento, não a prática |
 
-Três réguas que decidem os casos difíceis:
+Réguas que decidem os casos difíceis:
 
-- **Código aberto é um critério, não a régua.** Padrão arquitetural reproduzível
-  pela descrição é estrito mesmo sem código dos autores — o leitor escreve o
-  código dele; o que precisa é o desenho.
-- **Prática corrente é o que o leitor plausivelmente faz hoje.** Só um achado
-  que contradiz isso é `invalida_pratica`; conclusão de benchmark sobre prática
-  que ainda não existe é contexto, e o paper fica `benchmark`. Quando usar
-  `invalida_pratica`, **nomeie a prática invalidada** na justificativa.
-- **Treino como payload é FORA (regra 1). Acesso interno como pré-requisito de
-  adoção é AMPLO** (`exige_acesso_interno`): achado sobre inferência que só roda
-  controlando a engine, o kernel ou as ativações informa, mas não entrega.
-  **`exige_acesso_interno` é excludente**: se a adoção exige acesso interno,
-  nenhum critério de estrito vale ao mesmo tempo — estrito é "adota sem treinar
-  e sem acesso interno". Um padrão "reproduzível pela descrição, mas que exige
-  modificar o motor de inferência" é `exige_acesso_interno`, não
-  `padrao_arquitetural`.
+- Código novo além de cola é `implementar`; rodar ferramenta de terceiros também.
+- Roda só via API de chat, com logprobs no máximo → no máximo `implementar`.
+- Servir pesos abertos é `implementar`. Pesos liberados: ganho é usar o
+  checkpoint → `implementar`; ganho é a receita → `treino`.
+- Relatório técnico de modelo de fundação: `sem_acao`, ou `implementar` com
+  pesos abertos.
+- Achado que contradiz uma prática recebe o degrau necessário para aplicar a
+  correção — não `sem_acao`.
+- `teoria` e `panorama` são sempre `sem_acao`; `proposta` nunca é.
 
-Dois lados na lista (`artefato_aberto` + `benchmark`) dão estrito e **não**
-obrigam fronteira: se entrega, entrega; o benchmark é contexto.
+**Dois textos**, que valem como fato e não decidem nada:
 
-**Fronteira.** `decisao_fronteira` é verdadeira quando o veredito poderia
-legitimamente ter ido para o outro lado — estrito↔amplo, aprovado→fora ou
-fora→aprovado. Sempre acompanhada de **`fronteira_contraparte`**: a regra de
-descarte ou o critério que quase venceu, obrigatoriamente de lado **diferente**
-do veredito (estrito com contraparte `benchmark`; amplo com contraparte
-`padrao_arquitetural` ou `treino_ou_postreino`; fora com contraparte
-`exige_acesso_interno`). Sem fronteira, a contraparte é nula. A contraparte
-**não está** em `criterios_veredito`: a lista é o que vale, a contraparte é o
-que quase valeu — o mesmo rótulo não pode ser os dois.
+- `pratica_contradita` — a prática que o achado contradiz, **nomeada**: algo que
+  o leitor plausivelmente faz hoje. Conclusão sobre prática que ainda não existe
+  é contexto, não contradição.
+- `falta_o_como` — o princípio é portável, mas o paper não diz como implementar.
 
-**Justificativa.** A justificativa **aplica o critério ou a regra ao paper**
-("AMPLO porque é benchmark: mede X, não entrega Y"; "FORA por
-`treino_ou_postreino`: o payload é a receita de RL"); não descreve o paper.
+**Artefato aberto** tem evidência externa — repositório no HF, link no abstract,
+modelo ou dataset vinculado —, calculada em código. Só quando há evidência o
+modelo responde se o artefato foi `liberado` ou só `prometido`.
 
-## 4. Os cinco campos da ficha
+**Justificativa.** Aplica a classificação ao paper ("Proposta que se adota só
+implementando: …"; "FORA por `geracao_de_midia`: …"); não descreve o paper.
+
+## 3. Perfil — fora do paper
+
+Um perfil é um conjunto de degraus, configurado em `config.yaml` (produto:
+`nenhum`, `implementar`; treino/pesquisa: `acesso_interno`, `treino`,
+`sem_acao`). Nenhum estágio escolhe perfil, e mudar a divisão não reclassifica
+nada.
+
+## 4. Os campos da ficha
 
 Cada um carrega uma coisa distinta. O teste de separação: **se o texto do Padrão
 pudesse ser colado dentro da Implicação Prática sem soar repetido, um dos dois está
@@ -128,30 +100,29 @@ errado.**
 | Campo | Carrega | Voz |
 |---|---|---|
 | **Achado** | O que o paper mostra: número e evidência, 2–3 frases | Descritiva. Não explique aqui a regra geral — isso é do Padrão. |
-| **Padrão Extraído** *(condicional)* | A regra estrutural | **Impessoal. Sem verbo dirigido ao leitor.** Formato: `**Nome.** Mecanismo em uma frase.` |
-| **Implicação Prática** | O que muda no que a pessoa faz | **Verbo de ação apontado para "você".** Linguagem de conversa, sem jargão de ML; se um termo técnico for inevitável, defina-o na frase. Não pode ser a regra do Padrão reescrita com "você" na frente — precisa *aplicar* a regra a uma situação. |
+| **Padrão Extraído** *(só para `proposta`)* | A regra estrutural | **Impessoal. Sem verbo dirigido ao leitor.** Formato: `**Nome.** Mecanismo em uma frase.` |
+| **O que muda para você** (`implicacao_pratica`) | O que muda no que a pessoa faz — ou, para `sem_acao`, no que ela entende | **Verbo de ação apontado para "você"**, aberto pelo perfil quando o ganho depende dele ("Se você treina…", "Se você usa via API…"). Linguagem de conversa; termo técnico inevitável é definido na frase. Não pode ser a regra do Padrão reescrita com "você" na frente — precisa *aplicar* a regra a uma situação. |
 | **Exemplo Concreto** | Uma situação nomeada: sistema real, tarefa real, falha real, com o mecanismo da falha explicitado | Nunca "imagine um sistema que…". |
-| **Ressalva** | Onde não vale, o que não prova, a leitura errada mais provável | Quando o padrão passou só parcialmente, diga isso aqui explicitamente — é diferente de "não é código aberto" genérico. |
+| **Ressalva** | Onde não vale, o que não prova, a leitura errada mais provável | Com pré-requisito `acesso_interno` ou `treino`, abre pelo que é preciso ter. Com `falta_o_como`, diz o que fica por conta de quem implementa. |
 
 **Proibido em qualquer campo:** elogiar o paper, chamá-lo de promissor ou
 interessante, recomendar leitura. A ficha é útil ou o paper não entra.
 
 ## 5. Guardrails de volume — validação, não decisão
 
-Calculados em código depois da classificação. **Nenhum deles altera um veredito** —
-todos apenas gravam aviso na execução:
+Calculados em código depois da classificação. **Nenhum deles altera uma
+classificação** — todos apenas gravam aviso na execução. As faixas de taxa de
+FORA e de aprovados/dia são **provisórias** desde o ADR 004 (ver `config.yaml`)
+e são recalibradas com a distribuição da reclassificação total.
 
 | Condição | Aviso |
 |---|---|
-| Taxa de FORA entre 60% e 80% | (nenhum — normal) |
-| Taxa de FORA < 50% | `criterio_frouxo` |
-| Aprovados fora da faixa 4–9 | `volume_atipico` |
-| Aprovados > 12 | `volume_alto` |
+| Taxa de FORA abaixo do mínimo | `criterio_frouxo` |
+| Aprovados fora da faixa normal | `volume_atipico` |
+| Aprovados acima do teto | `volume_alto` |
 | Dia útil com < 15 coletados | `coleta_suspeita` |
 | Zero aprovados | `dia_sem_aprovados` — resultado válido, não é erro |
-
-A taxa de FORA é a verificação mais confiável: se estiver entre 60% e 80%, o filtro
-opera normalmente **mesmo com muitos aprovados**.
+| `nenhum` acima de 40% dos aprovados (com ≥ 10) | `prerequisito_nenhum_alto` |
 
 ## 6. A regra do upvote
 

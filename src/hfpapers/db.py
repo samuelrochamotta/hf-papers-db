@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Mapping, Optional, Sequence
 
-from .config import Config, config
+from .config import PERFIS_PADRAO, Config, Perfil, config
 from .log import logger
 
 SCHEMA_SQL = Path(__file__).with_name("schema.sql")
@@ -37,7 +37,7 @@ TABELAS_ESPERADAS = [
     "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
     "dim_area", "dim_vertente",
     "ponte_paper_area", "ponte_paper_vertente",
-    "ponte_paper_criterio",
+    "dim_natureza", "dim_prerequisito", "dim_perfil", "ponte_perfil_prerequisito",
     "tax_nao_encaixe", "ponte_paper_keyword", "ponte_paper_autor",
     "log_execucao", "log_llm", "dim_calendario",
 ]
@@ -46,7 +46,12 @@ TABELAS_ESPERADAS = [
 # ── conexao ─────────────────────────────────────────────────────────────────
 
 
-def conectar(caminho: Path | str, *, migrar_schema: bool = True) -> sqlite3.Connection:
+def conectar(
+    caminho: Path | str,
+    *,
+    migrar_schema: bool = True,
+    perfis: Optional[Sequence[Perfil]] = None,
+) -> sqlite3.Connection:
     caminho = Path(caminho)
     if str(caminho) != ":memory:":
         caminho.parent.mkdir(parents=True, exist_ok=True)
@@ -55,12 +60,13 @@ def conectar(caminho: Path | str, *, migrar_schema: bool = True) -> sqlite3.Conn
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 30000")
     if migrar_schema:
-        migrar(conn)
+        migrar(conn, perfis=perfis)
     return conn
 
 
 def abrir(cfg: Optional[Config] = None, **kwargs: Any) -> sqlite3.Connection:
     cfg = cfg or config()
+    kwargs.setdefault("perfis", cfg.perfis)
     return conectar(cfg.caminho_banco, **kwargs)
 
 
@@ -72,20 +78,78 @@ COLUNAS_MIGRADAS = [
     ("dim_paper", "data_arxiv_informada_hf", "DATE"),
     ("dim_paper", "data_arxiv_v1", "DATE"),
     ("dim_paper", "arxiv_v1_verificado_em", "TEXT"),
-    ("fato_triagem", "fronteira_contraparte", "TEXT"),
     # A auto-referencia entra por ALTER TABLE, que o SQLite so aceita com
     # default NULL - o que e exatamente o que a area raiz quer.
     ("dim_area", "area_pai", "TEXT NULL REFERENCES dim_area(area)"),
     ("log_llm", "provedor", "TEXT"),
     ("log_llm", "tokens_cache_leitura", "INTEGER"),
+    ("log_execucao", "qtd_aprovados", "INTEGER"),
+    ("log_execucao", "qtd_pr_nenhum", "INTEGER"),
+    ("log_execucao", "qtd_pr_implementar", "INTEGER"),
+    ("log_execucao", "qtd_pr_acesso_interno", "INTEGER"),
+    ("log_execucao", "qtd_pr_treino", "INTEGER"),
+    ("log_execucao", "qtd_pr_sem_acao", "INTEGER"),
 ]
 
+# Views recriadas a cada `migrar`, depois das migracoes: no schema.sql elas
+# seriam criadas antes da reconstrucao de `fato_triagem` e apontariam para
+# colunas que um banco do regime anterior ainda nao tem.
+#
+# `vw_artefato` e a unica fonte de "tem artefato aberto". A evidencia e
+# externa (repositorio, link no abstract, modelo ou dataset vinculado no HF em
+# qualquer snapshot - o mais recente costuma vir com os contadores nulos); a
+# LLM so distingue `liberado` de `prometido`, e so quando ha evidencia.
+#
+# `vw_paper_perfil` e a unica fonte de "da para agir": uma linha por aprovado
+# e por perfil cujo conjunto de degraus contem o pre-requisito do paper.
+VIEWS_SQL = """
+DROP VIEW IF EXISTS vw_artefato;
+CREATE VIEW vw_artefato AS
+SELECT e.paper_id, e.evidencia, e.github_repo, e.links_abstract,
+       CASE
+           WHEN t.veredito IS NOT 'aprovado' THEN NULL
+           WHEN t.natureza IN ('teoria', 'panorama') THEN NULL
+           WHEN e.evidencia = 1 AND t.artefato_status = 'liberado' THEN 1
+           ELSE 0
+       END AS artefato_aberto
+FROM (
+    SELECT p.paper_id, p.github_repo,
+           (instr(lower(COALESCE(p.abstract, '')), 'github.com/') > 0
+            OR instr(lower(COALESCE(p.abstract, '')), 'huggingface.co/') > 0) AS links_abstract,
+           CASE WHEN p.github_repo IS NOT NULL
+                  OR instr(lower(COALESCE(p.abstract, '')), 'github.com/') > 0
+                  OR instr(lower(COALESCE(p.abstract, '')), 'huggingface.co/') > 0
+                  OR COALESCE(m.max_modelos, 0) > 0
+                  OR COALESCE(m.max_datasets, 0) > 0
+                THEN 1 ELSE 0 END AS evidencia
+    FROM dim_paper p
+    LEFT JOIN (
+        SELECT paper_id, MAX(qtd_modelos) AS max_modelos, MAX(qtd_datasets) AS max_datasets
+        FROM fato_metrica GROUP BY paper_id
+    ) m ON m.paper_id = p.paper_id
+) e
+LEFT JOIN fato_triagem t ON t.paper_id = e.paper_id;
 
-def migrar(conn: sqlite3.Connection) -> None:
+DROP VIEW IF EXISTS vw_paper_perfil;
+CREATE VIEW vw_paper_perfil AS
+SELECT t.paper_id, pp.perfil
+FROM fato_triagem t
+JOIN ponte_perfil_prerequisito pp ON pp.prerequisito = t.prerequisito
+WHERE t.veredito = 'aprovado';
+"""
+
+
+def migrar(conn: sqlite3.Connection, *, perfis: Optional[Sequence[Perfil]] = None) -> None:
     """Aplica schema.sql, as colunas de `COLUNAS_MIGRADAS`, a reconstrucao de
-    `ponte_paper_area`, a saida de `tax_candidato` e a contracao da grade
-    anterior. Idempotente: tudo la e IF NOT EXISTS, a coluna so e adicionada
-    quando falta, e as tabelas so sao tocadas uma vez."""
+    `ponte_paper_area`, a saida de `tax_candidato`, a contracao da grade
+    anterior e a passagem para o regime do ADR 004; recria as views e
+    sincroniza os perfis. Idempotente: tudo la e IF NOT EXISTS, a coluna so e
+    adicionada quando falta, e as tabelas so sao tocadas uma vez.
+
+    As views saem antes e voltam no fim: o SQLite revalida toda view a cada
+    ALTER TABLE, e uma view apontando para coluna que a reconstrucao ainda nao
+    criou derrubaria a migracao."""
+    conn.executescript("DROP VIEW IF EXISTS vw_artefato; DROP VIEW IF EXISTS vw_paper_perfil;")
     conn.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
     for tabela, coluna, tipo in COLUNAS_MIGRADAS:
         _garantir_coluna(conn, tabela, coluna, tipo)
@@ -94,6 +158,96 @@ def migrar(conn: sqlite3.Connection) -> None:
     _migrar_ponte_paper_area(conn)
     _remover_tax_candidato(conn)
     _contrair_grade_antiga(conn)
+    _migrar_triagem_v2(conn)
+    conn.executescript(VIEWS_SQL)
+    sincronizar_perfis(conn, PERFIS_PADRAO if perfis is None else perfis)
+
+
+def ddl_de(tabela: str) -> list[str]:
+    """Os comandos de `schema.sql` que criam `tabela` e os indices dela.
+
+    `executescript` faz COMMIT implicito, entao nao serve dentro da transacao
+    de uma reconstrucao; os comandos sao separados com
+    `sqlite3.complete_statement`, que respeita comentario e string - um ";"
+    num comentario de coluna nao corta o comando no meio.
+    """
+    comandos, buf = [], ""
+    for linha in SCHEMA_SQL.read_text(encoding="utf-8").splitlines(keepends=True):
+        buf += linha
+        if sqlite3.complete_statement(buf):
+            comandos.append(buf.strip())
+            buf = ""
+    alvo = (f"CREATE TABLE IF NOT EXISTS {tabela} (", f" ON {tabela}(")
+    return [c for c in comandos if any(a in c for a in alvo)]
+
+
+def sincronizar_perfis(conn: sqlite3.Connection, perfis: Sequence[Perfil]) -> None:
+    """Reescreve `dim_perfil` e a ponte a partir do config: a fonte e o YAML, e
+    o banco so espelha, para que a view e o `doutor` concordem com ele sem
+    esperar o proximo export. Degrau desconhecido e erro de configuracao, e a
+    chave estrangeira o recusa."""
+    with transacao(conn):
+        conn.execute("DELETE FROM ponte_perfil_prerequisito")
+        conn.execute("DELETE FROM dim_perfil")
+        for ordem, p in enumerate(perfis, start=1):
+            conn.execute(
+                "INSERT INTO dim_perfil (perfil, rotulo, ordem) VALUES (?, ?, ?)",
+                (p.perfil, p.rotulo, ordem),
+            )
+            for degrau in dict.fromkeys(p.prerequisitos):
+                conn.execute(
+                    "INSERT INTO ponte_perfil_prerequisito (perfil, prerequisito) VALUES (?, ?)",
+                    (p.perfil, degrau),
+                )
+
+
+def _migrar_triagem_v2(conn: sqlite3.Connection) -> None:
+    """Passa `fato_triagem` para o regime do ADR 004, e apaga o que morreu com
+    o anterior: `ponte_paper_criterio` e `dim_paper.tem_codigo_aberto`.
+
+    E reconstrucao, e nao `ALTER TABLE`: o CHECK de `veredito` muda, e CHECK o
+    SQLite so troca recriando a tabela. **As linhas sobrevivem**: estrito e
+    amplo viram `aprovado`, com natureza e pre-requisito nulos ate a
+    reclassificacao total; `fora` fica com a regra que tinha, mesmo as que
+    sairam - o `doutor` as acusa. Recriar vazia, como `_migrar_ponte_paper_area`
+    fez, deixaria o painel sem nada ate o fim de uma rodada de horas.
+
+    Sem copia do regime anterior, por decisao do dono: a regua do piloto e o
+    `.scratch/regime_v1.csv`, exportado antes da primeira execucao deste codigo.
+
+    **Uma vez so, presa a existencia de `decisao_fronteira`** - a coluna que so
+    o regime anterior tem. Numa transacao: um processo morto no meio volta ao
+    regime anterior inteiro, e a passagem seguinte refaz.
+    """
+    if "decisao_fronteira" not in colunas(conn, "fato_triagem"):
+        return
+    total = contar(conn, "fato_triagem")
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        with transacao(conn):
+            conn.execute("DROP INDEX IF EXISTS ix_triagem_veredito")
+            conn.execute("ALTER TABLE fato_triagem RENAME TO _fato_triagem_v1")
+            for ddl in ddl_de("fato_triagem"):
+                conn.execute(ddl)
+            conn.execute(
+                "INSERT INTO fato_triagem (paper_id, veredito, regra_fora, justificativa, "
+                "classificado_em, run_id, revisao) "
+                "SELECT paper_id, CASE WHEN veredito = 'fora' THEN 'fora' ELSE 'aprovado' END, "
+                "CASE WHEN veredito = 'fora' THEN regra_fora END, justificativa, "
+                "classificado_em, run_id, revisao FROM _fato_triagem_v1"
+            )
+            conn.execute("DROP TABLE _fato_triagem_v1")
+            conn.execute("DROP TABLE IF EXISTS ponte_paper_criterio")
+            if "tem_codigo_aberto" in colunas(conn, "dim_paper"):
+                conn.execute("ALTER TABLE dim_paper DROP COLUMN tem_codigo_aberto")
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
+    log.warning(
+        "fato_triagem passou ao regime do ADR 004: %d linha(s) preservadas, "
+        "estrito/amplo viraram 'aprovado' sem natureza nem pre-requisito ate a "
+        "reclassificacao total; ponte_paper_criterio e tem_codigo_aberto removidas",
+        total,
+    )
 
 
 def colunas(conn: sqlite3.Connection, tabela: str) -> list[str]:

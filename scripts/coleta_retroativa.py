@@ -30,7 +30,8 @@ from hfpapers import db  # noqa: E402
 from hfpapers.config import config  # noqa: E402
 from hfpapers.estagios import coleta, enriquecimento  # noqa: E402
 from hfpapers.fontes.hf_client import ClienteHF  # noqa: E402
-from hfpapers.log import configurar as configurar_log, logger  # noqa: E402
+from hfpapers.log import configurar as configurar_log  # noqa: E402
+from hfpapers.log import logger
 
 log = logger("retroativa")
 
@@ -134,8 +135,7 @@ def _fechar_execucao(conn, res: ResultadoRetroativo) -> None:
             "qtd_ja_vistos": res.ja_vistos,
             # Zero e a verdade, nao buraco: nenhum estagio de modelo roda aqui.
             "qtd_fora": 0,
-            "qtd_amplo": 0,
-            "qtd_estrito": 0,
+            "qtd_aprovados": 0,
             "qtd_refresh": 0,
             "tokens_entrada": 0,
             "tokens_saida": 0,

@@ -42,7 +42,7 @@ def test_campos_opcionais_ausentes_nao_quebram(daily_bruto):
     for i in sem_repo:
         assert i.paper.githubStars is None or i.paper.githubStars == 0
         d = paper_para_dim(i.paper, item=i)
-        assert d["tem_codigo_aberto"] == 0
+        assert d["github_repo"] is None
 
 
 def test_paper_sem_campos_obrigatorios_extras():

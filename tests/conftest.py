@@ -59,26 +59,21 @@ RESPOSTA_A = {
 RESPOSTA_A_FORA = {
     **RESPOSTA_A,
     "veredito_preliminar": "fora",
-    "regra_fora": "treino_ou_postreino",
+    "regra_fora": "geracao_de_midia",
     # Propria, e nao herdada: a de `RESPOSTA_A` diz que o paper segue para o
     # Estagio B, o oposto deste veredito. Ninguem afirma o conteudo, mas e o
     # texto que aparece em `fato_triagem` de quem for depurar.
-    "justificativa": "Descreve uma receita de pos-treino do proprio modelo dos autores, entao cai na regra de descarte antes de chegar ao Estagio B.",
+    "justificativa": "O payload e um gerador de video condicionado por texto, entao cai na regra de midia antes de chegar ao Estagio B.",
 }
 RESPOSTA_B = {
-    "tem_artefato_nomeado": True,
-    "padrao_extraido": {"nome": "Contrato de preservar-e-estender", "mecanismo": "Uma versao nova so entra se mantiver o que a anterior resolvia."},
-    "teste_portabilidade": {
-        "depende_do_nome_proprio": False,
-        "colapsa_em_generalidade": False,
-        "aprovado": True,
-    },
-    "criterios_veredito": ["padrao_arquitetural"],
-    "veredito": "estrito",
     "regra_fora": None,
-    "justificativa_veredito": "ESTRITO porque e padrao arquitetural: o contrato de preservar-e-estender e reproduzivel pela descricao, sem depender do codigo dos autores.",
-    "decisao_fronteira": False,
-    "fronteira_contraparte": None,
+    "natureza": "proposta",
+    "padrao_extraido": {"nome": "Contrato de preservar-e-estender", "mecanismo": "Uma versao nova so entra se mantiver o que a anterior resolvia."},
+    "prerequisito": "implementar",
+    "pratica_contradita": None,
+    "falta_o_como": None,
+    "artefato_status": None,
+    "justificativa": "Proposta que se adota implementando: o contrato de preservar-e-estender e reproduzivel pela descricao, sobre qualquer modelo via API.",
     "ficha": {
         "achado": "a", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d",
     },

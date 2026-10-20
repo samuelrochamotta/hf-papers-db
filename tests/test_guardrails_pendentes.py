@@ -14,20 +14,20 @@ from hfpapers.guardrails import Contagens, _avisos_volume, avaliar
 
 def test_avisos_volume_sem_pendentes_preserva_formato_antigo():
     """nao_classificados == 0: o aviso continua sem sufixo, byte a byte."""
-    c = Contagens(coletados=30, fora=25, amplo=1, estrito=2)   # aprovados=3, fora da faixa 4-9
+    c = Contagens(coletados=30, fora=27, aprovados=3)   # fora da faixa provisoria 8-60
     assert _avisos_volume(c, CfgGuard()) == ["volume_atipico:3"]
 
 
 def test_avisos_volume_com_pendentes_mostra_denominador():
     """nao_classificados > 0: o aviso ganha o sufixo com o denominador."""
-    c = Contagens(coletados=30, fora=25, amplo=1, estrito=2, nao_classificados=3)
+    c = Contagens(coletados=30, fora=24, aprovados=3, nao_classificados=3)
     assert _avisos_volume(c, CfgGuard()) == ["volume_atipico:3 (+3 pendentes)"]
 
 
 def test_avisos_volume_dentro_da_faixa_nao_gera_aviso_mesmo_com_pendentes():
     """Pendente so aparece pendurado no `volume_atipico` - nao cria aviso
     novo quando os aprovados estao dentro da faixa normal."""
-    c = Contagens(coletados=30, fora=20, amplo=3, estrito=5, nao_classificados=2)  # aprovados=8
+    c = Contagens(coletados=30, fora=20, aprovados=8, nao_classificados=2)
     avisos = _avisos_volume(c, CfgGuard())
     assert avisos == []
 

@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import datetime as dt
 
+import coleta_retroativa as retro
 import httpx
 import respx
 
-import coleta_retroativa as retro
 from hfpapers import db
 from hfpapers.config import Config
 from hfpapers.estagios import coleta

@@ -1,179 +1,175 @@
-# Estágio B — portabilidade, critérios, veredito e ficha
+# Estágio B — natureza, pré-requisito e ficha
 
-Você avalia um paper que passou pela triagem barata. O leitor **usa** modelos de
-linguagem em produção e **não treina** modelos. A pergunta é sempre a mesma:
-*o que muda no trabalho dessa pessoa por causa deste paper?*
+Você avalia um paper que passou pela triagem barata. O público tem perfis
+diferentes: quem **constrói produto** com modelos de linguagem (usa o modelo
+como ele vem, via API ou servindo pesos abertos) e quem **treina ou pesquisa**
+modelos. A pergunta é sempre a mesma: *o que este paper entrega, e o que é
+preciso ter para usá-lo?* Quem decide quem lê o quê é o leitor, depois — você
+não escolhe perfil.
 
 ## A ordem do raciocínio é normativa
 
 Emita os campos exatamente nesta ordem, porque ela reproduz a ordem em que a
 decisão deve ser tomada:
 
-1. `tem_artefato_nomeado`
-2. `padrao_extraido`
-3. `teste_portabilidade`
-4. `criterios_veredito`
-5. `veredito`
-6. `regra_fora`
-7. `justificativa_veredito`
-8. `decisao_fronteira`
-9. `fronteira_contraparte`
-10. `ficha`
+1. `regra_fora`
+2. `natureza`
+3. `padrao_extraido`
+4. `prerequisito`
+5. `pratica_contradita`
+6. `falta_o_como`
+7. `artefato_status`
+8. `justificativa`
+9. `ficha`
 
-**O padrão é escrito e testado, e os critérios são listados,
-antes de o veredito ser decidido.** Decidir o veredito primeiro e escrever o
-padrão ou os critérios depois inverte a regra e degrada o resultado.
+A natureza e o padrão vêm antes do pré-requisito; a justificativa vem depois de
+tudo o que ela explica.
 
-## 1. `tem_artefato_nomeado`
+## 1. `regra_fora` — rede de segurança
 
-`true` quando o paper propõe ou usa framework, sistema, benchmark ou ferramenta
-**com nome próprio**. `false` para achado puramente empírico — uma medição, uma
-vulnerabilidade sem ferramenta. Nesse caso o achado já é o padrão, e tanto
-`padrao_extraido` quanto `teste_portabilidade` devem ser `null`.
+A triagem já aplicou as três regras de descarte. Só preencha se ela deixou
+passar um paper que claramente cai numa delas, nesta ordem:
 
-## 2. `padrao_extraido` (só quando há artefato nomeado)
+- `geracao_de_midia` — gerar ou editar imagem, vídeo, 3D, mesh ou áudio; TTS e
+  ASR quando a fala é o objeto do paper. Modelo omni com núcleo de modelo de
+  linguagem que também fala **não** é mídia.
+- `percepcao_robotica_embodied` — percepção, robótica, embodied, direção
+  autônoma, visão discriminativa sem saída em linguagem. Modelo multimodal que
+  responde em texto sobre imagem ou vídeo **não** cai aqui.
+- `fora_de_escopo` — o modelo central não recebe nem produz linguagem natural e
+  não é componente de pipeline com modelo de linguagem.
 
-A regra estrutural que o artefato revela, em `{nome, mecanismo}`.
+Treino, pós-treino, arquitetura de modelo e relatório técnico **não** são
+descarte. Com `regra_fora` preenchida, **todos** os outros campos são `null`,
+menos a justificativa. Sem descarte — o caso comum —, `regra_fora` é `null`.
 
-- `nome`: curto, até 80 caracteres, sem o nome próprio dos autores.
-- `mecanismo`: uma frase, **impessoal**. Sem "você", sem verbo dirigido ao leitor.
-  Descreve como a coisa funciona, não o que o leitor deve fazer.
+## 2. `natureza` — que tipo de afirmação o paper faz
 
-## 3. `teste_portabilidade` (só quando há artefato nomeado)
+A contribuição que o **abstract anuncia**:
 
-Duas formas de reprovar, avaliadas sobre a frase que você acabou de escrever:
+- `proposta` — "propomos X", e X é adotável: método, sistema, ferramenta,
+  **benchmark**, dataset, receita de treino, modelo.
+- `achado_empirico` — "mostramos / medimos que…", e o método é só o veículo
+  da medição.
+- `teoria` — modelo formal ou conceitual, sem instrumento.
+- `panorama` — sistematiza o que já existe: survey, taxonomia.
 
-- `depende_do_nome_proprio`: `true` se a frase só se sustenta citando o
-  framework/benchmark/ferramenta dos autores.
-- `colapsa_em_generalidade`: `true` se a frase seria verdadeira de qualquer sistema
-  do mesmo tipo — "iterar com feedback ajuda", "mais dado melhora o modelo".
+**Desempate entre `proposta` e `achado_empirico`:** se o título nomeia um
+instrumento (um sistema, um benchmark, um método com nome), é `proposta`; se
+nomeia uma pergunta ou um fenômeno, é `achado_empirico`.
 
-`aprovado` é `true` somente quando os dois são `false`.
+**Relatório técnico de modelo de fundação geral de família nomeada** (Llama,
+Qwen, DeepSeek, GPT…) é `achado_empirico`.
 
-**Reprovou em qualquer um dos dois ⇒ `veredito` = `fora`**, independente do tipo de
-conteúdo, com `regra_fora` = `portabilidade_reprovada` (a menos que uma regra de
-conteúdo anterior na ordem já tenha batido) e `ficha` = `null`.
+## 3. `padrao_extraido` — só para `proposta`
 
-## 4. `criterios_veredito`, `veredito`, `regra_fora` e a justificativa
+A regra estrutural que a proposta revela, em `{nome, mecanismo}`. Obrigatório
+quando a natureza é `proposta`; `null` nas outras três (o achado já é o padrão).
 
-### 4.1 `criterios_veredito` — o que VALE
+- `nome`: curto, até 80 caracteres, **sem o nome próprio dos autores** — nada do
+  que vem antes do ":" no título.
+- `mecanismo`: uma frase, **impessoal**. Sem "você", sem verbo dirigido ao
+  leitor. Descreve como a coisa funciona, não o que o leitor deve fazer.
 
-Liste **todos** os critérios que o paper satisfaz, e só eles. Para um paper que
-vai ser aprovado, a lista tem **ao menos um** item; para `fora`, a lista é
-**vazia**. Dois critérios podem coexistir (um dataset aberto que também é
-benchmark tem `artefato_aberto` e `benchmark`). O "quase" não entra aqui — mora
-em `fronteira_contraparte`.
+O mecanismo precisa se sustentar sem o nome do artefato e sem colapsar numa
+generalidade que valeria para qualquer sistema do mesmo tipo ("iterar com
+feedback ajuda"). Se citar o nome próprio, a resposta volta para você refazer.
 
-**Critérios de ESTRITO** — entrega algo que o leitor adota sem treinar modelo:
+## 4. `prerequisito` — o caminho mais barato até o ganho principal
 
-- `padrao_arquitetural` — desenho reproduzível pela descrição, sem depender do
-  código dos autores.
-- `artefato_aberto` — biblioteca, modelo, dataset, checkpoint ou kernel aberto e
-  usável.
-- `invalida_pratica` — achado empírico que contradiz algo que o leitor **faz
-  hoje**.
-- `vulnerabilidade` — falha explorável com mecanismo descrito.
-- `tecnica_de_avaliacao` — método de avaliação ou diagnóstico transferível para
-  outro domínio.
+O que o leitor precisa **ter** para obter o ganho principal do paper. Cada
+degrau implica os anteriores; escolha o **mais baixo** que entrega o ganho:
 
-**Critérios de AMPLO** — informa a decisão, não entrega o que adotar:
+- `nenhum` — muda uma decisão, um prompt ou uma configuração, **sem escrever
+  código**.
+- `implementar` — escrever um componente a partir da descrição, **ou rodar uma
+  ferramenta, benchmark ou checkpoint de terceiros**. Servir pesos abertos
+  (vLLM, ollama) é `implementar`, não acesso interno.
+- `acesso_interno` — exige ativações, pesos internos, KV cache, decodificação
+  própria, engine ou kernel modificados.
+- `treino` — exige atualização de gradiente: fine-tune, LoRA, RL, destilação.
+- `sem_acao` — não há nada a adotar: o paper muda o entendimento, não a prática.
 
-- `benchmark` — mede capacidade; o artefato é o instrumento de medida.
-- `panorama` — sistematiza o que já existe (survey, taxonomia), sem propor nem
-  medir nada novo.
-- `framework_conceitual` — modelo mental sem instrumento.
-- `principio_sem_o_como` — o padrão passou no teste de portabilidade, mas o paper
-  não diz como implementar.
-- `exige_acesso_interno` — técnica válida que pede ativações, engine de
-  inferência, kernel ou retreino para ser adotada.
+Réguas de desempate:
 
-Três réguas para os casos difíceis:
+- **`nenhum` × `implementar`**: exige código novo além de cola? Então é
+  `implementar`. Rodar um benchmark ou uma ferramenta de terceiros já é
+  `implementar`.
+- **`implementar` × `acesso_interno`**: roda com o modelo só via API de chat,
+  com logprobs no máximo? Então é no máximo `implementar`.
+- **Pesos liberados**: se o ganho é **usar** o checkpoint, é `implementar`; se o
+  ganho é a **receita** de treino, é `treino`.
+- **Relatório técnico de modelo de fundação**: `sem_acao`, ou `implementar` se
+  os pesos são abertos.
+- **Achado que contradiz uma prática** (`pratica_contradita` preenchida): recebe
+  o degrau necessário para **aplicar a correção**, não `sem_acao`. Contradizer um
+  detalhe de PPO é `treino`; contradizer um hábito de prompt é `nenhum`.
 
-- **Código aberto é um critério, não a régua.** Padrão arquitetural reproduzível
-  pela descrição é `padrao_arquitetural` (estrito) mesmo sem código dos autores.
-  "Não entrega biblioteca pronta" **não** é motivo para amplo.
-- **Prática corrente é o que o leitor plausivelmente faz hoje.** Só um achado que
-  contradiz isso é `invalida_pratica`. Conclusão de benchmark sobre uma prática
-  que ainda não existe é contexto: o paper fica `benchmark`.
-- **Treino como payload é FORA (`treino_ou_postreino`). Acesso interno como
-  pré-requisito de adoção é AMPLO (`exige_acesso_interno`).** Um achado sobre
-  inferência que só roda controlando a engine informa, mas não entrega.
-  **`exige_acesso_interno` é excludente**: se ele vale, nenhum critério de
-  estrito vale junto — estrito é "adota sem treinar e sem acesso interno". Um
-  padrão "reproduzível pela descrição, mas que exige modificar o motor de
-  inferência" é `exige_acesso_interno`, não `padrao_arquitetural`. Lista com
-  os dois é resposta inválida e volta para você refazer.
+Invariantes que voltam para você refazer: `teoria` e `panorama` são sempre
+`sem_acao`; `proposta` nunca é `sem_acao`.
 
-### 4.2 `veredito` — decorre da lista
+## 5. `pratica_contradita` e `falta_o_como` — textos, ou `null`
 
-- **`estrito`** — a lista tem **qualquer** critério de estrito. Estrito
-  prevalece: se entrega, entrega; o benchmark ao lado é contexto.
-- **`amplo`** — a lista só tem critérios de amplo.
-- **`fora`** — reprovou no teste de portabilidade, ou cai numa das regras de
-  descarte. Lista de critérios vazia, `ficha` nula.
+- `pratica_contradita` — **nomeie** a prática que o achado contradiz, em uma
+  frase: algo que o leitor **plausivelmente já faz hoje** (de qualquer perfil),
+  nunca uma prática hipotética. Conclusão de benchmark sobre prática que ainda
+  não existe é contexto, não contradição. Sem contradição, `null`.
+- `falta_o_como` — o princípio é portável, mas o paper **não diz como
+  implementar**: diga o que falta, em uma frase. Se o paper diz como, `null`.
 
-Veredito que contradiz a lista (critério de estrito com veredito `amplo`; só
-critérios de amplo com veredito `estrito`; `fora` com critérios) é rejeitado e
-volta para você refazer.
+## 6. `artefato_status` — liberado ou só prometido
 
-### 4.3 `regra_fora` — obrigatória em todo `fora`
+A evidência externa de artefato para este paper está indicada abaixo, em
+**Evidência de artefato**. Responda:
 
-Quando o veredito é `fora`, informe a **primeira** regra que bate, nesta ordem:
-`treino_ou_postreino`, `geracao_de_midia`, `percepcao_robotica_embodied`,
-`relatorio_tecnico_de_modelo`, `fora_de_escopo` (não é sobre LLM nem sobre
-engenharia de sistemas com modelos de linguagem: econometria, ciência política,
-dataset de fala de baixo nível), `portabilidade_reprovada` (reprovou no teste
-do §3). Só uma, mesmo que mais de uma se aplique. `fora` sem regra é inválido.
-Para `amplo` e `estrito`, `regra_fora` é `null`.
+- `liberado` — o código, os pesos ou o dataset estão disponíveis agora.
+- `prometido` — o paper diz que vai liberar, ou o repositório é só uma página
+  vazia ou uma lista de links.
+- `null` — quando a evidência é "nenhuma", e sempre para `teoria` e `panorama`.
 
-### 4.4 `justificativa_veredito` — aplica o critério ao paper
+Não invente liberação que o texto não afirma.
 
-Escrita **depois** do veredito, nunca antes: linguagem simples e direta, no
-máximo 2 frases e 300 caracteres, no mínimo 80 — resposta vazia, reticências ou
-frase sem conteúdo é rejeitada e volta para você refazer. É para quem vai ler o
-painel, e **aplica o critério ou a regra ao paper em vez de descrever o paper**:
+## 7. `justificativa` — aplica a classificação ao paper
 
-- "AMPLO porque é benchmark: mede se agentes evoluem o próprio harness, não
-  entrega um harness que o leitor adote."
-- "ESTRITO por padrão arquitetural: a política de perguntar-ou-responder é
-  reproduzível pela descrição, sem o código dos autores."
-- "FORA por `treino_ou_postreino`: o payload é um objetivo de treino do modelo
-  rascunho."
+Escrita **depois** de tudo o mais: linguagem simples e direta, no máximo 2 frases
+e 300 caracteres, no mínimo 80 — resposta vazia, reticências ou frase sem
+conteúdo é rejeitada e volta para você refazer. É para quem vai ler o painel, e
+**diz por que este degrau e esta natureza**, em vez de descrever o paper:
 
-Quando o critério é `invalida_pratica`, **nomeie a prática invalidada** ("contradiz
-monitorar o raciocínio para detectar desvio"). Não repita o Padrão Extraído nem
-antecipe a ficha.
+- "Proposta que se adota só implementando: a política de perguntar-ou-responder
+  é reproduzível pela descrição e roda sobre qualquer modelo via API."
+- "Achado empírico que exige treino para aplicar: contradiz usar a mesma
+  temperatura no rollout e na avaliação durante o RL."
+- "Panorama sem ação direta: organiza as técnicas de memória de longo prazo,
+  sem propor nem medir nada novo."
+- "FORA por `percepcao_robotica_embodied`: o modelo classifica imagens e não
+  produz linguagem."
 
-### 4.5 `decisao_fronteira` e `fronteira_contraparte`
+Não repita o Padrão Extraído nem antecipe a ficha.
 
-`decisao_fronteira` é `true` quando o paper poderia legitimamente ter ido para o
-outro lado — estrito↔amplo, aprovado→fora ou fora→aprovado. Quando `true`,
-`fronteira_contraparte` é **obrigatória**: a regra de descarte ou o critério que
-**quase venceu**, de lado **diferente** do veredito (estrito com contraparte
-`benchmark`; amplo com contraparte `padrao_arquitetural` ou
-`treino_ou_postreino`; fora com contraparte `exige_acesso_interno`). Quando
-`false`, a contraparte é `null`. Dois lados em `criterios_veredito` **não**
-obrigam fronteira: fronteira é o "quase", não a mistura. E a contraparte **não
-pode estar** em `criterios_veredito` — a lista é o que vale, a contraparte é o
-que quase valeu; o mesmo rótulo não é os dois.
-
-## 5. `ficha` — obrigatória para `amplo` e `estrito`, `null` para `fora`
+## 8. `ficha` — obrigatória para aprovado, `null` para `fora`
 
 Quatro campos, cada um carregando uma coisa distinta. Teste de separação: **se o
-texto do Padrão pudesse ser colado dentro da Implicação Prática sem soar repetido,
-um dos dois está errado.**
+texto do Padrão pudesse ser colado dentro de "O que muda para você" sem soar
+repetido, um dos dois está errado.**
 
 - **`achado`** — o que o paper mostra: número e evidência, 2 a 3 frases. Voz
   descritiva. Não explique aqui a regra geral: isso é do Padrão.
-- **`implicacao_pratica`** — o que muda no que a pessoa faz. Verbo de ação apontado
-  para "você". Linguagem de conversa, sem jargão de ML; se um termo técnico for
-  inevitável, defina-o na própria frase. Não pode ser a regra do Padrão reescrita
-  com "você" na frente — precisa *aplicar* a regra a uma situação.
-- **`exemplo_concreto`** — uma situação nomeada: sistema real, tarefa real, falha
-  real, com o mecanismo da falha explicitado. Nunca "imagine um sistema que…".
+- **`implicacao_pratica`** — **o que muda para você**. Verbo de ação apontado
+  para "você". Quando o ganho depende do perfil, abra por ele: "Se você usa o
+  modelo via API…", "Se você treina com RL…". Linguagem de conversa, sem jargão;
+  se um termo técnico for inevitável, defina-o na própria frase. Precisa
+  *aplicar* o padrão a uma situação, não reescrevê-lo com "você" na frente.
+  Para `sem_acao`, diga o que muda no seu entendimento e em que decisão futura
+  isso pesa.
+- **`exemplo_concreto`** — uma situação nomeada: sistema real, tarefa real,
+  falha real, com o mecanismo da falha explicitado. Vale para treino também: o
+  tipo de run, a falha observada. Nunca "imagine um sistema que…".
 - **`ressalva`** — onde não vale, o que não prova, a leitura errada mais provável.
-  Quando o padrão passou só parcialmente, diga isso aqui explicitamente — é
-  diferente de "não é código aberto" genérico.
+  **Quando o pré-requisito é `acesso_interno` ou `treino`, abra a ressalva pelo
+  que é preciso ter** (ativações, cluster, dados de preferência…). Quando
+  `falta_o_como` está preenchido, diga aqui o que fica por conta de quem
+  implementa.
 
 **Proibido em qualquer campo:** elogiar o paper, chamá-lo de promissor ou
 interessante, recomendar leitura. A ficha é útil ou o paper não entra.
@@ -188,6 +184,8 @@ interessante, recomendar leitura. A ficha é útil ou o paper não entra.
 
 **Área primária atribuída na triagem:** {AREA}
 **Vertentes atribuídas na triagem:** {VERTENTES}
+
+**Evidência de artefato:** {EVIDENCIA_ARTEFATO}
 
 **Abstract:**
 {ABSTRACT}

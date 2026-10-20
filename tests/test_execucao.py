@@ -50,7 +50,7 @@ def test_run_completo_e_depois_idempotente(cfg, base, daily_bruto, paper_bruto):
         cliente_hf=_hf(), cliente_llm=llm,
     )
     assert r1.coletados == 6 and r1.novos == 6
-    assert r1.fora + r1.amplo + r1.estrito == 6
+    assert r1.fora + r1.aprovados == 6
     assert r1.status == "ok"
     assert db.contar(base, "fato_triagem") == 6
     triagens_1 = db.contar(base, "fato_triagem")
@@ -187,7 +187,7 @@ def test_reclassificar_tudo_registra_a_rodada_em_log_execucao(cfg, base):
     r = execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg))
 
     assert r.selecionados == 3
-    assert r.fora + r.amplo + r.estrito == 3
+    assert r.fora + r.aprovados == 3
     assert r.status == "ok"
 
     linha = base.execute(
@@ -196,8 +196,8 @@ def test_reclassificar_tudo_registra_a_rodada_em_log_execucao(cfg, base):
     assert linha is not None
     assert linha["finalizado_em"] is not None
     assert linha["status"] == "ok"
-    assert (linha["qtd_fora"], linha["qtd_amplo"], linha["qtd_estrito"]) == (
-        r.fora, r.amplo, r.estrito,
+    assert (linha["qtd_fora"], linha["qtd_aprovados"]) == (
+        r.fora, r.aprovados,
     )
     assert linha["taxa_fora"] == pytest.approx(r.fora / 3)
     # nada de coleta nem de refresh aconteceu: os campos ficam zerados, nao herdados

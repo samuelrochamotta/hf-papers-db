@@ -8,15 +8,16 @@ virar aviso e o pendente que ja atravessou uma rodada de classificacao.
 
 from __future__ import annotations
 
+import sqlite3
+
 import pytest
 
 from hfpapers import db
 from hfpapers.doutor import (
     AVISO,
-    ERRO,
     OK,
-    checar_banco,
     checar_pendencias,
+    checar_regime,
     checar_vocabulario,
     rodar,
 )
@@ -41,7 +42,7 @@ def _triagem(
     *,
     run_id: str = "run-teste",
     quando: str = "2026-09-03T07:00:00",
-    regra_fora: str | None = "treino_ou_postreino",
+    regra_fora: str | None = "geracao_de_midia",
 ) -> None:
     db.upsert_triagem(
         conn,
@@ -65,8 +66,7 @@ def _execucao(conn, run_id: str, *, fim: str | None, classificou: int) -> None:
             "finalizado_em": fim,
             "status": "ok" if fim else "parcial",
             "qtd_fora": classificou,
-            "qtd_amplo": 0,
-            "qtd_estrito": 0,
+            "qtd_aprovados": 0,
         },
     )
 
@@ -336,41 +336,57 @@ def _item(itens, nome):
     return {i.nome: i for i in itens}[nome]
 
 
-def test_fora_sem_regra_e_erro(cfg, base):
+def _classificar(conn, paper_id, natureza, prerequisito):
+    conn.execute(
+        "UPDATE fato_triagem SET natureza = ?, prerequisito = ? WHERE paper_id = ?",
+        (natureza, prerequisito, paper_id),
+    )
+
+
+def test_regime_mede_o_que_e_do_regime_anterior(cfg, base):
+    """Antes da reclassificacao total: `fora` com regra que saiu e aprovado
+    sem natureza. Aviso, nunca erro - nada disso impede a rodada."""
     _paper(base, "2609.00001", "2026-09-03T07:00:00")
     _paper(base, "2609.00002", "2026-09-03T07:00:00")
-    _triagem(base, "2609.00001", regra_fora=None)
-    _triagem(base, "2609.00002", regra_fora=None)
+    _triagem(base, "2609.00001", regra_fora="treino_ou_postreino")
+    _triagem(base, "2609.00002", "aprovado")
     base.commit()
 
-    item = _item(checar_banco(cfg), "regra_fora")
-    assert item.estado == ERRO
-    assert item.dados == {"fora_sem_regra": 2}
-    assert "2" in item.detalhe
+    item = _item([checar_regime(cfg)], "regime")
+    assert item.estado == AVISO
+    assert item.dados["fora_regra_antiga"] == 1
+    assert item.dados["aprovado_sem_natureza"] == 1
     assert "reclassificar --tudo" in item.detalhe
 
 
-def test_todo_fora_com_regra_e_ok(cfg, base):
+def test_regime_acusa_natureza_incoerente(cfg, base):
     _paper(base, "2609.00001", "2026-09-03T07:00:00")
-    _triagem(base, "2609.00001")
+    _triagem(base, "2609.00001", "aprovado")
+    _classificar(base, "2609.00001", "teoria", "implementar")
+    base.commit()
+
+    item = _item([checar_regime(cfg)], "regime")
+    assert item.estado == AVISO and item.dados["incoerentes"] == 1
+
+
+def test_regime_coerente_e_ok(cfg, base):
+    _paper(base, "2609.00001", "2026-09-03T07:00:00")
     _paper(base, "2609.00002", "2026-09-03T07:00:00")
-    _triagem(base, "2609.00002", "estrito")     # aprovado nao tem regra, e certo
+    _triagem(base, "2609.00001", "aprovado")
+    _classificar(base, "2609.00001", "proposta", "implementar")
+    _triagem(base, "2609.00002", regra_fora="fora_de_escopo")
     base.commit()
 
-    item = _item(checar_banco(cfg), "regra_fora")
+    item = _item([checar_regime(cfg)], "regime")
     assert item.estado == OK
-    assert item.dados == {"fora_sem_regra": 0}
 
 
-def test_fora_sem_regra_bloqueia_o_doutor(cfg, base):
-    """Ate a rodada total passar, o `doutor` sai com codigo 1 - e o pedido."""
+def test_fora_sem_regra_e_impossivel_no_banco(base):
+    """O `doutor` checava `fora` sem regra; desde o ADR 004 o CHECK de
+    `fato_triagem` o recusa na escrita, e a checagem saiu."""
     _paper(base, "2609.00001", "2026-09-03T07:00:00")
-    _triagem(base, "2609.00001", regra_fora=None)
-    base.commit()
-
-    # so o item sob teste: `chave` e `api_*` dependem do ambiente de quem roda
-    itens = {i.nome: i for i in rodar(cfg, sem_rede=True)}
-    assert itens["regra_fora"].estado == ERRO
+    with pytest.raises(sqlite3.IntegrityError):
+        _triagem(base, "2609.00001", regra_fora=None)
 
 
 # ── integracao ──────────────────────────────────────────────────────────────
@@ -414,7 +430,7 @@ def test_rodar_inclui_a_checagem(cfg, base):
     assert itens["triagem"].estado == AVISO
     # a pendencia avisa, mas nao bloqueia: `erro` e so para o que impede rodar
     assert not [i for i in itens.values() if i.estado == "erro" and i.nome == "triagem"]
-    # a fiacao dos outros dois checks tambem passa por aqui: sem esta linha,
+    # a fiacao dos outros checks tambem passa por aqui: sem esta linha,
     # apagar a chamada de `checar_vocabulario` em `rodar` nao quebraria nada
     assert itens["vocabulario"].estado == AVISO      # base de teste sem vocabulario
-    assert itens["regra_fora"].estado == OK          # e sem `fora` sem regra
+    assert itens["regime"].estado == OK              # e sem triagem do regime anterior

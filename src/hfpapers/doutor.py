@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from . import db, taxonomia
 from .config import Config, ambiente, config
+from .llm import schemas
 
 OK, AVISO, ERRO = "ok", "aviso", "erro"
 
@@ -111,9 +112,6 @@ def checar_banco(cfg: Config) -> list[Item]:
     conn = db.abrir(cfg)
     try:
         diag = db.diagnostico_banco(conn)
-        fora_sem_regra = db.contar(
-            conn, "fato_triagem", "veredito = 'fora' AND regra_fora IS NULL"
-        )
     finally:
         conn.close()
 
@@ -137,26 +135,6 @@ def checar_banco(cfg: Config) -> list[Item]:
         itens.append(Item("integridade", ERRO, f"{diag['fk_violacoes']} violacoes de FK"))
     else:
         itens.append(Item("integridade", OK, f"integrity_check ok, journal={diag['journal_mode']}"))
-
-    # Toda regra de descarte e obrigatoria desde `bf3660c`, e o Estagio A e o
-    # Estagio B recusam o `fora` sem regra antes de gravar: o que sobra aqui e
-    # linha antiga, que a reclassificacao total apaga. Erro, e nao aviso,
-    # porque um `fora` sem regra nao explica a si mesmo no painel - e o
-    # conserto e um comando, nao uma investigacao.
-    if fora_sem_regra:
-        itens.append(
-            Item(
-                "regra_fora",
-                ERRO,
-                f"{fora_sem_regra} paper(s) 'fora' sem regra de descarte - "
-                "rode `hfpapers reclassificar --tudo`",
-                {"fora_sem_regra": fora_sem_regra},
-            )
-        )
-    else:
-        itens.append(
-            Item("regra_fora", OK, "todo 'fora' tem regra de descarte", {"fora_sem_regra": 0})
-        )
 
     resumo = ", ".join(
         f"{t}={n}" for t, n in diag["contagens"].items() if n
@@ -208,6 +186,74 @@ def checar_vocabulario(cfg: Config) -> Item:
     )
 
 
+# Area primaria que cada regra de descarte de conteudo pressupoe. A regra e a
+# area sao classificadas pelo mesmo Estagio A e quase sempre coincidem; quando
+# divergem, uma das duas esta errada.
+AREA_DA_REGRA = {
+    "geracao_de_midia": "Geração de mídia",
+    "percepcao_robotica_embodied": "Percepção & robótica",
+}
+
+
+def checar_regime(cfg: Config) -> Item:
+    """A coerencia do regime do ADR 004, que o SQL nao garante sozinho.
+
+    Do lado do SQL ficaram so os invariantes sempre verdadeiros; a coerencia
+    natureza x pre-requisito e do validador do Estagio B. Esta checagem e a
+    rede para o que entrou por outro caminho - e mede o que ainda e do regime
+    anterior: `fora` com regra que saiu, aprovado sem natureza (os dois somem
+    com a reclassificacao total). Aviso, nunca erro: nada disso impede a rodada.
+    """
+    conn = db.abrir(cfg)
+    try:
+        marcas = ", ".join("?" for _ in schemas.REGRAS_FORA)
+        legado_fora = db.contar(
+            conn, "fato_triagem",
+            f"veredito = 'fora' AND regra_fora NOT IN ({marcas})", schemas.REGRAS_FORA,
+        )
+        legado_aprovado = db.contar(
+            conn, "fato_triagem", "veredito = 'aprovado' AND natureza IS NULL"
+        )
+        incoerentes = db.contar(
+            conn, "fato_triagem",
+            "veredito = 'aprovado' AND ("
+            "(natureza IN ('teoria','panorama') AND prerequisito <> 'sem_acao') OR "
+            "(natureza = 'proposta' AND prerequisito = 'sem_acao') OR "
+            "prerequisito IS NULL AND natureza IS NOT NULL)",
+        )
+        regra_area = sum(
+            db.contar(
+                conn, "fato_triagem t",
+                "t.regra_fora = ? AND NOT EXISTS (SELECT 1 FROM ponte_paper_area a "
+                "WHERE a.paper_id = t.paper_id AND a.is_primaria = 1 AND a.area = ?)",
+                (regra, area),
+            )
+            for regra, area in AREA_DA_REGRA.items()
+        )
+    finally:
+        conn.close()
+
+    dados = {
+        "fora_regra_antiga": legado_fora,
+        "aprovado_sem_natureza": legado_aprovado,
+        "incoerentes": incoerentes,
+        "regra_sem_area": regra_area,
+    }
+    problemas = []
+    if legado_fora or legado_aprovado:
+        problemas.append(
+            f"{legado_fora} fora com regra antiga e {legado_aprovado} aprovados sem "
+            "natureza - rode `hfpapers reclassificar --tudo`"
+        )
+    if incoerentes:
+        problemas.append(f"{incoerentes} aprovados com natureza incoerente com o pre-requisito")
+    if regra_area:
+        problemas.append(f"{regra_area} descartes por midia/percepcao fora da area correspondente")
+    if problemas:
+        return Item("regime", AVISO, "; ".join(problemas), dados)
+    return Item("regime", OK, "triagem toda no regime do ADR 004, sem incoerencia", dados)
+
+
 def checar_pendencias(cfg: Config) -> Item:
     """Papers sem veredito - e se a repescagem ja teve chance de pega-los.
 
@@ -253,7 +299,8 @@ def checar_pendencias(cfg: Config) -> Item:
             "(SELECT MAX(t.classificado_em) FROM fato_triagem t WHERE t.run_id = e.run_id) AS fim_estagio_3 "
             "FROM log_execucao e "
             "WHERE e.finalizado_em IS NOT NULL "
-            "AND COALESCE(e.qtd_fora,0) + COALESCE(e.qtd_amplo,0) + COALESCE(e.qtd_estrito,0) > 0 "
+            "AND COALESCE(e.qtd_fora,0) + COALESCE(e.qtd_aprovados,0) "
+            "+ COALESCE(e.qtd_amplo,0) + COALESCE(e.qtd_estrito,0) > 0 "
             "ORDER BY e.finalizado_em DESC LIMIT 1"
         ).fetchone()
     finally:
@@ -301,5 +348,6 @@ def rodar(cfg: Optional[Config] = None, *, sem_rede: bool = False) -> list[Item]
         itens.append(checar_openrouter(cfg))
     itens.extend(checar_banco(cfg))
     itens.append(checar_vocabulario(cfg))
+    itens.append(checar_regime(cfg))
     itens.append(checar_pendencias(cfg))
     return itens

@@ -18,9 +18,9 @@ from . import prompts, schemas
 from .cliente import ClienteLLM, ErroValidacao, Uso
 
 SISTEMA = (
-    "Voce e um triador de papers de IA para engenheiros que usam modelos de "
-    "linguagem em producao e nao treinam modelos. Responde sempre em JSON valido "
-    "conforme o schema, em portugues do Brasil."
+    "Voce e um triador de papers de IA para leitores que constroem produto com "
+    "modelos de linguagem ou treinam e pesquisam modelos. Responde sempre em JSON "
+    "valido conforme o schema, em portugues do Brasil."
 )
 
 
@@ -116,6 +116,11 @@ class PaperEntrada:
     ai_summary: Optional[str] = None
     area_primaria: Optional[str] = None
     vertentes: list[str] = field(default_factory=list)
+    # Evidencia externa de artefato (`vw_artefato`): repositorio, link no
+    # abstract ou modelo/dataset vinculado no HF. So o Estagio B usa - e a
+    # condicao para perguntar se o artefato foi liberado ou so prometido.
+    evidencia_artefato: bool = False
+    links_artefato: list[str] = field(default_factory=list)
 
 
 # ── validacao pos-resposta ──────────────────────────────────────────────────
@@ -137,7 +142,7 @@ def validar(dados: dict[str, Any]) -> None:
     if dados.get("veredito_preliminar") == "fora" and not dados.get("regra_fora"):
         raise ErroValidacao(
             "veredito 'fora' exige regra_fora: informe a primeira regra de descarte "
-            "que bate, na ordem (" + ", ".join(schemas.REGRAS_FORA_CONTEUDO) + ")"
+            "que bate, na ordem (" + ", ".join(schemas.REGRAS_FORA) + ")"
         )
     schemas.validar_justificativa(dados.get("justificativa"), "justificativa")
 

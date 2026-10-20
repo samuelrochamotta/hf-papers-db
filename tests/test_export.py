@@ -21,7 +21,6 @@ def _semear(conn):
                 "data_hf_daily": dt.date(2026, 8, 25),
                 "github_repo": "https://github.com/x/y",
                 "project_page": None,
-                "tem_codigo_aberto": 1,
                 "primeiro_visto_em": db.agora(),
             },
         )
@@ -52,19 +51,17 @@ def _semear(conn):
             conn,
             {
                 "paper_id": "2608.00001",
-                "veredito": "estrito",
+                "veredito": "aprovado",
                 "justificativa": "j",
-                "decisao_fronteira": 1,
-                "fronteira_contraparte": "benchmark",
+                "natureza": "proposta",
+                "prerequisito": "treino",
+                "pratica_contradita": "usar a mesma temperatura no rollout e na avaliacao",
+                "artefato_status": "liberado",
                 "classificado_em": db.agora(),
                 "run_id": "t",
                 "revisao": 1,
             },
         )
-        for c in ("artefato_aberto", "benchmark"):
-            db.inserir_ignorando(
-                conn, "ponte_paper_criterio", {"paper_id": "2608.00001", "criterio": c}
-            )
         db.upsert_ficha(
             conn,
             {
@@ -91,7 +88,8 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
         "dim_area", "dim_vertente",
         "ponte_paper_area", "ponte_paper_vertente",
         "ponte_paper_keyword", "ponte_paper_autor", "dim_calendario", "fato_execucao",
-        "ponte_paper_criterio",
+        "dim_natureza", "dim_prerequisito", "dim_perfil", "ponte_perfil_prerequisito",
+        "ponte_paper_perfil",
     }
     assert esperados <= set(r.arquivos)
     for nome in esperados:
@@ -100,7 +98,9 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
     manifest = json.loads((cfg.dir_marts / "_manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "run-teste"
     assert manifest["linhas"]["dim_paper"] == 1
-    assert manifest["linhas"]["ponte_paper_criterio"] == 2
+    assert manifest["versao_schema"] == 2
+    assert manifest["linhas"]["ponte_paper_perfil"] == 1
+    assert "ponte_paper_criterio" not in manifest["linhas"]
 
 
 def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
@@ -174,17 +174,41 @@ def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
     ]
 
 
-def test_ponte_paper_criterio_e_fronteira_contraparte_saem_no_parquet(conn, cfg):
+def test_fato_triagem_leva_a_classificacao_e_os_booleanos_derivados(conn, cfg):
+    """Os booleanos saem prontos para o Power BI nao reimplementar as regras:
+    `contradiz_pratica` e `como_incompleto` derivam dos textos, e o artefato
+    aberto vem de `vw_artefato` (evidencia + `liberado`)."""
     _semear(conn)
     export.rodar(conn, cfg, hoje=HOJE)
-    ponte = pq.read_table(cfg.dir_marts / "ponte_paper_criterio.parquet").to_pylist()
-    assert sorted(r["criterio"] for r in ponte) == ["artefato_aberto", "benchmark"]
-    assert {r["paper_id"] for r in ponte} == {"2608.00001"}
-    triagem = pq.read_table(cfg.dir_marts / "fato_triagem.parquet")
-    assert str(triagem.schema.field("fronteira_contraparte").type) == "string"
-    linha = triagem.to_pylist()[0]
-    assert linha["decisao_fronteira"] is True
-    assert linha["fronteira_contraparte"] == "benchmark"
+    linha = pq.read_table(cfg.dir_marts / "fato_triagem.parquet").to_pylist()[0]
+    assert (linha["veredito"], linha["aprovado"]) == ("aprovado", True)
+    assert (linha["natureza"], linha["prerequisito"]) == ("proposta", "treino")
+    assert linha["contradiz_pratica"] is True
+    assert linha["como_incompleto"] is False
+    assert linha["evidencia_artefato"] is True
+    assert linha["artefato_aberto"] is True
+
+
+def test_perfis_e_vocabulario_saem_no_parquet(conn, cfg):
+    _semear(conn)
+    export.rodar(conn, cfg, hoje=HOJE)
+    ponte = pq.read_table(cfg.dir_marts / "ponte_paper_perfil.parquet").to_pylist()
+    assert ponte == [{"paper_id": "2608.00001", "perfil": "pesquisa_treino"}]
+    degraus = pq.read_table(cfg.dir_marts / "dim_prerequisito.parquet").to_pylist()
+    assert [d["prerequisito"] for d in sorted(degraus, key=lambda d: d["ordem"])] == [
+        "nenhum", "implementar", "acesso_interno", "treino", "sem_acao",
+    ]
+
+
+def test_parquet_da_ponte_de_criterios_e_apagado(conn, cfg):
+    """O export so escreve; sem a limpeza o Power BI continuaria lendo o
+    arquivo da tabela que saiu no ADR 004."""
+    cfg.dir_marts.mkdir(parents=True, exist_ok=True)
+    morto = cfg.dir_marts / "ponte_paper_criterio.parquet"
+    morto.write_bytes(b"velho")
+    _semear(conn)
+    export.rodar(conn, cfg, hoje=HOJE)
+    assert not morto.exists()
 
 
 def test_datas_saem_como_date_nao_string(conn, cfg):
@@ -213,7 +237,6 @@ def test_colunas_derivadas_de_slicer(conn, cfg):
     _semear(conn)
     export.rodar(conn, cfg, hoje=HOJE)
     r = pq.read_table(cfg.dir_marts / "dim_paper.parquet").to_pylist()[0]
-    assert r["tem_codigo_aberto"] is True
     assert r["tem_project_page"] is False
     assert r["dias_desde_publicacao"] == 1
     assert r["upvotes_atual"] == 55

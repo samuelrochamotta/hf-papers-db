@@ -18,7 +18,7 @@ import os
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Optional, Sequence
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -148,7 +148,6 @@ def _dim_paper(conn: sqlite3.Connection, cfg: Config, hoje: dt.date) -> tuple[li
                 "data_hf_daily": data_hf,
                 "primeiro_visto_em": _ts(r["primeiro_visto_em"]),
                 "enriquecido_em": _ts(r["enriquecido_em"]),
-                "tem_codigo_aberto": _b(r["tem_codigo_aberto"]),
                 "tem_project_page": bool(r["project_page"]),
                 "autor_participa": _b(r["autor_participa"]),
                 "dias_desde_publicacao": (hoje - data_hf).days if data_hf else None,
@@ -174,7 +173,6 @@ def _dim_paper(conn: sqlite3.Connection, cfg: Config, hoje: dt.date) -> tuple[li
             ("project_page", pa.string()),
             ("github_repo", pa.string()),
             ("github_repo_added_by", pa.string()),
-            ("tem_codigo_aberto", pa.bool_()),
             ("tem_project_page", pa.bool_()),
             ("discussion_id", pa.string()),
             ("thumbnail_url", pa.string()),
@@ -248,18 +246,28 @@ def _fato_metrica(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
 
 
 def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
+    """A triagem do regime do ADR 004, com os booleanos ja derivados.
+
+    `contradiz_pratica` e `como_incompleto` derivam dos textos (nao sao
+    gravados duas vezes no banco); `artefato_aberto` e `evidencia_artefato` vem
+    de `vw_artefato`, a unica fonte da regra. O Power BI le os booleanos
+    prontos para nao reimplementar nenhuma das duas regras em DAX.
+    """
     linhas = []
-    for r in _rows(conn, "SELECT * FROM fato_triagem"):
+    for r in _rows(
+        conn,
+        "SELECT t.*, a.evidencia, a.artefato_aberto FROM fato_triagem t "
+        "LEFT JOIN vw_artefato a ON a.paper_id = t.paper_id",
+    ):
+        aprovado = r["veredito"] == "aprovado"
         linhas.append(
             {
                 **r,
-                "tem_artefato_nomeado": _b(r["tem_artefato_nomeado"]),
-                "portabilidade_aprovada": _b(r["portabilidade_aprovada"]),
-                "portab_depende_nome": _b(r["portab_depende_nome"]),
-                "portab_generalidade": _b(r["portab_generalidade"]),
-                "decisao_fronteira": _b(r["decisao_fronteira"]),
-                "fronteira_contraparte": r["fronteira_contraparte"],
-                "aprovado": r["veredito"] in ("amplo", "estrito"),
+                "aprovado": aprovado,
+                "contradiz_pratica": bool(r["pratica_contradita"]) if aprovado else None,
+                "como_incompleto": bool(r["falta_o_como"]) if aprovado else None,
+                "evidencia_artefato": _b(r["evidencia"]),
+                "artefato_aberto": _b(r["artefato_aberto"]),
                 "classificado_em": _ts(r["classificado_em"]),
             }
         )
@@ -270,12 +278,15 @@ def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
             ("aprovado", pa.bool_()),
             ("regra_fora", pa.string()),
             ("justificativa", pa.string()),
-            ("tem_artefato_nomeado", pa.bool_()),
-            ("portabilidade_aprovada", pa.bool_()),
-            ("portab_depende_nome", pa.bool_()),
-            ("portab_generalidade", pa.bool_()),
-            ("decisao_fronteira", pa.bool_()),
-            ("fronteira_contraparte", pa.string()),
+            ("natureza", pa.string()),
+            ("prerequisito", pa.string()),
+            ("pratica_contradita", pa.string()),
+            ("contradiz_pratica", pa.bool_()),
+            ("falta_o_como", pa.string()),
+            ("como_incompleto", pa.bool_()),
+            ("artefato_status", pa.string()),
+            ("evidencia_artefato", pa.bool_()),
+            ("artefato_aberto", pa.bool_()),
             ("classificado_em", pa.timestamp("s")),
             ("run_id", pa.string()),
             ("revisao", pa.int32()),
@@ -331,6 +342,12 @@ def _fato_execucao(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
             ("qtd_novos", pa.int32()),
             ("qtd_ja_vistos", pa.int32()),
             ("qtd_fora", pa.int32()),
+            ("qtd_aprovados", pa.int32()),
+            ("qtd_pr_nenhum", pa.int32()),
+            ("qtd_pr_implementar", pa.int32()),
+            ("qtd_pr_acesso_interno", pa.int32()),
+            ("qtd_pr_treino", pa.int32()),
+            ("qtd_pr_sem_acao", pa.int32()),
             ("qtd_amplo", pa.int32()),
             ("qtd_estrito", pa.int32()),
             ("taxa_fora", pa.float64()),
@@ -401,7 +418,30 @@ _SCHEMAS_SIMPLES = {
     "ponte_paper_vertente": pa.schema(
         [("paper_id", pa.string()), ("vertente", pa.string()), ("ordem", pa.int32())]
     ),
-    "ponte_paper_criterio": pa.schema([("paper_id", pa.string()), ("criterio", pa.string())]),
+    # Vocabulario dos dois eixos e dos perfis (ADR 004). `ordem` e a unica
+    # copia da ordenacao: no Power BI, "classificar por coluna" aponta para ela.
+    "dim_natureza": pa.schema(
+        [
+            ("natureza", pa.string()),
+            ("rotulo", pa.string()),
+            ("definicao", pa.string()),
+            ("ordem", pa.int32()),
+        ]
+    ),
+    "dim_prerequisito": pa.schema(
+        [
+            ("prerequisito", pa.string()),
+            ("rotulo", pa.string()),
+            ("definicao", pa.string()),
+            ("ordem", pa.int32()),
+        ]
+    ),
+    "dim_perfil": pa.schema(
+        [("perfil", pa.string()), ("rotulo", pa.string()), ("ordem", pa.int32())]
+    ),
+    "ponte_perfil_prerequisito": pa.schema(
+        [("perfil", pa.string()), ("prerequisito", pa.string())]
+    ),
     "ponte_paper_keyword": pa.schema([("paper_id", pa.string()), ("keyword", pa.string())]),
     "ponte_paper_autor": pa.schema(
         [
@@ -413,6 +453,24 @@ _SCHEMAS_SIMPLES = {
         ]
     ),
 }
+
+
+# Versao do contrato dos Parquet: 2 desde o ADR 004 (sai estrito/amplo e a
+# ponte de criterios; entram natureza, pre-requisito e perfis).
+VERSAO_SCHEMA = 2
+
+# Tabelas que deixaram de existir. O export so escreve, nao apaga: sem esta
+# lista o Parquet antigo ficaria em `marts/` e o Power BI continuaria a carrega-lo.
+ARQUIVOS_MORTOS = ("ponte_paper_criterio",)
+
+
+def _apagar_mortos(dir_saida: Path) -> None:
+    for nome in ARQUIVOS_MORTOS:
+        for ext in (".parquet", ".csv"):
+            caminho = dir_saida / f"{nome}{ext}"
+            if caminho.exists():
+                caminho.unlink()
+                log.warning("%s removido: a tabela saiu no ADR 004", caminho.name)
 
 
 # ── entrada ─────────────────────────────────────────────────────────────────
@@ -449,8 +507,21 @@ def rodar(
             linhas = [{**l, campo: _b(l[campo])} for l in linhas]
         tabelas.append((nome, (linhas, sch)))
 
+    # "Da para agir" sai da view, pronto: o painel e o Power BI leem a mesma
+    # regra em vez de cada um reimplementar o conjunto de degraus do perfil.
+    tabelas.append(
+        (
+            "ponte_paper_perfil",
+            (
+                _rows(conn, "SELECT paper_id, perfil FROM vw_paper_perfil"),
+                pa.schema([("paper_id", pa.string()), ("perfil", pa.string())]),
+            ),
+        )
+    )
+
     for nome, (linhas, schema) in tabelas:
         res.arquivos[nome] = _escrever(dir_saida, nome, linhas, schema, csv_tambem=csv_tambem)
+    _apagar_mortos(dir_saida)
 
     if run_id is None:
         row = conn.execute(
@@ -459,6 +530,7 @@ def rodar(
         run_id = row["run_id"] if row else None
 
     manifest = {
+        "versao_schema": VERSAO_SCHEMA,
         "gerado_em": dt.datetime.now().replace(microsecond=0).isoformat(),
         "run_id": run_id,
         "banco": str(cfg.caminho_banco),

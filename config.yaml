@@ -96,11 +96,31 @@ refresh:
   enriquecimento_semanal: true   # numTotal* da janela quente, via papers/{id}
 
 guardrails:
-  taxa_fora_min: 0.50
-  taxa_fora_faixa_normal: [0.60, 0.80]
-  aprovados_faixa_normal: [4, 9]
-  aprovados_volume_alto: 12
+  # PROVISORIO (ADR 004, 20/10/2026): as faixas de 50%/60-80% de fora e 4-9
+  # aprovados eram do regime que descartava treino e relatorio tecnico. Estas
+  # sao largas de proposito e sao recalibradas com a distribuicao da
+  # reclassificacao total.
+  taxa_fora_min: 0.15
+  taxa_fora_faixa_normal: [0.20, 0.60]
+  aprovados_faixa_normal: [8, 60]
+  aprovados_volume_alto: 70
   coletados_min_dia_util: 15
+  # Se `nenhum` passar desta fracao dos aprovados do dia, o eixo de
+  # pre-requisito perdeu o sentido. So le a partir de um minimo de aprovados.
+  prerequisito_nenhum_max: 0.40
+  prerequisito_min_aprovados: 10
+
+# Perfis de leitura (ADR 004): o conjunto de degraus de pre-requisito em que
+# cada leitor consegue agir. Fica fora do paper - mudar aqui nao reclassifica
+# nada; o banco espelha esta lista a cada conexao. Degraus: nenhum,
+# implementar, acesso_interno, treino, sem_acao.
+perfis:
+  - perfil: produto
+    rotulo: Produto
+    prerequisitos: [nenhum, implementar]
+  - perfil: pesquisa_treino
+    rotulo: Treino/pesquisa
+    prerequisitos: [acesso_interno, treino, sem_acao]
 
 export:
   csv: false

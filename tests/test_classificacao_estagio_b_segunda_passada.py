@@ -45,8 +45,8 @@ class LLMComVeredito(LLMDuble):
     """Estagio B sempre devolve um veredito fixo - usado para exercitar os
     ramos de `_gravar_sucesso_b` (fora do escopo direto da falha do Estagio
     B) que a extracao da issue #1 passou a compartilhar entre a 1a e a 2a
-    passada. "fora" nao aprova (ficha null); qualquer outro veredito aprova
-    com a ficha padrao de `RESPOSTA_B`."""
+    passada. "fora" nao aprova (ficha null); qualquer outro valor e o degrau de
+    pre-requisito de um aprovado com a ficha padrao de `RESPOSTA_B`."""
 
     def __init__(self, *a, veredito: str, **kw):
         super().__init__(*a, **kw)
@@ -63,18 +63,17 @@ class LLMComVeredito(LLMDuble):
         if self._veredito == "fora":
             dados = {
                 **RESPOSTA_B,
-                "criterios_veredito": [],
-                "veredito": "fora",
-                "regra_fora": "treino_ou_postreino",
+                "regra_fora": "geracao_de_midia",
+                "natureza": None,
+                "padrao_extraido": None,
+                "prerequisito": None,
                 "ficha": None,
-                "justificativa_veredito": (
-                    "FORA pela regra treino_ou_postreino: o payload principal e uma receita de pos-treino, e o leitor-alvo nao treina modelo."
+                "justificativa": (
+                    "FORA por geracao_de_midia: o payload principal e um gerador de video, que a triagem deixou passar."
                 ),
             }
         else:
-            # O veredito decorre dos criterios: amplo exige lista so de amplo.
-            criterios = ["benchmark"] if self._veredito == "amplo" else RESPOSTA_B["criterios_veredito"]
-            dados = {**RESPOSTA_B, "veredito": self._veredito, "criterios_veredito": criterios}
+            dados = {**RESPOSTA_B, "prerequisito": self._veredito}
         if validar:
             validar(dados)
         uso = Uso(100, 50, 0.0001, 1)
@@ -94,7 +93,7 @@ def test_segunda_passada_resolve_falha_transitoria(cfg, base):
     assert len([c for c in llm.chamadas if c[0] == "estagio_a"]) == 1  # A nao repete
     assert res.avisos == []
     assert res.nao_classificados == 0
-    assert res.estrito == 1        # RESPOSTA_B: veredito "estrito"
+    assert res.aprovados == 1      # RESPOSTA_B: aprovado em `implementar`
     assert res.fichas == 1
     assert db.contar(base, "fato_triagem") == 1
     assert db.contar(base, "dim_ficha") == 1
@@ -129,7 +128,7 @@ def test_force_com_falha_nas_duas_passadas_mantem_linha_e_ficha_intactas(cfg, ba
     ficha intactas - nada e apagado nem sobrescrito no caminho de falha."""
     llm_ok = LLMDuble(base, cfg, um_a_cada=1)
     r1 = classificacao.rodar(base, llm_ok, [_entrada()], run_id="run-1", cfg=cfg)
-    assert r1.estrito == 1 and r1.fichas == 1
+    assert r1.aprovados == 1 and r1.fichas == 1
     assert db.contar(base, "fato_triagem") == 1
     assert db.contar(base, "dim_ficha") == 1
 
@@ -170,22 +169,22 @@ def test_reprovacao_do_estagio_b_apaga_ficha_orfa(cfg, base):
     assert row["veredito"] == "fora"
 
 
-def test_veredito_amplo_e_gravado_e_contado(cfg, base):
-    """`_gravar_sucesso_b` tambem grava e conta o veredito "amplo" - a issue
-    #1 e literalmente sobre parar de fabricar esse veredito na falha, entao o
-    caminho em que ele e legitimo (o Estagio B decidiu de verdade) precisa
-    continuar gravando ficha e contando em `res.amplo`, nao em `res.estrito`."""
-    llm = LLMComVeredito(base, cfg, um_a_cada=1, veredito="amplo")
+def test_degrau_alto_e_gravado_e_contado(cfg, base):
+    """`_gravar_sucesso_b` grava e conta o degrau que o Estagio B decidiu de
+    verdade - a issue #1 e sobre nunca fabricar classificacao na falha, entao o
+    caminho legitimo precisa continuar gravando ficha e contando no degrau
+    certo de `res.por_prerequisito`."""
+    llm = LLMComVeredito(base, cfg, um_a_cada=1, veredito="acesso_interno")
 
     res = classificacao.rodar(base, llm, [_entrada()], run_id="run-1", cfg=cfg)
 
-    assert res.amplo == 1
-    assert res.estrito == 0
+    assert res.aprovados == 1
+    assert res.por_prerequisito == {"acesso_interno": 1}
     assert res.fichas == 1
     assert db.contar(base, "fato_triagem") == 1
     assert db.contar(base, "dim_ficha") == 1
-    row = base.execute("SELECT veredito FROM fato_triagem").fetchone()
-    assert row["veredito"] == "amplo"
+    row = base.execute("SELECT veredito, prerequisito FROM fato_triagem").fetchone()
+    assert tuple(row) == ("aprovado", "acesso_interno")
 
 
 def test_caminho_sem_falha_nao_dispara_segunda_passada(cfg, base):

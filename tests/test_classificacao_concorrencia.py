@@ -16,7 +16,13 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from conftest import RESPOSTA_A, RESPOSTA_A_FORA, RESPOSTA_B, LLMDuble, povoar_vocabulario
+from conftest import (
+    RESPOSTA_A,
+    RESPOSTA_A_FORA,
+    RESPOSTA_B,
+    LLMDuble,
+    povoar_vocabulario,
+)
 
 from hfpapers import db
 from hfpapers.estagios import classificacao
@@ -181,7 +187,7 @@ def test_concorrencia_4_produz_o_mesmo_banco_que_1(cfg, tmp_path, base):
         par, llm_par = _rodar(outra, cfg, 4)
 
         assert _estado(outra) == _estado(base)
-        assert (par.fora, par.amplo, par.estrito) == (seq.fora, seq.amplo, seq.estrito)
+        assert (par.fora, par.aprovados, par.por_prerequisito) == (seq.fora, seq.aprovados, seq.por_prerequisito)
         assert (par.fichas, par.nao_classificados, par.pulados) == (
             seq.fichas, seq.nao_classificados, seq.pulados
         )
@@ -189,7 +195,7 @@ def test_concorrencia_4_produz_o_mesmo_banco_que_1(cfg, tmp_path, base):
         assert par.uso.chamadas == seq.uso.chamadas
         assert par.uso.custo_usd == pytest.approx(seq.uso.custo_usd)
         # o lote de fato exercitou os tres caminhos
-        assert seq.fora == 2 and seq.estrito == 6 and seq.nao_classificados == 0
+        assert seq.fora == 2 and seq.aprovados == 6 and seq.nao_classificados == 0
         assert llm_seq.tentativas_b == llm_par.tentativas_b == 8  # 6 + as 2 da 2a passada
     finally:
         outra.close()
@@ -275,7 +281,7 @@ def test_segunda_passada_tambem_e_paralela(cfg, base):
         base, llm, _lote(), run_id="run-1", cfg=cfg, concorrencia=4
     )
 
-    assert res.estrito == 8          # todos recuperados na segunda passada
+    assert res.aprovados == 8          # todos recuperados na segunda passada
     assert res.nao_classificados == 0
     assert llm.tentativas_b == 16    # 8 falhas + 8 recuperacoes
     assert llm.pico > 1
@@ -428,7 +434,7 @@ def test_prazo_estourando_em_concorrencia_4_da_o_mesmo_banco_que_em_1(
         par = _rodar_com_prazo(paralela, cfg, 4)
 
         assert _estado(paralela) == _estado(sequencial)
-        assert (par.fora, par.amplo, par.estrito) == (seq.fora, seq.amplo, seq.estrito)
+        assert (par.fora, par.aprovados, par.por_prerequisito) == (seq.fora, seq.aprovados, seq.por_prerequisito)
         assert par.avisos == seq.avisos
         # o lote de fato exercitou o corte: os tres lentos caem no Estagio A
         assert seq.avisos == [f"estagio_a_falhou:2608.0000{i}" for i in (2, 5, 7)]

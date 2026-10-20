@@ -18,6 +18,7 @@ from .config import Config, config
 from .estagios import classificacao, coleta, enriquecimento, export, refresh
 from .fontes.hf_client import ClienteHF
 from .llm import estagio_a as ea
+from .llm import schemas
 from .llm.cliente import ClienteLLM, Estimativa, Uso
 from .log import logger
 
@@ -35,8 +36,8 @@ class ResultadoRun:
     novos: int = 0
     ja_vistos: int = 0
     fora: int = 0
-    amplo: int = 0
-    estrito: int = 0
+    aprovados: int = 0
+    por_prerequisito: dict[str, int] = field(default_factory=dict)
     nao_classificados: int = 0
     selecionados: int = 0
     fichas: int = 0
@@ -44,10 +45,6 @@ class ResultadoRun:
     avisos: list[str] = field(default_factory=list)
     uso: Uso = field(default_factory=Uso)
     arquivos: dict[str, int] = field(default_factory=dict)
-
-    @property
-    def aprovados(self) -> int:
-        return self.amplo + self.estrito
 
     @property
     def taxa_fora(self) -> Optional[float]:
@@ -71,11 +68,12 @@ def _absorver(res: ResultadoRun, parcial: classificacao.ResultadoClassificacao) 
     Chamada no `finally` da classificacao, e nao depois do `return` dela, para
     que valha tambem quando a varredura estoura no meio: as triagens ja gravadas
     sao fato no banco, e `log_execucao` tem de refletir isso. Fechar a execucao
-    com `qtd_fora = qtd_amplo = qtd_estrito = 0` depois de horas de varredura
+    com `qtd_fora = qtd_aprovados = 0` depois de horas de varredura
     perde a contagem e ainda faz `doutor.checar_pendencias` descartar a rodada
     como corte - ele so considera execucao que classificou alguem.
     """
-    res.fora, res.amplo, res.estrito = parcial.fora, parcial.amplo, parcial.estrito
+    res.fora, res.aprovados = parcial.fora, parcial.aprovados
+    res.por_prerequisito = dict(parcial.por_prerequisito)
     res.nao_classificados = parcial.nao_classificados
     res.fichas = parcial.fichas
     res.avisos.extend(parcial.avisos)
@@ -110,8 +108,11 @@ def _fechar_execucao(conn: sqlite3.Connection, res: ResultadoRun) -> None:
             "qtd_novos": res.novos,
             "qtd_ja_vistos": res.ja_vistos,
             "qtd_fora": res.fora,
-            "qtd_amplo": res.amplo,
-            "qtd_estrito": res.estrito,
+            "qtd_aprovados": res.aprovados,
+            **{
+                f"qtd_pr_{degrau}": res.por_prerequisito.get(degrau, 0)
+                for degrau in schemas.PREREQUISITOS
+            },
             "taxa_fora": res.taxa_fora,
             "qtd_refresh": res.refresh_papers,
             "tokens_entrada": res.uso.tokens_entrada,
@@ -218,8 +219,8 @@ def rodar(
                 guardrails.Contagens(
                     coletados=res.coletados,
                     fora=res.fora,
-                    amplo=res.amplo,
-                    estrito=res.estrito,
+                    aprovados=res.aprovados,
+                    por_prerequisito=res.por_prerequisito,
                     nao_classificados=res.nao_classificados,
                     dia_util=dia_util,
                 ),
@@ -261,9 +262,16 @@ def reclassificar(
     tudo: bool = False,
     concorrencia: Optional[int] = None,
     so_estagio_a: bool = False,
+    retomar: Optional[str] = None,
     cliente_llm: Optional[ClienteLLM] = None,
 ) -> ResultadoRun:
     """Roda so o estagio 3, sobre papers ja vistos, e registra a rodada.
+
+    `retomar=<run_id>` continua uma rodada total que caiu no meio: reaproveita
+    o `run_id` e leva so quem ainda nao tem triagem dele, de modo que `conferir`
+    fecha em 0/0 e a trava de `run_id` do painel continua valendo. As contagens
+    de `log_execucao` sao refeitas de `fato_triagem` no fim, porque as do
+    segmento retomado sozinhas contariam so a metade.
 
     A selecao e `force=True`: leva quem ja tem triagem (o caso comum) e tambem
     o pendente que ficou sem linha, que e o que faz o criterio de conclusao da
@@ -293,7 +301,7 @@ def reclassificar(
     cfg = cfg or config()
     fechar_conn = conn is None
     conn = conn or db.abrir(cfg)
-    run_id = novo_run_id()
+    run_id = retomar or novo_run_id()
     res = ResultadoRun(run_id=run_id)
     if data:
         res.dias = [data]
@@ -305,6 +313,7 @@ def reclassificar(
             ids=None if tudo else ids,
             data=None if tudo else data,
             force=True,
+            exceto_run_id=retomar,
         )
         res.selecionados = len(papers)
         if not papers:
@@ -332,6 +341,8 @@ def reclassificar(
         res.status = (
             "parcial" if any(a.startswith("estagio_a_falhou") for a in res.avisos) else "ok"
         )
+        if retomar:
+            _recontar(conn, res)
         _fechar_execucao(conn, res)
     except Exception:
         res.status = "erro"
@@ -343,6 +354,20 @@ def reclassificar(
             conn.close()
 
     return res
+
+
+def _recontar(conn: sqlite3.Connection, res: ResultadoRun) -> None:
+    """As contagens da rodada inteira, lidas de `fato_triagem` pelo `run_id`."""
+    res.fora = db.contar(conn, "fato_triagem", "run_id = ? AND veredito = 'fora'", (res.run_id,))
+    res.por_prerequisito = {
+        r["prerequisito"]: r["n"]
+        for r in conn.execute(
+            "SELECT prerequisito, COUNT(*) AS n FROM fato_triagem "
+            "WHERE run_id = ? AND veredito = 'aprovado' GROUP BY prerequisito",
+            (res.run_id,),
+        )
+    }
+    res.aprovados = sum(res.por_prerequisito.values())
 
 
 def conferir(conn: sqlite3.Connection, run_id: str) -> dict[str, int]:

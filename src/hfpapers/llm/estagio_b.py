@@ -1,24 +1,29 @@
-"""Estagio B - portabilidade, criterios, veredito e ficha.
+"""Estagio B - natureza, pre-requisito e ficha.
 
-Roda so nos sobreviventes do Estagio A (~10/dia).
+Roda nos sobreviventes do Estagio A. Desde o ADR 004 isso inclui os papers de
+treino e os relatorios tecnicos de modelo de fundacao, que antes eram
+descartados no A.
 
-As validacoes da secao 4.4 rodam em codigo, depois da resposta: o schema garante
-forma, nao coerencia. Violacao vira `ErroValidacao`, que o cliente reenvia com a
-mensagem anexada. Se todas as tentativas do `ClienteLLM` se esgotarem, sobe
-`ErroLLM` - quem decide o que fazer com isso e `estagios/classificacao.py`
-(issue #1: nao fabrica veredito, deixa o paper pendente para a segunda passada
-do estagio e, se preciso, para a proxima rodada).
+As validacoes da secao 2 da spec (`docs/specs/natureza-prerequisito.md`) rodam
+em codigo, depois da resposta: o schema garante forma, nao coerencia. Violacao
+vira `ErroValidacao`, que o cliente reenvia com a mensagem anexada. Se todas as
+tentativas do `ClienteLLM` se esgotarem, sobe `ErroLLM` - quem decide o que
+fazer com isso e `estagios/classificacao.py` (issue #1: nao fabrica veredito,
+deixa o paper pendente para a segunda passada e, se preciso, para a proxima
+rodada).
 
-Ha duas classes de regra, e a diferenca esta em quem paga quando o modelo
+Ha tres classes de regra, e a diferenca esta em quem paga quando o modelo
 insiste no erro:
 
-* **Essenciais** (`validar`): `fora` sem regra, aprovado sem criterio, veredito
-  que contradiz a lista de criterios. Sem elas o veredito nao e integro, entao
-  o paper fica pendente a ficar gravado errado.
-* **De fronteira** (`Validador`): `decisao_fronteira` sem contraparte, ou
-  contraparte do mesmo lado do veredito. E metadado sobre o veredito, nao o
-  veredito: refaz **uma vez** e, se persistir, grava como veio e avisa
-  (`fronteira_incoerente`). A flag nunca vira `false` pela nossa mao.
+* **Essenciais** (`validar`): aprovado sem natureza ou sem ficha, natureza que
+  contradiz o pre-requisito, padrao que vaza o nome proprio. Sem elas a
+  classificacao nao e integra, entao o paper fica pendente a ficar gravado
+  errado.
+* **Sobrescritas** (`avaliar`): `artefato_status` sem evidencia externa vira
+  NULL; campos que sobram num `fora` sao zerados. Nao vale retentativa: o
+  schema e fixo e o modelo responde o campo mesmo quando nao foi perguntado.
+* **Avisos** (`avisos_de_coerencia`): combinacoes suspeitas, mas possiveis.
+  Gravam como veio e sobem para `log_execucao.avisos`.
 """
 
 from __future__ import annotations
@@ -36,15 +41,16 @@ from .estagio_a import PaperEntrada
 log = logger("llm")
 
 SISTEMA = (
-    "Voce avalia papers de IA para engenheiros que usam modelos de linguagem em "
-    "producao e nao treinam modelos. Emite os campos na ordem declarada no "
-    "schema: o padrao e escrito e testado, os criterios sao listados e so entao "
-    "o veredito e decidido. Responde sempre em JSON valido, em portugues do Brasil."
+    "Voce avalia papers de IA para leitores com perfis diferentes: quem constroi "
+    "produto com modelos de linguagem e quem treina ou pesquisa modelos. Emite os "
+    "campos na ordem declarada no schema: a natureza e o padrao vem antes do "
+    "pre-requisito, e a justificativa depois de tudo que ela explica. Responde "
+    "sempre em JSON valido, em portugues do Brasil."
 )
 
-# O Padrao e impessoal por definicao (secao 6.4): pronome de segunda pessoa ou
-# imperativo dirigido ao leitor sao a marca de que a Implicacao Pratica vazou
-# para dentro dele.
+# O Padrao e impessoal por definicao: pronome de segunda pessoa ou imperativo
+# dirigido ao leitor sao a marca de que a Implicacao Pratica vazou para dentro
+# dele.
 RE_SEGUNDA_PESSOA = re.compile(
     r"\b(voc[eê]s?|teu|tua|seus?\s+prompts?|vc)\b", re.IGNORECASE
 )
@@ -54,10 +60,27 @@ RE_IMPERATIVO = re.compile(
     re.IGNORECASE,
 )
 
+# Nome proprio do artefato dos autores: o que vem antes do ":" no titulo, e so
+# os tokens com cara de nome (acronimo, CamelCase, letra com digito). Substitui
+# o teste de portabilidade autoavaliado, que reprovou 7 papers em 4477: o
+# modelo se aprovava. Siglas de uso geral nao contam como nome dos autores.
+RE_TOKEN_NOME = re.compile(r"[A-Za-z][A-Za-z0-9]*(?:[-.][A-Za-z0-9]+)*")
+SIGLAS_COMUNS = frozenset(
+    {
+        "LLM", "LLMS", "VLM", "VLMS", "MLLM", "MLLMS", "LM", "LMS", "RAG", "RL",
+        "RLHF", "RLVR", "SFT", "DPO", "PPO", "GRPO", "KV", "MOE", "AI", "NLP",
+        "API", "GPU", "GPUS", "CPU", "SQL", "QA", "COT", "OCR", "ASR", "TTS",
+        "SOTA", "MCP", "GUI", "UI", "LORA", "VQA", "ML", "NN", "CNN", "RNN",
+    }
+)
+
 # Codigos de aviso que sobem em `ResultadoB.avisos`; `classificacao` anexa o
 # `paper_id` e repassa para o resultado da rodada.
-AVISO_FRONTEIRA_INCOERENTE = "fronteira_incoerente"
-AVISO_CONTRAPARTE_DESCARTADA = "fronteira_contraparte_descartada"
+AVISO_CONTRADICAO_SEM_DEGRAU = "contradicao_sem_degrau"
+AVISO_ACHADO_SEM_ACAO = "achado_sem_acao"
+AVISO_TREINAR_SEM_DEGRAU = "treinar_sem_degrau"
+
+CAMPOS_FICHA = ("achado", "implicacao_pratica", "exemplo_concreto", "ressalva")
 
 
 @dataclass
@@ -73,209 +96,162 @@ class Ficha:
 @dataclass
 class ResultadoB:
     paper_id: str
-    tem_artefato_nomeado: bool
-    padrao_extraido: Optional[dict[str, str]]
-    teste_portabilidade: Optional[dict[str, bool]]
-    criterios_veredito: list[str]
-    veredito: str
     regra_fora: Optional[str]
-    justificativa_veredito: str
-    decisao_fronteira: bool
-    fronteira_contraparte: Optional[str]
+    natureza: Optional[str]
+    padrao_extraido: Optional[dict[str, str]]
+    prerequisito: Optional[str]
+    pratica_contradita: Optional[str]
+    falta_o_como: Optional[str]
+    artefato_status: Optional[str]
+    justificativa: str
     ficha: Optional[Ficha]
     uso: Uso = field(default_factory=Uso)
     avisos: list[str] = field(default_factory=list)
 
     @property
+    def veredito(self) -> str:
+        return "fora" if self.regra_fora else "aprovado"
+
+    @property
     def aprovado(self) -> bool:
-        return self.veredito in ("amplo", "estrito")
+        return self.regra_fora is None
 
 
-# ── validacoes da secao 4.4 ─────────────────────────────────────────────────
+# ── validacoes ──────────────────────────────────────────────────────────────
 
 
-def _criterios(dados: dict[str, Any]) -> list[str]:
-    brutos = dados.get("criterios_veredito") or []
-    return list(dict.fromkeys(c for c in brutos if isinstance(c, str)))
+def _texto(valor: Any) -> Optional[str]:
+    """Texto aparado, ou None. Vazio e ausencia: nao vale retentativa."""
+    if not isinstance(valor, str):
+        return None
+    limpo = valor.strip()
+    return limpo or None
 
 
-def validar(dados: dict[str, Any]) -> None:
+def nomes_proprios(titulo: str) -> set[str]:
+    """Os tokens com cara de nome do artefato, tirados de antes do ":" do titulo.
+
+    Sem ":" nao ha nome a proteger - o titulo e uma frase, e caçar acronimo nele
+    pegaria sigla de dominio. Devolve vazio nesse caso.
+    """
+    if ":" not in titulo:
+        return set()
+    prefixo = titulo.split(":", 1)[0]
+    nomes = set()
+    for tok in RE_TOKEN_NOME.findall(prefixo):
+        if tok.upper() in SIGLAS_COMUNS or len(tok) < 3:
+            continue
+        miolo = tok[1:]
+        acronimo = sum(c.isupper() for c in tok) >= 2
+        camel = any(c.isupper() for c in miolo) and any(c.islower() for c in tok)
+        com_digito = any(c.isdigit() for c in tok) and any(c.isalpha() for c in tok)
+        if acronimo or camel or com_digito:
+            nomes.add(tok)
+    return nomes
+
+
+def _cita_nome(texto: str, nomes: set[str]) -> Optional[str]:
+    for nome in sorted(nomes):
+        if re.search(rf"(?<![A-Za-z0-9]){re.escape(nome)}(?![A-Za-z0-9])", texto):
+            return nome
+    return None
+
+
+def validar(dados: dict[str, Any], titulo: str = "") -> None:
     """Regras essenciais: violacao e `ErroValidacao` ate esgotar as tentativas."""
-    veredito = dados.get("veredito")
-    ficha = dados.get("ficha")
-    padrao = dados.get("padrao_extraido")
-    teste = dados.get("teste_portabilidade")
-    tem_artefato = dados.get("tem_artefato_nomeado")
-    criterios = _criterios(dados)
     regra = dados.get("regra_fora")
+    natureza = dados.get("natureza")
+    prereq = dados.get("prerequisito")
+    padrao = dados.get("padrao_extraido")
+    ficha = dados.get("ficha")
 
-    if veredito == "fora" and ficha is not None:
-        raise ErroValidacao("veredito 'fora' exige ficha null")
+    if regra:
+        if ficha is not None or natureza is not None or prereq is not None:
+            raise ErroValidacao(
+                f"regra_fora '{regra}' e descarte: natureza, prerequisito e ficha "
+                "devem ser null"
+            )
+        schemas.validar_justificativa(dados.get("justificativa"), "justificativa")
+        return
 
-    if veredito in ("amplo", "estrito"):
-        if not isinstance(ficha, dict):
-            raise ErroValidacao(f"veredito '{veredito}' exige ficha preenchida")
-        vazios = [
-            c
-            for c in ("achado", "implicacao_pratica", "exemplo_concreto", "ressalva")
-            if not (ficha.get(c) or "").strip()
-        ]
-        if vazios:
-            raise ErroValidacao("campos vazios na ficha: " + ", ".join(vazios))
-
-    if tem_artefato is False and (padrao is not None or teste is not None):
+    if natureza is None:
         raise ErroValidacao(
-            "sem artefato nomeado, padrao_extraido e teste_portabilidade devem ser null"
+            "paper aprovado exige natureza (" + ", ".join(schemas.NATUREZAS) + ")"
+        )
+    if prereq is None:
+        raise ErroValidacao(
+            "paper aprovado exige prerequisito ("
+            + ", ".join(schemas.PREREQUISITOS) + ")"
+        )
+    if not isinstance(ficha, dict):
+        raise ErroValidacao("paper aprovado exige ficha preenchida")
+    vazios = [c for c in CAMPOS_FICHA if not (ficha.get(c) or "").strip()]
+    if vazios:
+        raise ErroValidacao("campos vazios na ficha: " + ", ".join(vazios))
+
+    if natureza in schemas.NATUREZAS_SEM_ADOCAO and prereq != schemas.SEM_ACAO:
+        raise ErroValidacao(
+            f"natureza '{natureza}' nao tem o que adotar: prerequisito tem de ser "
+            f"'{schemas.SEM_ACAO}'"
         )
 
-    if tem_artefato is True:
-        if not isinstance(padrao, dict) or not isinstance(teste, dict):
+    if natureza == "proposta":
+        if prereq == schemas.SEM_ACAO:
             raise ErroValidacao(
-                "com artefato nomeado, padrao_extraido e teste_portabilidade sao obrigatorios"
+                "natureza 'proposta' anuncia algo adotavel: prerequisito nao pode ser "
+                f"'{schemas.SEM_ACAO}' - diga o degrau mais barato ate o ganho principal"
             )
-        esperado = not (
-            teste.get("depende_do_nome_proprio") or teste.get("colapsa_em_generalidade")
+        if not isinstance(padrao, dict) or not (padrao.get("mecanismo") or "").strip():
+            raise ErroValidacao(
+                "natureza 'proposta' exige padrao_extraido com nome e mecanismo"
+            )
+    elif padrao is not None:
+        raise ErroValidacao(
+            f"padrao_extraido so existe para natureza 'proposta'; em '{natureza}' o "
+            "achado ja e o padrao, e o campo e null"
         )
-        if bool(teste.get("aprovado")) != esperado:
-            raise ErroValidacao(
-                "teste_portabilidade.aprovado deve ser true apenas quando as duas "
-                "formas de reprovacao sao false"
-            )
-        if teste.get("aprovado") is False and veredito != "fora":
-            raise ErroValidacao(
-                "reprovou no teste de portabilidade: o veredito tem de ser 'fora' "
-                f"(regra_fora '{schemas.REGRA_PORTABILIDADE}', se nenhuma regra de "
-                "conteudo bater antes)"
-            )
+
+    if isinstance(padrao, dict):
         mecanismo = (padrao.get("mecanismo") or "").strip()
-        if not mecanismo:
-            raise ErroValidacao("padrao_extraido.mecanismo vazio")
         if RE_SEGUNDA_PESSOA.search(mecanismo) or RE_IMPERATIVO.search(mecanismo):
             raise ErroValidacao(
                 "o Padrao Extraido e impessoal: reescreva o mecanismo sem 'voce' e "
                 "sem verbo dirigido ao leitor (isso pertence a Implicacao Pratica)"
             )
-
-    # Regra de descarte: todo `fora` tem exatamente uma (ticket 02), e a de
-    # portabilidade so existe se o teste de fato reprovou.
-    if veredito == "fora" and not regra:
-        raise ErroValidacao(
-            "veredito 'fora' exige regra_fora: a primeira regra de descarte que bate, "
-            "na ordem (" + ", ".join(schemas.REGRAS_FORA) + ")"
+        nome = _cita_nome(
+            f"{padrao.get('nome') or ''} {mecanismo}", nomes_proprios(titulo)
         )
-    if regra == schemas.REGRA_PORTABILIDADE and not (
-        isinstance(teste, dict) and teste.get("aprovado") is False
-    ):
-        raise ErroValidacao(
-            f"regra_fora '{schemas.REGRA_PORTABILIDADE}' so vale quando "
-            "teste_portabilidade.aprovado e false"
-        )
-
-    # Criterios de veredito (ticket 03): o veredito decorre da lista.
-    if veredito == "fora" and criterios:
-        raise ErroValidacao(
-            "veredito 'fora' exige criterios_veredito vazio: criterio e motivo de "
-            "aprovacao, e descarte tem regra_fora"
-        )
-    if veredito in ("amplo", "estrito"):
-        if not criterios:
+        if nome:
             raise ErroValidacao(
-                f"veredito '{veredito}' exige ao menos um criterio em criterios_veredito "
-                "(" + ", ".join(schemas.CRITERIOS_VEREDITO) + ")"
+                f"o Padrao Extraido cita '{nome}', o nome proprio dos autores: "
+                "descreva o mecanismo de modo que ele se sustente sem o nome - se nao "
+                "se sustenta, o padrao nao e portavel"
             )
-        # `exige_acesso_interno` e excludente (ticket 06, revisao de 04/09):
-        # estrito e "adota sem treinar e sem acesso interno", entao nao pode
-        # coexistir com criterio de estrito. Sem esta regra o modelo lista os
-        # dois, estrito prevalece e a justificativa se contradiz ("reproduzivel
-        # pela descricao, mas exige modificar o motor de inferencia").
-        if schemas.CRITERIO_ACESSO_INTERNO in criterios:
-            estritos_junto = [c for c in criterios if c in schemas.CRITERIOS_ESTRITO]
-            if estritos_junto:
-                raise ErroValidacao(
-                    f"'{schemas.CRITERIO_ACESSO_INTERNO}' exclui criterio de estrito "
-                    f"({', '.join(estritos_junto)}): se a adocao exige acesso interno, o "
-                    "leitor nao adota - ou o acesso interno nao e pre-requisito e sai da "
-                    "lista, ou o criterio de estrito nao vale"
-                )
-        implicado = schemas.veredito_dos_criterios(criterios)
-        if implicado != veredito:
-            estritos = [c for c in criterios if c in schemas.CRITERIOS_ESTRITO]
-            if implicado == "estrito":
-                detalhe = (
-                    f"a lista tem criterio de estrito ({', '.join(estritos)}) e "
-                    "qualquer criterio de estrito implica veredito 'estrito'; ou o "
-                    "veredito e 'estrito', ou esse criterio nao vale e sai da lista"
-                )
-            else:
-                detalhe = (
-                    "a lista so tem criterios de amplo, entao o veredito e 'amplo'; "
-                    "se o paper e 'estrito', diga por qual criterio de estrito"
-                )
-            raise ErroValidacao(f"veredito '{veredito}' incoerente com criterios_veredito: {detalhe}")
 
-    # Ultima, porque so faz sentido cobrar a explicacao de um veredito coerente.
-    # O painel exibe este texto sob "POR QUE ESTRITO"/"POR QUE AMPLO": sem piso,
-    # um "..." atravessa o schema e vira a explicacao da decisao.
-    schemas.validar_justificativa(
-        dados.get("justificativa_veredito"), "justificativa_veredito"
-    )
+    # Ultima, porque so faz sentido cobrar a explicacao de uma classificacao
+    # coerente. O painel exibe este texto como o "por que" do paper.
+    schemas.validar_justificativa(dados.get("justificativa"), "justificativa")
 
 
-def incoerencia_de_fronteira(dados: dict[str, Any]) -> Optional[str]:
-    """Descreve por que a fronteira declarada nao se sustenta; None se coerente.
-
-    So olha o caso `decisao_fronteira = true`: a contraparte e obrigatoria e
-    tem de ser de lado diferente do veredito (ticket 06). `false` com
-    contraparte preenchida nao e incoerencia de fronteira - a contraparte e
-    descartada em `avaliar`, com aviso.
-    """
-    if not dados.get("decisao_fronteira"):
-        return None
-    veredito = dados.get("veredito")
-    contraparte = dados.get("fronteira_contraparte")
-    if not contraparte:
-        return (
-            "decisao_fronteira true exige fronteira_contraparte: a regra de descarte "
-            "ou o criterio do outro lado que quase venceu"
-        )
-    if schemas.lado(contraparte) == veredito:
-        return (
-            f"fronteira_contraparte '{contraparte}' e do mesmo lado do veredito "
-            f"'{veredito}': a contraparte e o que quase venceu, do outro lado"
-        )
-    if contraparte in _criterios(dados):
-        return (
-            f"fronteira_contraparte '{contraparte}' esta em criterios_veredito: a lista "
-            "e o que vale, a contraparte e o que quase valeu - o mesmo rotulo nao e os dois"
-        )
-    return None
-
-
-class Validador:
-    """`validar` mais a regra de fronteira, com memoria entre as tentativas.
-
-    E passado como `validar=` ao `ClienteLLM.chamar`, que o chama a cada
-    resposta e reenvia a mensagem do `ErroValidacao` ao modelo. A memoria e o
-    que permite a regra de fronteira ser "refazer uma vez": na primeira
-    incoerencia levanta como qualquer outra regra; na segunda deixa passar e
-    registra o aviso, porque fronteira e metadado - nao vale um paper pendente.
-    Uma instancia por chamada: o estado e desta resposta, nao do processo.
-    """
-
-    def __init__(self) -> None:
-        self.fronteira_refeita = False
-        self.avisos: list[str] = []
-
-    def __call__(self, dados: dict[str, Any]) -> None:
-        validar(dados)
-        problema = incoerencia_de_fronteira(dados)
-        if problema is None:
-            return
-        if not self.fronteira_refeita:
-            self.fronteira_refeita = True
-            raise ErroValidacao(problema)
-        log.warning("fronteira incoerente mantida como veio: %s", problema)
-        self.avisos.append(AVISO_FRONTEIRA_INCOERENTE)
+def avisos_de_coerencia(
+    r: "ResultadoB", vertentes: list[str], evidencia_artefato: bool
+) -> list[str]:
+    """Combinacoes possiveis mas suspeitas: viram aviso, nunca retentativa."""
+    if not r.aprovado:
+        return []
+    avisos = []
+    if r.pratica_contradita and r.prerequisito == schemas.SEM_ACAO:
+        # A contradicao recebe o degrau necessario para aplicar a correcao.
+        avisos.append(AVISO_CONTRADICAO_SEM_DEGRAU)
+    if r.natureza == "achado_empirico" and r.prerequisito == schemas.SEM_ACAO and not r.pratica_contradita:
+        avisos.append(AVISO_ACHADO_SEM_ACAO)
+    if (
+        vertentes[:1] == ["Treinar"]
+        and r.prerequisito == "nenhum"
+        and not evidencia_artefato
+    ):
+        avisos.append(AVISO_TREINAR_SEM_DEGRAU)
+    return avisos
 
 
 # ── prompt e chamada ────────────────────────────────────────────────────────
@@ -293,7 +269,18 @@ def montar_prompt(paper: PaperEntrada, cfg: Optional[Config] = None) -> str:
         VERTENTES=", ".join(paper.vertentes) or "(nenhuma)",
         ABSTRACT=paper.abstract or "(abstract indisponivel)",
         RESUMO_HF=resumo,
+        EVIDENCIA_ARTEFATO=_texto_evidencia(paper),
     )
+
+
+def _texto_evidencia(paper: PaperEntrada) -> str:
+    if not paper.evidencia_artefato:
+        return (
+            "nenhuma (sem repositorio, sem link no abstract, sem modelo ou dataset "
+            "vinculado no HF): responda `artefato_status` = null"
+        )
+    links = ", ".join(paper.links_artefato) or "modelo ou dataset vinculado no HF"
+    return f"sim ({links}): responda `artefato_status`"
 
 
 def avaliar(
@@ -301,7 +288,6 @@ def avaliar(
 ) -> ResultadoB:
     cfg = cfg or config()
     est = cfg.llm.estagio_b
-    validador = Validador()
     resposta = cliente.chamar(
         etapa="estagio_b",
         modelo=est.modelo,
@@ -312,49 +298,40 @@ def avaliar(
         max_tokens=est.max_tokens,
         esforco_raciocinio=est.esforco_raciocinio,
         paper_id=paper.paper_id,
-        validar=validador,
+        validar=lambda d: validar(d, paper.titulo),
     )
     d = resposta.dados
-    veredito = d["veredito"]
-    avisos = list(validador.avisos)
+    regra = d.get("regra_fora") or None
+    aprovado = regra is None
 
-    padrao = d.get("padrao_extraido")
-    ficha_bruta = d.get("ficha")
+    padrao = d.get("padrao_extraido") if aprovado else None
     ficha = None
-    if isinstance(ficha_bruta, dict):
+    ficha_bruta = d.get("ficha")
+    if aprovado and isinstance(ficha_bruta, dict):
         ficha = Ficha(
-            achado=ficha_bruta["achado"],
-            implicacao_pratica=ficha_bruta["implicacao_pratica"],
-            exemplo_concreto=ficha_bruta["exemplo_concreto"],
-            ressalva=ficha_bruta["ressalva"],
+            **{c: ficha_bruta[c].strip() for c in CAMPOS_FICHA},
             padrao_nome=(padrao or {}).get("nome"),
             padrao_mecanismo=(padrao or {}).get("mecanismo"),
         )
 
-    fronteira = bool(d.get("decisao_fronteira"))
-    contraparte = d.get("fronteira_contraparte") or None
-    if not fronteira and contraparte:
-        # Sem fronteira nao ha "quase": a contraparte e ruido e sai, com aviso.
-        # A flag e o que o modelo declarou e fica como veio.
-        log.warning(
-            "%s: fronteira_contraparte '%s' descartada porque decisao_fronteira e false",
-            paper.paper_id, contraparte,
-        )
-        avisos.append(AVISO_CONTRAPARTE_DESCARTADA)
-        contraparte = None
+    # Sobrescrita, nao retentativa: o campo esta sempre no schema, e sem
+    # evidencia externa o "liberado" do modelo nao tem em que se apoiar.
+    status = d.get("artefato_status") if aprovado and paper.evidencia_artefato else None
+    if aprovado and d.get("natureza") in schemas.NATUREZAS_SEM_ADOCAO:
+        status = None
 
-    return ResultadoB(
+    r = ResultadoB(
         paper_id=paper.paper_id,
-        tem_artefato_nomeado=bool(d.get("tem_artefato_nomeado")),
+        regra_fora=regra,
+        natureza=d.get("natureza") if aprovado else None,
         padrao_extraido=padrao,
-        teste_portabilidade=d.get("teste_portabilidade"),
-        criterios_veredito=_criterios(d) if veredito != "fora" else [],
-        veredito=veredito,
-        regra_fora=d.get("regra_fora") if veredito == "fora" else None,
-        justificativa_veredito=d.get("justificativa_veredito", ""),
-        decisao_fronteira=fronteira,
-        fronteira_contraparte=contraparte,
+        prerequisito=d.get("prerequisito") if aprovado else None,
+        pratica_contradita=_texto(d.get("pratica_contradita")) if aprovado else None,
+        falta_o_como=_texto(d.get("falta_o_como")) if aprovado else None,
+        artefato_status=status,
+        justificativa=d.get("justificativa", ""),
         ficha=ficha,
         uso=resposta.uso,
-        avisos=avisos,
     )
+    r.avisos = avisos_de_coerencia(r, paper.vertentes, paper.evidencia_artefato)
+    return r

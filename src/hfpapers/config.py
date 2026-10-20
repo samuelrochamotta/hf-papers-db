@@ -132,11 +132,34 @@ class Refresh(BaseModel):
 
 
 class Guardrails(BaseModel):
-    taxa_fora_min: float = 0.50
-    taxa_fora_faixa_normal: tuple[float, float] = (0.60, 0.80)
-    aprovados_faixa_normal: tuple[int, int] = (4, 9)
-    aprovados_volume_alto: int = 12
+    # Provisorios desde o ADR 004: ver o comentario em config.yaml.
+    taxa_fora_min: float = 0.15
+    taxa_fora_faixa_normal: tuple[float, float] = (0.20, 0.60)
+    aprovados_faixa_normal: tuple[int, int] = (8, 60)
+    aprovados_volume_alto: int = 70
     coletados_min_dia_util: int = 15
+    prerequisito_nenhum_max: float = 0.40
+    prerequisito_min_aprovados: int = 10
+
+
+class Perfil(BaseModel):
+    """Um perfil de leitura: o conjunto de degraus de pre-requisito em que o
+    leitor consegue agir. Fica fora do paper (ADR 004): mudar aqui nao
+    reclassifica nada, so muda o filtro."""
+
+    perfil: str
+    rotulo: str
+    prerequisitos: list[str]
+
+
+PERFIS_PADRAO = [
+    Perfil(perfil="produto", rotulo="Produto", prerequisitos=["nenhum", "implementar"]),
+    Perfil(
+        perfil="pesquisa_treino",
+        rotulo="Treino/pesquisa",
+        prerequisitos=["acesso_interno", "treino", "sem_acao"],
+    ),
+]
 
 
 class Export(BaseModel):
@@ -151,6 +174,7 @@ class Config(BaseModel):
     refresh: Refresh = Refresh()
     guardrails: Guardrails = Guardrails()
     export: Export = Export()
+    perfis: list[Perfil] = PERFIS_PADRAO
 
     raiz: Path = RAIZ
 

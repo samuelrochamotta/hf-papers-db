@@ -1,4 +1,5 @@
 import datetime as dt
+import sqlite3
 
 import pytest
 
@@ -97,57 +98,112 @@ def test_transacao_faz_rollback(conn):
     assert db.contar(conn, "dim_paper") == 0
 
 
-# ── migracao de coluna ──────────────────────────────────────────────────────
+# ── migracao para o regime do ADR 004 ──────────────────────────────────────
 
-# A `fato_triagem` como era antes da coluna `fronteira_contraparte`.
-DDL_ANTIGA_FATO_TRIAGEM = """
+# A `fato_triagem` do regime estrito/amplo, com a ponte de criterios ao lado e
+# a coluna derivada `tem_codigo_aberto` em `dim_paper`.
+DDL_REGIME_V1 = """
+DROP VIEW vw_artefato;
+DROP VIEW vw_paper_perfil;
 DROP TABLE fato_triagem;
 CREATE TABLE fato_triagem (
     paper_id TEXT PRIMARY KEY REFERENCES dim_paper(paper_id),
     veredito TEXT NOT NULL CHECK (veredito IN ('fora','amplo','estrito')),
     regra_fora TEXT, justificativa TEXT, tem_artefato_nomeado INTEGER,
     portabilidade_aprovada INTEGER, portab_depende_nome INTEGER, portab_generalidade INTEGER,
-    decisao_fronteira INTEGER DEFAULT 0,
+    decisao_fronteira INTEGER DEFAULT 0, fronteira_contraparte TEXT,
     classificado_em TIMESTAMP NOT NULL, run_id TEXT NOT NULL, revisao INTEGER NOT NULL DEFAULT 1
 );
+CREATE INDEX ix_triagem_veredito ON fato_triagem(veredito);
+CREATE TABLE ponte_paper_criterio (
+    paper_id TEXT NOT NULL REFERENCES dim_paper(paper_id),
+    criterio TEXT NOT NULL,
+    PRIMARY KEY (paper_id, criterio)
+);
+ALTER TABLE dim_paper ADD COLUMN tem_codigo_aberto INTEGER;
 """
 
 
-def test_migracao_acrescenta_fronteira_contraparte_em_banco_antigo(tmp_path):
-    """`CREATE TABLE IF NOT EXISTS` nao toca tabela existente: a coluna nova
-    precisa do ALTER TABLE de `db.migrar`, e ele tem de preservar as linhas."""
+def _banco_v1(caminho):
     import sqlite3
 
-    caminho = tmp_path / "antigo.db"
     db.conectar(caminho).close()            # schema atual, inclusive dim_paper
     bruto = sqlite3.connect(caminho)
-    bruto.executescript(DDL_ANTIGA_FATO_TRIAGEM)
-    bruto.execute(
-        "INSERT INTO dim_paper (paper_id, titulo, primeiro_visto_em) "
-        "VALUES ('2608.1', 'T', '2026-08-25T09:00:00')"
+    bruto.executescript(DDL_REGIME_V1)
+    for pid in ("2608.1", "2608.2", "2608.3"):
+        bruto.execute(
+            "INSERT INTO dim_paper (paper_id, titulo, primeiro_visto_em) VALUES (?, 'T', '2026-08-25T09:00:00')",
+            (pid,),
+        )
+    bruto.executemany(
+        "INSERT INTO fato_triagem (paper_id, veredito, regra_fora, classificado_em, run_id, revisao, decisao_fronteira) "
+        "VALUES (?, ?, ?, '2026-08-25T09:00:00', 'r', 3, 1)",
+        [("2608.1", "amplo", None), ("2608.2", "estrito", None), ("2608.3", "fora", "treino_ou_postreino")],
     )
-    bruto.execute(
-        "INSERT INTO fato_triagem (paper_id, veredito, classificado_em, run_id) "
-        "VALUES ('2608.1', 'amplo', '2026-08-25T09:00:00', 'r')"
-    )
+    bruto.execute("INSERT INTO ponte_paper_criterio VALUES ('2608.1', 'benchmark')")
     bruto.commit()
     bruto.close()
 
+
+def test_migracao_v2_preserva_as_linhas_e_apaga_o_que_morreu(tmp_path):
+    """Reconstrucao, porque o CHECK de `veredito` muda. As linhas sobrevivem:
+    estrito e amplo viram `aprovado` sem natureza; `fora` guarda a regra que
+    tinha, mesmo a que saiu - quem a acusa e o `doutor`."""
+    caminho = tmp_path / "v1.db"
+    _banco_v1(caminho)
+
     conn = db.conectar(caminho)
     try:
-        assert "fronteira_contraparte" in db.colunas(conn, "fato_triagem")
-        row = conn.execute("SELECT veredito, fronteira_contraparte FROM fato_triagem").fetchone()
-        assert (row["veredito"], row["fronteira_contraparte"]) == ("amplo", None)
-        db.migrar(conn)   # segunda vez: idempotente, nao tenta ADD COLUMN de novo
-        assert db.colunas(conn, "fato_triagem").count("fronteira_contraparte") == 1
-        assert "ponte_paper_criterio" not in db.diagnostico_banco(conn)["tabelas_faltando"]
+        linhas = {
+            r["paper_id"]: (r["veredito"], r["regra_fora"], r["natureza"], r["revisao"])
+            for r in conn.execute("SELECT * FROM fato_triagem")
+        }
+        assert linhas == {
+            "2608.1": ("aprovado", None, None, 3),
+            "2608.2": ("aprovado", None, None, 3),
+            "2608.3": ("fora", "treino_ou_postreino", None, 3),
+        }
+        assert "decisao_fronteira" not in db.colunas(conn, "fato_triagem")
+        assert db.colunas(conn, "ponte_paper_criterio") == []
+        assert "tem_codigo_aberto" not in db.colunas(conn, "dim_paper")
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1   # religada
+
+        db.migrar(conn)   # segunda vez: idempotente, nao reconstroi de novo
+        assert db.contar(conn, "fato_triagem") == 3
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "UPDATE fato_triagem SET veredito = 'estrito' WHERE paper_id = '2608.1'"
+            )
     finally:
         conn.close()
 
 
-def test_banco_novo_ja_nasce_com_a_coluna_e_a_ponte(conn):
-    assert "fronteira_contraparte" in db.colunas(conn, "fato_triagem")
-    assert db.contar(conn, "ponte_paper_criterio") == 0
+def test_banco_novo_nasce_no_regime_v2(conn):
+    assert "natureza" in db.colunas(conn, "fato_triagem")
+    assert "decisao_fronteira" not in db.colunas(conn, "fato_triagem")
+    assert db.colunas(conn, "ponte_paper_criterio") == []
+    assert db.diagnostico_banco(conn)["tabelas_faltando"] == []
+
+
+def test_perfis_sao_sincronizados_do_config(tmp_path):
+    from hfpapers.config import Perfil
+
+    conn = db.conectar(tmp_path / "p.db")
+    try:
+        assert [r[0] for r in conn.execute("SELECT perfil FROM dim_perfil ORDER BY ordem")] == [
+            "produto", "pesquisa_treino",
+        ]
+        db.sincronizar_perfis(conn, [Perfil(perfil="tudo_menos_treino", rotulo="X",
+                                            prerequisitos=["nenhum", "implementar", "acesso_interno"])])
+        assert [tuple(r) for r in conn.execute("SELECT perfil, prerequisito FROM ponte_perfil_prerequisito ORDER BY prerequisito")] == [
+            ("tudo_menos_treino", "acesso_interno"), ("tudo_menos_treino", "implementar"),
+            ("tudo_menos_treino", "nenhum"),
+        ]
+        with pytest.raises(sqlite3.IntegrityError):   # degrau que nao existe
+            db.sincronizar_perfis(conn, [Perfil(perfil="x", rotulo="X", prerequisitos=["inventado"])])
+    finally:
+        conn.close()
 
 
 # A `dim_area` como era antes da coluna `area_pai` (grade plana, sem hierarquia).

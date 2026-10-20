@@ -81,24 +81,31 @@ def normalizar_concorrencia(valor: int) -> int:
 @dataclass
 class ResultadoClassificacao:
     fora: int = 0
-    amplo: int = 0
-    estrito: int = 0
+    aprovados: int = 0
     pulados: int = 0
     nao_classificados: int = 0
     fichas: int = 0
+    # Aprovados por degrau de pre-requisito: vai para `log_execucao`, o unico
+    # historico da distribuicao (fato_triagem e sobrescrita a cada rodada).
+    por_prerequisito: dict[str, int] = field(default_factory=dict)
     avisos: list[str] = field(default_factory=list)
     uso: Uso = field(default_factory=Uso)
 
     @property
     def classificados(self) -> int:
-        return self.fora + self.amplo + self.estrito
-
-    @property
-    def aprovados(self) -> int:
-        return self.amplo + self.estrito
+        return self.fora + self.aprovados
 
 
 # ── selecao ─────────────────────────────────────────────────────────────────
+
+
+def _links_artefato(r: sqlite3.Row) -> list[str]:
+    links = []
+    if r["github_repo"]:
+        links.append(r["github_repo"])
+    if r["links_abstract"]:
+        links.append("link no abstract")
+    return links
 
 
 def _linha_para_entrada(r: sqlite3.Row, conn: sqlite3.Connection) -> ea.PaperEntrada:
@@ -115,6 +122,8 @@ def _linha_para_entrada(r: sqlite3.Row, conn: sqlite3.Connection) -> ea.PaperEnt
         abstract=r["abstract"] or r["ai_summary"] or "",
         keywords=kws,
         ai_summary=r["ai_summary"],
+        evidencia_artefato=bool(r["evidencia"]),
+        links_artefato=_links_artefato(r),
     )
 
 
@@ -124,20 +133,31 @@ def selecionar(
     ids: Optional[Sequence[str]] = None,
     data: Optional[str] = None,
     force: bool = False,
+    exceto_run_id: Optional[str] = None,
 ) -> list[ea.PaperEntrada]:
-    sql = "SELECT paper_id, titulo, abstract, ai_summary FROM dim_paper"
+    # A evidencia de artefato vem da view, e nao de uma copia da regra aqui:
+    # `vw_artefato` e a unica fonte (ver db.VIEWS_SQL).
+    sql = (
+        "SELECT p.paper_id, p.titulo, p.abstract, p.ai_summary, "
+        "a.evidencia, a.github_repo, a.links_abstract "
+        "FROM dim_paper p JOIN vw_artefato a ON a.paper_id = p.paper_id"
+    )
     cond, params = [], []
     if ids:
-        cond.append(f"paper_id IN ({', '.join('?' for _ in ids)})")
+        cond.append(f"p.paper_id IN ({', '.join('?' for _ in ids)})")
         params.extend(ids)
     if data:
-        cond.append("data_hf_daily = ?")
+        cond.append("p.data_hf_daily = ?")
         params.append(data)
     if not force:
-        cond.append("paper_id NOT IN (SELECT paper_id FROM fato_triagem)")
+        cond.append("p.paper_id NOT IN (SELECT paper_id FROM fato_triagem)")
+    if exceto_run_id:
+        # `reclassificar --retomar`: quem ja tem triagem desta rodada fica.
+        cond.append("p.paper_id NOT IN (SELECT paper_id FROM fato_triagem WHERE run_id = ?)")
+        params.append(exceto_run_id)
     if cond:
         sql += " WHERE " + " AND ".join(cond)
-    sql += " ORDER BY data_hf_daily DESC, paper_id"
+    sql += " ORDER BY p.data_hf_daily DESC, p.paper_id"
     return [_linha_para_entrada(r, conn) for r in conn.execute(sql, params)]
 
 
@@ -148,56 +168,37 @@ def _gravar_triagem(
     conn: sqlite3.Connection,
     *,
     paper_id: str,
-    veredito: str,
     regra_fora: Optional[str],
     justificativa: str,
     run_id: str,
     b: Optional[eb.ResultadoB] = None,
     revisao: Optional[int] = None,
 ) -> None:
+    """Grava a linha do paper. `fora` vem do Estagio A (sem `b`) ou do B; o
+    aprovado so vem do B, que e quem atribui natureza e pre-requisito."""
     if revisao is None:
         row = conn.execute(
             "SELECT revisao FROM fato_triagem WHERE paper_id = ?", (paper_id,)
         ).fetchone()
         revisao = (row["revisao"] + 1) if row else 1
-    teste = (b.teste_portabilidade if b else None) or {}
+    aprovado = b is not None and b.aprovado
     db.upsert_triagem(
         conn,
         {
             "paper_id": paper_id,
-            "veredito": veredito,
-            "regra_fora": regra_fora,
+            "veredito": "aprovado" if aprovado else "fora",
+            "regra_fora": None if aprovado else regra_fora,
             "justificativa": justificativa,
-            "tem_artefato_nomeado": int(b.tem_artefato_nomeado) if b else None,
-            "portabilidade_aprovada": int(teste["aprovado"]) if "aprovado" in teste else None,
-            "portab_depende_nome": (
-                int(teste["depende_do_nome_proprio"]) if "depende_do_nome_proprio" in teste else None
-            ),
-            "portab_generalidade": (
-                int(teste["colapsa_em_generalidade"]) if "colapsa_em_generalidade" in teste else None
-            ),
-            "decisao_fronteira": int(b.decisao_fronteira) if b else 0,
-            "fronteira_contraparte": b.fronteira_contraparte if b else None,
+            "natureza": b.natureza if aprovado else None,
+            "prerequisito": b.prerequisito if aprovado else None,
+            "pratica_contradita": b.pratica_contradita if aprovado else None,
+            "falta_o_como": b.falta_o_como if aprovado else None,
+            "artefato_status": b.artefato_status if aprovado else None,
             "classificado_em": db.agora(),
             "run_id": run_id,
             "revisao": revisao,
         },
     )
-
-
-def _gravar_criterios(
-    conn: sqlite3.Connection, paper_id: str, criterios: Sequence[str]
-) -> None:
-    """Reescreve a ponte de criterios do paper - o mesmo gesto de
-    `taxonomia.aplicar_classificacao` com as pontes de area e vertente: apaga o
-    que a classificacao anterior deixou e grava o de agora. `fora` grava ponte
-    vazia, entao um paper que era aprovado e caiu nao fica com criterio orfao
-    contradizendo o veredito."""
-    conn.execute("DELETE FROM ponte_paper_criterio WHERE paper_id = ?", (paper_id,))
-    for c in dict.fromkeys(criterios):
-        db.inserir_ignorando(
-            conn, "ponte_paper_criterio", {"paper_id": paper_id, "criterio": c}
-        )
 
 
 def _gravar_sucesso_b(
@@ -216,31 +217,29 @@ def _gravar_sucesso_b(
         _gravar_triagem(
             conn,
             paper_id=paper_id,
-            veredito=b.veredito,
-            # O Estagio A deixou passar (`candidato`, sem regra); quem descarta
-            # aqui e o B, e a regra e a dele - inclusive `portabilidade_reprovada`.
-            regra_fora=b.regra_fora if b.veredito == "fora" else None,
-            justificativa=b.justificativa_veredito or a.justificativa,
+            # O Estagio A deixou passar (`candidato`, sem regra); se o B
+            # descarta, a regra e a dele - a mesma lista, como rede de seguranca.
+            regra_fora=b.regra_fora,
+            justificativa=b.justificativa or a.justificativa,
             run_id=run_id,
             b=b,
         )
-        _gravar_criterios(conn, paper_id, b.criterios_veredito if b.aprovado else [])
         if b.aprovado and b.ficha:
             gravar_ficha(conn, paper_id, b.ficha, modelo=cfg.llm.estagio_b.modelo, run_id=run_id)
             res.fichas += 1
         elif not b.aprovado:
             conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper_id,))
 
-    # Avisos de fronteira (`fronteira_incoerente`, contraparte descartada) nao
-    # tornam a rodada parcial: o veredito foi dado; e o metadado que ficou torto.
+    # Avisos de coerencia nao tornam a rodada parcial: a classificacao foi
+    # gravada; o aviso so aponta a combinacao suspeita.
     res.avisos.extend(f"{aviso}:{paper_id}" for aviso in b.avisos)
 
-    if b.veredito == "fora":
-        res.fora += 1
-    elif b.veredito == "amplo":
-        res.amplo += 1
+    if b.aprovado:
+        res.aprovados += 1
+        degrau = b.prerequisito or ""
+        res.por_prerequisito[degrau] = res.por_prerequisito.get(degrau, 0) + 1
     else:
-        res.estrito += 1
+        res.fora += 1
 
 
 def gravar_ficha(
@@ -277,6 +276,8 @@ def _entrada_b(paper: ea.PaperEntrada, a: ea.ResultadoA) -> ea.PaperEntrada:
         ai_summary=paper.ai_summary,
         area_primaria=a.area_primaria,
         vertentes=a.vertentes,
+        evidencia_artefato=paper.evidencia_artefato,
+        links_artefato=paper.links_artefato,
     )
 
 
@@ -318,14 +319,12 @@ def _aplicar_estagio_a(
             _gravar_triagem(
                 conn,
                 paper_id=paper.paper_id,
-                veredito="fora",
                 regra_fora=a.regra_fora,
                 justificativa=a.justificativa,
                 run_id=run_id,
             )
-            # `--force` sobre um paper que era aprovado: criterios e ficha
-            # antigos nao podem sobreviver ao descarte.
-            _gravar_criterios(conn, paper.paper_id, [])
+            # `--force` sobre um paper que era aprovado: a ficha antiga nao pode
+            # sobreviver ao descarte.
             conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper.paper_id,))
         res.fora += 1
         return False
@@ -636,8 +635,9 @@ def rodar(
         )
 
     log.info(
-        "classificacao: %s fora, %s amplo, %s estrito, %s fichas, %s pendentes, US$ %.4f",
-        res.fora, res.amplo, res.estrito, res.fichas, res.nao_classificados, res.uso.custo_usd,
+        "classificacao: %s fora, %s aprovados %s, %s fichas, %s pendentes, US$ %.4f",
+        res.fora, res.aprovados, res.por_prerequisito, res.fichas, res.nao_classificados,
+        res.uso.custo_usd,
     )
     return res
 
@@ -651,12 +651,13 @@ def estimar(
     papers: Sequence[ea.PaperEntrada],
     *,
     cfg: Optional[Config] = None,
-    fracao_candidatos: float = 0.30,
+    fracao_candidatos: float = 0.70,
 ) -> Estimativa:
     """Estimativa de custo sem chamar modelo.
 
-    A fracao de candidatos vem da calibracao historica (~70% do lote e FORA no
-    Estagio A, entao ~30% chega ao Estagio B).
+    A fracao de candidatos e a do escopo do ADR 004: sem as regras de treino e
+    de relatorio tecnico, ~70% do lote passa pelo Estagio A (era ~30%).
+    Recalibrar com a distribuicao da reclassificacao total.
     """
     cfg = cfg or config()
     est = Estimativa()

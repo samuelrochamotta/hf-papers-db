@@ -5,8 +5,8 @@ execucao a partir do banco. E isso que impede a LLM de inventar rotulo e
 fragmentar os filtros do Power BI.
 
 No Estagio B a **ordem das propriedades e normativa**: ela reproduz a ordem do
-raciocinio (o padrao e escrito e testado antes de o veredito ser decidido). Nao
-reordene.
+raciocinio (a natureza e o padrao vem antes do pre-requisito, e a justificativa
+depois de tudo que ela explica). Nao reordene.
 
 O piso da justificativa mora aqui em duas formas - `minLength` no schema e
 `validar_justificativa` em codigo. Ficam lado a lado de proposito: a declaracao
@@ -17,7 +17,7 @@ aviso no log; `validar_justificativa` explica por que ele nao derruba o paper.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from ..log import logger
 from ..taxonomia import EIXOS, MAX_VERTENTES_POR_PAPER
@@ -25,66 +25,37 @@ from .cliente import ErroValidacao
 
 log = logger("llm")
 
-# Regras de descarte, na ordem de teste (secao 1 de `regras_classificacao.md`).
-# Todo `fora` tem exatamente uma; a primeira que bate basta. As cinco primeiras
-# sao de conteudo e servem aos dois estagios; `portabilidade_reprovada` e a
-# unica que so o Estagio B pode emitir, porque so ele aplica o teste.
-REGRAS_FORA_CONTEUDO = [
-    "treino_ou_postreino",
+# Regras de descarte, na ordem de teste (secao 1 da spec
+# `docs/specs/natureza-prerequisito.md`). Todo `fora` tem exatamente uma; a
+# primeira que bate basta. Sao as mesmas nos dois estagios: o Estagio B so as
+# repete como rede de seguranca. `treino_ou_postreino`,
+# `relatorio_tecnico_de_modelo` e `portabilidade_reprovada` sairam no ADR 004 -
+# a primeira escondia midia, robotica e nao-LLM atras de si por ser testada
+# antes delas.
+REGRAS_FORA = [
     "geracao_de_midia",
     "percepcao_robotica_embodied",
-    "relatorio_tecnico_de_modelo",
     "fora_de_escopo",
 ]
-REGRA_PORTABILIDADE = "portabilidade_reprovada"
-REGRAS_FORA = [*REGRAS_FORA_CONTEUDO, REGRA_PORTABILIDADE]
 
-VEREDITOS = ["fora", "amplo", "estrito"]
+VEREDITOS = ["fora", "aprovado"]
 
-# Criterios de veredito (secao 3): por que um aprovado e estrito ou amplo. O
-# veredito decorre da lista - qualquer criterio de estrito ⇒ estrito - e a
-# coerencia entre os dois e cobrada em `estagio_b.validar`.
-CRITERIOS_ESTRITO = [
-    "padrao_arquitetural",
-    "artefato_aberto",
-    "invalida_pratica",
-    "vulnerabilidade",
-    "tecnica_de_avaliacao",
-]
-# Excludente: nao coexiste com criterio de estrito (ver estagio_b.validar).
-CRITERIO_ACESSO_INTERNO = "exige_acesso_interno"
+# Que tipo de afirmacao o paper faz. O *que* ele faz e a vertente; por isso
+# benchmark e `proposta` (Medir ja diz que e medicao) e artefato nao e natureza
+# (e condicao de adocao, ver `ARTEFATO_STATUS`).
+NATUREZAS = ["proposta", "achado_empirico", "teoria", "panorama"]
+NATUREZAS_SEM_ADOCAO = ("teoria", "panorama")
 
-CRITERIOS_AMPLO = [
-    "benchmark",
-    "panorama",
-    "framework_conceitual",
-    "principio_sem_o_como",
-    "exige_acesso_interno",
-]
-CRITERIOS_VEREDITO = [*CRITERIOS_ESTRITO, *CRITERIOS_AMPLO]
+# Escada de capacidade: cada degrau implica os anteriores. A ordem desta lista
+# e a ordem de `dim_prerequisito` (teste em `test_vocabulario_v2`), e e ela que
+# o painel e o Power BI usam para ordenar. `sem_acao` e valor explicito, e nao
+# NULL, para que nenhum filtro precise tratar nulo.
+PREREQUISITOS = ["nenhum", "implementar", "acesso_interno", "treino", "sem_acao"]
+SEM_ACAO = "sem_acao"
 
-# O que quase venceu numa decisao de fronteira: regra de descarte ou criterio,
-# de lado diferente do veredito. `lado` e a funcao que diz de que lado cada
-# rotulo esta - a mesma para o veredito e para a contraparte.
-CONTRAPARTES_FRONTEIRA = [*REGRAS_FORA, *CRITERIOS_VEREDITO]
-
-
-def lado(rotulo: str) -> Optional[str]:
-    """Veredito para o qual um rotulo (regra ou criterio) puxa; None se desconhecido."""
-    if rotulo in REGRAS_FORA:
-        return "fora"
-    if rotulo in CRITERIOS_ESTRITO:
-        return "estrito"
-    if rotulo in CRITERIOS_AMPLO:
-        return "amplo"
-    return None
-
-
-def veredito_dos_criterios(criterios: Sequence[str]) -> Optional[str]:
-    """O veredito que a lista de criterios implica; None para lista vazia."""
-    if not criterios:
-        return None
-    return "estrito" if any(c in CRITERIOS_ESTRITO for c in criterios) else "amplo"
+# So perguntado quando ha evidencia externa de artefato (`vw_artefato`); sem
+# ela o codigo sobrescreve para NULL, sem gastar retentativa.
+ARTEFATO_STATUS = ["liberado", "prometido"]
 
 # Piso da justificativa, nos dois estagios. Existe porque teto sem piso deixa
 # passar resposta degenerada - na migracao da issue #3 o paper 2608.06867
@@ -147,9 +118,7 @@ def schema_estagio_a(
         ],
         "properties": {
             "veredito_preliminar": {"type": "string", "enum": ["fora", "candidato"]},
-            # So as regras de conteudo: `portabilidade_reprovada` exige o teste,
-            # que e do Estagio B.
-            "regra_fora": {"type": ["string", "null"], "enum": [*REGRAS_FORA_CONTEUDO, None]},
+            "regra_fora": {"type": ["string", "null"], "enum": [*REGRAS_FORA, None]},
             "justificativa": {
                 "type": "string",
                 "minLength": PISO_JUSTIFICATIVA,
@@ -192,23 +161,29 @@ def schema_estagio_a(
     }
 
 
+_TEXTO_OU_NULO = {"type": ["string", "null"]}
+
 SCHEMA_ESTAGIO_B: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
     "required": [
-        "tem_artefato_nomeado",
-        "padrao_extraido",
-        "teste_portabilidade",
-        "criterios_veredito",
-        "veredito",
         "regra_fora",
-        "justificativa_veredito",
-        "decisao_fronteira",
-        "fronteira_contraparte",
+        "natureza",
+        "padrao_extraido",
+        "prerequisito",
+        "pratica_contradita",
+        "falta_o_como",
+        "artefato_status",
+        "justificativa",
         "ficha",
     ],
     "properties": {
-        "tem_artefato_nomeado": {"type": "boolean"},
+        # Rede de seguranca: as mesmas tres regras do Estagio A. Nao nula, todo
+        # o resto e nulo - quem cobra e `estagio_b.validar`.
+        "regra_fora": {"type": ["string", "null"], "enum": [*REGRAS_FORA, None]},
+        "natureza": {"type": ["string", "null"], "enum": [*NATUREZAS, None]},
+        # Obrigatorio so para `proposta`; o condicional nao cabe no JSON Schema
+        # estrito e e cobrado em `estagio_b.validar`.
         "padrao_extraido": {
             "type": ["object", "null"],
             "additionalProperties": False,
@@ -218,34 +193,16 @@ SCHEMA_ESTAGIO_B: dict[str, Any] = {
                 "mecanismo": {"type": "string"},
             },
         },
-        "teste_portabilidade": {
-            "type": ["object", "null"],
-            "additionalProperties": False,
-            "required": ["depende_do_nome_proprio", "colapsa_em_generalidade", "aprovado"],
-            "properties": {
-                "depende_do_nome_proprio": {"type": "boolean"},
-                "colapsa_em_generalidade": {"type": "boolean"},
-                "aprovado": {"type": "boolean"},
-            },
-        },
-        # Sem `minItems`: o piso e condicional (>= 1 so quando aprovado, vazio
-        # quando `fora`) e o JSON Schema estrito do provedor nao expressa isso.
-        # Quem cobra e `estagio_b.validar`.
-        "criterios_veredito": {
-            "type": "array",
-            "items": {"type": "string", "enum": CRITERIOS_VEREDITO},
-        },
-        "veredito": {"type": "string", "enum": VEREDITOS},
-        "regra_fora": {"type": ["string", "null"], "enum": [*REGRAS_FORA, None]},
-        "justificativa_veredito": {
+        "prerequisito": {"type": ["string", "null"], "enum": [*PREREQUISITOS, None]},
+        # Textos, e nao booleanos: "nomeie a pratica" passa a ser cobrado pela
+        # forma da resposta. Os booleanos derivam deles no codigo.
+        "pratica_contradita": _TEXTO_OU_NULO,
+        "falta_o_como": _TEXTO_OU_NULO,
+        "artefato_status": {"type": ["string", "null"], "enum": [*ARTEFATO_STATUS, None]},
+        "justificativa": {
             "type": "string",
             "minLength": PISO_JUSTIFICATIVA,
             "maxLength": TETO_JUSTIFICATIVA,
-        },
-        "decisao_fronteira": {"type": "boolean"},
-        "fronteira_contraparte": {
-            "type": ["string", "null"],
-            "enum": [*CONTRAPARTES_FRONTEIRA, None],
         },
         "ficha": {
             "type": ["object", "null"],
