@@ -98,13 +98,14 @@ tail -f logs/run_*.log
 
 `scripts/gerar_painel.py` lê os Parquet e embute dados, `scripts/painel_app.js`
 e CSS em um único HTML, sem dependência de rede. Três abas: **Aprovados**
-(últimos 90 dias, um dia por página, do degrau mais barato ao mais caro e
-depois por voto; seletor de perfil que marca as pílulas de degrau, filtros de
-natureza, das marcas — artefato aberto, contradiz prática, como incompleto —,
-área, vertente e busca no texto da ficha), **Panorama** (lote diário por
-degrau, natureza × pré-requisito, área por degrau, onde o pipeline corta, votos)
-e **Registro histórico** (por trimestre já fora da janela, os aprovados mais
-votados seguindo o perfil, e os descartados mais votados como auditoria). O
+(últimos 90 dias, um dia por página, ordenados por voto; colunas natureza,
+título, marcas, área › sub-área e vertente; filtros de natureza, das marcas —
+artefato aberto, contradiz prática, somente princípio —, área, vertente e busca
+no texto da ficha), **Panorama** (lote diário por natureza, natureza ×
+vertente, área por natureza, onde o pipeline corta, votos) e **Registro
+histórico** (por trimestre já fora da janela, os 15 aprovados mais votados e os
+5 descartados mais votados como auditoria). O pré-requisito, os perfis e o
+Padrão Extraído continuam no banco e no Power BI, mas não aparecem no painel. O
 corte do histórico é `refresh.janela_morna_dias`, não `--dias`.
 
 ```bash

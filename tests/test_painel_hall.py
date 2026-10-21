@@ -12,7 +12,6 @@ import datetime as dt
 
 import pytest
 from gerar_painel import (
-    NAO_CLASSIFICADO,
     PREFIXO_FALLBACK,
     TOPO_APROVADOS,
     TOPO_DESCARTADOS,
@@ -220,10 +219,9 @@ def test_lista_de_aprovados_e_limitada_e_ordenada_por_voto():
     assert [p["u"] for p in ap] == list(range(29, 29 - TOPO_APROVADOS, -1))
 
 
-def test_o_hall_embute_o_topo_de_cada_degrau():
-    """O perfil e escolhido no navegador: o Python nao sabe que degraus vao
-    ser pedidos, entao embute o topo de CADA um. O degrau menos votado nao pode
-    sumir atras do mais votado - senao o perfil Treino/pesquisa abriria vazio."""
+def test_o_hall_e_um_ranking_unico_por_voto():
+    """Sem perfil de leitura (21/10/2026), o hall e o topo por voto do
+    trimestre inteiro, e nao mais o topo de cada pre-requisito."""
     dia = dt.date(2026, 7, 1)
     produto = [paper(f"i{i:02}", dia, 1000 + i) for i in range(20)]
     treino = [paper(f"t{i:02}", dia, i) for i in range(3)]
@@ -231,10 +229,8 @@ def test_o_hall_embute_o_topo_de_cada_degrau():
     triagem.update({p["paper_id"]: triado("aprovado", prerequisito="treino") for p in treino})
 
     h = montar(produto + treino, triagem)[0]
-    ids = [p["id"] for p in h["ap"]]
-    assert sum(1 for i in ids if i.startswith("i")) == TOPO_APROVADOS
-    assert sorted(i for i in ids if i.startswith("t")) == ["t00", "t01", "t02"]
-    assert h["nad"] == {"implementar": 20, "treino": 3}
+    assert [p["id"] for p in h["ap"]] == [f"i{i:02}" for i in range(19, 19 - TOPO_APROVADOS, -1)]
+    assert h["na"] == 23 and "nad" not in h
 
 
 def test_lista_de_descartados_e_limitada_e_separada_dos_aprovados():
@@ -255,13 +251,14 @@ def test_aprovado_carrega_a_ficha_inteira():
     entrada = montar([p], {"p1": triado("aprovado")}, {"p1": ficha("p1")})[0]["ap"][0]
 
     assert entrada["f"] == 1
-    assert [entrada[k] for k in ("ach", "pn", "pm", "imp", "ex", "res")] == [
-        "achado", "Padrao", "mecanismo", "implicacao", "exemplo", "ressalva"
+    assert [entrada[k] for k in ("ach", "imp", "ex", "res")] == [
+        "achado", "implicacao", "exemplo", "ressalva"
     ]
+    assert "pn" not in entrada and "pm" not in entrada
 
 
 def test_aprovado_carrega_justificativa_e_classificacao():
-    """`entradas_aprov` traz `j`/`h` (cabecalho da decisao), degrau, natureza,
+    """`entradas_aprov` traz `j`/`h` (cabecalho da decisao), natureza,
     os textos e os links - o mesmo contrato da aba viva."""
     p = paper("p1", dt.date(2026, 7, 1), 10, github_repo="https://github.com/x/y")
     triagem = {"p1": triado("aprovado", justificativa="motivo forte", prerequisito="treino",
@@ -270,18 +267,18 @@ def test_aprovado_carrega_justificativa_e_classificacao():
     entrada = montar([p], triagem)[0]["ap"][0]
 
     assert (entrada["j"], entrada["h"]) == ("motivo forte", 0)
-    assert (entrada["pr"], entrada["nt"]) == ("treino", "achado_empirico")
+    assert entrada["nt"] == "achado_empirico" and "pr" not in entrada
     assert entrada["pc"] == "usar PPO assim"
     assert entrada["ao"] == 1 and entrada["gh"] == "https://github.com/x/y"
     assert "fo" not in entrada and "fr" not in entrada and "cr" not in entrada
 
 
-def test_aprovado_do_regime_anterior_vira_nao_classificado():
-    """Linha migrada de estrito/amplo, sem pre-requisito: nao some e nao ganha
-    degrau inventado."""
+def test_aprovado_do_regime_anterior_fica_sem_natureza():
+    """Linha migrada de estrito/amplo, sem natureza: nao some e nao ganha
+    natureza inventada."""
     p = paper("p1", dt.date(2026, 7, 1), 10)
     entrada = montar([p], {"p1": triado("aprovado")})[0]["ap"][0]
-    assert (entrada["pr"], entrada["nt"]) == (NAO_CLASSIFICADO, None)
+    assert entrada["nt"] is None
 
 
 def test_aprovado_com_justificativa_de_fallback_do_estagio_b_vira_aviso():

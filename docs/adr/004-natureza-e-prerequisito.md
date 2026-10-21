@@ -73,3 +73,14 @@ de servir:
   derivável dos degraus.
 - **Valer só daqui para frente**: dois regimes para sempre no banco, no painel
   e no Power BI, por uma economia de ~US$ 6,5.
+
+## Adendo (21/10/2026): o painel HTML deixa o pré-requisito de fora
+
+Depois da reclassificação total, a coluna de pré-requisito no painel, os perfis
+de leitura e o Padrão Extraído se mostraram mais confusos do que úteis: os
+rótulos dos degraus não se liam como uma escada, e o padrão repetia o achado e
+"o que muda para você". O painel passa a categorizar por **natureza**, **área ›
+sub-área** e **vertente**; a matriz do Panorama vira natureza × vertente; a marca
+`falta_o_como` se chama "somente princípio". Nada muda no pipeline, no banco nem
+no Power BI: `prerequisito`, os perfis (`vw_paper_perfil`) e o padrão continuam
+gravados e exportados, e o padrão segue como passo de raciocínio do Estágio B.

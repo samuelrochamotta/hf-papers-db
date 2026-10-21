@@ -6,10 +6,11 @@
  * navegador, para o painel abrir em qualquer lugar.
  *
  * Desde o ADR 004 (20/10/2026) o painel nao separa mais estrito e amplo. Cada
- * aprovado e localizado por dois campos - `nt`, a natureza da afirmacao, e
- * `pr`, o degrau de pre-requisito para usa-lo - e o leitor escolhe um PERFIL,
- * que e so um preset de degraus: as pilulas continuam visiveis e editaveis.
- * Os descartados seguem pelo veredito e pela regra.
+ * aprovado e localizado pela natureza da afirmacao (`nt`), pela area e
+ * sub-area e pela vertente. O pre-requisito (`pr`) continua no banco e nos
+ * Parquet, mas saiu do painel em 21/10/2026: como coluna e como perfil de
+ * leitura ele confundia mais do que separava. Os descartados seguem pelo
+ * veredito e pela regra.
  *
  * Duas diferencas deliberadas em relacao ao original:
  *
@@ -33,78 +34,33 @@
   var elTip = document.getElementById('tip');
 
   /* ── vocabulario do ADR 004 ──────────────────────────────────────────────
-     Os degraus e as naturezas vem do banco (`dim_prerequisito`,
-     `dim_natureza`), na ordem dele: a escada e decisao do pipeline, nao deste
-     arquivo. O marcador de nao classificado e o de `gerar_painel.py` - linha
-     migrada do regime estrito/amplo que ainda nao passou pela reclassificacao
-     total. Ele fica no fim da escada, fora de qualquer perfil. */
-  var NAO_CLASSIFICADO = '__sem-degrau__';
-  var DEGRAUS = (DADOS.degraus || []).map(function (d) { return d.k; });
-  var ROTULO_DEGRAU = {}, DEF_DEGRAU = {};
-  (DADOS.degraus || []).forEach(function (d) { ROTULO_DEGRAU[d.k] = d.r; DEF_DEGRAU[d.k] = d.def || ''; });
-  ROTULO_DEGRAU[NAO_CLASSIFICADO] = 'não classificado';
-  DEF_DEGRAU[NAO_CLASSIFICADO] = 'Aprovado no regime anterior (estrito/amplo), ainda sem natureza nem pré-requisito: some com a reclassificação total.';
+     As naturezas vem do banco (`dim_natureza`), na ordem dele. O marcador de
+     nao classificado e o de `gerar_painel.py` - linha migrada do regime
+     estrito/amplo que ainda nao passou pela reclassificacao total. */
+  var NAO_CLASSIFICADO = '__sem-natureza__';
+  var DEF_NAO_CLASSIFICADO = 'Aprovado no regime anterior (estrito/amplo), ainda sem natureza: some com a reclassificação total.';
   var NATUREZAS = (DADOS.naturezas || []).map(function (n) { return n.k; });
   var ROTULO_NATUREZA = {}, DEF_NATUREZA = {};
   (DADOS.naturezas || []).forEach(function (n) { ROTULO_NATUREZA[n.k] = n.r; DEF_NATUREZA[n.k] = n.def || ''; });
-  /* Duas letras e nao uma: "P" seria proposta ou panorama. */
-  var LETRA_NATUREZA = { proposta: 'Pr', achado_empirico: 'Ac', teoria: 'Te', panorama: 'Pa' };
 
-  /* Cor ORDINAL nos quatro degraus da escada: um so percurso de matiz, de
-     verde-agua (nenhum) a violeta (treino), com luminosidade parecida - a
-     ordem se le pela sequencia, nao por contraste de categoria. `sem_acao` nao
-     e degrau da escada (nao ha nada a adotar) e fica num tom neutro e quente,
-     fora do percurso; o nao classificado e cinza-azulado escuro. Os
-     descartados mantem o cinza de sempre. */
-  var COR_DEGRAU = {
-    nenhum: '#6fd3a4', implementar: '#4fb3c8', acesso_interno: '#5b8fe0', treino: '#8a6fe0',
-    sem_acao: '#b39a72'
+  /* Cor CATEGORICA nas quatro naturezas - nao ha ordem entre elas. O nao
+     classificado e cinza-azulado escuro; os descartados mantem o cinza de
+     sempre. */
+  var COR_NATUREZA = {
+    proposta: '#4fb3c8', achado_empirico: '#8a6fe0', teoria: '#d55181', panorama: '#b39a72'
   };
-  COR_DEGRAU[NAO_CLASSIFICADO] = '#4d5a68';
+  COR_NATUREZA[NAO_CLASSIFICADO] = '#4d5a68';
   var COR_FORA = '#6b7480';
-  function corDegrau(k) { return COR_DEGRAU[k] || '#8b8f96'; }
-  function degrau(p) { return p.pr || NAO_CLASSIFICADO; }
-  function corPaper(p) { return p.v === 'fora' ? COR_FORA : corDegrau(degrau(p)); }
-  function rotuloDegrau(k) { return ROTULO_DEGRAU[k] || String(k); }
-  function rotuloNatureza(k) { return k ? (ROTULO_NATUREZA[k] || String(k)) : 'não classificado'; }
-  /* A escada completa que o painel mostra: os degraus do banco e, se houver
-     algum na janela, o nao classificado no fim. */
-  function ordemDegrau(k) {
-    var i = DEGRAUS.indexOf(k);
-    return i < 0 ? DEGRAUS.length : i;
-  }
-
-  /* Perfil inicial: o ultimo usado (localStorage), ou Produto. O acesso ao
-     storage e protegido: o painel tambem abre em visualizador de HTML sem
-     storage, e um SecurityError ali deixaria a pagina em branco. */
-  var CHAVE_PERFIL = 'hfpapers.perfil';
-  function lerPerfilGuardado() {
-    try { return window.localStorage ? window.localStorage.getItem(CHAVE_PERFIL) : null; }
-    catch (e) { return null; }
-  }
-  function guardarPerfil(p) {
-    try { if (window.localStorage) window.localStorage.setItem(CHAVE_PERFIL, p); }
-    catch (e) { /* sem storage: o perfil so nao sobrevive ao recarregar */ }
-  }
-  function perfilPorChave(k) {
-    return (DADOS.perfis || []).filter(function (p) { return p.p === k; })[0] || null;
-  }
-  function degrausDoPerfil(k) {
-    var p = perfilPorChave(k);
-    return p ? p.d.slice() : [];
-  }
-  var perfilInicial = lerPerfilGuardado();
-  if (perfilInicial !== 'tudo' && !perfilPorChave(perfilInicial)) {
-    perfilInicial = perfilPorChave('produto') ? 'produto' : 'tudo';
-  }
+  function natureza(p) { return p.nt || NAO_CLASSIFICADO; }
+  function corNatureza(k) { return COR_NATUREZA[k] || '#8b8f96'; }
+  function corPaper(p) { return p.v === 'fora' ? COR_FORA : corNatureza(natureza(p)); }
+  function rotuloNatureza(k) { return k && k !== NAO_CLASSIFICADO ? (ROTULO_NATUREZA[k] || String(k)) : 'não classificado'; }
 
   var state = {
     aba: 'aprovados',
     diasSel: [], vereditos: [], areas: [], subareas: [], vertentes: [], orgs: [],
-    // `degraus` vazio e "todos" (o perfil Tudo). As tres dimensoes do ADR 004
-    // so recortam os aprovados: um descartado nao tem degrau, natureza nem
-    // marca, e continua respondendo so ao veredito e a regra.
-    degraus: perfilInicial === 'tudo' ? [] : degrausDoPerfil(perfilInicial),
+    // Natureza e marcas so recortam os aprovados: um descartado nao tem
+    // nenhuma das duas, e continua respondendo so ao veredito e a regra.
     naturezas: [], marcas: [],
     // recorte que so o grafico produz: o clique no Pareto de descartes
     regrasFora: [],
@@ -161,6 +117,14 @@
      o total do recorte. */
   var VERTENTE_NULA = '__sem-vertente__';
   function dominante(p) { return (p.vt && p.vt[0]) || VERTENTE_NULA; }
+  /* Celula VERTENTE das listas: a dominante, e as outras no tooltip. */
+  function celulaVertente(p) {
+    var d = dominante(p);
+    var outras = (p.vt || []).slice(1);
+    return '<span' + (outras.length ? ev('e', mostraTip(d, 'também: ' + outras.join(', '), 'vertentes')) + ev('l', escondeTip()) : '') +
+      ' style="font-size: 11.5px; color: ' + (d === VERTENTE_NULA ? '#5f636a' : '#a8a49b') + '; line-height: 1.5;">' +
+      esc(d === VERTENTE_NULA ? '—' : d) + (outras.length ? '<span style="color: #5f636a;"> +' + outras.length + '</span>' : '') + '</span>';
+  }
 
   function setState(patch) {
     for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) state[k] = patch[k];
@@ -219,7 +183,7 @@
   var MARCAS = [
     { k: 'ao', r: 'artefato aberto', def: 'Repositório, pesos ou dataset liberados — evidência no HF ou no abstract, confirmada como liberada.' },
     { k: 'pc', r: 'contradiz prática', def: 'O achado contradiz algo que o leitor plausivelmente faz hoje; a prática vem nomeada na ficha.' },
-    { k: 'fo', r: 'como incompleto', def: 'O princípio é portável, mas o paper não diz como implementar.' }
+    { k: 'fo', r: 'somente princípio', def: 'O princípio é portável, mas o paper não diz como implementar.' }
   ];
   function temMarca(p, k) { return !!p[k]; }
 
@@ -232,20 +196,20 @@
   var INDICE = {};
   DADOS.papers.forEach(function (p) {
     var f = fichaPorId[p.id] || {};
-    INDICE[p.id] = [p.t, p.org, p.id, p.j, p.pc, p.fo, f.ach, f.pn, f.pm, f.imp, f.ex, f.res]
+    INDICE[p.id] = [p.t, p.org, p.id, p.j, p.pc, p.fo, f.ach, f.imp, f.ex, f.res]
       .filter(Boolean).join(' \n ').toLowerCase();
   });
 
   /* `exceto` deixa uma ou mais dimensoes de fora: e o que mantem as outras
      opcoes de um seletor visiveis depois que ele ja filtrou (senao marcar a 2a
      area pelo grafico ficaria impossivel - a 1a teria apagado as demais
-     barras). Aceita string ou array: a matriz natureza x pre-requisito precisa
+     barras). Aceita string ou array: a matriz natureza x vertente precisa
      soltar as duas dimensoes dela de uma vez.
 
-     Degrau, natureza e marcas so recortam APROVADOS. Um descartado passa por
-     elas sempre: ele nao tem nenhuma das tres, e o recorte dele e o veredito e
-     a regra. Sem isso o perfil Produto zeraria os descartados do Panorama, e o
-     lote diario deixaria de mostrar o que foi cortado. */
+     Natureza e marcas so recortam APROVADOS. Um descartado passa por elas
+     sempre: ele nao tem nenhuma das duas, e o recorte dele e o veredito e a
+     regra. Sem isso marcar uma natureza zeraria os descartados do Panorama, e
+     o lote diario deixaria de mostrar o que foi cortado. */
   function filtrados(exceto) {
     var s = state;
     var q = (s.buscaQ || '').trim().toLowerCase();
@@ -264,8 +228,7 @@
       // marcar uma regra e marcar um recorte de descartados
       if (!livre('regrasFora') && s.regrasFora.length && (p.v !== 'fora' || s.regrasFora.indexOf(chaveRegra(p)) < 0)) return false;
       if (p.v === 'aprovado') {
-        if (!livre('degraus') && s.degraus.length && s.degraus.indexOf(degrau(p)) < 0) return false;
-        if (!livre('naturezas') && s.naturezas.length && s.naturezas.indexOf(p.nt || NAO_CLASSIFICADO) < 0) return false;
+        if (!livre('naturezas') && s.naturezas.length && s.naturezas.indexOf(natureza(p)) < 0) return false;
         if (!livre('marcas') && s.marcas.length &&
           !s.marcas.every(function (k) { return temMarca(p, k); })) return false;
       }
@@ -290,21 +253,6 @@
     setState(novo);
   }
 
-  /* Perfil e preset, nao estado proprio: ele so escreve `degraus`. O perfil
-     "aceso" e derivado - o que tiver exatamente o conjunto marcado; nenhum,
-     quando o leitor editou as pilulas ("personalizado"). */
-  function aplicaPerfil(k) {
-    guardarPerfil(k);
-    setState({ degraus: k === 'tudo' ? [] : degrausDoPerfil(k), aberta: null, justExp: {}, diaPag: null });
-  }
-  function perfilAtivo() {
-    if (!state.degraus.length) return 'tudo';
-    var marcado = state.degraus.slice().sort().join('|');
-    var achado = (DADOS.perfis || []).filter(function (p) { return p.d.slice().sort().join('|') === marcado; })[0];
-    return achado ? achado.p : null;
-  }
-  function degrauSelecionado(k) { return !state.degraus.length || state.degraus.indexOf(k) >= 0; }
-
   /* Debounce da busca: o campo guarda o texto na hora (sem re-render, que
      trocaria o input no meio da digitacao) e o recorte so muda depois de uma
      pausa. Sem `setTimeout` (ambiente minimo de teste) aplica direto. */
@@ -321,13 +269,6 @@
       timerBusca = null;
       setState({ buscaQ: state.busca, aberta: null, justExp: {}, diaPag: null });
     }, ESPERA_BUSCA);
-  }
-
-  /* Primeira frase de "O que muda para voce", para o card recolhido. */
-  function primeiraFrase(t) {
-    var texto = String(t || '').trim();
-    var m = texto.match(/^[\s\S]*?[.!?](?=\s|$)/);
-    return rotuloCurto(m ? m[0] : texto, 190);
   }
 
 
@@ -558,27 +499,24 @@
     return html + '</div>';
   }
 
-  /* Os cinco campos da ficha, na ordem normativa, cada um com sua cor.
-     Os hexes sao os slots dark do catalogo na ordem canonica (aqua, yellow,
-     magenta, violet, red) - validados como conjunto contra o fundo do card.
-     "Implicacao pratica" virou "O que muda para voce" no ADR 004: o campo
-     abre pelo perfil quando o ganho depende dele. */
+  /* Os quatro campos da ficha exibidos, na ordem normativa, cada um com sua
+     cor (slots dark do catalogo, validados contra o fundo do card). O Padrao
+     Extraido continua no banco e nos Parquet, mas saiu do painel em
+     21/10/2026: repetia o que o achado e "o que muda para voce" ja dizem. */
   function camposFicha(f) {
     var cores = {
       'ACHADO': '#199e70',
-      'PADRÃO EXTRAÍDO': '#c98500',
       'O QUE MUDA PARA VOCÊ': '#d55181',
       'EXEMPLO CONCRETO': '#9085e9',
       'RESSALVA': '#e66767'
     };
     var bruto = [
       { rotulo: 'ACHADO', texto: f.ach, nome: '', largo: true },
-      { rotulo: 'PADRÃO EXTRAÍDO', texto: f.pm || '', nome: f.pn || '', largo: true, condicional: true },
       { rotulo: 'O QUE MUDA PARA VOCÊ', texto: f.imp, nome: '', largo: false },
       { rotulo: 'EXEMPLO CONCRETO', texto: f.ex, nome: '', largo: false },
       { rotulo: 'RESSALVA', texto: f.res, nome: '', largo: true }
     ];
-    return bruto.filter(function (c) { return !c.condicional || c.nome; }).map(function (c) {
+    return bruto.map(function (c) {
       var cr = cores[c.rotulo];
       return {
         rotulo: c.rotulo, texto: c.texto, nome: c.nome,
@@ -619,34 +557,27 @@
     return null;
   }
 
-  /* Selo do degrau: a pilula com a cor ordinal. Usado no card recolhido, no
-     cabecalho da decisao e no hall - um desenho so. */
-  function seloDegrau(k, compacto) {
-    var c = corDegrau(k);
-    return '<span' + ev('e', mostraTip(rotuloDegrau(k), DEF_DEGRAU[k] || '', 'pré-requisito')) + ev('l', escondeTip()) +
-      ' style="display: inline-flex; align-items: center; justify-content: center; font-size: ' + (compacto ? '10.5px' : '11px') +
-      '; font-weight: 600; letter-spacing: 0.04em; padding: 4px 9px; border-radius: 100px; white-space: nowrap; color: ' + c +
-      '; background: ' + c + '1f; border: 1px solid ' + c + '59;">' + esc(rotuloDegrau(k)) + '</span>';
-  }
-  function letraNatureza(k) {
-    var letra = k ? (LETRA_NATUREZA[k] || k.slice(0, 2)) : '··';
-    return '<span' + ev('e', mostraTip(rotuloNatureza(k), k ? (DEF_NATUREZA[k] || '') : '', 'natureza')) + ev('l', escondeTip()) +
-      ' style="display: inline-flex; align-items: center; justify-content: center; width: 28px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #a8a49b; border: 1px solid #2b3138; border-radius: 4px; padding: 3px 0;">' + esc(letra) + '</span>';
+  /* Selo da natureza: a pilula com a cor categorica. Usado no card
+     recolhido, no cabecalho da decisao e no hall - um desenho so. */
+  function seloNatureza(k) {
+    var c = corNatureza(k || NAO_CLASSIFICADO);
+    return '<span' + ev('e', mostraTip(rotuloNatureza(k), k ? (DEF_NATUREZA[k] || '') : DEF_NAO_CLASSIFICADO, 'natureza')) + ev('l', escondeTip()) +
+      ' style="display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; padding: 4px 9px; border-radius: 100px; white-space: nowrap; color: ' + c +
+      '; background: ' + c + '1f; border: 1px solid ' + c + '59;">' + esc(rotuloNatureza(k)) + '</span>';
   }
 
-  /* Cabecalho da decisao: por que este degrau e esta natureza, acima dos
+  /* Cabecalho da decisao: por que esta classificacao, acima dos
      cinco campos da ficha (ou sozinho, quando nao ha ficha). Nao e um sexto
      campo - os cinco falam do paper, este fala da classificacao -, entao ele
-     nao usa a regua colorida de `camposFicha`: uma barra lateral na cor do
-     degrau e texto em italico o separam dos cinco. Embaixo dele vem os dois
+     nao usa a regua colorida de `camposFicha`: uma barra lateral na cor da
+     natureza e texto em italico o separam dos cinco. Embaixo dele vem os dois
      textos da classificacao, quando existem: a pratica que o achado contradiz
      e o que falta para implementar.
      `p` precisa de {v, pr, nt, j, h}; `chave` identifica o card para o estado
      do "mais" (aba viva e historica podem ter cards abertos ao mesmo tempo). */
   function cabecalhoDecisao(p, chave) {
     if (p.v !== 'aprovado') return '';
-    var k = degrau(p);
-    var corV = corDegrau(k);
+    var corV = corNatureza(natureza(p));
 
     var miolo;
     var aviso = avisoDecisao(p.h);
@@ -679,13 +610,12 @@
 
     return '<div style="border-left: 2px solid ' + corV + '; padding: 1px 0 1px 16px; margin-bottom: 22px;">' +
       '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">' +
-        '<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: ' + corV + ';">POR QUE ESTE DEGRAU</span>' +
-        seloDegrau(k) +
-        '<span style="font-size: 12px; color: #a8a49b;">' + esc(rotuloNatureza(p.nt)) + '</span>' +
+        '<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: ' + corV + ';">POR QUE ESTA CLASSIFICAÇÃO</span>' +
+        seloNatureza(p.nt) +
       '</div>' +
       miolo +
       texto2('CONTRADIZ A PRÁTICA', p.pc) +
-      texto2('FALTA O COMO', p.fo) +
+      texto2('SOMENTE PRINCÍPIO', p.fo) +
       '</div>';
   }
 
@@ -736,6 +666,10 @@
       out += p.gh
         ? '<a href="' + esc(p.gh) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size: 10.5px; white-space: nowrap; border-bottom: none; color: ' + VERDE + '; border: 1px solid ' + VERDE + '59; border-radius: 100px; padding: 3px 8px;">artefato ↗</a>'
         : '<span style="font-size: 10.5px; white-space: nowrap; color: ' + VERDE + '; border: 1px solid ' + VERDE + '59; border-radius: 100px; padding: 3px 8px;">artefato</span>';
+    }
+    if (p.fo) {
+      out += '<span' + ev('e', mostraTip('somente princípio', p.fo, 'marca')) + ev('l', escondeTip()) +
+        ' style="font-size: 10.5px; color: #a8a49b; border: 1px solid #a8a49b59; border-radius: 100px; padding: 3px 8px; white-space: nowrap;">princípio</span>';
     }
     return out;
   }
@@ -797,11 +731,8 @@
      marts/*.parquet e no banco. O que ela resolve e visibilidade: impedir que o
      recorte esconda para sempre o que a comunidade mais votou.
 
-     Os aprovados seguem os degraus marcados (o perfil): `gerar_painel.py`
-     embute os 15 mais votados de CADA degrau, e o top-15 de qualquer
-     combinacao de degraus sai dali sem errar. Os descartados sao os 5 mais
-     votados, como auditoria do corte - nao seguem perfil, porque nao tem
-     degrau. */
+     Os 15 aprovados mais votados de cada trimestre, com a ficha, e os 5
+     descartados mais votados, como auditoria do corte. */
   function construirHall() {
     var s = state;
     var hall = DADOS.hall || [];
@@ -822,22 +753,18 @@
     hall.forEach(function (per) { if (per.per === s.perSel) atual = per; });
     if (!atual) atual = hall[0];
 
-    var perfilA = perfilAtivo();
-    var nomePerfil = perfilA === 'tudo' ? 'todos os degraus'
-      : (perfilA ? 'perfil ' + perfilPorChave(perfilA).r : 'degraus marcados');
-
     /* ── nota de leitura ────────────────────────────────────────────────── */
     out.push(
       '<div class="card" style="margin: 26px 0 30px; padding: 20px 24px; display: flex; align-items: flex-start; gap: 16px;">' +
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.5v.01"></path></svg>' +
         '<div style="font-size: 12.5px; line-height: 1.7; color: #a8a49b; max-width: 880px; text-wrap: pretty;">' +
-          'As abas <em style="color: #ecebe6; font-style: normal;">Aprovados</em> e <em style="color: #ecebe6; font-style: normal;">Panorama</em> mostram os últimos ' + DADOS.janela + ' dias. Aqui ficam, de cada trimestre já fora dela, os ' + TOPO_HALL + ' aprovados mais votados no perfil escolhido, com a ficha inteira, e os 5 descartados mais votados, como auditoria do corte. ' +
+          'As abas <em style="color: #ecebe6; font-style: normal;">Aprovados</em> e <em style="color: #ecebe6; font-style: normal;">Panorama</em> mostram os últimos ' + DADOS.janela + ' dias. Aqui ficam, de cada trimestre já fora dela, os ' + TOPO_HALL + ' aprovados mais votados, com a ficha inteira, e os 5 descartados mais votados, como auditoria do corte. ' +
           '<span style="color: #6d7178;">Nada é apagado em lugar nenhum: a série completa continua no banco e nos Parquet. Os votos aqui estão congelados porque o refresh para de reconsultá-los aos ' + (DADOS.diasRefresh || DADOS.diasHall) + ' dias.</span>' +
         '</div>' +
       '</div>'
     );
 
-    /* ── seletor de trimestre e de perfil ───────────────────────────────── */
+    /* ── seletor de trimestre ──────────────────────────────────────────── */
     var chipsPer = hall.map(function (per) {
       var on = per.per === atual.per;
       return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' +
@@ -854,9 +781,6 @@
         '<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">' +
           '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96; width: 74px;">PERÍODO</span>' + chipsPer +
         '</div>' +
-        '<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">' +
-          '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96; width: 74px;">LEITURA</span>' + chipsPerfil(null) +
-        '</div>' +
       '</div>'
     );
 
@@ -869,14 +793,11 @@
     /* ── 01 · os mais votados entre os aprovados ────────────────────────── */
     out.push(secao('01', 'Os mais votados entre os aprovados'));
 
-    var ap = atual.ap.filter(function (p) { return degrauSelecionado(degrau(p)); })
+    var ap = atual.ap.slice()
       .sort(function (a, b) { return b.u - a.u || a.id.localeCompare(b.id); })
       .slice(0, TOPO_HALL);
-    var naPerfil = 0;
-    var nad = atual.nad || {};
-    for (var kd in nad) if (Object.prototype.hasOwnProperty.call(nad, kd) && degrauSelecionado(kd)) naPerfil += nad[kd];
 
-    var colunasH = '30px 132px 34px minmax(200px, 1fr) 260px 56px 54px';
+    var colunasH = '30px 132px minmax(240px, 1.3fr) minmax(200px, 1fr) 110px 56px 54px';
     var linhasAp = ap.map(function (p, i) {
       var aberta = s.abertaH === p.id;
       var corpo = aberta
@@ -886,13 +807,13 @@
       return '<div style="border-bottom: 1px solid #1d2226;">' +
         '<div class="row" data-card="' + esc(p.id) + '"' + ev('c', function () { setState({ abertaH: aberta ? null : p.id }); }) + ' style="display: grid; grid-template-columns: ' + colunasH + '; gap: 14px; padding: 14px 24px; align-items: center;">' +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: ' + (i < 3 ? ACCENT : '#4a5058') + ';">' + (i + 1) + '</span>' +
-          '<span>' + seloDegrau(degrau(p), true) + '</span>' +
-          letraNatureza(p.nt) +
+          '<span>' + seloNatureza(p.nt) + '</span>' +
           '<div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">' +
             '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.t) + '</span>' +
             '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.org || '—') + (p.f ? '' : ' · sem ficha') + '</span>' +
           '</div>' +
           '<span style="font-size: 11.5px; color: #8b8f96; line-height: 1.5;">' + esc(parArea(p)) + '</span>' +
+          celulaVertente(p) +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12.5px; color: #ecebe6; text-align: right;">' + p.u + '</span>' +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #6d7178; text-align: right;">' + diaCurto(p.d) + '</span>' +
         '</div>' + corpo +
@@ -904,14 +825,14 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O que ficou do ' + esc(atual.rot) + '</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">' + ap.length + ' de ' + naPerfil + ' aprovados (' + esc(nomePerfil) + '), ordenados por voto da comunidade. Clique para abrir o porquê da classificação — e a ficha completa.</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">' + ap.length + ' de ' + atual.na + ' aprovados, ordenados por voto da comunidade. Clique para abrir o porquê da classificação — e a ficha completa.</div>' +
           '</div>' + avisoCons +
         '</div>' +
         '<div style="display: grid; grid-template-columns: ' + colunasH + '; gap: 14px; padding: 11px 24px; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; background: #131619; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">' +
-          '<span>#</span><span>DEGRAU</span><span>NAT.</span><span>TÍTULO</span><span>ÁREA &gt; SUB-ÁREA</span><span style="text-align: right;">VOTOS</span><span style="text-align: right;">DIA</span>' +
+          '<span>#</span><span>NATUREZA</span><span>TÍTULO</span><span>ÁREA &gt; SUB-ÁREA</span><span>VERTENTE</span><span style="text-align: right;">VOTOS</span><span style="text-align: right;">DIA</span>' +
         '</div>' +
         linhasAp +
-        (linhasAp ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum aprovado neste trimestre com os degraus marcados.</div>') +
+        (linhasAp ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum aprovado neste trimestre.</div>') +
       '</div>'
     );
 
@@ -958,7 +879,7 @@
 
     var somaDe = 0;
     hall.forEach(function (per) { somaDe += per.de.length; });
-    out.push(rodape('REGISTRO HISTÓRICO · ' + hall.length + ' TRIMESTRE(S) · ' + TOPO_HALL + ' APROVADOS POR PERFIL · ' + somaDe + ' DESCARTADOS'));
+    out.push(rodape('REGISTRO HISTÓRICO · ' + hall.length + ' TRIMESTRE(S) · ' + TOPO_HALL + ' APROVADOS · ' + somaDe + ' DESCARTADOS'));
     return out.join('');
   }
 
@@ -967,8 +888,8 @@
     return 'display: inline-flex; align-items: center; gap: 0; font-size: 12.5px; line-height: 1; padding: 8px 15px; border-radius: 100px; white-space: nowrap; background: ' + ACCENT + '; border: 1px solid ' + ACCENT + '; color: #14161a; font-weight: 600;';
   }
 
-  /* Pilula com bolinha de cor e contador - o mesmo desenho para perfil,
-     degrau, natureza, marca e veredito, que e o que os testes procuram. */
+  /* Pilula com bolinha de cor e contador - o mesmo desenho para natureza,
+     marca e veredito, que e o que os testes procuram. */
   var COM_CONTAGEM = 'margin-left: 7px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; opacity: 0.62;';
   function pilula(rotuloP, on, corP, n, fn, dica, extra) {
     return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' + ev('c', fn) +
@@ -977,27 +898,6 @@
       '<span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; background: ' + corP + ';"></span>' + esc(rotuloP) +
       (n === null || n === undefined ? '' : '<span style="' + COM_CONTAGEM + '">' + n + '</span>') +
       '</div>';
-  }
-
-  /* Seletor de perfil. `rec` e o recorte com os degraus soltos (para contar
-     quantos aprovados cada perfil traria); null omite os contadores - o hall
-     nao tem recorte vivo para contar. */
-  function chipsPerfil(rec) {
-    var ativo = perfilAtivo();
-    function conta(degs) {
-      if (!rec) return null;
-      return rec.filter(function (p) {
-        return p.v === 'aprovado' && (!degs || degs.indexOf(degrau(p)) >= 0);
-      }).length;
-    }
-    var chips = (DADOS.perfis || []).map(function (pf) {
-      return pilula(pf.r, ativo === pf.p, ACCENT, conta(pf.d), function () { aplicaPerfil(pf.p); },
-        mostraTip(pf.r, 'Marca os degraus: ' + pf.d.map(rotuloDegrau).join(', ') + '.', 'perfil de leitura'));
-    });
-    chips.push(pilula('Tudo', ativo === 'tudo', ACCENT, conta(null), function () { aplicaPerfil('tudo'); },
-      mostraTip('Tudo', 'Todos os degraus, inclusive os aprovados ainda não classificados.', 'perfil de leitura')));
-    var nota = ativo ? '' : '<span style="font-size: 11.5px; color: #6d7178;">personalizado — degraus editados à mão</span>';
-    return chips.join('') + nota;
   }
 
   function construir() {
@@ -1015,7 +915,6 @@
     var recSubarea = filtrados('subareas');
     var recVert = filtrados('vertentes');
     var recOrg = filtrados('orgs');
-    var recDegrau = filtrados('degraus');
     var recNatureza = filtrados('naturezas');
     var recMarca = filtrados('marcas');
 
@@ -1024,8 +923,8 @@
 
     // Aprovado nao classificado (linha anterior a reclassificacao total) na
     // janela inteira: e o que decide se a pilula e a nota de transicao existem.
-    var naoClassificados = todos.filter(function (p) { return p.v === 'aprovado' && degrau(p) === NAO_CLASSIFICADO; }).length;
-    var escada = DEGRAUS.concat(naoClassificados ? [NAO_CLASSIFICADO] : []);
+    var naoClassificados = todos.filter(function (p) { return p.v === 'aprovado' && natureza(p) === NAO_CLASSIFICADO; }).length;
+    var naturezasVisiveis = NATUREZAS.concat(naoClassificados ? [NAO_CLASSIFICADO] : []);
 
     var dias = [];
     todos.forEach(function (p) { if (p.d && dias.indexOf(p.d) < 0) dias.push(p.d); });
@@ -1043,7 +942,7 @@
             '<span style="font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: ' + ACCENT + ';">hf-papers-db</span>' +
           '</div>' +
           '<div style="font-family: Newsreader, Georgia, serif; font-size: 66px; font-weight: 300; line-height: 0.96; letter-spacing: -0.02em; color: #f5f3ee;">Daily Papers,<span style="font-style: italic; font-weight: 400; color: ' + ACCENT + ';"> triados</span></div>' +
-          '<div style="font-family: Newsreader, Georgia, serif; font-size: 17px; font-weight: 300; line-height: 1.55; color: #a8a49b; max-width: 680px; text-wrap: pretty;">Papers do Hugging Face Daily Papers, classificados pelo que afirmam e pelo que é preciso ter para usá-los, e resumidos em fichas.</div>' +
+          '<div style="font-family: Newsreader, Georgia, serif; font-size: 17px; font-weight: 300; line-height: 1.55; color: #a8a49b; max-width: 680px; text-wrap: pretty;">Papers do Hugging Face Daily Papers, classificados pelo que afirmam e pelo tema, e resumidos em fichas.</div>' +
         '</div>' +
         '<div style="display: flex; gap: 34px; text-align: right; padding-bottom: 4px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
@@ -1070,8 +969,8 @@
     out.push(navAbas(aprovadosSel.length));
 
     /* A aba historica nao passa pela barra de filtro: `filtrados()` recorta
-       DADOS.papers, que e so a janela. O hall tem o seletor de trimestre e o
-       de perfil, e nada mais. */
+       DADOS.papers, que e so a janela. O hall tem o seletor de trimestre, e
+       nada mais. */
     if (s.aba === 'historico') {
       out.push(construirHall());
       out.push('</div>');
@@ -1083,8 +982,8 @@
       '<div class="card" style="margin: 24px 0 0; padding: 16px 22px; display: flex; align-items: flex-start; gap: 14px;">' +
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.5v.01"></path></svg>' +
         '<div style="font-size: 12.5px; line-height: 1.65; color: #a8a49b; text-wrap: pretty;">' +
-          'Desde 20/10/2026 o painel não separa mais <em style="font-style: normal; color: #ecebe6;">estrito</em> e <em style="font-style: normal; color: #ecebe6;">amplo</em>. Cada aprovado diz que tipo de afirmação faz (<em style="font-style: normal; color: #ecebe6;">natureza</em>) e o que é preciso ter para usá-lo (<em style="font-style: normal; color: #ecebe6;">pré-requisito</em>, do mais barato ao mais caro). ' +
-          'O perfil de leitura só marca degraus — as pílulas continuam editáveis. Papers de treino e de pesquisa deixaram de ser descartados.' +
+          'Desde 20/10/2026 o painel não separa mais <em style="font-style: normal; color: #ecebe6;">estrito</em> e <em style="font-style: normal; color: #ecebe6;">amplo</em>. Cada aprovado diz que tipo de afirmação faz (<em style="font-style: normal; color: #ecebe6;">natureza</em>) e se localiza por área, sub-área e vertente. ' +
+          'Papers de treino e de pesquisa deixaram de ser descartados.' +
           (naoClassificados
             ? ' <span style="color: #6d7178;">' + naoClassificados + ' aprovados da janela ainda são do regime anterior e aparecem como <em>não classificado</em> até a reclassificação total.</span>'
             : '') +
@@ -1134,25 +1033,14 @@
       itensOrg.push({ valor: '__sem-org__', label: 'sem organização', n: semOrg });
     }
 
-    // Degraus: contam so aprovados (descartado nao tem degrau), no recorte
-    // com o proprio degrau solto. Com `degraus` vazio (Tudo) nenhuma pilula
-    // fica acesa e todas valem - o mesmo "nenhum marcado = todos" dos menus.
-    var contaDeg = {};
-    recDegrau.forEach(function (p) { if (p.v === 'aprovado') { var k = degrau(p); contaDeg[k] = (contaDeg[k] || 0) + 1; } });
-    var chipsDegrau = escada.map(function (k) {
-      return pilula(rotuloDegrau(k), s.degraus.indexOf(k) >= 0, corDegrau(k), contaDeg[k] || 0,
-        function () { alternaLista('degraus', k); },
-        mostraTip(rotuloDegrau(k), DEF_DEGRAU[k] || '', 'degrau de pré-requisito'));
-    }).join('');
-
     var contaNat = {};
-    recNatureza.forEach(function (p) { if (p.v === 'aprovado') { var k = p.nt || NAO_CLASSIFICADO; contaNat[k] = (contaNat[k] || 0) + 1; } });
-    var chipsNatureza = NATUREZAS.concat(naoClassificados ? [NAO_CLASSIFICADO] : []).map(function (k) {
-      var r = k === NAO_CLASSIFICADO ? 'não classificado' : rotuloNatureza(k);
-      return pilula(r, s.naturezas.indexOf(k) >= 0, '#a8a49b', contaNat[k] || 0,
+    recNatureza.forEach(function (p) { if (p.v === 'aprovado') { var k = natureza(p); contaNat[k] = (contaNat[k] || 0) + 1; } });
+    var chipsNatureza = naturezasVisiveis.map(function (k) {
+      var r = rotuloNatureza(k);
+      return pilula(r, s.naturezas.indexOf(k) >= 0, corNatureza(k), contaNat[k] || 0,
         function () { alternaLista('naturezas', k); },
-        mostraTip(r, k === NAO_CLASSIFICADO ? DEF_DEGRAU[NAO_CLASSIFICADO] : (DEF_NATUREZA[k] || ''), 'natureza'));
-    }).join('');
+        mostraTip(r, k === NAO_CLASSIFICADO ? DEF_NAO_CLASSIFICADO : (DEF_NATUREZA[k] || ''), 'natureza'));
+    }).join('') + '<span style="font-size: 11.5px; color: #6d7178; align-self: center;">recorta só os aprovados</span>';
 
     var chipsMarca = MARCAS.map(function (m) {
       var n = recMarca.filter(function (p) { return p.v === 'aprovado' && temMarca(p, m.k); }).length;
@@ -1168,8 +1056,6 @@
 
     var ativos = [];
     if (s.diasSel.length) ativos.push(s.diasSel.length === 1 ? diaCurto(s.diasSel[0]) : s.diasSel.length + ' dias');
-    var pa = perfilAtivo();
-    if (pa !== 'tudo') ativos.push(pa ? 'perfil ' + perfilPorChave(pa).r : s.degraus.map(rotuloDegrau).join('+'));
     if (s.naturezas.length) ativos.push(s.naturezas.map(rotuloNatureza).join('+'));
     if (s.marcas.length) ativos.push(s.marcas.map(function (k) { return MARCAS.filter(function (m) { return m.k === k; })[0].r; }).join(' e '));
     if (s.aba === 'panorama' && s.vereditos.length) ativos.push(s.vereditos.join('+'));
@@ -1215,9 +1101,6 @@
           '</div>' +
         '</div>' +
         '<div style="height: 1px; background: #242a30;"></div>' +
-        linhaFiltro('LEITURA', 7, chipsPerfil(recDegrau)) +
-        linhaFiltro('DEGRAU', 6, chipsDegrau +
-          '<span style="font-size: 11.5px; color: #6d7178; align-self: center;">recorta só os aprovados</span>') +
         linhaFiltro('NATUREZA', 5, chipsNatureza) +
         linhaFiltro('MARCAS', 5, chipsMarca) +
         (s.aba === 'panorama'
@@ -1276,13 +1159,12 @@
     /* ══════════════ 01 · VOLUME E SELETIVIDADE ══════════════ */
     out.push(secao('01', 'Volume e seletividade'));
 
-    /* Empilhado de baixo para cima: descartados, depois a escada na ordem
-       (nenhum embaixo, treino em cima), sem acao e nao classificado no topo.
-       A ordem da pilha e a da escada para a cor ordinal se ler de uma vez. */
-    var camadas = ['fora'].concat(escada);
-    function corCamada(k) { return k === 'fora' ? COR_FORA : corDegrau(k); }
-    function rotuloCamada(k) { return k === 'fora' ? 'fora' : rotuloDegrau(k); }
-    function camadaDe(p) { return p.v === 'fora' ? 'fora' : degrau(p); }
+    /* Empilhado de baixo para cima: descartados, depois as naturezas na
+       ordem do banco, o nao classificado no topo. */
+    var camadas = ['fora'].concat(naturezasVisiveis);
+    function corCamada(k) { return k === 'fora' ? COR_FORA : corNatureza(k); }
+    function rotuloCamada(k) { return k === 'fora' ? 'fora' : rotuloNatureza(k); }
+    function camadaDe(p) { return p.v === 'fora' ? 'fora' : natureza(p); }
 
     var nCol = Math.max(1, dias.length);
     var porDia = {};
@@ -1382,7 +1264,7 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O lote diário e o que sobrou dele</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Papers por dia de publicação no HF: descartados embaixo, aprovados empilhados por degrau de pré-requisito.</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Papers por dia de publicação no HF: descartados embaixo, aprovados empilhados por natureza.</div>' +
           '</div>' +
           '<div style="display: flex; gap: 15px; padding-top: 5px; flex-wrap: wrap;">' + legenda + '</div>' +
         '</div>' +
@@ -1408,65 +1290,69 @@
       '</div>'
     );
 
-    /* ══════════════ 02 · NATUREZA × PRÉ-REQUISITO ══════════════ */
-    out.push(secao('02', 'Natureza × pré-requisito'));
+    /* ══════════════ 02 · NATUREZA × VERTENTE ══════════════ */
+    out.push(secao('02', 'Natureza × vertente'));
 
     /* A matriz solta as duas dimensoes dela: e o seletor das duas, e marcar
        uma celula nao pode apagar as outras. Clique alterna o par (natureza,
-       degrau) - marca ou desmarca os dois. */
-    var selMatriz = filtrados(['naturezas', 'degraus']).filter(function (p) { return p.v === 'aprovado'; });
+       vertente dominante) - marca ou desmarca os dois. Colunas por volume,
+       a maior primeiro; a celula ganha a cor da natureza da linha. */
+    var selMatriz = filtrados(['naturezas', 'vertentes']).filter(function (p) { return p.v === 'aprovado'; });
     var linhasN = NATUREZAS.slice();
     if (selMatriz.some(function (p) { return !p.nt; })) linhasN.push(NAO_CLASSIFICADO);
-    var colunasD = DEGRAUS.slice();
-    if (selMatriz.some(function (p) { return degrau(p) === NAO_CLASSIFICADO; })) colunasD.push(NAO_CLASSIFICADO);
     var celula = {}, maxCel = 1, somaLinha = {}, somaCol = {};
     selMatriz.forEach(function (p) {
-      var n = p.nt || NAO_CLASSIFICADO, d = degrau(p);
+      var n = natureza(p), d = dominante(p);
       var k = n + '|' + d;
       celula[k] = (celula[k] || 0) + 1;
       if (celula[k] > maxCel) maxCel = celula[k];
       somaLinha[n] = (somaLinha[n] || 0) + 1;
       somaCol[d] = (somaCol[d] || 0) + 1;
     });
-    var gradeMatriz = '160px repeat(' + colunasD.length + ', minmax(0, 1fr)) 64px';
+    var colunasV = Object.keys(somaCol).sort(function (x, y) {
+      return (x === VERTENTE_NULA) - (y === VERTENTE_NULA) || somaCol[y] - somaCol[x] || x.localeCompare(y);
+    });
+    function rotuloVert(v) { return v === VERTENTE_NULA ? 'sem vertente' : v; }
+    var gradeMatriz = '160px repeat(' + Math.max(1, colunasV.length) + ', minmax(0, 1fr)) 64px';
     var cabMatriz = '<div style="display: grid; grid-template-columns: ' + gradeMatriz + '; gap: 4px; align-items: end;">' +
       '<span></span>' +
-      colunasD.map(function (d) {
-        return '<span style="font-size: 11px; text-align: center; color: ' + corDegrau(d) + '; padding-bottom: 4px;">' + esc(rotuloDegrau(d)) + '</span>';
+      colunasV.map(function (d) {
+        return '<span style="font-size: 11px; text-align: center; color: #a8a49b; padding-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(rotuloVert(d)) + '</span>';
       }).join('') +
       '<span style="font-size: 10.5px; text-align: right; color: #6d7178; padding-bottom: 4px;">total</span>' +
       '</div>';
     var corpoMatriz = linhasN.map(function (n) {
-      var rotN = n === NAO_CLASSIFICADO ? 'não classificado' : rotuloNatureza(n);
+      var rotN = rotuloNatureza(n);
+      var corN = corNatureza(n);
       return '<div style="display: grid; grid-template-columns: ' + gradeMatriz + '; gap: 4px; align-items: stretch;">' +
-        '<span' + ev('e', mostraTip(rotN, n === NAO_CLASSIFICADO ? '' : (DEF_NATUREZA[n] || ''), (somaLinha[n] || 0) + ' aprovados')) + ev('l', escondeTip()) +
+        '<span' + ev('e', mostraTip(rotN, n === NAO_CLASSIFICADO ? DEF_NAO_CLASSIFICADO : (DEF_NATUREZA[n] || ''), (somaLinha[n] || 0) + ' aprovados')) + ev('l', escondeTip()) +
           ' style="font-size: 12.5px; color: #ecebe6; align-self: center;">' + esc(rotN) + '</span>' +
-        colunasD.map(function (d) {
+        colunasV.map(function (d) {
           var v = celula[n + '|' + d] || 0;
-          var on = s.naturezas.indexOf(n) >= 0 && s.degraus.indexOf(d) >= 0;
+          var on = s.naturezas.indexOf(n) >= 0 && s.vertentes.indexOf(d) >= 0;
           var alfa = v ? Math.round(18 + (v / maxCel) * 200).toString(16) : '00';
           if (alfa.length < 2) alfa = '0' + alfa;
           return '<div class="seg"' +
             ev('c', function () {
-              var ns = state.naturezas.slice(), ds = state.degraus.slice();
+              var ns = state.naturezas.slice(), vs = state.vertentes.slice();
               if (on) {
-                ns.splice(ns.indexOf(n), 1); ds.splice(ds.indexOf(d), 1);
+                ns.splice(ns.indexOf(n), 1); vs.splice(vs.indexOf(d), 1);
               } else {
                 if (ns.indexOf(n) < 0) ns.push(n);
-                if (ds.indexOf(d) < 0) ds.push(d);
+                if (vs.indexOf(d) < 0) vs.push(d);
               }
-              setState({ naturezas: ns, degraus: ds, aberta: null, justExp: {}, diaPag: null });
+              setState({ naturezas: ns, vertentes: vs, aberta: null, justExp: {}, diaPag: null });
             }) +
-            ev('e', mostraTip(rotN + ' · ' + rotuloDegrau(d), v + (v === 1 ? ' aprovado' : ' aprovados') + ' · clique para filtrar')) + ev('l', escondeTip()) +
+            ev('e', mostraTip(rotN + ' · ' + rotuloVert(d), v + (v === 1 ? ' aprovado' : ' aprovados') + ' · clique para filtrar')) + ev('l', escondeTip()) +
             ' style="cursor: pointer; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-family: \'IBM Plex Mono\', monospace; font-size: 12px; background: ' +
-            corDegrau(d) + alfa + '; color: ' + (v ? '#f5f3ee' : '#4a5058') + ';' + (on ? ' box-shadow: inset 0 0 0 1.5px ' + ACCENT + ';' : '') + '">' + (v || '·') + '</div>';
+            corN + alfa + '; color: ' + (v ? '#f5f3ee' : '#4a5058') + ';' + (on ? ' box-shadow: inset 0 0 0 1.5px ' + ACCENT + ';' : '') + '">' + (v || '·') + '</div>';
         }).join('') +
         '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #8b8f96; text-align: right; align-self: center;">' + (somaLinha[n] || 0) + '</span>' +
         '</div>';
     }).join('');
     var rodapeMatriz = '<div style="display: grid; grid-template-columns: ' + gradeMatriz + '; gap: 4px; padding-top: 6px; border-top: 1px solid #242a30;">' +
       '<span style="font-size: 10.5px; color: #6d7178;">total</span>' +
-      colunasD.map(function (d) {
+      colunasV.map(function (d) {
         return '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #8b8f96; text-align: center;">' + (somaCol[d] || 0) + '</span>';
       }).join('') +
       '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #ecebe6; text-align: right;">' + selMatriz.length + '</span>' +
@@ -1475,8 +1361,8 @@
     out.push(
       '<div class="card" style="padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 10px;">' +
         '<div style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; max-width: 760px;">' +
-          '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O que os aprovados afirmam, e o que é preciso para usá-los</div>' +
-          '<div style="font-size: 12.5px; color: #8b8f96; line-height: 1.5;">Linhas: natureza da afirmação. Colunas: degrau de pré-requisito, do mais barato ao mais caro; <em style="font-style: normal;">sem ação</em> fica fora da escada. A intensidade da célula acompanha a contagem. Clique numa célula para filtrar pelo par.</div>' +
+          '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O que os aprovados afirmam, e para quê</div>' +
+          '<div style="font-size: 12.5px; color: #8b8f96; line-height: 1.5;">Linhas: natureza da afirmação. Colunas: vertente dominante, da mais frequente à menos. A intensidade da célula acompanha a contagem. Clique numa célula para filtrar pelo par.</div>' +
         '</div>' +
         (selMatriz.length
           ? cabMatriz + corpoMatriz + rodapeMatriz
@@ -1629,7 +1515,7 @@
         '</div>';
     }
 
-    /* ── vista Distribuição: largura absoluta, empilhada por degrau ───────── */
+    /* ── vista Distribuição: largura absoluta, empilhada por natureza ─────── */
     var barrasArea = areasOrd.map(function (a) {
       var c = areaMap[a];
       var on = s.areas.indexOf(a) >= 0;
@@ -1669,7 +1555,7 @@
 
     var vista = s.vistaArea === 'sub' ? 'sub' : 'dist';
     var LEGENDAS_VISTA = {
-      dist: 'Barras na largura do volume, empilhadas como o lote diário: descartados e a escada de pré-requisito. A LLM escolhe a área de uma lista fechada. Clique para filtrar.',
+      dist: 'Barras na largura do volume, empilhadas como o lote diário: descartados e as naturezas. A LLM escolhe a área de uma lista fechada. Clique para filtrar.',
       sub: 'Cada barra vale 100% e mostra do que a área é feita; o número à direita é o volume. ' +
         'Tons quentes e texturas separam as fatias; os nomes e percentuais aparecem abaixo de cada barra. ' +
         'Fatias abaixo de 2% viram “outras”, que o tooltip abre.',
@@ -1785,7 +1671,7 @@
       var xFim = r.ate[1] / maxTotalVoto * 100;
       var intervalo = diaCurto(r.de[0]) + '–' + diaCurto(r.ate[0]);
       return '<a class="voto-item" href="' + esc(r.p.url) + '" target="_blank" rel="noopener"' +
-        ev('e', mostraTip(r.p.t, '+' + r.delta + ' votos · ' + r.de[1] + ' → ' + r.ate[1] + ' · ' + intervalo + ' · ' + (r.p.v === 'fora' ? 'fora' : rotuloDegrau(degrau(r.p))))) + ev('l', escondeTip()) +
+        ev('e', mostraTip(r.p.t, '+' + r.delta + ' votos · ' + r.de[1] + ' → ' + r.ate[1] + ' · ' + intervalo + ' · ' + (r.p.v === 'fora' ? 'fora' : rotuloNatureza(natureza(r.p))))) + ev('l', escondeTip()) +
         '><div class="voto-item-miolo"><div class="voto-item-cab">' + esc(r.p.t) + '</div>' +
         '<div class="voto-tracao" aria-hidden="true">' +
           '<span class="voto-tracao-linha" style="left: ' + xInicio + '%; width: ' + (xFim - xInicio) + '%; background: ' + corPaper(r.p) + ';"></span>' +
@@ -1900,7 +1786,7 @@
           (aDireita ? 'right: ' + (100 - x) + '%; margin-right: 9px; text-align: right;' : 'left: ' + x + '%; margin-left: 9px;') +
           ' bottom: ' + y + '%; margin-bottom: -6px; font-size: 10.5px; color: #8b8f96; white-space: nowrap; pointer-events: none;">' + esc(rotuloCurto(p.t, 34)) + '</span>'
         : '';
-      var classe = p.v === 'fora' ? 'fora' : rotuloDegrau(degrau(p));
+      var classe = p.v === 'fora' ? 'fora' : rotuloNatureza(natureza(p));
       return '<a class="mark" href="' + esc(p.url) + '" target="_blank" rel="noopener"' +
         ev('e', mostraTip(p.t, p.u + ' votos · ' + p.gs + ' stars · ' + p.c + ' comentários · ' + classe + ' · ' + (p.a ? parArea(p) : 'sem área') + ' · ' + (p.org || 'sem organização') +
           (hojeNum !== null && diaNum(p.d) !== null ? ' · ' + (hojeNum - diaNum(p.d)) + 'd no HF' : ''))) +
@@ -1936,7 +1822,7 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px; max-width: 700px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Upvotes no HF × stars no GitHub</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Um ponto por paper com repositório, nas duas escalas logarítmicas, na cor do degrau. ' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Um ponto por paper com repositório, nas duas escalas logarítmicas, na cor da natureza. ' +
               '<span style="color: #6d7178;">' + zeroStar + ' com repositório e zero star ficam na base do eixo; ' + semRepo + ' sem repositório não entram.</span></div>' +
           '</div>' +
         '</div>' +
@@ -1962,9 +1848,8 @@
 
        Paginacao por DIA de publicacao, e nao por blocos de dez: com o escopo do
        ADR 004 sao dezenas de aprovados por dia, e o dia e a unidade em que o
-       painel e lido. So o dia visivel e desenhado. Dentro do dia, a ordem e a
-       escada (o mais barato de usar primeiro) e depois o voto - upvote ordena
-       a exibicao, nunca classifica nem corta. O filtro de veredito do
+       painel e lido. So o dia visivel e desenhado. Dentro do dia, a ordem e o
+       voto - upvote ordena a exibicao, nunca classifica nem corta. O filtro de veredito do
        Panorama nao vale aqui: esta aba e so de aprovados. */
     if (s.aba === 'aprovados') {
 
@@ -1975,26 +1860,25 @@
     var diaAtual = diasAp.indexOf(s.diaPag) >= 0 ? s.diaPag : (diasAp[0] || null);
     var posDia = diaAtual ? diasAp.indexOf(diaAtual) : -1;
     var doDia = (porDiaAp[diaAtual] || []).slice().sort(function (a, b) {
-      return ordemDegrau(degrau(a)) - ordemDegrau(degrau(b)) || b.u - a.u || a.id.localeCompare(b.id);
+      return b.u - a.u || a.id.localeCompare(b.id);
     });
 
-    var colunas = '132px 34px minmax(260px, 1fr) 150px 190px 56px';
+    var colunas = '132px minmax(240px, 1.3fr) 150px minmax(200px, 1fr) 110px 56px';
     var linhasFicha = doDia.map(function (p) {
       var f = fichaPorId[p.id];
       var aberta = s.aberta === p.id;
-      var frase = f && f.imp ? primeiraFrase(f.imp) : '';
       return '<div style="border-bottom: 1px solid #1d2226;">' +
         '<div class="row" data-card="' + esc(p.id) + '"' + ev('c', function () { setState({ aberta: aberta ? null : p.id }); }) + ' style="display: grid; grid-template-columns: ' + colunas + '; gap: 14px; padding: 14px 24px; align-items: center;">' +
-          '<span>' + seloDegrau(degrau(p), true) + '</span>' +
-          letraNatureza(p.nt) +
+          '<span>' + seloNatureza(p.nt) + '</span>' +
           '<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">' +
-            '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.t) + '</span>' +
-            (frase
-              ? '<span style="font-size: 12px; color: #a8a49b; line-height: 1.45; text-wrap: pretty;">' + esc(frase) + '</span>'
-              : '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.org || '—') + ' · sem ficha</span>') +
+            '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.35; text-wrap: pretty;">' + esc(p.t) + '</span>' +
+            (p.org || !f
+              ? '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc([p.org, f ? '' : 'sem ficha'].filter(Boolean).join(' · ')) + '</span>'
+              : '') +
           '</div>' +
           '<span style="display: flex; gap: 6px; flex-wrap: wrap;">' + marcasCard(p) + '</span>' +
-          '<span style="font-size: 11.5px; color: #8b8f96; line-height: 1.5;">' + esc(p.a || '—') + '</span>' +
+          '<span style="font-size: 11.5px; color: #8b8f96; line-height: 1.5;">' + esc(parArea(p)) + '</span>' +
+          celulaVertente(p) +
           '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12.5px; color: #ecebe6; text-align: right;">' + p.u + '</span>' +
         '</div>' + (aberta ? corpoAberto(p, f, 'jan:' + p.id, '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.org || '') + '</span>') : '') +
         '</div>';
@@ -2020,12 +1904,12 @@
         '<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px; flex-wrap: wrap;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
             '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Aprovados, dia a dia</div>' +
-            '<div style="font-size: 12.5px; color: #8b8f96;">Do mais barato de usar ao mais caro, depois por voto. Clique numa linha para abrir o porquê da classificação — e a ficha completa.</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Ordenados por voto. Clique numa linha para abrir o porquê da classificação — e a ficha completa.</div>' +
           '</div>' +
           navegacao +
         '</div>' +
         '<div style="display: grid; grid-template-columns: ' + colunas + '; gap: 14px; padding: 11px 24px; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; background: #131619; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">' +
-          '<span>DEGRAU</span><span>NAT.</span><span>TÍTULO · O QUE MUDA PARA VOCÊ</span><span>MARCAS</span><span>ÁREA</span><span style="text-align: right;">VOTOS</span>' +
+          '<span>NATUREZA</span><span>TÍTULO</span><span>MARCAS</span><span>ÁREA &gt; SUB-ÁREA</span><span>VERTENTE</span><span style="text-align: right;">VOTOS</span>' +
         '</div>' +
         linhasFicha +
         (linhasFicha ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum paper aprovado dentro deste recorte.</div>') +

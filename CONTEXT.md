@@ -32,6 +32,8 @@ O que o leitor precisa ter para obter o ganho principal de um aprovado. É uma
 escada — `nenhum` < `implementar` < `acesso_interno` < `treino` — mais
 `sem_acao`, quando não há nada a adotar. Cada valor é um **degrau**. A
 contradição de uma prática recebe o degrau necessário para aplicar a correção.
+Fica no banco e no Power BI; saiu do painel HTML em 21/10/2026, onde confundia
+mais do que separava — lá, natureza, área › sub-área e vertente categorizam.
 _Avoid_: adoção, acionabilidade, estrito/amplo
 
 **Perfil**:
@@ -56,7 +58,8 @@ prática que ainda não existe é contexto, não contradição.
 
 **Falta o como** (`falta_o_como`):
 O princípio é portável, mas o paper não diz como implementar. Texto, não
-booleano: o booleano `como_incompleto` deriva dele no export.
+booleano: o booleano `como_incompleto` deriva dele no export. No painel a marca
+se chama **somente princípio** ("princípio" no card).
 
 **Evidência de artefato** e **artefato aberto**:
 A evidência é externa e calculada em código (`vw_artefato`): repositório no HF,

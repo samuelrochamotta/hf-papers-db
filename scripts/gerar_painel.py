@@ -23,9 +23,8 @@ Quatro decisoes que valem explicacao:
    Se ficar pesado para distribuir, `--dias` e o botao para girar.
 
 3. A aba historica (`hall`) guarda, por trimestre de publicacao, os 15
-   aprovados mais votados com a ficha inteira - seguindo o perfil de leitura
-   que o leitor escolheu no navegador - e os 5 descartados mais votados com a
-   regra e a justificativa, como auditoria. Ela NAO preserva dado nenhum contra perda:
+   aprovados mais votados com a ficha inteira e os 5 descartados mais votados
+   com a regra e a justificativa, como auditoria. Ela NAO preserva dado nenhum contra perda:
    nada e apagado, nem do banco nem dos Parquet. O que ela resolve e
    visibilidade - impedir que o recorte de 90 dias esconda para sempre o que a
    comunidade mais votou. Por isso e derivada a cada geracao, sem tabela nova,
@@ -63,24 +62,11 @@ JANELA_PADRAO = 90
 JANELA_HALL_PADRAO = 90
 
 # Quinze e cinco, por decisao editorial (ADR 004): o registro historico e
-# leitura, e os descartados ficam so como auditoria do corte. O ranking dos
-# aprovados segue o perfil de leitura, que e escolhido no navegador - entao o
-# Python nao sabe qual conjunto de degraus vai ser pedido. Ele embute os 15 mais
-# votados DE CADA degrau: o top-15 de qualquer uniao de degraus esta contido na
-# uniao dos top-15 de cada um, e o app recorta dali sem errar. Custa ate seis
-# vezes o de um ranking unico (~2,5 KB por aprovado com ficha) - aceito para um
-# painel de consulta pessoal.
+# leitura, e os descartados ficam so como auditoria do corte. Ranking unico por
+# voto desde que o perfil de leitura saiu do painel (21/10/2026).
 TOPO_APROVADOS = 15
 TOPO_DESCARTADOS = 5
 
-# Degrau de um aprovado que ainda nao passou pela reclassificacao total do ADR
-# 004: as linhas migradas do regime estrito/amplo viraram `aprovado` sem
-# natureza nem pre-requisito. Elas NAO somem do painel - sumir faria a janela
-# encolher de um dia para o outro sem explicacao -, e tambem nao ganham um
-# degrau inventado. Viajam com este marcador, e o app as mostra como "nao
-# classificado": fora de qualquer perfil, visiveis em "Tudo" e na propria
-# pilula. Depois da reclassificacao total o marcador nao aparece mais.
-NAO_CLASSIFICADO = "__sem-degrau__"
 
 ORDINAL = {1: "1", 2: "2", 3: "3", 4: "4"}
 
@@ -261,15 +247,14 @@ def periodo(d: dt.date) -> tuple[str, str, dt.date, dt.date]:
 def classificacao(triagem: dict, paper: dict) -> dict:
     """Os campos que um aprovado leva para o card e para o filtro.
 
-    `pr` e `nt` saem sempre - nulo vira o marcador de nao classificado no
-    degrau, e `None` na natureza -, porque o app filtra e conta por eles. Os
-    textos e os links so saem quando existem: a janela tem centenas de
-    aprovados, e chave vazia repetida vira quilobyte. Os rotulos dos enums nao
-    viajam aqui: vem uma vez so, em `DADOS.degraus` e `DADOS.naturezas`, lidos
-    de `dim_prerequisito` e `dim_natureza`.
+    `nt` sai sempre - `None` quando o aprovado ainda e do regime anterior -,
+    porque o app filtra e conta por ela. Os textos e os links so saem quando
+    existem: a janela tem centenas de aprovados, e chave vazia repetida vira
+    quilobyte. O rotulo da natureza nao viaja aqui: vem uma vez so, em
+    `DADOS.naturezas`, lido de `dim_natureza`. O pre-requisito nao viaja: saiu
+    do painel em 21/10/2026 e fica no banco e nos Parquet.
     """
     extra: dict = {
-        "pr": triagem.get("prerequisito") or NAO_CLASSIFICADO,
         "nt": triagem.get("natureza"),
         "ao": 1 if triagem.get("artefato_aberto") else 0,
     }
@@ -327,9 +312,6 @@ def montar_hall(
     # esta saindo aos poucos.
     total: Counter[str] = Counter()
     aprovados: Counter[str] = Counter()
-    # aprovados por degrau, por trimestre: o app soma os degraus do perfil
-    # para dizer "15 de N" sem conhecer o trimestre inteiro
-    aprovados_degrau: dict[str, Counter[str]] = defaultdict(Counter)
     descartados: Counter[str] = Counter()
     rotulos: dict[str, tuple[str, dt.date, dt.date]] = {}
     for p in papers:
@@ -342,7 +324,6 @@ def montar_hall(
         v = veredito(p["paper_id"])
         if v == "aprovado":
             aprovados[chave] += 1
-            aprovados_degrau[chave][triagem[p["paper_id"]].get("prerequisito") or NAO_CLASSIFICADO] += 1
         elif v == "fora":
             descartados[chave] += 1
 
@@ -360,18 +341,8 @@ def montar_hall(
         aprov = por_voto([p for p in grupo if veredito(p["paper_id"]) == "aprovado"])
         desc = por_voto([p for p in grupo if veredito(p["paper_id"]) == "fora"])
 
-        # Os TOPO_APROVADOS de cada degrau, na ordem de voto do grupo: ver o
-        # comentario de TOPO_APROVADOS para por que nao e um ranking so.
-        por_degrau: Counter[str] = Counter()
-        escolhidos = []
-        for p in aprov:
-            degrau = triagem[p["paper_id"]].get("prerequisito") or NAO_CLASSIFICADO
-            if por_degrau[degrau] < TOPO_APROVADOS:
-                por_degrau[degrau] += 1
-                escolhidos.append(p)
-
         entradas_aprov = []
-        for p in escolhidos:
+        for p in aprov[:TOPO_APROVADOS]:
             pid = p["paper_id"]
             f = fichas.get(pid, {})
             t = triagem.get(pid, {})
@@ -394,14 +365,12 @@ def montar_hall(
                 # top-10 mentir sobre quem foi mais votado - e a linha so nao
                 # abre. `f` e o que o app usa para decidir isso.
                 "f": 1 if f else 0,
-                # cabecalho da decisao (issue #2): por que este degrau e esta
-                # natureza, independente de a ficha ter sido escrita.
+                # cabecalho da decisao (issue #2): por que esta classificacao,
+                # independente de a ficha ter sido escrita.
                 "j": j,
                 "h": h,
                 **classificacao(t, p),
                 "ach": f.get("achado") or "",
-                "pn": f.get("padrao_nome") or "",
-                "pm": f.get("padrao_mecanismo") or "",
                 "imp": f.get("implicacao_pratica") or "",
                 "ex": f.get("exemplo_concreto") or "",
                 "res": f.get("ressalva") or "",
@@ -434,7 +403,6 @@ def montar_hall(
             "fim": fim.isoformat(),
             "n": total[chave],
             "na": aprovados[chave],
-            "nad": dict(sorted(aprovados_degrau[chave].items())),
             "nd": descartados[chave],
             "nx": total[chave] - aprovados[chave] - descartados[chave],
             "cons": 1 if fim >= corte else 0,
@@ -442,16 +410,6 @@ def montar_hall(
             "de": entradas_desc,
         })
     return hall
-
-
-def perfis() -> list[dict]:
-    degraus: dict[str, list[str]] = defaultdict(list)
-    for r in ler("ponte_perfil_prerequisito"):
-        degraus[r["perfil"]].append(r["prerequisito"])
-    return [
-        {"p": r["perfil"], "r": r.get("rotulo") or r["perfil"], "d": sorted(degraus.get(r["perfil"], []))}
-        for r in sorted(ler("dim_perfil"), key=lambda x: (x.get("ordem") or 0, x["perfil"]))
-    ]
 
 
 def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]:
@@ -561,7 +519,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "f": 1 if pid in fichas else 0,
         }
         # cabecalho da decisao (issue #2) e classificacao do ADR 004: so os
-        # aprovados os renderizam, entao so eles carregam `j`/`h`, degrau,
+        # aprovados os renderizam, entao so eles carregam `j`/`h`,
         # natureza, textos e links - um `fora` com essas chaves vazias viajaria
         # em centenas de papers da janela sem ninguem para le-las.
         if veredito_p == "aprovado":
@@ -620,31 +578,18 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             {"v": v["vertente"], "def": v.get("definicao") or ""}
             for v in sorted(ler("dim_vertente"), key=lambda x: x["vertente"])
         ],
-        # O vocabulario do ADR 004, na ordem do banco: `ordem` de
-        # `dim_prerequisito` e a escada, e e ela que ordena os cards dentro do
-        # dia e as pilulas. Rotulo e definicao viajam uma vez, aqui.
-        "degraus": [
-            {"k": d["prerequisito"], "r": d.get("rotulo") or d["prerequisito"],
-             "def": d.get("definicao") or ""}
-            for d in sorted(ler("dim_prerequisito"), key=lambda x: (x.get("ordem") or 0, x["prerequisito"]))
-        ],
+        # A natureza do ADR 004, na ordem do banco. Rotulo e definicao viajam
+        # uma vez, aqui.
         "naturezas": [
             {"k": n["natureza"], "r": n.get("rotulo") or n["natureza"],
              "def": n.get("definicao") or ""}
             for n in sorted(ler("dim_natureza"), key=lambda x: (x.get("ordem") or 0, x["natureza"]))
         ],
-        # Os perfis sao a unica fonte do preset de degraus (config.yaml ->
-        # dim_perfil + ponte_perfil_prerequisito). O painel nao le
-        # `ponte_paper_perfil`: as pilulas de degrau sao editaveis, e o recorte
-        # precisa do conjunto de degraus de qualquer jeito.
-        "perfis": perfis(),
         "papers": lista,
         "fichas": [
             {
                 "p": pid,
                 "ach": f.get("achado") or "",
-                "pn": f.get("padrao_nome") or "",
-                "pm": f.get("padrao_mecanismo") or "",
                 "imp": f.get("implicacao_pratica") or "",
                 "ex": f.get("exemplo_concreto") or "",
                 "res": f.get("ressalva") or "",

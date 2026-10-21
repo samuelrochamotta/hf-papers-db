@@ -1,17 +1,16 @@
-"""O contrato de `DADOS` no regime do ADR 004: classificacao, vocabulario,
-perfis e o par area > sub-area.
+"""O contrato de `DADOS` no regime do ADR 004: classificacao, vocabulario e
+o par area > sub-area.
 
 Os testes travam o que `montar_dados`/`montar_hall` entregam ao app: quais
-entradas carregam degrau, natureza, textos e links, em que ordem os
-vocabularios viajam, e quais NAO carregam nada disso (peso do arquivo). O
+entradas carregam natureza, textos e links, em que ordem o vocabulario viaja,
+e quais NAO carregam nada disso (peso do arquivo). O pre-requisito, os perfis
+e o Padrao Extraido sairam do painel em 21/10/2026 e nao viajam. O
 desenho e o recorte sao testados do lado do navegador, em `tests/js/`.
 """
 
 from __future__ import annotations
 
 import datetime as dt
-
-from gerar_painel import NAO_CLASSIFICADO
 
 DIA = dt.date(2020, 1, 1)
 JANELA_LONGA = 100_000
@@ -84,7 +83,7 @@ def _triado(pid, veredito="aprovado", **extra):
 
 # ══════════════ classificacao na lista da janela ══════════════
 
-def test_aprovado_carrega_degrau_natureza_textos_e_links(tmp_path, monkeypatch):
+def test_aprovado_carrega_natureza_textos_e_links(tmp_path, monkeypatch):
     dados = _montar(
         tmp_path, monkeypatch,
         [_paper("p1", github_repo="https://github.com/x/y", project_page="https://p")],
@@ -93,7 +92,8 @@ def test_aprovado_carrega_degrau_natureza_textos_e_links(tmp_path, monkeypatch):
                  artefato_aberto=True)],
     )
     p = dados["papers"][0]
-    assert (p["v"], p["pr"], p["nt"], p["ao"]) == ("aprovado", "nenhum", "proposta", 1)
+    assert (p["v"], p["nt"], p["ao"]) == ("aprovado", "proposta", 1)
+    assert "pr" not in p                       # o pre-requisito saiu do painel
     assert p["pc"] == "reusar o mesmo prompt"
     assert "fo" not in p                       # texto ausente nao viaja vazio
     assert (p["gh"], p["pg"], p["oa"]) == ("https://github.com/x/y", "https://p", 1)
@@ -114,12 +114,12 @@ def test_descartado_nao_carrega_classificacao(tmp_path, monkeypatch):
         assert chave not in p
 
 
-def test_aprovado_sem_prerequisito_vira_nao_classificado(tmp_path, monkeypatch):
+def test_aprovado_sem_natureza_fica_na_janela(tmp_path, monkeypatch):
     """A linha migrada de estrito/amplo antes da reclassificacao total: fica na
-    janela, com o marcador, sem degrau inventado."""
+    janela sem natureza inventada; o app a mostra como nao classificada."""
     dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1")])
     p = dados["papers"][0]
-    assert (p["pr"], p["nt"], p["ao"]) == (NAO_CLASSIFICADO, None, 0)
+    assert (p["nt"], p["ao"]) == (None, 0)
 
 
 def test_contrato_antigo_nao_viaja(tmp_path, monkeypatch):
@@ -129,23 +129,18 @@ def test_contrato_antigo_nao_viaja(tmp_path, monkeypatch):
         assert chave not in p
 
 
-# ══════════════ vocabulario e perfis ══════════════
+# ══════════════ vocabulario ══════════════
 
-def test_degraus_e_naturezas_saem_na_ordem_do_banco(tmp_path, monkeypatch):
+def test_naturezas_saem_na_ordem_do_banco_e_perfis_nao_viajam(tmp_path, monkeypatch):
     dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1")])
-    assert [d["k"] for d in dados["degraus"]] == [
-        "nenhum", "implementar", "acesso_interno", "treino", "sem_acao",
-    ]
-    assert dados["degraus"][0] == {"k": "nenhum", "r": "Nenhum", "def": "d1"}
     assert [n["k"] for n in dados["naturezas"]] == ["proposta", "panorama"]
+    assert "degraus" not in dados and "perfis" not in dados
 
 
-def test_perfis_saem_com_os_degraus_do_config(tmp_path, monkeypatch):
-    dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1")])
-    assert dados["perfis"] == [
-        {"p": "produto", "r": "Produto", "d": ["implementar", "nenhum"]},
-        {"p": "pesquisa_treino", "r": "Treino/pesquisa", "d": ["treino"]},
-    ]
+def test_fichas_nao_levam_o_padrao(tmp_path, monkeypatch):
+    dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1", natureza="proposta")])
+    for f in dados["fichas"]:
+        assert "pn" not in f and "pm" not in f
 
 
 # ══════════════ vertente e par area > sub-area ══════════════
@@ -176,7 +171,7 @@ def test_a_classificacao_acompanha_o_paper_ate_a_aba_historica(tmp_path, monkeyp
     )
     entrada = dados["hall"][0]["ap"][0]
     assert (entrada["a"], entrada["sa"]) == ("Contexto & recuperação", "Memória de longo prazo")
-    assert (entrada["pr"], entrada["nt"]) == ("treino", "proposta")
+    assert entrada["nt"] == "proposta" and "pr" not in entrada
 
 
 def test_paper_sem_par_nao_inventa_subarea(tmp_path, monkeypatch):
