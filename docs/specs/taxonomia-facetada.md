@@ -1,5 +1,7 @@
 # Spec — Taxonomia facetada: Área > Sub-área × Vertente
 
+> **Nota de 20/10/2026, sem alterar o texto abaixo.** Na parte de veredito (estrito/amplo, critérios, fronteira, regras de descarte de treino e de relatório técnico) este documento foi superado pelo ADR 004 (`docs/adr/004-natureza-e-prerequisito.md`). O resto continua valendo.
+
 - **Data**: 2026-09-07
 - **Estado**: **implementada** em 2026-09-08 (tickets 01 a 10)
 - **Precede**: reescrita da classificação do Estágio A

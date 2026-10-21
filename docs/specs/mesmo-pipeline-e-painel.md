@@ -1,5 +1,7 @@
 # Spec: mesmo pipeline para todo paper, e o painel que decorre disso
 
+> **Nota de 20/10/2026, sem alterar o texto abaixo.** Na parte de veredito (estrito/amplo, critérios, fronteira, regras de descarte de treino e de relatório técnico) este documento foi superado pelo ADR 004 (`docs/adr/004-natureza-e-prerequisito.md`). O resto continua valendo.
+
 Estado: **decidido**. Nada aqui está em aberto. Cada item cita o ticket do mapa
 wayfinder (`.scratch/mesmo-pipeline-e-painel/issues/`) que o decidiu; o detalhe
 e o porquê moram lá, esta spec só ordena e delimita. Glossário em `CONTEXT.md`.

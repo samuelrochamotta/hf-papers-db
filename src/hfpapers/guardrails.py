@@ -3,10 +3,9 @@
 Nenhum destes altera um veredito. Todos apenas gravam aviso em
 `log_execucao.avisos`.
 
-As faixas de taxa de FORA e de aprovados/dia foram calibradas no regime
-anterior ao ADR 004, que descartava treino e relatorio tecnico. No regime novo
-elas sao provisorias (ver `config.yaml`) ate a recalibracao com a distribuicao
-da reclassificacao total. O aviso de distribuicao por degrau e novo: se
+As faixas de taxa de FORA e de aprovados/dia foram calibradas com a
+distribuicao diaria da reclassificacao total do ADR 004 (ver `config.yaml`). O
+aviso de distribuicao por degrau e novo: se
 `nenhum` domina os aprovados, o eixo de pre-requisito perdeu o sentido.
 """
 

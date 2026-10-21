@@ -78,7 +78,10 @@ Réguas que decidem os casos difíceis:
   errado, pior ou enganoso. Um método novo que supera o anterior não contradiz o
   anterior, e a crítica que só motiva o método na introdução não conta: a
   prática tem de ser o objeto do achado central. Conclusão sobre prática que
-  ainda não existe é contexto. `null` é a resposta comum.
+  ainda não existe é contexto. `null` é a resposta comum. Em `proposta` de
+  método é sempre `null`; a exceção é o instrumento que mede a prática falhando
+  (benchmark que mostra a avaliação corrente enganando, análise separada de
+  dano).
 - `falta_o_como` — o princípio é portável, mas o paper não diz como implementar.
 
 **Artefato aberto** tem evidência externa — repositório no HF, link no abstract,
@@ -116,8 +119,8 @@ interessante, recomendar leitura. A ficha é útil ou o paper não entra.
 
 Calculados em código depois da classificação. **Nenhum deles altera uma
 classificação** — todos apenas gravam aviso na execução. As faixas de taxa de
-FORA e de aprovados/dia são **provisórias** desde o ADR 004 (ver `config.yaml`)
-e são recalibradas com a distribuição da reclassificação total.
+FORA e de aprovados/dia foram calibradas com a distribuição diária da
+reclassificação total do ADR 004 (ver `config.yaml`).
 
 | Condição | Aviso |
 |---|---|

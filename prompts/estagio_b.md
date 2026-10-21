@@ -138,6 +138,15 @@ Invariantes que voltam para você refazer: `teoria` e `panorama` são sempre
   própria proposta; essa crítica de introdução não conta. Pergunte: se o leitor
   ler só os resultados, sai sabendo que a prática dele está errada? Se não,
   `null`.
+
+  **Em `proposta` de método, a resposta é `null`** — o achado central é o método,
+  e a prática anterior é só o baseline que ele supera, mesmo quando o paper
+  diz por que ela é pior ("supervisão uniforme do professor mistura sinal ruim",
+  "estimar confiança só pela inferência atual"). A exceção é uma `proposta` cujo
+  instrumento **mede a prática falhando** como resultado próprio: um benchmark
+  ou protocolo de avaliação que mostra que a forma corrente de medir engana
+  ("55% das questões se resolvem sem ver o vídeo"), ou uma análise separada que
+  mostra a prática causando dano, não só perdendo pontos.
 - `falta_o_como` — o princípio é portável, mas o paper **não diz como
   implementar**: diga o que falta, em uma frase. Se o paper diz como, `null`.
 

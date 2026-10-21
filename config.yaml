@@ -96,18 +96,18 @@ refresh:
   enriquecimento_semanal: true   # numTotal* da janela quente, via papers/{id}
 
 guardrails:
-  # PROVISORIO (ADR 004, 20/10/2026): as faixas de 50%/60-80% de fora e 4-9
-  # aprovados eram do regime que descartava treino e relatorio tecnico. Estas
-  # sao largas de proposito e sao recalibradas com a distribuicao da
-  # reclassificacao total.
-  taxa_fora_min: 0.15
-  taxa_fora_faixa_normal: [0.20, 0.60]
-  aprovados_faixa_normal: [8, 60]
-  aprovados_volume_alto: 70
+  # Calibrados na reclassificacao total do ADR 004 (20/10/2026), com os dias
+  # dos ultimos 90 com >= 15 classificados: faixa normal ~ p10-p90, minimo de
+  # fora ~ p5, volume alto acima do p97. Ver
+  # docs/relatorios/natureza-prerequisito-v1.md.
+  taxa_fora_min: 0.20
+  taxa_fora_faixa_normal: [0.25, 0.47]
+  aprovados_faixa_normal: [13, 40]
+  aprovados_volume_alto: 45
   coletados_min_dia_util: 15
   # Se `nenhum` passar desta fracao dos aprovados do dia, o eixo de
   # pre-requisito perdeu o sentido. So le a partir de um minimo de aprovados.
-  prerequisito_nenhum_max: 0.40
+  prerequisito_nenhum_max: 0.15
   prerequisito_min_aprovados: 10
 
 # Perfis de leitura (ADR 004): o conjunto de degraus de pre-requisito em que

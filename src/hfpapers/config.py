@@ -132,13 +132,13 @@ class Refresh(BaseModel):
 
 
 class Guardrails(BaseModel):
-    # Provisorios desde o ADR 004: ver o comentario em config.yaml.
-    taxa_fora_min: float = 0.15
-    taxa_fora_faixa_normal: tuple[float, float] = (0.20, 0.60)
-    aprovados_faixa_normal: tuple[int, int] = (8, 60)
-    aprovados_volume_alto: int = 70
+    # Calibrados na reclassificacao total do ADR 004: ver config.yaml.
+    taxa_fora_min: float = 0.20
+    taxa_fora_faixa_normal: tuple[float, float] = (0.25, 0.47)
+    aprovados_faixa_normal: tuple[int, int] = (13, 40)
+    aprovados_volume_alto: int = 45
     coletados_min_dia_util: int = 15
-    prerequisito_nenhum_max: float = 0.40
+    prerequisito_nenhum_max: float = 0.15
     prerequisito_min_aprovados: int = 10
 
 

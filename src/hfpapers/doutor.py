@@ -186,9 +186,10 @@ def checar_vocabulario(cfg: Config) -> Item:
     )
 
 
-# Area primaria que cada regra de descarte de conteudo pressupoe. A regra e a
-# area sao classificadas pelo mesmo Estagio A e quase sempre coincidem; quando
-# divergem, uma das duas esta errada.
+# Area primaria que cada regra de descarte de conteudo costuma acompanhar. So
+# dado, nao aviso: a area diz o que o paper faz e a regra diz o dominio, entao
+# divergir e o normal em ~12% dos descartes (interpretabilidade de um modelo de
+# TTS e "Internos do modelo" e ainda e midia). Ver o relatorio do ADR 004.
 AREA_DA_REGRA = {
     "geracao_de_midia": "Geração de mídia",
     "percepcao_robotica_embodied": "Percepção & robótica",
@@ -247,8 +248,6 @@ def checar_regime(cfg: Config) -> Item:
         )
     if incoerentes:
         problemas.append(f"{incoerentes} aprovados com natureza incoerente com o pre-requisito")
-    if regra_area:
-        problemas.append(f"{regra_area} descartes por midia/percepcao fora da area correspondente")
     if problemas:
         return Item("regime", AVISO, "; ".join(problemas), dados)
     return Item("regime", OK, "triagem toda no regime do ADR 004, sem incoerencia", dados)
