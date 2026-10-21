@@ -931,7 +931,7 @@
             '<span style="font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: ' + ACCENT + ';">hf-papers-db</span>' +
           '</div>' +
           '<div style="font-family: Newsreader, Georgia, serif; font-size: 66px; font-weight: 300; line-height: 0.96; letter-spacing: -0.02em; color: #f5f3ee;">Daily Papers,<span style="font-style: italic; font-weight: 400; color: ' + ACCENT + ';"> triados</span></div>' +
-          '<div style="font-family: Newsreader, Georgia, serif; font-size: 17px; font-weight: 300; line-height: 1.55; color: #a8a49b; max-width: 680px; text-wrap: pretty;">Papers do Hugging Face Daily Papers, classificados pelo que afirmam e pelo tema, e resumidos em fichas.</div>' +
+          '<div style="font-family: Newsreader, Georgia, serif; font-size: 17px; font-weight: 300; line-height: 1.55; color: #a8a49b; max-width: 680px; text-wrap: pretty;">Papers do Hugging Face Daily Papers, classificados pelo tema e resumidos em fichas.</div>' +
         '</div>' +
         '<div style="display: flex; gap: 34px; text-align: right; padding-bottom: 4px;">' +
           '<div style="display: flex; flex-direction: column; gap: 5px;">' +
