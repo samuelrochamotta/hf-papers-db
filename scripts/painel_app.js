@@ -753,17 +753,6 @@
     hall.forEach(function (per) { if (per.per === s.perSel) atual = per; });
     if (!atual) atual = hall[0];
 
-    /* ── nota de leitura ────────────────────────────────────────────────── */
-    out.push(
-      '<div class="card" style="margin: 26px 0 30px; padding: 20px 24px; display: flex; align-items: flex-start; gap: 16px;">' +
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.5v.01"></path></svg>' +
-        '<div style="font-size: 12.5px; line-height: 1.7; color: #a8a49b; max-width: 880px; text-wrap: pretty;">' +
-          'As abas <em style="color: #ecebe6; font-style: normal;">Aprovados</em> e <em style="color: #ecebe6; font-style: normal;">Panorama</em> mostram os últimos ' + DADOS.janela + ' dias. Aqui ficam, de cada trimestre já fora dela, os ' + TOPO_HALL + ' aprovados mais votados, com a ficha inteira, e os 5 descartados mais votados, como auditoria do corte. ' +
-          '<span style="color: #6d7178;">Nada é apagado em lugar nenhum: a série completa continua no banco e nos Parquet. Os votos aqui estão congelados porque o refresh para de reconsultá-los aos ' + (DADOS.diasRefresh || DADOS.diasHall) + ' dias.</span>' +
-        '</div>' +
-      '</div>'
-    );
-
     /* ── seletor de trimestre ──────────────────────────────────────────── */
     var chipsPer = hall.map(function (per) {
       var on = per.per === atual.per;
@@ -977,19 +966,17 @@
       return out.join('');
     }
 
-    /* ══════════════ NOTA DE TRANSIÇÃO ══════════════ */
-    out.push(
-      '<div class="card" style="margin: 24px 0 0; padding: 16px 22px; display: flex; align-items: flex-start; gap: 14px;">' +
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.5v.01"></path></svg>' +
-        '<div style="font-size: 12.5px; line-height: 1.65; color: #a8a49b; text-wrap: pretty;">' +
-          'Desde 20/10/2026 o painel não separa mais <em style="font-style: normal; color: #ecebe6;">estrito</em> e <em style="font-style: normal; color: #ecebe6;">amplo</em>. Cada aprovado diz que tipo de afirmação faz (<em style="font-style: normal; color: #ecebe6;">natureza</em>) e se localiza por área, sub-área e vertente. ' +
-          'Papers de treino e de pesquisa deixaram de ser descartados.' +
-          (naoClassificados
-            ? ' <span style="color: #6d7178;">' + naoClassificados + ' aprovados da janela ainda são do regime anterior e aparecem como <em>não classificado</em> até a reclassificação total.</span>'
-            : '') +
-        '</div>' +
-      '</div>'
-    );
+    /* ══════════════ AVISO DE NÃO CLASSIFICADOS ══════════════ */
+    if (naoClassificados) {
+      out.push(
+        '<div class="card" style="margin: 24px 0 0; padding: 16px 22px; display: flex; align-items: flex-start; gap: 14px;">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.5v.01"></path></svg>' +
+          '<div style="font-size: 12.5px; line-height: 1.65; color: #a8a49b; text-wrap: pretty;">' +
+            naoClassificados + ' aprovados da janela ainda são do regime anterior e aparecem como <em>não classificado</em> até a reclassificação total.' +
+          '</div>' +
+        '</div>'
+      );
+    }
 
     /* ══════════════ FILTROS ══════════════ */
     var contaDia = {};
