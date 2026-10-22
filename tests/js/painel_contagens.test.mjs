@@ -130,6 +130,17 @@ test('natureza e marca recortam os aprovados', () => {
   assert.equal(p.contaPilula('somente princípio'), 1);
 });
 
+test('com natureza marcada, o resumo separa aprovados de descartados', () => {
+  const p = painel();
+  p.clicaPilula('Achado empírico');
+  // 1 achado empirico + os 6 descartados, que a natureza deixa passar
+  assert.match(p.html, /7 de 10 · 1 aprovados \+ 6 descartados · Achado empírico/);
+  p.aba('Panorama');
+  p.clicaPilula('aprovado');
+  // sem descartado no recorte, a quebra nao aparece
+  assert.match(p.html, /1 de 10 · Achado empírico/);
+});
+
 // ══════════════ aba Aprovados ══════════════
 
 test('dentro do dia a ordem e o voto', () => {

@@ -1054,7 +1054,12 @@
     if (s.regrasFora.length) ativos.push(s.regrasFora.length === 1 ? 'regra: ' + rotulo(s.regrasFora[0]) : s.regrasFora.length + ' regras');
     if (s.orgs.length) ativos.push(s.orgs.length === 1 ? (s.orgs[0] === '__sem-org__' ? 'sem organização' : s.orgs[0]) : s.orgs.length + ' organizações');
     if (s.buscaQ) ativos.push('"' + s.buscaQ + '"');
-    var resumoFiltro = ativos.length ? total + ' de ' + todos.length + ' · ' + ativos.join(' · ') : todos.length + ' papers, sem recorte';
+    /* Natureza e marcas deixam os descartados passarem (ver `filtrados`):
+       sem a quebra, "991 de 2357 · achado empírico" parece dizer que ha 991
+       achados empiricos, quando sao 164 mais os 827 descartados. */
+    var quebra = (s.naturezas.length || s.marcas.length) && nFora
+      ? ' · ' + aprovadosSel.length + ' aprovados + ' + nFora + ' descartados' : '';
+    var resumoFiltro = ativos.length ? total + ' de ' + todos.length + quebra + ' · ' + ativos.join(' · ') : todos.length + ' papers, sem recorte';
 
     var estiloLimpar = 'display: inline-flex; align-items: center; gap: 7px; font-size: 12px; padding: 8px 14px; border-radius: 100px; background: ' +
       (ativos.length ? 'rgba(217,164,65,0.12)' : '#1b1f23') + '; border: 1px solid ' + (ativos.length ? 'rgba(217,164,65,0.5)' : '#2b3138') +
