@@ -1,14 +1,11 @@
 # Configuracao do hf-papers-db.
-# IDs de modelo do OpenRouter NAO sao chutados: rode
-#   python -m hfpapers modelos listar
-# e cole aqui os ids escolhidos (secao 4.2 do PROMPT).
 
 paths:
   banco: "data/hfpapers.db"
   marts: "marts"
   prompts: "prompts"
   logs: "logs"
-  relatorios: "relatorios"        # artefatos de leitura: painel.html
+  relatorios: "relatorios"
 
 hf:
   base_url: "https://huggingface.co"
@@ -21,69 +18,22 @@ llm:
   base_url: "https://openrouter.ai/api/v1"
   referer: "https://github.com/samuelrochamotta/hf-papers-db"
   titulo_app: "hf-papers-db"
-  timeout_s: 180            # read timeout do httpx; ver `prazo_total_s` abaixo
-  # Teto de ponta a ponta por chamada. Precisa existir separado do `timeout_s`:
-  # aquele é read timeout, e o keep-alive do OpenRouter (`: OPENROUTER
-  # PROCESSING`) o reinicia a cada linha, então uma chamada de 409,8 s atravessa
-  # um teto de 180 s sem erro, sem retentativa e sem linha em `log_llm`. Foi
-  # assim que a rodada 1 do ticket 07 parou: quatro threads em voo, sete
-  # minutos, zero chamadas concluídas.
-  #
-  # 90 s vem da medição de 2026-09-08, já sob `esforco_raciocinio`: em 201
-  # chamadas com provedor registrado (as validações de 15:06–15:12 mais a rodada
-  # que expôs a cauda) o pior caso legítimo foi 55,5 s no A e 13,8 s no B,
-  # e o valor seguinte depois de 55,5 s era 409,8 s. O teto cai no vazio entre
-  # os dois — não corta nenhuma chamada boa observada e mata a cauda.
-  #
-  # A chamada abandonada continua sendo cobrada (~US$ 0,0004) e a resposta dela
-  # é descartada. É o preço do teto, e é barato: aquela única chamada de 409,8 s
-  # *foi* a parede de uma rodada de 30 papers — a rodada durou 409 s e só
-  # terminou quando ela terminou.
-  #
-  # `0` desliga, para quando o modelo mudar e a distribuição junto.
+  timeout_s: 180
   prazo_total_s: 90
-  # chamadas simultâneas no estágio 3. Padrão 1 (sequencial, o caminho de
-  # sempre): a rodada diária são ~30 papers e não ganha nada com paralelismo,
-  # e rajada é o que dispara o 429/404 da issue #1. Quem precisa é a
-  # reclassificação total: `reclassificar --tudo --concorrencia 4`. Teto: 8.
   concorrencia: 1
-  # O GLM 5.3 flash raciocina de forma obrigatoria - `reasoning.enabled: false`
-  # volta HTTP 400 -, e com o prompt da grade facetada (14 mil caracteres, 47
-  # sub-areas definidas) ele gastava 2.343 tokens de rascunho para produzir 540
-  # caracteres de JSON. Medido em 2026-09-08 com 140 papers e 420 chamadas:
-  # `effort` derruba a saida para 220 tokens e a latencia de 174 s para 12 s,
-  # sem mexer na classificacao - `low` e `medium` concordam entre si em 87% do
-  # par area>sub-area, mais do que `low` concorda consigo mesmo (82%).
   esforco_raciocinio: &esforco "medium"
   estagio_a:
     modelo: "z-ai/glm-5.3-flash"
     temperatura: 0.0
     esforco_raciocinio: *esforco
-    # Teto, nao gasto: chamada que produz 200 tokens continua custando 200.
-    # Voltou de 6000 para 2400 junto com o `esforco_raciocinio`: em 420 chamadas
-    # medidas a maior saida foi de 532 tokens, entao 2400 da 4,5x de folga.
     max_tokens: 2400
   estagio_b:
     modelo: "z-ai/glm-5.3-flash"
     temperatura: 0.2
     esforco_raciocinio: *esforco
-    # Fica em 8000 ate ser medido: os 33% de truncamento vistos em 2026-09-08
-    # sao de antes do `esforco_raciocinio`, e provavelmente somem com ele.
     max_tokens: 8000
   provider:
-    require_parameters: true  # só roteia para provedores com saída estruturada
-    # Endpoints tentados primeiro. Medido em 2026-09-08, 171 chamadas: Together
-    # com média de 3,3 s e pior caso de 13,8 s; Sail Research com 14,6 s e pior
-    # de 55,5 s. Foi o Sail que pendurou a rodada 1 do ticket 07 — quatro
-    # threads paradas, sete minutos, zero chamadas concluídas -, e uma sonda
-    # fora do pipeline o pegou em 195 s (esse valor não está em `log_llm`: a
-    # coluna `provedor` ainda não existia). O `timeout_s` não pega esse caso: o
-    # keep-alive `: OPENROUTER PROCESSING` reinicia o read timeout do httpx a
-    # cada linha, então a chamada de 195 s passa sob o teto de 180 s sem erro,
-    # sem retry e sem linha em `log_llm`.
-    #
-    # É preferência, não exclusividade: o fallback para os outros 22 endpoints
-    # continua ligado, senão isto vira a armadilha do provedor único.
+    require_parameters: true
     preferidos: ["Together"]
   retry:
     tentativas: 3
@@ -92,28 +42,17 @@ llm:
 refresh:
   janela_quente_dias: 30    # todo dia
   janela_morna_dias: 90     # semanal (segunda-feira)
-  # acima de 90 dias: congelado, sem refresh
-  enriquecimento_semanal: true   # numTotal* da janela quente, via papers/{id}
+  enriquecimento_semanal: true
 
 guardrails:
-  # Calibrados na reclassificacao total do ADR 004 (20/10/2026), com os dias
-  # dos ultimos 90 com >= 15 classificados: faixa normal ~ p10-p90, minimo de
-  # fora ~ p5, volume alto acima do p97. Ver
-  # docs/relatorios/natureza-prerequisito-v1.md.
   taxa_fora_min: 0.20
   taxa_fora_faixa_normal: [0.25, 0.47]
   aprovados_faixa_normal: [13, 40]
   aprovados_volume_alto: 45
   coletados_min_dia_util: 15
-  # Se `nenhum` passar desta fracao dos aprovados do dia, o eixo de
-  # pre-requisito perdeu o sentido. So le a partir de um minimo de aprovados.
   prerequisito_nenhum_max: 0.15
   prerequisito_min_aprovados: 10
 
-# Perfis de leitura (ADR 004): o conjunto de degraus de pre-requisito em que
-# cada leitor consegue agir. Fica fora do paper - mudar aqui nao reclassifica
-# nada; o banco espelha esta lista a cada conexao. Degraus: nenhum,
-# implementar, acesso_interno, treino, sem_acao.
 perfis:
   - perfil: produto
     rotulo: Produto
@@ -124,4 +63,4 @@ perfis:
 
 export:
   csv: false
-  faixas_upvotes: [1, 10, 50, 100]   # bordas dos buckets: 0 | 1-9 | 10-49 | 50-99 | 100+
+  faixas_upvotes: [1, 10, 50, 100]
