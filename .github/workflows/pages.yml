@@ -1,0 +1,42 @@
+name: Publicar painel no GitHub Pages
+
+# O launchd local gera relatorios/painel.html e faz push (~08:00 BRT). O push
+# dispara este deploy. O cron e so rede de seguranca: republica o que estiver
+# em main caso algum push nao tenha disparado o workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - relatorios/painel.html
+      - .github/workflows/pages.yml
+  schedule:
+    - cron: "30 12 * * *" # 09:30 BRT, depois do painel das 08:30
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Montar o site
+        run: |
+          mkdir _site
+          cp relatorios/painel.html _site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
