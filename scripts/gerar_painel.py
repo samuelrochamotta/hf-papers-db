@@ -1,13 +1,23 @@
 """Gera o painel HTML estatico a partir dos Parquet de marts/.
 
-E a interface de leitura do projeto: nao ha outro dashboard. Um arquivo
-unico, sem dependencia de rede, que abre em qualquer visualizador de HTML
-(Teams, e-mail, navegador).
+E a interface de leitura do projeto: nao ha outro dashboard. O painel e um
+site estatico publico (GitHub Pages), sem servidor: uma pasta com
+`index.html`, o app, o ECharts e os dados em JSON a parte.
 
 O desenho e o mesmo do Artifact "Painel Daily Papers", que nasceu como
-artboard da Claude Design. Aquele arquivo so roda dentro do runtime do canvas;
-`scripts/painel_app.js` e o porte do mesmo layout para JS de navegador. Este
-script nao desenha nada: extrai os dados, serializa em `DADOS` e embute o app.
+artboard da Claude Design. `scripts/painel_app.js` e o app de navegador e os
+graficos sao Apache ECharts, num build com so os modulos usados
+(`scripts/echarts/`, saida versionada em `scripts/vendor/`). Este script nao
+desenha nada: extrai os dados, pre-agrega o que da e escreve os arquivos.
+
+Duas saidas:
+
+- **Pasta** (padrao, `relatorios/painel/`): `index.html` leve, `dados.json`
+  com o que a primeira pintura precisa e `fichas.json`, o texto das fichas,
+  que o app busca depois de desenhar. Separar as fichas e o que deixa o
+  primeiro carregamento leve num site publico: elas sao a maior parte do peso.
+- **Arquivo unico** (`--destino algo.html`): tudo embutido, inclusive o
+  ECharts, para abrir offline ou mandar por e-mail. E o formato das previas.
 
 Quatro decisoes que valem explicacao:
 
@@ -42,7 +52,9 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import hashlib
 import os
+import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -53,9 +65,12 @@ import yaml
 
 RAIZ = Path(__file__).resolve().parent.parent
 DIR_MARTS = RAIZ / "marts"
-DESTINO_PADRAO = RAIZ / "relatorios" / "painel.html"
+DESTINO_PADRAO = RAIZ / "relatorios" / "painel"
 CARIMBO = RAIZ / "marts" / ".painel_run_id"
 APP_JS = Path(__file__).resolve().parent / "painel_app.js"
+ECHARTS_JS = Path(__file__).resolve().parent / "vendor" / "echarts.painel.min.js"
+# URL publica do painel, para as tags de compartilhamento (og:url).
+URL_PUBLICA = os.environ.get("PAINEL_URL_PUBLICA", "")
 CONFIG = RAIZ / "config.yaml"
 
 JANELA_PADRAO = 90
@@ -129,24 +144,18 @@ def justificativa_exibivel(triagem: dict) -> tuple[str, int]:
 # que permite comparar os dois lado a lado sem traduzir nada.
 CSS = """
 * { box-sizing: border-box; }
-body { margin: 0; background: #0d0f11; font-family: "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: #0d0f11; color: #ecebe6; font-family: "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 a { color: #d9a441; text-decoration: none; border-bottom: 1px solid rgba(217,164,65,0.3); }
 a:hover { color: #ecc478; border-bottom-color: #ecc478; }
+:focus-visible { outline: 2px solid #d9a441; outline-offset: 2px; }
+.carregando { max-width: 760px; margin: 0 auto; padding: 60px 20px; color: #a8a49b; font-size: 15px; line-height: 1.6; }
+.carregando h1 { font-family: Newsreader, Georgia, serif; font-weight: 300; font-size: 44px; color: #f5f3ee; margin: 0 0 14px; }
 .chip { transition: background 120ms ease, border-color 120ms ease, color 120ms ease; cursor: pointer; user-select: none; }
 .chip:hover { background: #23282e !important; border-color: #414a53 !important; color: #ecebe6 !important; }
 .chip-on:hover { filter: brightness(1.08); }
-.aba { transition: color 120ms ease, border-color 120ms ease; cursor: pointer; user-select: none; }
+.aba { transition: color 120ms ease, border-color 120ms ease; cursor: pointer; user-select: none; white-space: nowrap; }
 .aba:hover { color: #ecebe6 !important; }
-.mark { transition: opacity 120ms ease, transform 120ms ease; cursor: pointer; }
-.mark:hover { opacity: 1 !important; transform: scale(1.35); }
-.bar { transition: filter 120ms ease; cursor: pointer; }
-.bar:hover { filter: brightness(1.22) saturate(1.1); }
-/* O segmento das vistas de composicao nao usa `.bar` por dois motivos. Ele nao
-   e clicavel - quem filtra area e o rotulo da linha -, entao `cursor: pointer`
-   prometeria um clique que nao existe. E o realce por brilho sobe o L* em 8 a
-   12 pontos, que naquela rampa e um passo e meio: no exato momento em que o
-   leitor tenta casar a fatia com o verbete da legenda, a fatia passaria a ter
-   a cor da vizinha. O realce aqui e um contorno, que nao mexe na cor. */
 .seg { transition: box-shadow 120ms ease; }
 .seg:hover { box-shadow: inset 0 0 0 1.5px #f5f3ee; }
 .row { transition: background 120ms ease; cursor: pointer; }
@@ -154,39 +163,83 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
 .mais { color: #d9a441; border-bottom: 1px solid rgba(217,164,65,0.3); transition: color 120ms ease, border-color 120ms ease; cursor: pointer; }
 .mais:hover { color: #ecc478; border-bottom-color: #ecc478; }
 .card { background: #16191c; border: 1px solid #242a30; border-radius: 5px; }
-.regras-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 34px; align-items: stretch; }
-.regras-grid > .card { margin-bottom: 0 !important; min-width: 0; height: 450px; box-sizing: border-box; }
-.regras-scroll { overflow-y: auto; min-height: 0; padding-right: 10px; scrollbar-gutter: stable; scrollbar-color: #6b7480 #1d2226; }
-.regras-scroll:focus-visible { outline: 1px solid #d9a441; outline-offset: 4px; }
-.votos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
-.voto-card { padding: 22px 24px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
-.voto-titulo { font-family: Newsreader, Georgia, serif; font-size: 26px; color: #f5f3ee; line-height: 1.15; }
+/* Cards de grafico (ECharts). O titulo e h3 e o resumo em texto vem antes
+   do grafico: e o que um leitor de tela ou um buscador leem. */
+.card-grafico { padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.card-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px 18px; flex-wrap: wrap; }
+.card-tit { display: flex; flex-direction: column; gap: 5px; flex: 1 1 380px; min-width: 0; max-width: 760px; }
+.titulo-card { margin: 0; font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee; }
+.subtitulo-card { margin: 0; font-size: 13.5px; font-weight: 400; color: #ecebe6; }
+.descr { font-size: 12.5px; color: #8b8f96; line-height: 1.5; text-wrap: pretty; }
+.resumo-grafico { margin: 0; font-family: Newsreader, Georgia, serif; font-size: 15px; font-weight: 300; line-height: 1.55; color: #c9c5bb; text-wrap: pretty; }
+.grafico { width: 100%; min-width: 0; }
+.rolagem { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.vazio { padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178; }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11.5px; color: #a8a49b; align-items: center; }
+.legenda > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legenda i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.legenda i.traco { width: 16px; height: 0; border-radius: 0; border-top: 2px solid; }
+.legenda i.tracejado { border-top-style: dashed; }
+.legenda-linha { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.tabela-dados { font-size: 12px; color: #a8a49b; }
+.tabela-dados summary { cursor: pointer; color: #8b8f96; font-size: 11.5px; letter-spacing: 0.04em; width: max-content; }
+.tabela-dados summary:hover { color: #ecebe6; }
+.tabela-dados table { border-collapse: collapse; margin-top: 10px; width: 100%; font-variant-numeric: tabular-nums; }
+.tabela-dados th, .tabela-dados td { padding: 6px 10px; border-bottom: 1px solid #1d2226; text-align: right; white-space: nowrap; }
+.tabela-dados th:first-child { text-align: left; white-space: normal; min-width: 160px; font-weight: 400; color: #ecebe6; }
+.tabela-dados thead th { color: #8b8f96; font-weight: 600; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+.votos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 34px; }
+.votos-grid > .card-grafico { margin-bottom: 0; }
 .voto-nota { font-size: 12px; color: #8b8f96; line-height: 1.6; }
-.voto-legenda { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 11.5px; color: #a8a49b; margin-top: 7px; }
-.voto-legenda > span { width: 10px; height: 8px; display: inline-block; border-radius: 2px; }
-.voto-ranking { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 10px; scrollbar-color: #6b7480 #1d2226; }
-.voto-item { display: grid; grid-template-columns: minmax(0, 1fr) 66px; gap: 14px; align-items: center; border: 0; color: #ecebe6; }
-.voto-item:hover { border: 0; }
-.voto-item-miolo { min-width: 0; }
-.voto-item-cab { font-size: 12.5px; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.voto-item-ganho { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 400; text-align: right; color: #ecebe6; }
-.voto-item-detalhe { font-size: 10.5px; color: #8b8f96; }
-.voto-tracao { position: relative; height: 16px; margin: 4px 6px; }
-.voto-tracao-linha { position: absolute; top: 7px; height: 2px; opacity: 0.45; }
-.voto-tracao-inicio, .voto-tracao-fim { position: absolute; top: 50%; transform: translate(-50%, -50%); border-radius: 50%; box-sizing: border-box; }
-.voto-tracao-inicio { width: 8px; height: 8px; background: #16191c; border: 1.5px solid; }
-.voto-tracao-fim { width: 10px; height: 10px; }
 .voto-resumo { display: flex; gap: 20px; padding: 14px 0; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; }
 .voto-resumo strong { display: block; color: #9085e9; font-family: "IBM Plex Mono", monospace; font-size: 26px; font-weight: 500; }
-@media (max-width: 800px) { .votos-grid { grid-template-columns: 1fr; } .voto-card { padding: 20px 16px; } }
-@media (max-width: 800px) { .regras-grid { grid-template-columns: 1fr; } }
 .busca::placeholder { color: #6d7178; }
 .busca:focus { border-color: #d9a441 !important; background: #1e2328 !important; }
 #tip { display: none; position: fixed; width: max-content; max-width: min(350px, calc(100vw - 16px)); background: #22272c; border: 1px solid #333a41;
   padding: 10px 13px; border-radius: 5px; pointer-events: none; z-index: 90; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-#tip .tip1 { font-size: 12.5px; color: #f5f3ee; line-height: 1.4; margin-bottom: 4px; }
-#tip .tip2 { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #9aa0a8; }
-#tip .tipd { font-size: 12px; color: #a8a49b; line-height: 1.45; margin-bottom: 5px; text-wrap: pretty; }
+.tip1 { font-size: 12.5px; color: #f5f3ee; line-height: 1.4; margin-bottom: 4px; }
+.tip2 { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #9aa0a8; }
+.so-celular { display: none !important; }
+.tipd { font-size: 12px; color: #a8a49b; line-height: 1.45; margin-bottom: 5px; text-wrap: pretty; }
+
+/* Celular e tablet estreito. O desenho e escrito em style inline (ver
+   painel_app.js), por isso o !important: e a unica forma de uma regra de
+   folha vencer um atributo style. */
+@media (max-width: 1000px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .votos-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .pagina { padding: 22px 16px 44px !important; }
+  .cab { flex-direction: column; align-items: flex-start !important; gap: 18px !important; }
+  .titulo-grande { font-size: 42px !important; }
+  .cab-meta { text-align: left !important; gap: 20px !important; flex-wrap: wrap; }
+  .abas { gap: 20px !important; overflow-x: auto; }
+  .linha-filtro { grid-template-columns: 1fr !important; gap: 6px !important; }
+  .linha-filtro > div:first-child { padding-top: 0 !important; }
+  .filtros { padding: 16px 14px 18px !important; }
+  .so-celular { display: inline-flex !important; }
+  .filtros.recolhido .linha-filtro, .filtros.recolhido .filtros-sep { display: none !important; }
+  .filtros-acoes, .busca-caixa { width: 100%; }
+  .busca-caixa input { width: 100% !important; }
+  .tile-valor { font-size: 36px !important; }
+  .card-grafico { padding: 18px 14px 16px; }
+  .titulo-card { font-size: 22px; }
+  .card-cab-lista { padding: 18px 14px 14px !important; }
+  .tab-cab { display: none !important; }
+  .tab-ap { grid-template-columns: minmax(0, 1fr) auto !important; gap: 8px 12px !important; padding: 14px !important; }
+  .tab-ap .c-nat { grid-column: 1 / -1; }
+  .tab-ap .c-marcas { grid-column: 1 / -1; order: 3; }
+  .tab-ap .c-area, .tab-ap .c-vert { display: none; }
+  .tab-hall { grid-template-columns: 22px minmax(0, 1fr) auto !important; gap: 8px 12px !important; padding: 14px !important; }
+  .tab-hall .c-nat { grid-column: 2 / -1; order: -1; }
+  .tab-hall .c-area, .tab-hall .c-vert, .tab-hall .c-dia { display: none; }
+  .corpo-aberto { padding: 8px 14px 24px !important; }
+  .ficha-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
+  .texto2 { grid-template-columns: 1fr !important; gap: 4px !important; }
+  .rodape { flex-direction: column; gap: 10px !important; }
+  .secao { margin-top: 6px !important; }
+}
 """
 
 
@@ -262,15 +315,22 @@ def classificacao(triagem: dict, paper: dict) -> dict:
         if triagem.get(campo):
             extra[chave] = triagem[campo]
     for chave, campo in (("gh", "github_repo"), ("pg", "project_page")):
-        if paper.get(campo):
+        if url_segura(paper.get(campo)):
             extra[chave] = paper[campo]
     return extra
+
+
+def url_segura(url: Any) -> bool:
+    """So `http(s)://` vira link. Repositorio e pagina do projeto vem de dado
+    externo (HF, abstract), e o painel e publico: um `javascript:` ali seria
+    executado no clique."""
+    return isinstance(url, str) and re.match(r"https?://", url.strip(), re.IGNORECASE) is not None
 
 
 def por_voto(papers: list[dict]) -> list[dict]:
     """Ordena por upvotes desc, desempatando por paper_id.
 
-    O desempate nao e capricho: `painel.html` e commitado e empurrado todo dia
+    O desempate nao e capricho: o painel e commitado e empurrado todo dia
     (`gerar_painel.sh`). Sem criterio estavel, dois papers com o mesmo numero de
     votos trocariam de lugar entre rodadas e o commit diario ganharia um diff
     que nao significa nada.
@@ -412,6 +472,53 @@ def montar_hall(
     return hall
 
 
+# A curva de maturacao so usa idades ate aqui, e cada idade precisa de pelo
+# menos MIN_VOTO papers medidos (o corte do minimo fica no app, que recorta).
+HORIZONTE_VOTO = 30
+JANELA_GANHO = 7
+
+
+def atencao(medidas: list[tuple[dt.date, int]], dia_hf: Any, fim: dt.date
+            ) -> tuple[list | None, list | None]:
+    """Pre-agrega as duas leituras de voto do Panorama para um paper.
+
+    `vg` e o ganho na ultima semana: `[dia_ini, votos_ini, dia_fim, votos_fim]`,
+    a primeira e a ultima medicao dentro de `fim - 7 .. fim`, so quando ha duas
+    medicoes em dias distintos e o total cresceu. Ausencia de snapshot nao vira
+    zero, e nada e extrapolado.
+
+    `vm` e a trajetoria normalizada, plana - `[idade, pct, idade, pct, ...]`,
+    sem os colchetes de cada par, que eram um terco do peso: o percentual do
+    ultimo total observado em cada idade (dias desde o HF Daily) ate o
+    horizonte. So sai para quem tem historico elegivel: a primeira medicao no
+    dia 0 ou 1, a ultima aos 14 dias ou depois, e total final positivo. Backfill
+    tardio nao conta como evidencia de amadurecimento.
+
+    As duas regras sao as que o app aplicava sobre a serie bruta; mudaram de
+    lugar para a serie nao precisar viajar.
+    """
+    ms = sorted(m for m in medidas if m[0] <= fim)
+    vg = None
+    semana = [m for m in ms if m[0] >= fim - dt.timedelta(days=JANELA_GANHO)]
+    if len(semana) >= 2:
+        a, b = semana[0], semana[-1]
+        if b[1] > a[1] and b[0] != a[0]:
+            vg = [a[0].isoformat(), a[1], b[0].isoformat(), b[1]]
+
+    vm = None
+    if isinstance(dia_hf, dt.date):
+        desde = [m for m in ms if m[0] >= dia_hf]
+        if len(desde) >= 2 and (desde[0][0] - dia_hf).days <= 1:
+            ultimo = desde[-1]
+            if (ultimo[0] - dia_hf).days >= 14 and ultimo[1] > 0:
+                vm = []
+                for d, u in desde:
+                    if (d - dia_hf).days <= HORIZONTE_VOTO:
+                        pct = round(u / ultimo[1] * 100, 1)
+                        vm += [(d - dia_hf).days, int(pct) if pct == int(pct) else pct]
+    return vg, vm
+
+
 def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]:
     """Extrai de marts/ o objeto `DADOS` que o app le no navegador.
 
@@ -471,19 +578,24 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         if r["paper_id"] in ids_uteis:
             vertentes_por_paper[r["paper_id"]].append(r["vertente"])
 
-    # Uma passada so: a serie completa para quem esta na janela, e a data da
+    # Uma passada so: as medicoes de voto de quem esta na janela, e a data da
     # ultima medicao para quem esta no hall (o "votos em" que honra o
     # congelamento do refresh).
-    serie: dict[str, list] = defaultdict(list)
+    serie: dict[str, list[tuple[dt.date, int]]] = defaultdict(list)
     ultimo_voto: dict[str, str] = {}
     for m in sorted(ler("fato_metrica"), key=lambda r: (r["paper_id"], r["data_snapshot"])):
         pid = m["paper_id"]
-        if pid in ids:
-            serie[pid].append(
-                [iso(m["data_snapshot"]), m.get("upvotes"), m.get("comentarios"), m.get("github_stars")]
-            )
-        if pid in ids_hall and m.get("upvotes") is not None:
+        u = m.get("upvotes")
+        if pid in ids and isinstance(u, int) and u >= 0 and isinstance(m.get("data_snapshot"), dt.date):
+            serie[pid].append((m["data_snapshot"], u))
+        if pid in ids_hall and u is not None:
             ultimo_voto[pid] = iso(m["data_snapshot"])   # ordenado por data: o ultimo vence
+
+    gerado = manifest.get("gerado_em") or dt.datetime.now().replace(microsecond=0).isoformat()
+    try:
+        fim_voto = dt.date.fromisoformat(str(gerado)[:10])
+    except ValueError:
+        fim_voto = hoje
 
     lista = []
     for p in sorted(na_janela, key=lambda x: (x["data_hf_daily"], x["paper_id"])):
@@ -518,6 +630,14 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "url": p.get("url_hf"),
             "f": 1 if pid in fichas else 0,
         }
+        # As duas medidas de voto do Panorama, ja pre-agregadas: a serie
+        # inteira de snapshots era 1,7 MB do payload e o app so lia dela o
+        # ganho da ultima semana e a curva de maturacao.
+        vg, vm = atencao(serie.get(pid, []), p.get("data_hf_daily"), fim_voto)
+        if vg:
+            entrada["vg"] = vg
+        if vm:
+            entrada["vm"] = vm
         # cabecalho da decisao (issue #2) e classificacao do ADR 004: so os
         # aprovados os renderizam, entao so eles carregam `j`/`h`,
         # natureza, textos e links - um `fora` com essas chaves vazias viajaria
@@ -541,7 +661,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
 
     modelo_a, modelo_b = modelos()
     dados = {
-        "gerado": manifest.get("gerado_em") or dt.datetime.now().replace(microsecond=0).isoformat(),
+        "gerado": gerado,
         "modeloA": modelo_a,
         "modeloB": modelo_b,
         "janela": janela,
@@ -596,33 +716,135 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             }
             for pid, f in fichas.items() if pid in ids
         ],
-        "serie": dict(serie),
         "hall": hall,
     }
     return dados, manifest
 
 
-def montar(janela: int, dias_hall: int | None = None) -> tuple[str, dict]:
-    dados, manifest = montar_dados(janela, dias_hall)
+def _json(obj: Any) -> str:
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+
+
+def _embutivel(texto: str, *, codigo: bool = False) -> str:
+    """Escapa o que fecharia (ou desviaria) a tag <script> no meio do texto.
+
+    JSON: todo `<` vira `\\u003c`, que e valido em JSON e em JS. Cobre o
+    `</script>` de um titulo e tambem `<!--` seguido de `<script`, que poe o
+    tokenizador do HTML em "script data double escaped" e engoliria o resto da
+    pagina. Codigo: so `</script`, porque um `<` generico aparece em
+    comparacao e em regex literal (`/</g`) e o escape os quebraria.
+    """
+    if codigo:
+        return re.sub(r"</(script)", r"<\\/\1", texto, flags=re.IGNORECASE)
+    return texto.replace("<", "\\u003c")
+
+
+def resumo_texto(dados: dict) -> str:
+    """Uma frase com os numeros do dia, para a meta description e o <noscript>.
+
+    E o que um buscador ou a previa de um link compartilhado mostram - o
+    painel em si so existe depois do JavaScript.
+    """
+    papers = dados["papers"]
+    aprovados = sum(1 for p in papers if p["v"] == "aprovado")
+    return (f"{len(papers)} papers do Hugging Face Daily Papers dos últimos {dados['janela']} dias, "
+            f"triados por LLM: {aprovados} aprovados, com ficha de leitura, natureza da afirmação, "
+            f"área e vertente. Atualizado em {str(dados['gerado'])[:10]}.")
+
+
+def versao(conteudo: str) -> str:
+    """Hash curto do conteudo, para o `?v=` furar o cache do navegador e do
+    CDN do Pages exatamente quando o arquivo muda - inclusive num `--force`
+    do mesmo run depois de uma mudanca no formato dos dados."""
+    return hashlib.sha256(conteudo.encode("utf-8")).hexdigest()[:10]
+
+
+def documento(dados: dict, *, embutido: bool, versoes: dict[str, str] | None = None) -> str:
+    """O `index.html`. Embutido leva dados, fichas e ECharts dentro dele;
+    senao aponta para os arquivos irmaos, cada um com o `?v=` do proprio
+    conteudo (`versoes`, nome -> hash)."""
     app = APP_JS.read_text(encoding="utf-8")
+    resumo = resumo_texto(dados)
+    esc = lambda t: (t.replace("&", "&amp;").replace('"', "&quot;")
+                     .replace("<", "&lt;").replace(">", "&gt;"))
+    og_url = f'<meta property="og:url" content="{esc(URL_PUBLICA)}">\n' if URL_PUBLICA else ""
 
-    # `</` escapado: um titulo de paper com "</script>" fecharia a tag e o
-    # painel viraria texto solto no meio da pagina.
-    blob = json.dumps(dados, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    if embutido:
+        fichas = dados["fichas"]
+        leve = {k: v for k, v in dados.items() if k != "fichas"}
+        carga = (f"<script>{_embutivel(ECHARTS_JS.read_text(encoding='utf-8'), codigo=True)}</script>\n"
+                 f"<script>var DADOS={_embutivel(_json(leve))};"
+                 f"var FICHAS={_embutivel(_json(fichas))};</script>")
+    else:
+        v = {k: esc(x) for k, x in (versoes or {}).items()}
+        carga = (f'<script>var PAINEL_ARQUIVOS={{dados:"dados.json?v={v.get("dados.json", "")}",'
+                 f'fichas:"fichas.json?v={v.get("fichas.json", "")}"}};</script>\n'
+                 f'<script src="echarts.painel.min.js?v={v.get("echarts.painel.min.js", "")}"></script>')
 
-    doc = f"""<!doctype html>
+    return f"""<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel Daily Papers</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<title>Daily Papers, triados · painel</title>
+<meta name="description" content="{esc(resumo)}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Daily Papers, triados">
+<meta property="og:description" content="{esc(resumo)}">
+{og_url}<meta name="theme-color" content="#0d0f11">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>{CSS}</style></head>
 <body>
-<div id="painel"></div>
-<div id="tip"></div>
-<script>var DADOS={blob};</script>
-<script>{app}</script>
+<main id="painel" aria-live="polite"><div class="carregando">
+<h1>Daily Papers, triados</h1>
+<p>{esc(resumo)}</p>
+<noscript><p>O painel interativo precisa de JavaScript.</p></noscript>
+</div></main>
+<div id="tip" role="tooltip"></div>
+{carga}
+<script>{_embutivel(app, codigo=True)}</script>
 </body></html>"""
-    return doc, manifest
+
+
+def montar(janela: int, dias_hall: int | None = None, *, embutido: bool = False
+           ) -> tuple[dict[str, str], dict]:
+    """Os arquivos do painel, nome -> conteudo.
+
+    Embutido e um so, `index.html`. Em pasta sao quatro: a pagina, os dados da
+    primeira pintura, as fichas (buscadas depois) e o ECharts.
+    """
+    dados, manifest = montar_dados(janela, dias_hall)
+    if embutido:
+        return {"index.html": documento(dados, embutido=True)}, manifest
+    return arquivos_da_pasta(dados), manifest
+
+
+def arquivos_da_pasta(dados: dict) -> dict[str, str]:
+    """A pasta do site; o `index.html` aponta para os irmaos pelo hash deles."""
+    leve = {k: v for k, v in dados.items() if k != "fichas"}
+    irmaos = {
+        "dados.json": _json(leve),
+        "fichas.json": _json(dados["fichas"]),
+        "echarts.painel.min.js": ECHARTS_JS.read_text(encoding="utf-8"),
+    }
+    versoes = {nome: versao(conteudo) for nome, conteudo in irmaos.items()}
+    return {"index.html": documento(dados, embutido=False, versoes=versoes), **irmaos}
+
+
+def escrever(arquivos: dict[str, str], destino: Path) -> int:
+    """Grava atomicamente, arquivo a arquivo. `destino` terminado em .html e o
+    arquivo unico; qualquer outro e a pasta. Devolve o total em bytes."""
+    total = 0
+    if destino.suffix == ".html":
+        alvos = {destino: arquivos["index.html"]}
+    else:
+        alvos = {destino / nome: conteudo for nome, conteudo in arquivos.items()}
+    for caminho, conteudo in alvos.items():
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        tmp = caminho.with_name(caminho.name + ".tmp")
+        tmp.write_text(conteudo, encoding="utf-8")
+        os.replace(tmp, caminho)   # atomico: ninguem le um arquivo pela metade
+        total += len(conteudo.encode("utf-8"))
+    return total
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -631,7 +853,9 @@ def _parser() -> argparse.ArgumentParser:
                     help=f"Janela em dias da aba viva (padrao {JANELA_PADRAO}). Segura o tamanho "
                          "do arquivo. Nao afeta a aba historica, que segue refresh.janela_morna_dias.")
     ap.add_argument("--destino", type=Path, default=DESTINO_PADRAO,
-                    help=f"Arquivo de saida (padrao {DESTINO_PADRAO}).")
+                    help=f"Pasta de saida (padrao {DESTINO_PADRAO}). Terminado em .html gera um "
+                         "arquivo unico com dados e ECharts embutidos, que abre offline - e o "
+                         "formato das previas.")
     ap.add_argument("--dias-hall", type=int, default=None, dest="dias_hall",
                     help="Sobrescreve o corte da aba historica, que por padrao vem de "
                          "refresh.janela_morna_dias. Existe para inspecionar a aba antes de o "
@@ -671,12 +895,9 @@ def main() -> int:
         print(f"sem novidade: painel ja gerado para {run_id} (use --force para regerar)")
         return 0
 
-    doc, _ = montar(args.dias, args.dias_hall)
-
-    args.destino.parent.mkdir(parents=True, exist_ok=True)
-    tmp = args.destino.with_suffix(".html.tmp")
-    tmp.write_text(doc, encoding="utf-8")
-    os.replace(tmp, args.destino)   # atomico: ninguem le um arquivo pela metade
+    embutido = args.destino.suffix == ".html"
+    arquivos, _ = montar(args.dias, args.dias_hall, embutido=embutido)
+    total = escrever(arquivos, args.destino)
 
     # So carimba quando escreveu o painel publicado. Um `--destino /tmp/x.html`
     # que carimbasse faria a geracao seguinte do painel de verdade sair em no-op
@@ -685,8 +906,9 @@ def main() -> int:
     if run_id and args.destino == DESTINO_PADRAO:
         CARIMBO.write_text(run_id, encoding="utf-8")
 
-    kb = len(doc.encode("utf-8")) / 1024
-    print(f"painel: {args.destino} ({kb:.0f} KB, janela {args.dias}d, run_id {run_id})")
+    kb = total / 1024
+    print(f"painel: {args.destino} ({kb:.0f} KB em {len(arquivos)} arquivo(s), "
+          f"janela {args.dias}d, run_id {run_id})")
     return 0
 
 

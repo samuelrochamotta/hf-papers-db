@@ -23,15 +23,43 @@ const FONTE = fs.readFileSync(APP, 'utf-8');
 const CAIXA_MENU = 'max-height: 288px; overflow-y: auto;';
 const CORTINA = /data-c="(\d+)" style="position: fixed; inset: 0; z-index: 80;"/;
 
-export function montarPainel(DADOS, { storage = null } = {}) {
+export function montarPainel(DADOS, { storage = null, hash = '', echarts = false } = {}) {
   let html = '';
   const handlers = { c: new Map(), e: new Map(), l: new Map(), i: new Map() };
+
+  /* ECharts de mentira: guarda, por nome de grafico, a ultima opcao e o
+     handler de clique - o bastante para clicar numa barra pelo indice. */
+  const graficos = {};
+  const fakeEcharts = {
+    init(el) {
+      const nome = el.getAttribute('data-nome');
+      const inst = {
+        nome, opcao: null, clique: null,
+        setOption(o) { this.opcao = o; graficos[nome] = this; },
+        on(_ev, fn) { this.clique = fn; },
+        off() { this.clique = null; },
+        dispatchAction() {}, resize() {}, dispose() {},
+      };
+      return inst;
+    },
+    connect() {},
+  };
+  const local = { hash, pathname: '/', search: '', href: 'https://x/' + hash };
+  const historico = {
+    replaceState(_s, _t, url) { local.hash = url.startsWith('#') ? url : ''; local.href = 'https://x/' + local.hash; },
+  };
 
   const painel = {
     id: 'painel',
     set innerHTML(v) { html = v; },
     get innerHTML() { return html; },
     querySelectorAll(seletor) {
+      if (seletor === '[data-g]') {
+        return [...html.matchAll(/data-g="(\d+)" data-nome="([^"]+)"/g)].map((m) => ({
+          getAttribute: (a) => (a === 'data-nome' ? m[2] : m[1]),
+          style: {},
+        }));
+      }
       const tipo = seletor.slice(6, 7); // '[data-c]' -> 'c'
       const ids = [...html.matchAll(new RegExp('data-' + tipo + '="(\\d+)"', 'g'))].map((m) => +m[1]);
       return [...new Set(ids)].map((n) => ({
@@ -51,7 +79,11 @@ export function montarPainel(DADOS, { storage = null } = {}) {
     console,
     // sem `setTimeout` no contexto: o debounce da busca aplica na hora, que
     // e o que um teste sincrono precisa
-    window: { innerWidth: 1600, innerHeight: 900, localStorage: storage },
+    window: {
+      innerWidth: 1600, innerHeight: 900, localStorage: storage,
+      location: local, history: historico,
+      ...(echarts ? { echarts: fakeEcharts } : {}),
+    },
     document: {
       activeElement: null,
       getElementById: (id) => (id === 'painel' ? painel : id === 'tip' ? tip : null),
@@ -76,6 +108,19 @@ export function montarPainel(DADOS, { storage = null } = {}) {
   const api = {
     get html() { return html; },
     clica,
+
+    /* O fragmento da URL que o painel escreveu. */
+    get hash() { return local.hash; },
+
+    /* Graficos montados no ultimo render, por nome (so com `echarts: true`). */
+    graficos,
+
+    /* Clica num grafico como o ECharts entregaria o evento. */
+    clicaGrafico(nome, params) {
+      const g = graficos[nome];
+      if (!g || !g.clique) throw new Error('grafico sem clique: ' + nome);
+      g.clique(params);
+    },
 
     /* O texto do resumo "Recorte", util para ver o filtro em vigor. */
     get recorte() {

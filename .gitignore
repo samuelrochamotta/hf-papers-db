@@ -3,7 +3,8 @@ data/
 marts/
 logs/
 relatorios/*
-!relatorios/painel.html
+!relatorios/painel/
+scripts/echarts/node_modules/
 .venv/
 __pycache__/
 *.py[cod]

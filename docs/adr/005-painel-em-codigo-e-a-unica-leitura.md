@@ -1,5 +1,10 @@
 # ADR 005 — O painel em código é a única interface de leitura
 
+> **Nota de 14/11/2026, sem alterar o texto abaixo.** O painel deixou de ser o
+> arquivo único `relatorios/painel.html` e virou o site estático
+> `relatorios/painel/`, com gráficos em ECharts (ADR 006). A decisão daqui vale
+> igual.
+
 - **Data**: 2026-11-14
 - **Estado**: aceito
 - **Supera**: a frase do README e de `scripts/gerar_painel.py` que tratava o
