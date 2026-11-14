@@ -2,9 +2,9 @@
 
 Tres regras que valem para o arquivo inteiro:
 
-* datas saem como `date32`, nunca string - senao o cruzamento com
-  `dim_calendario` nao fecha no painel;
-* nada e pre-agregado: o grao fino vai inteiro e a agregacao e papel do codigo do painel;
+* datas saem como `date32`, nunca string, para que quem le os Parquet (o
+  painel inclusive) ordene e compare datas sem converter;
+* nada e pre-agregado: o grao fino vai inteiro e a agregacao e papel de quem le;
 * escrita atomica (`os.replace`), porque o painel pode estar lendo o arquivo
   na hora do export.
 """
@@ -250,8 +250,9 @@ def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
 
     `contradiz_pratica` e `como_incompleto` derivam dos textos (nao sao
     gravados duas vezes no banco); `artefato_aberto` e `evidencia_artefato` vem
-    de `vw_artefato`, a unica fonte da regra. O painel le os booleanos
-    prontos para nao reimplementar nenhuma das duas regras.
+    de `vw_artefato`, a unica fonte da regra. O painel le `artefato_aberto`
+    pronto; `contradiz_pratica` e `como_incompleto` saem para quem ler os
+    Parquet sem reimplementar a regra (o painel ainda usa os textos).
     """
     linhas = []
     for r in _rows(
@@ -419,7 +420,7 @@ _SCHEMAS_SIMPLES = {
         [("paper_id", pa.string()), ("vertente", pa.string()), ("ordem", pa.int32())]
     ),
     # Vocabulario dos dois eixos e dos perfis (ADR 004). `ordem` e a unica
-    # copia da ordenacao: o painel ordena por ela.
+    # copia da ordenacao: o painel ordena `dim_natureza` por ela.
     "dim_natureza": pa.schema(
         [
             ("natureza", pa.string()),
@@ -460,7 +461,7 @@ _SCHEMAS_SIMPLES = {
 VERSAO_SCHEMA = 2
 
 # Tabelas que deixaram de existir. O export so escreve, nao apaga: sem esta
-# lista o Parquet antigo ficaria em `marts/` e o painel continuaria a carrega-lo.
+# lista o Parquet antigo ficaria em `marts/` e quem le `marts/` continuaria a carrega-lo.
 ARQUIVOS_MORTOS = ("ponte_paper_criterio",)
 
 
@@ -507,8 +508,9 @@ def rodar(
             linhas = [{**l, campo: _b(l[campo])} for l in linhas]
         tabelas.append((nome, (linhas, sch)))
 
-    # "Da para agir" sai da view, pronto: o painel le a regra
-    # pronta em vez de reimplementar o conjunto de degraus do perfil.
+    # "Da para agir" sai da view, pronto, em vez de cada leitor reimplementar o
+    # conjunto de degraus do perfil. Sem leitor no repositorio desde que os
+    # perfis sairam do painel (21/10/2026); ver ADR 005.
     tabelas.append(
         (
             "ponte_paper_perfil",

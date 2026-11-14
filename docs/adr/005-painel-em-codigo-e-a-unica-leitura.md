@@ -20,6 +20,15 @@ pensando numa.
   (datas como `date32`, grão fino sem pré-agregação, escrita atômica) valem
   porque o painel lê esses arquivos.
 - Agregações e ordenações que antes ficariam para a ferramenta de BI são papel
-  do código do painel, que lê os booleanos e as colunas de ordem prontos.
+  do código do painel.
+- Hoje o painel lê só `dim_paper`, `fato_triagem`, `dim_ficha`,
+  `ponte_paper_area`, `ponte_paper_vertente`, `fato_metrica`, `dim_area`,
+  `dim_vertente` e `dim_natureza`. Ficam **sem leitor no repositório**:
+  `dim_calendario`, `dim_prerequisito`, `dim_perfil`,
+  `ponte_perfil_prerequisito` e `ponte_paper_perfil` (o pré-requisito e os
+  perfis saíram do painel em 21/10/2026, ADR 004). Por ora continuam sendo
+  exportados, para análise ad hoc dos Parquet. Se vão para `ARQUIVOS_MORTOS`
+  é decisão de um PR seguinte; até lá, nenhum comentário deve citar o painel
+  como motivo para mantê-los.
 - Os comentários, testes e docs que citavam a ferramenta externa foram
   reescritos para citar o painel ou os Parquet.

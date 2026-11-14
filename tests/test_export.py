@@ -175,7 +175,7 @@ def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
 
 
 def test_fato_triagem_leva_a_classificacao_e_os_booleanos_derivados(conn, cfg):
-    """Os booleanos saem prontos para o painel nao reimplementar as regras:
+    """Os booleanos saem prontos para quem le nao reimplementar as regras:
     `contradiz_pratica` e `como_incompleto` derivam dos textos, e o artefato
     aberto vem de `vw_artefato` (evidencia + `liberado`)."""
     _semear(conn)
@@ -201,7 +201,7 @@ def test_perfis_e_vocabulario_saem_no_parquet(conn, cfg):
 
 
 def test_parquet_da_ponte_de_criterios_e_apagado(conn, cfg):
-    """O export so escreve; sem a limpeza o painel continuaria lendo o
+    """O export so escreve; sem a limpeza quem le `marts/` continuaria lendo o
     arquivo da tabela que saiu no ADR 004."""
     cfg.dir_marts.mkdir(parents=True, exist_ok=True)
     morto = cfg.dir_marts / "ponte_paper_criterio.parquet"

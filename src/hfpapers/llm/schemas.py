@@ -47,8 +47,7 @@ NATUREZAS = ["proposta", "achado_empirico", "teoria", "panorama"]
 NATUREZAS_SEM_ADOCAO = ("teoria", "panorama")
 
 # Escada de capacidade: cada degrau implica os anteriores. A ordem desta lista
-# e a ordem de `dim_prerequisito` (teste em `test_vocabulario_v2`), e e ela que
-# o painel usa para ordenar. `sem_acao` e valor explicito, e nao
+# e a ordem de `dim_prerequisito` (teste em `test_vocabulario_v2`). `sem_acao` e valor explicito, e nao
 # NULL, para que nenhum filtro precise tratar nulo.
 PREREQUISITOS = ["nenhum", "implementar", "acesso_interno", "treino", "sem_acao"]
 SEM_ACAO = "sem_acao"
