@@ -10,7 +10,7 @@ preenchimentos; um radar para classificar e comparar papers.
 ```
 dim_paper (HF Daily)
   └─ hfpapers ler ──► arXiv HTML ─► texto (sem referências, teto 320 mil car.)
-                         └─► Claude Haiku 5.5 (JSON Schema prompts/leitura/esquema-v1.json)
+                         └─► Claude Haiku 5.5 pelo OpenRouter (JSON Schema prompts/leitura/esquema-v1.json)
                                └─► conferência de trechos e números (_ok)
                                      └─► leitura_texto
 scripts/gerar_painel_v2.py ─► derivar (deltas, solidez, esforço, radar) ─► relatorios/painel-v2/dados.json
@@ -63,5 +63,5 @@ DADOS=../relatorios/painel-v2/dados.json npm run previa   # HTML único em .prev
 ## Pendências
 
 - Conjunto-ouro de 100 papers para calibrar extração, solidez e esforço.
-- Rodar `hfpapers ler` na máquina do pipeline (precisa de `ANTHROPIC_API_KEY`).
+- Rodar `hfpapers ler` na máquina do pipeline (usa a `OPENROUTER_API_KEY` que já existe).
 - Decidir quando `ler` entra no `run_daily.sh`.

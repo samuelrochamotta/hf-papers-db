@@ -96,7 +96,7 @@ def rodar(conn: sqlite3.Connection, cfg: Optional[Config] = None, *, dias: Optio
     if not fila:
         log.info("nada a ler")
         return res
-    cliente = cliente or extrator.cliente_anthropic(cfg)
+    cliente = cliente or extrator.cliente_llm(cfg, conn=conn, run_id=run_id)
     esquema = extrator.carregar_esquema(cfg)
     ultimo_get = 0.0
     for i, p in enumerate(fila, 1):
@@ -109,7 +109,7 @@ def rodar(conn: sqlite3.Connection, cfg: Optional[Config] = None, *, dias: Optio
             tp = texto.texto_do_paper(pid, abstract=p.get("abstract") or "",
                                       teto=lc.teto_caracteres, cliente=http)
             lt = extrator.extrair(tp, {"titulo": p["titulo"]}, cliente=cliente, cfg=cfg,
-                                  conn=conn, run_id=run_id, esquema=esquema)
+                                  esquema=esquema)
             gravar(conn, cfg, lt, tp.fonte)
         except Exception as e:  # noqa: BLE001 - um paper ruim nao para a rodada
             res.falhas[pid] = f"{type(e).__name__}: {e}"
