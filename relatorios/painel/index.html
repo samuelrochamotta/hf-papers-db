@@ -1,0 +1,2330 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Papers, triados · painel</title>
+<meta name="description" content="2566 papers do Hugging Face Daily Papers dos últimos 90 dias, triados por LLM: 1658 aprovados, com ficha de leitura, natureza da afirmação, área e vertente. Atualizado em 2026-11-14.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Daily Papers, triados">
+<meta property="og:description" content="2566 papers do Hugging Face Daily Papers dos últimos 90 dias, triados por LLM: 1658 aprovados, com ficha de leitura, natureza da afirmação, área e vertente. Atualizado em 2026-11-14.">
+<meta name="theme-color" content="#0d0f11">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: #0d0f11; color: #ecebe6; font-family: "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: #d9a441; text-decoration: none; border-bottom: 1px solid rgba(217,164,65,0.3); }
+a:hover { color: #ecc478; border-bottom-color: #ecc478; }
+:focus-visible { outline: 2px solid #d9a441; outline-offset: 2px; }
+.carregando { max-width: 760px; margin: 0 auto; padding: 60px 20px; color: #a8a49b; font-size: 15px; line-height: 1.6; }
+.carregando h1 { font-family: Newsreader, Georgia, serif; font-weight: 300; font-size: 44px; color: #f5f3ee; margin: 0 0 14px; }
+.chip { transition: background 120ms ease, border-color 120ms ease, color 120ms ease; cursor: pointer; user-select: none; }
+.chip:hover { background: #23282e !important; border-color: #414a53 !important; color: #ecebe6 !important; }
+.chip-on:hover { filter: brightness(1.08); }
+.aba { transition: color 120ms ease, border-color 120ms ease; cursor: pointer; user-select: none; white-space: nowrap; }
+.aba:hover { color: #ecebe6 !important; }
+.seg { transition: box-shadow 120ms ease; }
+.seg:hover { box-shadow: inset 0 0 0 1.5px #f5f3ee; }
+.row { transition: background 120ms ease; cursor: pointer; }
+.row:hover { background: #191d21; }
+.mais { color: #d9a441; border-bottom: 1px solid rgba(217,164,65,0.3); transition: color 120ms ease, border-color 120ms ease; cursor: pointer; }
+.mais:hover { color: #ecc478; border-bottom-color: #ecc478; }
+.card { background: #16191c; border: 1px solid #242a30; border-radius: 5px; }
+/* Cards de grafico (ECharts). O titulo e h3 e o resumo em texto vem antes
+   do grafico: e o que um leitor de tela ou um buscador leem. */
+.card-grafico { padding: 22px 24px 20px; margin-bottom: 34px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.card-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px 18px; flex-wrap: wrap; }
+.card-tit { display: flex; flex-direction: column; gap: 5px; flex: 1 1 380px; min-width: 0; max-width: 760px; }
+.titulo-card { margin: 0; font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee; }
+.subtitulo-card { margin: 0; font-size: 13.5px; font-weight: 400; color: #ecebe6; }
+.descr { font-size: 12.5px; color: #8b8f96; line-height: 1.5; text-wrap: pretty; }
+.resumo-grafico { margin: 0; font-family: Newsreader, Georgia, serif; font-size: 15px; font-weight: 300; line-height: 1.55; color: #c9c5bb; text-wrap: pretty; }
+.grafico { width: 100%; min-width: 0; }
+.rolagem { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.vazio { padding: 44px 0; text-align: center; font-size: 12.5px; color: #6d7178; }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11.5px; color: #a8a49b; align-items: center; }
+.legenda > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legenda i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.legenda i.traco { width: 16px; height: 0; border-radius: 0; border-top: 2px solid; }
+.legenda i.tracejado { border-top-style: dashed; }
+.legenda-linha { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.tabela-dados { font-size: 12px; color: #a8a49b; }
+.tabela-dados summary { cursor: pointer; color: #8b8f96; font-size: 11.5px; letter-spacing: 0.04em; width: max-content; }
+.tabela-dados summary:hover { color: #ecebe6; }
+.tabela-dados table { border-collapse: collapse; margin-top: 10px; width: 100%; font-variant-numeric: tabular-nums; }
+.tabela-dados th, .tabela-dados td { padding: 6px 10px; border-bottom: 1px solid #1d2226; text-align: right; white-space: nowrap; }
+.tabela-dados th:first-child { text-align: left; white-space: normal; min-width: 160px; font-weight: 400; color: #ecebe6; }
+.tabela-dados thead th { color: #8b8f96; font-weight: 600; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+.votos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 34px; }
+.votos-grid > .card-grafico { margin-bottom: 0; }
+.voto-nota { font-size: 12px; color: #8b8f96; line-height: 1.6; }
+.voto-resumo { display: flex; gap: 20px; padding: 14px 0; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; }
+.voto-resumo strong { display: block; color: #9085e9; font-family: "IBM Plex Mono", monospace; font-size: 26px; font-weight: 500; }
+.busca::placeholder { color: #6d7178; }
+.busca:focus { border-color: #d9a441 !important; background: #1e2328 !important; }
+#tip { display: none; position: fixed; width: max-content; max-width: min(350px, calc(100vw - 16px)); background: #22272c; border: 1px solid #333a41;
+  padding: 10px 13px; border-radius: 5px; pointer-events: none; z-index: 90; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.tip1 { font-size: 12.5px; color: #f5f3ee; line-height: 1.4; margin-bottom: 4px; }
+.tip2 { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #9aa0a8; }
+.so-celular { display: none !important; }
+.tipd { font-size: 12px; color: #a8a49b; line-height: 1.45; margin-bottom: 5px; text-wrap: pretty; }
+
+/* Celular e tablet estreito. O desenho e escrito em style inline (ver
+   painel_app.js), por isso o !important: e a unica forma de uma regra de
+   folha vencer um atributo style. */
+@media (max-width: 1000px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .votos-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .pagina { padding: 22px 16px 44px !important; }
+  .cab { flex-direction: column; align-items: flex-start !important; gap: 18px !important; }
+  .titulo-grande { font-size: 42px !important; }
+  .cab-meta { text-align: left !important; gap: 20px !important; flex-wrap: wrap; }
+  .abas { gap: 20px !important; overflow-x: auto; }
+  .linha-filtro { grid-template-columns: 1fr !important; gap: 6px !important; }
+  .linha-filtro > div:first-child { padding-top: 0 !important; }
+  .filtros { padding: 16px 14px 18px !important; }
+  .so-celular { display: inline-flex !important; }
+  .filtros.recolhido .linha-filtro, .filtros.recolhido .filtros-sep { display: none !important; }
+  .filtros-acoes, .busca-caixa { width: 100%; }
+  .busca-caixa input { width: 100% !important; }
+  .tile-valor { font-size: 36px !important; }
+  .card-grafico { padding: 18px 14px 16px; }
+  .titulo-card { font-size: 22px; }
+  .card-cab-lista { padding: 18px 14px 14px !important; }
+  .tab-cab { display: none !important; }
+  .tab-ap { grid-template-columns: minmax(0, 1fr) auto !important; gap: 8px 12px !important; padding: 14px !important; }
+  .tab-ap .c-nat { grid-column: 1 / -1; }
+  .tab-ap .c-marcas { grid-column: 1 / -1; order: 3; }
+  .tab-ap .c-area, .tab-ap .c-vert { display: none; }
+  .tab-hall { grid-template-columns: 22px minmax(0, 1fr) auto !important; gap: 8px 12px !important; padding: 14px !important; }
+  .tab-hall .c-nat { grid-column: 2 / -1; order: -1; }
+  .tab-hall .c-area, .tab-hall .c-vert, .tab-hall .c-dia { display: none; }
+  .corpo-aberto { padding: 8px 14px 24px !important; }
+  .ficha-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
+  .texto2 { grid-template-columns: 1fr !important; gap: 4px !important; }
+  .rodape { flex-direction: column; gap: 10px !important; }
+  .secao { margin-top: 6px !important; }
+}
+</style></head>
+<body>
+<main id="painel" aria-live="polite"><div class="carregando">
+<h1>Daily Papers, triados</h1>
+<p>2566 papers do Hugging Face Daily Papers dos últimos 90 dias, triados por LLM: 1658 aprovados, com ficha de leitura, natureza da afirmação, área e vertente. Atualizado em 2026-11-14.</p>
+<noscript><p>O painel interativo precisa de JavaScript.</p></noscript>
+</div></main>
+<div id="tip" role="tooltip"></div>
+<script>var PAINEL_ARQUIVOS={dados:"dados.json?v=2026-11-14T07:30:52",fichas:"fichas.json?v=2026-11-14T07:30:52"};</script>
+<script src="echarts.painel.min.js?v=2026-11-14T07:30:52"></script>
+<script>/* Painel Daily Papers - porte do design canvas para HTML/JS puro.
+ *
+ * O desenho nasceu como artboard `.dc.html` da Claude Design (Artifact
+ * "Painel Daily Papers"). Aquele arquivo so roda dentro do runtime do canvas;
+ * este e o mesmo layout e a mesma logica de recorte reescritos em JS de
+ * navegador, para o painel abrir em qualquer lugar.
+ *
+ * Desde o ADR 004 (20/10/2026) o painel nao separa mais estrito e amplo. Cada
+ * aprovado e localizado pela natureza da afirmacao (`nt`), pela area e
+ * sub-area e pela vertente. O pre-requisito (`pr`) continua no banco e nos
+ * Parquet, mas saiu do painel em 21/10/2026: como coluna e como perfil de
+ * leitura ele confundia mais do que separava. Os descartados seguem pelo
+ * veredito e pela regra.
+ *
+ * Duas diferencas deliberadas em relacao ao original:
+ *
+ * 1. O tooltip nao passa pelo estado. No canvas cada hover era um setState e
+ *    um re-render; com centenas de pontos de dispersao isso pisca no
+ *    navegador. Aqui o tooltip e um no fixo que so muda de posicao e texto.
+ *
+ * 2. A linha de filtro que esta com o menu aberto sobe para z-index 90. No
+ *    canvas as linhas ficam em 4/3/2/1 e a cortina de fechar em 80 - o que
+ *    deixaria o proprio menu embaixo da cortina num navegador de verdade.
+ */
+(function () {
+  'use strict';
+
+  /* O app roda sobre `DADOS`, que chega de um de dois jeitos: embutido na
+     pagina (arquivo unico, previas e testes) ou buscado em `dados.json` (o
+     site publicado). As fichas, que sao a maior parte do peso, chegam em
+     `FICHAS` embutido, em `DADOS.fichas` (testes) ou em `fichas.json`, depois
+     da primeira pintura. */
+  function iniciar(DADOS, FICHAS) {
+
+  /* ACCENT e so link e destaque (ticket 04). Aprovado tem cor propria, VERDE,
+     e ela vale em todo lugar onde a medida e "quanto passou". */
+  var ACCENT = '#d9a441';
+  var VERDE = '#4ec07a';
+
+  var root = document.getElementById('painel');
+  var elTip = document.getElementById('tip');
+
+  /* ── vocabulario do ADR 004 ──────────────────────────────────────────────
+     As naturezas vem do banco (`dim_natureza`), na ordem dele. O marcador de
+     nao classificado e o de `gerar_painel.py` - linha migrada do regime
+     estrito/amplo que ainda nao passou pela reclassificacao total. */
+  var NAO_CLASSIFICADO = '__sem-natureza__';
+  var DEF_NAO_CLASSIFICADO = 'Aprovado no regime anterior (estrito/amplo), ainda sem natureza: some com a reclassificação total.';
+  var NATUREZAS = (DADOS.naturezas || []).map(function (n) { return n.k; });
+  var ROTULO_NATUREZA = {}, DEF_NATUREZA = {};
+  (DADOS.naturezas || []).forEach(function (n) { ROTULO_NATUREZA[n.k] = n.r; DEF_NATUREZA[n.k] = n.def || ''; });
+
+  /* Cor CATEGORICA nas quatro naturezas - nao ha ordem entre elas. O nao
+     classificado e cinza-azulado escuro; os descartados mantem o cinza de
+     sempre.
+
+     Paleta segura para daltonismo, validada contra o fundo do card (#16191c)
+     com as cinco cores juntas (as quatro naturezas e o cinza do `fora`),
+     todos os pares, porque a dispersao poe todas lado a lado: separacao
+     minima de 8,2 (Delta E OKLab x100) sob protanopia, deuteranopia e
+     tritanopia, 15,5 em visao normal, e contraste >= 3:1. Azul, laranja,
+     rosa e verde-agua sao as quatro matizes do conjunto de Okabe-Ito que
+     sobrevivem juntas no escuro. Trocar uma delas pede validar de novo. */
+  var COR_NATUREZA = {
+    proposta: '#3987e5', achado_empirico: '#e69f00', teoria: '#cc79a7', panorama: '#5fd3b0'
+  };
+  COR_NATUREZA[NAO_CLASSIFICADO] = '#4d5a68';
+  var COR_FORA = '#6b7480';
+  function natureza(p) { return p.nt || NAO_CLASSIFICADO; }
+  function corNatureza(k) { return COR_NATUREZA[k] || '#8b8f96'; }
+  function corPaper(p) { return p.v === 'fora' ? COR_FORA : corNatureza(natureza(p)); }
+  function rotuloNatureza(k) { return k && k !== NAO_CLASSIFICADO ? (ROTULO_NATUREZA[k] || String(k)) : 'não classificado'; }
+
+  var state = {
+    aba: 'aprovados',
+    diasSel: [], vereditos: [], areas: [], subareas: [], vertentes: [], orgs: [],
+    // Natureza e marcas so recortam os aprovados: um descartado nao tem
+    // nenhuma das duas, e continua respondendo so ao veredito e a regra.
+    naturezas: [], marcas: [],
+    // recorte que so o grafico produz: o clique no Pareto de descartes
+    regrasFora: [],
+    // `busca` e o que esta no campo; `buscaQ` e o que esta valendo no
+    // recorte. Os dois se separam pelo debounce: buscar no texto da ficha de
+    // centenas de papers a cada tecla travaria a digitacao.
+    busca: '', buscaQ: '', aberta: null,
+    // dia exibido na aba Aprovados (paginacao por dia); null = o mais recente
+    diaPag: null,
+    menu: null, buscaMenu: '',
+    perSel: null, abertaH: null,
+    vistaArea: 'dist', ghVeredito: '',
+    // so no celular: a barra de filtro ocupa uma tela inteira e comeca fechada
+    filtrosAbertos: false,
+    justExp: {}
+  };
+
+  /* Handlers vivem num array reconstruido a cada render; o HTML so carrega o
+     indice. Evita serializar funcao em atributo. */
+  var H = [];
+  function h(fn) { H.push(fn); return H.length - 1; }
+  function ev(tipo, fn) { return ' data-' + tipo + '="' + h(fn) + '"'; }
+
+  function esc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /* Corta no ultimo espaco antes do limite e sinaliza o corte. Sem as
+     reticencias o leitor nao distingue um titulo truncado de um titulo curto -
+     "Beyond Data Scaling: Representatio" parece um erro de digitacao. */
+  function rotuloCurto(texto, limite) {
+    var t = String(texto || '');
+    if (t.length <= limite) return t;
+    var corte = t.slice(0, limite);
+    var porPalavra = corte.replace(/\s+\S*$/, '');
+    /* Quando nao sobra palavra inteira - titulo de uma palavra so, ou titulo
+       que comeca com espaco - o corte por palavra devolve vazio e o rotulo
+       viraria so "…". Nesse caso vale o corte cru, que ao menos informa. */
+    return (porPalavra.trim() ? porPalavra : corte.trim()) + '…';
+  }
+
+  /* O par que localiza o paper na arquitetura: a peca do sistema em que ele
+     mexe e a sub-area dela. Os dois juntos, porque a sub-area sozinha nao diz
+     de quem e filha e a area sozinha e a informacao que o painel ja dava. */
+  function parArea(p) {
+    if (!p.a) return '\u2014';
+    return p.sa ? p.a + ' \u203a ' + p.sa : p.a;
+  }
+
+  /* A vertente que manda no paper. `p.vt` vem ordenado por `ordem`, entao e a
+     primeira; a chave do vazio existe porque um paper sem vertente nenhuma
+     precisa continuar contavel - some-lo faria a soma das barras nao bater com
+     o total do recorte. */
+  var VERTENTE_NULA = '__sem-vertente__';
+  function dominante(p) { return (p.vt && p.vt[0]) || VERTENTE_NULA; }
+  /* Celula VERTENTE das listas: a dominante, e as outras no tooltip. */
+  function celulaVertente(p) {
+    var d = dominante(p);
+    var outras = (p.vt || []).slice(1);
+    return '<span' + (outras.length ? ev('e', mostraTip(d, 'também: ' + outras.join(', '), 'vertentes')) + ev('l', escondeTip()) : '') +
+      ' style="font-size: 11.5px; color: ' + (d === VERTENTE_NULA ? '#5f636a' : '#a8a49b') + '; line-height: 1.5;">' +
+      esc(d === VERTENTE_NULA ? '—' : d) + (outras.length ? '<span style="color: #5f636a;"> +' + outras.length + '</span>' : '') + '</span>';
+  }
+
+
+  /* ── estado na URL ───────────────────────────────────────────────────────
+     O recorte inteiro vive no fragmento (#aba=panorama&area=...), para que um
+     link enviado abra a mesma visao. `replaceState` e nao `pushState`: cada
+     clique de filtro nao vira uma entrada no historico do navegador. Valores
+     de lista vao separados por virgula, cada um com encodeURIComponent (que
+     codifica a propria virgula, entao a separacao nao e ambigua). */
+  var URL_LISTAS = { dia: 'diasSel', veredito: 'vereditos', area: 'areas', subarea: 'subareas', vertente: 'vertentes',
+    org: 'orgs', natureza: 'naturezas', marca: 'marcas', regra: 'regrasFora' };
+  var URL_VALORES = { aba: 'aba', q: 'buscaQ', pag: 'diaPag', periodo: 'perSel', vista: 'vistaArea', gh: 'ghVeredito',
+    paper: 'aberta', hpaper: 'abertaH' };
+  var PADRAO_URL = { aba: 'aprovados', buscaQ: '', diaPag: null, perSel: null, vistaArea: 'dist', ghVeredito: '', aberta: null, abertaH: null };
+  var ABAS = ['aprovados', 'panorama', 'historico'];
+  function temLocal() { return typeof window !== 'undefined' && window.location && typeof window.location.hash === 'string'; }
+  function hashDoEstado() {
+    var partes = [], k;
+    if (state.aba !== 'aprovados') partes.push('aba=' + state.aba);
+    for (k in URL_LISTAS) if (Object.prototype.hasOwnProperty.call(URL_LISTAS, k) && state[URL_LISTAS[k]].length) {
+      partes.push(k + '=' + state[URL_LISTAS[k]].map(encodeURIComponent).join(','));
+    }
+    for (k in URL_VALORES) if (Object.prototype.hasOwnProperty.call(URL_VALORES, k) && k !== 'aba') {
+      var v = state[URL_VALORES[k]];
+      if (v !== null && v !== undefined && v !== '' && v !== PADRAO_URL[URL_VALORES[k]]) partes.push(k + '=' + encodeURIComponent(v));
+    }
+    return partes.length ? '#' + partes.join('&') : '';
+  }
+  /* Le o fragmento para o estado. Devolve se algo mudou. */
+  function lerUrl() {
+    if (!temLocal()) return false;
+    var h = window.location.hash.replace(/^#/, '');
+    if (('#' + h) === hashDoEstado() || (!h && !hashDoEstado())) return false;
+    var lido = {};
+    h.split('&').forEach(function (par) {
+      var i = par.indexOf('=');
+      if (i <= 0) return;
+      lido[par.slice(0, i)] = par.slice(i + 1);
+    });
+    var k, dec = function (v) { try { return decodeURIComponent(v); } catch (e) { return v; } };
+    for (k in URL_LISTAS) if (Object.prototype.hasOwnProperty.call(URL_LISTAS, k)) {
+      state[URL_LISTAS[k]] = lido[k] ? lido[k].split(',').map(dec).filter(Boolean) : [];
+    }
+    for (k in URL_VALORES) if (Object.prototype.hasOwnProperty.call(URL_VALORES, k)) {
+      state[URL_VALORES[k]] = lido[k] !== undefined ? dec(lido[k]) : PADRAO_URL[URL_VALORES[k]];
+    }
+    if (ABAS.indexOf(state.aba) < 0) state.aba = 'aprovados';
+    state.busca = state.buscaQ;
+    /* Link para um paper aberto: a aba Aprovados pagina por dia, entao o dia
+       dele vira a pagina - senao o card nem seria desenhado. */
+    if (state.aberta) {
+      var alvo = DADOS.papers.filter(function (p) { return p.id === state.aberta; })[0];
+      if (alvo) state.diaPag = alvo.d;
+    }
+    state.menu = null;
+    return true;
+  }
+  function escreveUrl() {
+    if (!temLocal() || !window.history || !window.history.replaceState) return;
+    var novo = hashDoEstado();
+    if (novo !== window.location.hash && !(novo === '' && window.location.hash === '#')) {
+      window.history.replaceState(null, '', novo || (window.location.pathname + window.location.search));
+    }
+  }
+  function rolaParaAberta() {
+    var id = state.aberta || state.abertaH;
+    if (!id || typeof document === 'undefined' || !document.querySelector) return;
+    var el = document.querySelector('[data-card="' + String(id).replace(/"/g, '') + '"]');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+  }
+  var linkCopiado = false;
+  function copiaLink() {
+    if (!temLocal()) return;
+    var url = window.location.href;
+    var feito = function () {
+      linkCopiado = true; render();
+      setTimeout(function () { linkCopiado = false; render(); }, 1800);
+    };
+    if (window.navigator && window.navigator.clipboard && window.navigator.clipboard.writeText) {
+      window.navigator.clipboard.writeText(url).then(feito, function () { window.prompt('Copie o link:', url); });
+    } else {
+      window.prompt('Copie o link:', url);
+    }
+  }
+
+  function setState(patch) {
+    for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) state[k] = patch[k];
+    render();
+  }
+
+  /* Tons neutros e quentes para os blocos de area do treemap: ali quem
+     nomeia e o rotulo de cada bloco, nao a cor, entao a rampa so precisa
+     separar vizinhos. */
+  var RAMPA = ['#E8E0D4', '#CFC0AD', '#B3A18D', '#95816F', '#C9B79C'];
+
+  /* Chave do motivo de descarte. `regra_fora` e obrigatoria em todo `fora`
+     desde o ticket 02; o nulo continua contavel para o dia em que voltar. */
+  var REGRA_NULA = '__sem-regra__';
+  function chaveRegra(p) { return p.rf || REGRA_NULA; }
+
+  /* Rotulos das regras de descarte. As tres primeiras sao as vigentes
+     (`schemas.REGRAS_FORA`, na ordem de teste); as tres seguintes sairam no
+     ADR 004 e so aparecem em linhas anteriores a reclassificacao total - por
+     isso o "(regra antiga)": sem ele o Pareto pareceria dizer que o pipeline
+     ainda descarta treino. */
+  var ROTULOS_REGRA = {
+    geracao_de_midia: 'geração de mídia',
+    percepcao_robotica_embodied: 'percepção, robótica, embodied',
+    fora_de_escopo: 'fora de escopo',
+    treino_ou_postreino: 'treino ou pós-treino (regra antiga)',
+    relatorio_tecnico_de_modelo: 'relatório técnico de modelo (regra antiga)',
+    portabilidade_reprovada: 'portabilidade reprovada (regra antiga)'
+  };
+  ROTULOS_REGRA[REGRA_NULA] = 'regra não registrada';
+  function rotulo(k) {
+    return Object.prototype.hasOwnProperty.call(ROTULOS_REGRA, k) ? ROTULOS_REGRA[k] : String(k);
+  }
+
+  /* As tres marcas de um aprovado. `ao` e o artefato aberto do ADR 004
+     (evidencia externa + "liberado"); `pc` e `fo` existem quando o texto
+     correspondente foi escrito. Marcar duas e pedir as duas (AND). */
+  var MARCAS = [
+    { k: 'ao', r: 'artefato aberto', def: 'Repositório, pesos ou dataset liberados — evidência no HF ou no abstract, confirmada como liberada.' },
+    { k: 'pc', r: 'contradiz prática', def: 'O achado contradiz algo que o leitor plausivelmente faz hoje; a prática vem nomeada na ficha.' },
+    { k: 'fo', r: 'somente princípio', def: 'O princípio é portável, mas o paper não diz como implementar.' }
+  ];
+  function temMarca(p, k) { return !!p[k]; }
+
+  var fichaPorId = {};
+  var fichasProntas = false;
+
+  /* Indice da busca: titulo, organizacao, id, justificativa, os dois textos
+     da classificacao e os campos da ficha, tudo em minusculas. A busca vira
+     um `indexOf` por paper. E montado de novo quando as fichas chegam. */
+  var INDICE = {};
+  function indexa() {
+    DADOS.papers.forEach(function (p) {
+      var f = fichaPorId[p.id] || {};
+      INDICE[p.id] = [p.t, p.org, p.id, p.j, p.pc, p.fo, f.ach, f.imp, f.ex, f.res]
+        .filter(Boolean).join(' \n ').toLowerCase();
+    });
+  }
+  function recebeFichas(lista) {
+    (lista || []).forEach(function (f) { fichaPorId[f.p] = f; });
+    fichasProntas = true;
+    indexa();
+    render();
+  }
+  (FICHAS || DADOS.fichas || []).forEach(function (f) { fichaPorId[f.p] = f; });
+  fichasProntas = !!(FICHAS || DADOS.fichas);
+  indexa();
+  /* O total de fichas sai da flag `f` dos papers, nao da lista: no site a
+     lista chega depois da primeira pintura. */
+  var N_FICHAS = DADOS.papers.filter(function (p) { return p.f; }).length;
+
+  /* `exceto` deixa uma ou mais dimensoes de fora: e o que mantem as outras
+     opcoes de um seletor visiveis depois que ele ja filtrou (senao marcar a 2a
+     area pelo grafico ficaria impossivel - a 1a teria apagado as demais
+     barras). Aceita string ou array: a matriz natureza x vertente precisa
+     soltar as duas dimensoes dela de uma vez.
+
+     Natureza e marcas so recortam APROVADOS. Um descartado passa por elas
+     sempre: ele nao tem nenhuma das duas, e o recorte dele e o veredito e a
+     regra. Sem isso marcar uma natureza zeraria os descartados do Panorama, e
+     o lote diario deixaria de mostrar o que foi cortado. */
+  function filtrados(exceto) {
+    var s = state;
+    var q = (s.buscaQ || '').trim().toLowerCase();
+    var solta = typeof exceto === 'string' ? [exceto] : (exceto || []);
+    function livre(dim) { return solta.indexOf(dim) >= 0; }
+    return DADOS.papers.filter(function (p) {
+      if (!livre('diasSel') && s.diasSel.length && s.diasSel.indexOf(p.d) < 0) return false;
+      if (!livre('vereditos') && s.vereditos.length && s.vereditos.indexOf(p.v) < 0) return false;
+      // dentro de cada dimensao a selecao e OR; entre dimensoes, AND
+      if (!livre('areas') && s.areas.length && s.areas.indexOf(p.a) < 0) return false;
+      if (!livre('subareas') && s.subareas.length && s.subareas.indexOf(p.sa) < 0) return false;
+      // Vertente DOMINANTE, nao "tem a vertente": `p.vt` chega ordenado por
+      // `ponte_paper_vertente.ordem` e a primeira e a que manda.
+      if (!livre('vertentes') && s.vertentes.length &&
+        s.vertentes.indexOf(dominante(p)) < 0) return false;
+      // marcar uma regra e marcar um recorte de descartados
+      if (!livre('regrasFora') && s.regrasFora.length && (p.v !== 'fora' || s.regrasFora.indexOf(chaveRegra(p)) < 0)) return false;
+      if (p.v === 'aprovado') {
+        if (!livre('naturezas') && s.naturezas.length && s.naturezas.indexOf(natureza(p)) < 0) return false;
+        if (!livre('marcas') && s.marcas.length &&
+          !s.marcas.every(function (k) { return temMarca(p, k); })) return false;
+      }
+      if (!livre('orgs') && s.orgs.length) {
+        var chave = p.org || '__sem-org__';
+        if (s.orgs.indexOf(chave) < 0) return false;
+      }
+      if (q && INDICE[p.id].indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+
+  /* liga/desliga um valor numa dimensao de selecao multipla */
+  function alternaLista(campo, valor) {
+    var l = state[campo].slice();
+    var i = l.indexOf(valor);
+    if (i < 0) l.push(valor); else l.splice(i, 1);
+    // `aberta` some porque o card que estava aberto pode nem sobreviver ao
+    // novo recorte; `justExp` some pelo mesmo motivo
+    var novo = { aberta: null, justExp: {} };
+    novo[campo] = l;
+    setState(novo);
+  }
+
+  /* Debounce da busca: o campo guarda o texto na hora (sem re-render, que
+     trocaria o input no meio da digitacao) e o recorte so muda depois de uma
+     pausa. Sem `setTimeout` (ambiente minimo de teste) aplica direto. */
+  var ESPERA_BUSCA = 220;
+  var timerBusca = null;
+  function digitaBusca(valor) {
+    state.busca = valor;
+    if (typeof setTimeout !== 'function') {
+      setState({ buscaQ: valor, aberta: null, justExp: {}, diaPag: null });
+      return;
+    }
+    if (timerBusca !== null && typeof clearTimeout === 'function') clearTimeout(timerBusca);
+    timerBusca = setTimeout(function () {
+      timerBusca = null;
+      setState({ buscaQ: state.busca, aberta: null, justExp: {}, diaPag: null });
+    }, ESPERA_BUSCA);
+  }
+
+
+  /* Tooltip de N linhas. A primeira e o rotulo (tip1), a ultima e o numero
+     (tip2, mono) e o que estiver no meio e prosa (tipd) - e por onde entram as
+     definicoes da taxonomia, que sao frase e nao medida. Chamado com dois
+     argumentos o resultado e exatamente o de antes, que e como a maior parte
+     do painel ainda o chama. Linha falsy some, para o chamador nao precisar
+     montar a lista condicionalmente. */
+  function mostraTip() {
+    var linhas = [], i;
+    for (i = 0; i < arguments.length; i++) if (arguments[i]) linhas.push(arguments[i]);
+    var corpo = linhas.map(function (l, k) {
+      var classe = k === 0 ? 'tip1' : (k === linhas.length - 1 ? 'tip2' : 'tipd');
+      return '<div class="' + classe + '">' + esc(l) + '</div>';
+    }).join('');
+    return function (e) {
+      elTip.innerHTML = corpo;
+      elTip.style.display = 'block';
+      elTip.style.left = '0px';
+      elTip.style.top = '0px';
+      var box = elTip.getBoundingClientRect();
+      elTip.style.left = Math.max(8, Math.min(e.clientX + 16, window.innerWidth - box.width - 8)) + 'px';
+      elTip.style.top = Math.max(8, Math.min(e.clientY + 16, window.innerHeight - box.height - 8)) + 'px';
+    };
+  }
+  function escondeTip() { return function () { elTip.style.display = 'none'; }; }
+
+  /* ── graficos (Apache ECharts) ────────────────────────────────────────────
+     O HTML do painel continua sendo string; um grafico entra nele como um
+     marcador `data-g` e a opcao do ECharts fica em `G`, reconstruido a cada
+     render como `H`. Depois do innerHTML, `montaGraficos` liga cada marcador
+     a uma instancia. A instancia SOBREVIVE ao re-render: o no do grafico e
+     reposto no lugar do marcador novo e recebe a opcao nova, e e isso que faz
+     o clique num filtro animar a transicao em vez de redesenhar do zero.
+
+     Sem `window.echarts` (o ambiente de teste, ou o script do ECharts que nao
+     carregou) o painel continua de pe: os marcadores ficam com o resumo em
+     texto e a tabela, e nada quebra. */
+  var FONTE_UI = '"Instrument Sans", system-ui, sans-serif';
+  var FONTE_MONO = '"IBM Plex Mono", monospace';
+  var G = [];
+
+  function ehObjeto(v) { return v && typeof v === 'object' && !(v instanceof Array) && typeof v !== 'function'; }
+  /* Mescla rasa-profunda: objetos se mesclam, o resto (arrays, funcoes,
+     escalares) substitui. E o que as opcoes do ECharts pedem. */
+  function ext(a, b) {
+    var out = {}, k;
+    for (k in a) if (Object.prototype.hasOwnProperty.call(a, k)) out[k] = a[k];
+    for (k in b) if (Object.prototype.hasOwnProperty.call(b, k)) {
+      out[k] = ehObjeto(out[k]) && ehObjeto(b[k]) ? ext(out[k], b[k]) : b[k];
+    }
+    return out;
+  }
+  function comAlfa(hex, a) {
+    var h = String(hex).replace('#', '');
+    if (h.length !== 6) return hex;
+    return 'rgba(' + parseInt(h.slice(0, 2), 16) + ',' + parseInt(h.slice(2, 4), 16) + ',' + parseInt(h.slice(4, 6), 16) + ',' + a + ')';
+  }
+  function larguraTela() { return (typeof window !== 'undefined' && window.innerWidth) || 1200; }
+  function abrePaper(url) {
+    if (url && typeof window !== 'undefined' && window.open) window.open(url, '_blank', 'noopener');
+  }
+  /* Mesmo desenho do `#tip` das pilulas: rotulo, prosa no meio, numero. */
+  function tipHtml(linhas) {
+    var ls = linhas.filter(Boolean);
+    return ls.map(function (l, k) {
+      var classe = k === 0 ? 'tip1' : (k === ls.length - 1 ? 'tip2' : 'tipd');
+      return '<div class="' + classe + '">' + esc(l) + '</div>';
+    }).join('');
+  }
+  var TOOLTIP = {
+    confine: true, backgroundColor: '#22272c', borderColor: '#333a41', borderWidth: 1, padding: [10, 13],
+    textStyle: { color: '#f5f3ee', fontSize: 12.5, fontFamily: FONTE_UI },
+    extraCssText: 'box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-radius: 5px; max-width: 350px; white-space: normal;'
+  };
+  /* `aria.label.description` e o resumo em texto do grafico: o ECharts o poe
+     como aria-label do conteiner, e e o que um leitor de tela anuncia. */
+  function baseOpcao(resumo, extra) {
+    return ext({
+      backgroundColor: 'transparent',
+      animationDuration: 380, animationDurationUpdate: 320,
+      textStyle: { fontFamily: FONTE_UI, color: '#a8a49b' },
+      aria: { enabled: true, label: { description: resumo } },
+      tooltip: TOOLTIP
+    }, extra);
+  }
+  var EIXO = {
+    axisLine: { lineStyle: { color: '#333a41' } },
+    axisTick: { show: false },
+    axisLabel: { color: '#8b8f96', fontFamily: FONTE_MONO, fontSize: 10.5 },
+    splitLine: { lineStyle: { color: '#1d2226' } }
+  };
+  function eixoCategoria(dados, extra) { return ext(ext(EIXO, { type: 'category', data: dados, splitLine: { show: false } }), extra || {}); }
+  function eixoValor(extra) { return ext(ext(EIXO, { type: 'value', axisLine: { show: false } }), extra || {}); }
+
+  /* Marcador de um grafico. `g`: {nome, altura, opcao, clique?, grupo?,
+     larguraMin?}. `larguraMin` poe o grafico num trilho com rolagem
+     horizontal no celular, para matriz que nao cabe em 360px. */
+  function placeholder(g) {
+    var i = G.push(g) - 1;
+    var div = '<div class="grafico" data-g="' + i + '" data-nome="' + esc(g.nome) + '" style="height: ' + g.altura + 'px;' +
+      (g.larguraMin ? ' min-width: ' + g.larguraMin + 'px;' : '') + '"></div>';
+    return g.larguraMin ? '<div class="rolagem">' + div + '</div>' : div;
+  }
+
+  function tabelaDados(t) {
+    if (!t || !t.linhas || !t.linhas.length) return '';
+    return '<details class="tabela-dados"><summary>ver os números em tabela</summary>' +
+      (t.nota ? '<div class="voto-nota" style="margin: 8px 0;">' + esc(t.nota) + '</div>' : '') +
+      '<div class="rolagem"><table><thead><tr>' + t.cab.map(function (c) { return '<th scope="col">' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      t.linhas.map(function (l) {
+        return '<tr>' + l.map(function (v, i) {
+          return i === 0 ? '<th scope="row">' + esc(v) + '</th>' : '<td>' + esc(v) + '</td>';
+        }).join('') + '</tr>';
+      }).join('') +
+      '</tbody></table></div></details>';
+  }
+
+  /* Card de grafico: titulo, descricao, o resumo em texto (o que o grafico
+     diz, em uma frase - para quem nao enxerga o grafico, para buscador e
+     para quem so quer o numero), o grafico e a tabela dos numeros. */
+  function cardGrafico(o) {
+    return '<section class="card card-grafico' + (o.classe ? ' ' + o.classe : '') + '" aria-labelledby="t-' + o.id + '" id="g-' + o.id + '">' +
+      '<div class="card-cab">' +
+        '<div class="card-tit"><h3 class="titulo-card" id="t-' + o.id + '">' + esc(o.titulo) + '</h3>' +
+          '<div class="descr">' + o.descricao + '</div></div>' +
+        (o.extraCab || '') +
+      '</div>' +
+      (o.antes || '') +
+      '<p class="resumo-grafico">' + esc(o.resumo) + '</p>' +
+      (o.vazio ? '<div class="vazio">' + esc(o.vazio) + '</div>' : '') +
+      (o.graficos || []).map(placeholder).join('') +
+      (o.depois || '') +
+      tabelaDados(o.tabela) +
+      '</section>';
+  }
+
+  var VIVOS = {};
+  function montaGraficos() {
+    var ec = typeof window !== 'undefined' ? window.echarts : null;
+    if (!ec) { G = []; return; }
+    var vistos = {};
+    var marcadores = root.querySelectorAll('[data-g]');
+    for (var m = 0; m < marcadores.length; m++) {
+      var ph = marcadores[m];
+      var g = G[+ph.getAttribute('data-g')];
+      if (!g) continue;
+      var nome = ph.getAttribute('data-nome') || String(m);
+      vistos[nome] = 1;
+      var vivo = VIVOS[nome];
+      if (vivo && ph.parentNode && vivo.el !== ph) {
+        vivo.el.style.height = ph.style.height;
+        vivo.el.style.minWidth = ph.style.minWidth;
+        ph.parentNode.replaceChild(vivo.el, ph);
+        vivo.inst.resize();
+      } else {
+        if (vivo) vivo.inst.dispose();
+        vivo = VIVOS[nome] = { el: ph, inst: ec.init(ph, null, { renderer: 'canvas' }) };
+      }
+      /* `replaceMerge` e nao `notMerge`: notMerge recria o tooltip, e um
+         tooltip agendado pelo hover do clique que disparou este render
+         tentaria escrever num no que ja nao existe. */
+      vivo.inst.dispatchAction({ type: 'hideTip' });
+      vivo.inst.setOption(g.opcao, { replaceMerge: ['series', 'xAxis', 'yAxis', 'grid', 'dataZoom'] });
+      vivo.inst.off('click');
+      if (g.clique) vivo.inst.on('click', g.clique);
+      if (g.grupo) vivo.inst.group = g.grupo;
+    }
+    for (var n in VIVOS) if (Object.prototype.hasOwnProperty.call(VIVOS, n) && !vistos[n]) {
+      VIVOS[n].inst.dispose();
+      delete VIVOS[n];
+    }
+    if (ec.connect) ec.connect('dias');
+    G = [];
+  }
+  function redimensiona() {
+    for (var n in VIVOS) if (Object.prototype.hasOwnProperty.call(VIVOS, n)) VIVOS[n].inst.resize();
+  }
+
+  /* Quartil por interpolacao linear, usado tambem para a mediana (q = 0,5).
+     Havia uma `mediana` propria, que arredondava para inteiro porque so media
+     votos; ela saiu quando a curva de maturacao passou a medir PORCENTAGEM do
+     voto final - arredondar ali perderia o cruzamento dos 90% por menos de um
+     ponto. */
+  function quartil(xs, q) {
+    if (!xs.length) return 0;
+    var o = xs.slice().sort(function (a, b) { return a - b; });
+    var pos = (o.length - 1) * q;
+    var lo = Math.floor(pos), hi = Math.ceil(pos);
+    if (lo === hi) return o[lo];
+    return o[lo] + (o[hi] - o[lo]) * (pos - lo);
+  }
+  /* Passo "redondo" (1, 2, 5, 10 · 10^k) para um eixo de dias: fixar o passo
+     quebraria quando um recorte deixasse a janela com poucos dias. */
+  function passoEixo(intervalo, alvo) {
+    var bruto = intervalo / Math.max(1, alvo);
+    var mag = Math.pow(10, Math.floor(Math.log(bruto) / Math.LN10));
+    var n = bruto / mag;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag;
+  }
+  function diaCurto(iso) {
+    if (!iso) return '—';
+    var p = iso.split('-');
+    return p[2] + '/' + p[1];
+  }
+  /* Dias desde a epoca, para subtrair duas datas ISO sem aritmetica de Date -
+     que em fuso local erra por um dia perto do horario de verao. */
+  function diaNum(iso) {
+    if (!iso) return null;
+    var p = iso.split('-');
+    return Math.round(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000);
+  }
+  function pct(n, total) { return total ? Math.round((n / total) * 100) : 0; }
+  function escalaLog(v, max) {
+    if (max <= 0) return 0;
+    return (Math.log(1 + v) / Math.log(1 + max)) * 100;
+  }
+  /* Ticks de um eixo log1p: os valores redondos que ainda cabem, mais o
+     maximo. Derivados do maximo, nunca fixos - com um recorte que baixe o teto,
+     escalaLog(160, 50) da 129% e o rotulo sai do container. A folga de 7% e o
+     que impede 400 e 510 de virarem um borrao: na escala log eles ficam a
+     quatro pixels um do outro, e quem tem de sobreviver e o maximo. */
+  function ticksLog(max) {
+    if (max <= 0) return [0];
+    var out = [0];
+    [5, 20, 60, 160, 400, 1000, 2500].concat([max]).forEach(function (v) {
+      if (v <= 0 || v > max) return;
+      var ultimo = out[out.length - 1];
+      if (v === max) {
+        while (out.length > 1 && escalaLog(v, max) - escalaLog(out[out.length - 1], max) < 7) out.pop();
+        if (v !== out[out.length - 1]) out.push(v);
+        return;
+      }
+      if (escalaLog(v, max) - escalaLog(ultimo, max) >= 7) out.push(v);
+    });
+    return out;
+  }
+
+  /* pilula de filtro: arredondada, com estados legiveis no escuro */
+  function pill(on, corOn) {
+    var base = 'display: inline-flex; align-items: center; gap: 0; font-size: 12.5px; line-height: 1; padding: 8px 15px; border-radius: 100px; white-space: nowrap;';
+    if (!on) return base + ' background: #1b1f23; border: 1px solid #2b3138; color: #a8a49b;';
+    if (corOn) return base + ' background: ' + corOn + '26; border: 1px solid ' + corOn + '; color: ' + corOn + '; font-weight: 500;';
+    return base + ' background: #d9a441; border: 1px solid #d9a441; color: #14161a; font-weight: 600;';
+  }
+
+  /* Alternador de vista dentro de um card. Pilula menor e sem contador: ela
+     nao filtra nada - troca o que o card desenha (Distribuicao|Sub-areas|
+     Vertentes, dia|semana). */
+  function chipVista(rotulo, on, fn) {
+    return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' + ev('c', fn) +
+      ' style="' + (on ? pillOnGlobal() : pill(false)) + ' font-size: 11.5px; padding: 6px 12px;">' + esc(rotulo) + '</div>';
+  }
+
+  var SVG_CHEVRON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"></path></svg>';
+  var SVG_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 7"></path></svg>';
+
+  /* Menu suspenso de selecao multipla (dia, area, organizacao).
+     `campo` e a chave de estado; `itens` e [{valor, label, n}] ja ordenado. */
+  function montaMenu(rotulo, campo, itens, opcoes) {
+    var s = state;
+    var aberto = s.menu === campo;
+    var marcados = s[campo];
+    var temBusca = itens.length > 12;
+    var q = aberto && temBusca ? (s.buscaMenu || '').trim().toLowerCase() : '';
+    var visiveis = q ? itens.filter(function (i) { return i.label.toLowerCase().indexOf(q) >= 0; }) : itens;
+    var rotuloTodos = (opcoes && opcoes.todos) || 'todos';
+
+    // caixa de selecao desenhada: o clique alterna e o menu FICA aberto,
+    // senao marcar tres areas exigiria reabrir o menu tres vezes
+    function caixa(marcado) {
+      return 'display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 4px; ' +
+        (marcado
+          ? 'background: ' + ACCENT + '; border: 1px solid ' + ACCENT + '; color: #14161a;'
+          : 'background: #16191c; border: 1px solid #3a4149; color: transparent;');
+    }
+
+    var linhas = [{
+      label: rotuloTodos, n: '',
+      style: 'display: grid; grid-template-columns: 15px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 13px; cursor: pointer; border-bottom: 1px solid #242a30;',
+      check: caixa(marcados.length === 0),
+      labelStyle: 'font-size: 12.5px; color: ' + (marcados.length === 0 ? '#f5f3ee' : '#8b8f96') + ';',
+      click: function () {
+        var novo = { aberta: null, justExp: {} };
+        novo[campo] = [];
+        setState(novo);
+      }
+    }].concat(visiveis.map(function (i) {
+      var marcado = marcados.indexOf(i.valor) >= 0;
+      return {
+        label: i.label, n: i.n,
+        style: 'display: grid; grid-template-columns: 15px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 13px; cursor: pointer;',
+        check: caixa(marcado),
+        labelStyle: 'font-size: 12.5px; color: ' + (marcado ? '#f5f3ee' : '#a8a49b') + '; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
+        click: function () { alternaLista(campo, i.valor); }
+      };
+    }));
+
+    var nomes = marcados.map(function (v) {
+      var achado = itens.filter(function (i) { return i.valor === v; })[0];
+      return achado ? achado.label : v;
+    });
+    var valorLabel = marcados.length === 0 ? rotuloTodos
+      : (marcados.length === 1 ? nomes[0] : marcados.length + ' selecionados');
+    var ativo = marcados.length > 0;
+
+    var botao = 'display: inline-flex; align-items: center; gap: 9px; font-size: 12.5px; line-height: 1; padding: 9px 14px; border-radius: 100px; white-space: nowrap; max-width: 340px; ' +
+      (ativo
+        ? 'background: ' + ACCENT + '1f; border: 1px solid ' + ACCENT + '; color: #f5f3ee;'
+        : 'background: #1b1f23; border: 1px solid #2b3138; color: #a8a49b;');
+    var contadorStyle = marcados.length > 1
+      ? 'display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 100px; background: ' + ACCENT + '; color: #14161a; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; font-weight: 500;'
+      : 'display: none;';
+
+    var html = '<div style="position: relative;">' +
+      '<div class="chip"' + ev('c', function () { setState({ menu: aberto ? null : campo, buscaMenu: '' }); }) + ' style="' + botao + '">' +
+        '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.13em; color: ' + (ativo ? ACCENT : '#6d7178') + ';">' + esc(rotulo) + '</span>' +
+        '<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 196px; color: ' + (ativo ? '#f5f3ee' : '#a8a49b') + ';">' + esc(valorLabel) + '</span>' +
+        '<span style="' + contadorStyle + '">' + (marcados.length > 1 ? marcados.length : '') + '</span>' +
+        '<span style="display: inline-flex; color: ' + (ativo ? ACCENT : '#6d7178') + '; transform: rotate(' + (aberto ? '180deg' : '0deg') + '); transition: transform 140ms ease;">' + SVG_CHEVRON + '</span>' +
+      '</div>';
+
+    if (aberto) {
+      html += '<div style="position: absolute; top: calc(100% + 7px); left: 0; z-index: 81; width: 306px; max-width: calc(100vw - 32px); background: #1b1f23; border: 1px solid #333a41; border-radius: 6px; box-shadow: 0 18px 42px rgba(0,0,0,0.55); overflow: hidden;">';
+      if (temBusca) {
+        html += '<div style="padding: 10px 11px; border-bottom: 1px solid #242a30;">' +
+          '<input id="q-menu" class="busca" type="text" value="' + esc(s.buscaMenu || '') + '"' +
+          ev('i', function (e) { setState({ buscaMenu: e.target.value }); }) +
+          ' placeholder="filtrar lista" style="font-family: \'Instrument Sans\', sans-serif; font-size: 12.5px; padding: 7px 12px; width: 100%; border: 1px solid #2b3138; border-radius: 5px; background: #16191c; color: #ecebe6; outline: none;">' +
+          '</div>';
+      }
+      html += '<div style="max-height: 288px; overflow-y: auto;">' +
+        linhas.map(function (i) {
+          return '<div class="row"' + ev('c', i.click) + ' style="' + i.style + '">' +
+            '<span style="' + i.check + '">' + SVG_CHECK + '</span>' +
+            '<span style="' + i.labelStyle + '">' + esc(i.label) + '</span>' +
+            '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #6d7178;">' + esc(i.n) + '</span>' +
+            '</div>';
+        }).join('') +
+        '</div>';
+      if (visiveis.length === 0) {
+        html += '<div style="padding: 20px 14px; text-align: center; font-size: 12.5px; color: #6d7178;">Nada encontrado.</div>';
+      }
+      html += '</div>';
+    }
+    return html + '</div>';
+  }
+
+  /* Os quatro campos da ficha exibidos, na ordem normativa, cada um com sua
+     cor (slots dark do catalogo, validados contra o fundo do card). O Padrao
+     Extraido continua no banco e nos Parquet, mas saiu do painel em
+     21/10/2026: repetia o que o achado e "o que muda para voce" ja dizem. */
+  function camposFicha(f) {
+    var cores = {
+      'ACHADO': '#199e70',
+      'O QUE MUDA PARA VOCÊ': '#d55181',
+      'EXEMPLO CONCRETO': '#9085e9',
+      'RESSALVA': '#e66767'
+    };
+    var bruto = [
+      { rotulo: 'ACHADO', texto: f.ach, nome: '', largo: true },
+      { rotulo: 'O QUE MUDA PARA VOCÊ', texto: f.imp, nome: '', largo: false },
+      { rotulo: 'EXEMPLO CONCRETO', texto: f.ex, nome: '', largo: false },
+      { rotulo: 'RESSALVA', texto: f.res, nome: '', largo: true }
+    ];
+    return bruto.map(function (c) {
+      var cr = cores[c.rotulo];
+      return {
+        rotulo: c.rotulo, texto: c.texto, nome: c.nome,
+        wrap: c.largo ? 'grid-column: 1 / -1;' : '',
+        regua: 'height: 2px; width: 34px; background: ' + cr + '; margin-bottom: 10px;',
+        rotuloStyle: 'font-size: 10.5px; font-weight: 600; letter-spacing: 0.16em; color: ' + cr + '; margin-bottom: 8px;',
+        nomeStyle: c.nome
+          ? 'font-family: \'Instrument Sans\', system-ui, sans-serif; font-size: 17px; font-weight: 600; line-height: 1.32; letter-spacing: -0.01em; color: #f7f5f0; margin-bottom: 9px;'
+          : 'display: none;'
+      };
+    });
+  }
+
+  /* Acima de 320 caracteres o texto e cortado com "mais". 320 fica acima do
+     `maxLength: 300` do schema do Estagio B (src/hfpapers/llm/schemas.py) -
+     isto e rede de seguranca para texto que escapou do limite, nao interacao
+     de todo card: a maioria nunca precisa do botao. */
+  var LIMITE_JUSTIFICATIVA = 320;
+
+  /* Traduz o codigo de `justificativa_exibivel` (gerar_painel.py) para o aviso
+     que substitui o texto - ou `null` quando ha texto de verdade para mostrar.
+     Unica funcao a interpretar `h`: os tres consumidores do contrato (a lista
+     da janela, os aprovados e os descartados do hall) chamam esta funcao em
+     vez de testar `h` por si, porque um `if (p.h)` cru trata qualquer valor
+     diferente de zero como falha do Estagio B - e o codigo 3 (justificativa
+     vazia gravada pelo proprio pipeline) e um caso vivo em
+     `estagios/classificacao.py`, nao hipotetico.
+     So o codigo 0 devolve `null` (ha texto). Qualquer outro valor, `undefined`
+     incluido, cai no aviso residual - a guarda e invertida de proposito: o
+     painel publica sozinho as 08:30, e um `h` fora do contrato nao pode virar
+     cabecalho com rotulo e corpo vazio. */
+  function avisoDecisao(h) {
+    if (h === 2) return 'O Estágio B não concluiu neste paper — o veredito é preliminar.';
+    // codigo 3 e qualquer residual: a decisao pode ter sido so do Estagio A
+    // (classificacao.py:206 grava "fora" sem o B chegar a rodar), entao o
+    // aviso nao pode apontar o dedo para um estagio especifico.
+    if (h !== 0) return 'O pipeline não registrou motivo para esta decisão.';
+    return null;
+  }
+
+  /* Selo da natureza: a pilula com a cor categorica. Usado no card
+     recolhido, no cabecalho da decisao e no hall - um desenho so. */
+  function seloNatureza(k) {
+    var c = corNatureza(k || NAO_CLASSIFICADO);
+    return '<span' + ev('e', mostraTip(rotuloNatureza(k), k ? (DEF_NATUREZA[k] || '') : DEF_NAO_CLASSIFICADO, 'natureza')) + ev('l', escondeTip()) +
+      ' style="display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; padding: 4px 9px; border-radius: 100px; white-space: nowrap; color: ' + c +
+      '; background: ' + c + '1f; border: 1px solid ' + c + '59;">' + esc(rotuloNatureza(k)) + '</span>';
+  }
+
+  /* Cabecalho da decisao: por que esta classificacao, acima dos
+     cinco campos da ficha (ou sozinho, quando nao ha ficha). Nao e um sexto
+     campo - os cinco falam do paper, este fala da classificacao -, entao ele
+     nao usa a regua colorida de `camposFicha`: uma barra lateral na cor da
+     natureza e texto em italico o separam dos cinco. Embaixo dele vem os dois
+     textos da classificacao, quando existem: a pratica que o achado contradiz
+     e o que falta para implementar.
+     `p` precisa de {v, pr, nt, j, h}; `chave` identifica o card para o estado
+     do "mais" (aba viva e historica podem ter cards abertos ao mesmo tempo). */
+  function cabecalhoDecisao(p, chave) {
+    if (p.v !== 'aprovado') return '';
+    var corV = corNatureza(natureza(p));
+
+    var miolo;
+    var aviso = avisoDecisao(p.h);
+    if (aviso) {
+      miolo = '<div style="font-size: 12.5px; font-style: italic; color: #6d7178;">' + aviso + '</div>';
+    } else {
+      var texto = p.j || '';
+      var aberto = !!state.justExp[chave];
+      var precisaCortar = texto.length > LIMITE_JUSTIFICATIVA;
+      var exibido = (precisaCortar && !aberto) ? rotuloCurto(texto, LIMITE_JUSTIFICATIVA) : texto;
+      var botaoMais = precisaCortar
+        ? ' <span class="mais" style="font-size: 12px;"' +
+          ev('c', function () {
+            var m = {};
+            for (var x in state.justExp) if (Object.prototype.hasOwnProperty.call(state.justExp, x)) m[x] = state.justExp[x];
+            m[chave] = !aberto;
+            setState({ justExp: m });
+          }) + '>' + (aberto ? 'menos' : 'mais') + '</span>'
+        : '';
+      miolo = '<div style="font-family: Newsreader, Georgia, serif; font-size: 15px; font-style: italic; font-weight: 300; line-height: 1.62; color: #c9c5bb; text-wrap: pretty;">' + esc(exibido) + botaoMais + '</div>';
+    }
+
+    function texto2(rotuloT, valor) {
+      if (!valor) return '';
+      return '<div class="texto2" style="display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 14px; margin-top: 12px;">' +
+        '<span style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96; padding-top: 2px;">' + rotuloT + '</span>' +
+        '<span style="font-size: 13px; line-height: 1.55; color: #d5d1c8;">' + esc(valor) + '</span>' +
+        '</div>';
+    }
+
+    return '<div style="border-left: 2px solid ' + corV + '; padding: 1px 0 1px 16px; margin-bottom: 22px;">' +
+      '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">' +
+        '<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: ' + corV + ';">POR QUE ESTA CLASSIFICAÇÃO</span>' +
+        seloNatureza(p.nt) +
+      '</div>' +
+      miolo +
+      texto2('CONTRADIZ A PRÁTICA', p.pc) +
+      texto2('SOMENTE PRINCÍPIO', p.fo) +
+      '</div>';
+  }
+
+  /* Links do paper no rodape da ficha: o HF sempre; o repositorio e a pagina
+     do projeto quando existem. */
+  function linksPaper(p) {
+    var out = '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px;">' + esc(p.id) + ' ↗</a>';
+    if (p.gh) out += '<a href="' + esc(p.gh) + '" target="_blank" rel="noopener" style="font-size: 12px;">repositório ↗</a>';
+    if (p.pg) out += '<a href="' + esc(p.pg) + '" target="_blank" rel="noopener" style="font-size: 12px;">página do projeto ↗</a>';
+    return out;
+  }
+
+  /* Marcador de ficha que existe mas ainda nao chegou (fichas.json). */
+  var CARREGANDO = { carregando: true };
+
+  /* O corpo aberto de um aprovado, igual na aba viva e no hall. */
+  function corpoAberto(p, f, chave, extraRodape) {
+    var corpo = '<div class="corpo-aberto" style="padding: 10px 24px 30px;">' + cabecalhoDecisao(p, chave);
+    if (f === CARREGANDO) {
+      corpo += '<div style="font-size: 12.5px; color: #6d7178; padding: 6px 0 14px;">Carregando a ficha…</div>';
+    } else if (f) {
+      corpo += '<div class="ficha-grid" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px;">' +
+        camposFicha(f).map(function (c) {
+          return '<div style="' + c.wrap + '">' +
+            '<div style="' + c.regua + '"></div>' +
+            '<div style="' + c.rotuloStyle + '">' + c.rotulo + '</div>' +
+            '<div style="' + c.nomeStyle + '">' + esc(c.nome) + '</div>' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 16px; font-weight: 300; line-height: 1.68; color: #d5d1c8; text-wrap: pretty;">' + esc(c.texto) + '</div>' +
+            '</div>';
+        }).join('') +
+        '</div>';
+    } else {
+      corpo += '<div style="font-size: 12.5px; color: #6d7178; padding: 6px 0 14px;">Aprovado sem ficha gerada — o Estágio B não chegou a escrevê-la.</div>';
+    }
+    corpo += '<div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-top: 24px; padding-top: 16px; border-top: 1px solid #242a30;">' +
+        linksPaper(p) +
+        '<span style="font-size: 11.5px; color: #6d7178;">' + esc((p.vt || []).join(' · ')) + '</span>' +
+        (extraRodape || '') +
+      '</div>' +
+      '</div>';
+    return corpo;
+  }
+
+  /* Marcas do card recolhido: contradiz pratica e artefato aberto (com link
+     direto para o repositorio, quando ha). */
+  function marcasCard(p) {
+    var out = '';
+    if (p.pc) {
+      out += '<span' + ev('e', mostraTip('contradiz prática', p.pc, 'marca')) + ev('l', escondeTip()) +
+        ' style="font-size: 10.5px; color: #e8a37c; border: 1px solid #e8a37c59; border-radius: 100px; padding: 3px 8px; white-space: nowrap;">≠ prática</span>';
+    }
+    if (p.ao) {
+      out += p.gh
+        ? '<a href="' + esc(p.gh) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size: 10.5px; white-space: nowrap; border-bottom: none; color: ' + VERDE + '; border: 1px solid ' + VERDE + '59; border-radius: 100px; padding: 3px 8px;">artefato ↗</a>'
+        : '<span style="font-size: 10.5px; white-space: nowrap; color: ' + VERDE + '; border: 1px solid ' + VERDE + '59; border-radius: 100px; padding: 3px 8px;">artefato</span>';
+    }
+    if (p.fo) {
+      out += '<span' + ev('e', mostraTip('somente princípio', p.fo, 'marca')) + ev('l', escondeTip()) +
+        ' style="font-size: 10.5px; color: #a8a49b; border: 1px solid #a8a49b59; border-radius: 100px; padding: 3px 8px; white-space: nowrap;">princípio</span>';
+    }
+    return out;
+  }
+
+  function secao(numero, titulo) {
+    return '<h2 class="secao" style="display: flex; align-items: baseline; gap: 14px; margin: 0 0 14px; font-weight: 400;">' +
+      '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + ACCENT + ';">' + numero + '</span>' +
+      '<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #a8a49b;">' + titulo + '</span>' +
+      '<span aria-hidden="true" style="flex: 1; height: 1px; background: #242a30;"></span>' +
+      '</h2>';
+  }
+
+  function linhaFiltro(rotulo, zIndex, conteudo) {
+    return '<div class="linha-filtro" style="display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 16px; align-items: start; position: relative; z-index: ' + zIndex + ';">' +
+      '<div style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96; padding-top: 11px;">' + rotulo + '</div>' +
+      '<div style="display: flex; gap: 10px; flex-wrap: wrap;">' + conteudo + '</div>' +
+      '</div>';
+  }
+
+  /* Rodape comum as tres abas: a procedencia do dado e os modelos que o
+     produziram nao mudam de aba para aba. */
+  function rodape(esquerda) {
+    return '<footer class="rodape" style="display: flex; justify-content: space-between; align-items: baseline; gap: 28px; padding-top: 24px; margin-top: 30px; border-top: 1px solid #242a30; font-size: 10.5px; letter-spacing: 0.1em; color: #5f636a;">' +
+      '<span>' + esquerda + '</span>' +
+      '<span>ESTÁGIO A: ' + esc(DADOS.modeloA) + ' · ESTÁGIO B: ' + esc(DADOS.modeloB) + '</span>' +
+      '</footer>';
+  }
+
+  /* Navegacao entre as tres abas. Sublinhado em vez de pilula: as pilulas ja
+     significam "filtro" em todo o resto do painel, e uma aba nao filtra nada -
+     ela troca a pergunta que a pagina responde. `aprovados` e a contagem do
+     recorte vivo, nao da janela inteira. */
+  function navAbas(aprovados) {
+    var s = state;
+    var itens = [
+      { valor: 'aprovados', label: 'Aprovados', nota: aprovados + ' no recorte' },
+      { valor: 'panorama', label: 'Panorama', nota: '5 seções' },
+      { valor: 'historico', label: 'Registro histórico', nota: (DADOS.hall || []).length + ' trimestres' }
+    ];
+    return '<nav class="abas" aria-label="abas do painel" style="display: flex; gap: 30px; margin-top: 26px; border-bottom: 1px solid #242a30;">' +
+      itens.map(function (i) {
+        var on = s.aba === i.valor;
+        return '<div class="aba"' + ev('c', function () { setState({ aba: i.valor, menu: null, aberta: null, abertaH: null, justExp: {} }); }) +
+          ' style="display: flex; align-items: baseline; gap: 10px; padding: 0 2px 13px; margin-bottom: -1px; border-bottom: 2px solid ' +
+          (on ? ACCENT : 'transparent') + '; color: ' + (on ? '#f5f3ee' : '#8b8f96') + ';">' +
+          '<span style="font-size: 13.5px; font-weight: ' + (on ? '600' : '400') + ';">' + i.label + '</span>' +
+          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: ' + (on ? '#8b8f96' : '#5f636a') + ';">' + esc(i.nota) + '</span>' +
+          '</div>';
+      }).join('') +
+      '</nav>';
+  }
+
+  var TOPO_HALL = 15;
+
+  /* ══════════════ ABA HISTÓRICA ══════════════
+
+     A aba viva mostra uma janela de dias; esta guarda o que saiu dela. Ela NAO
+     preserva dado contra perda - nada e apagado, a serie inteira continua em
+     marts/*.parquet e no banco. O que ela resolve e visibilidade: impedir que o
+     recorte esconda para sempre o que a comunidade mais votou.
+
+     Os 15 aprovados mais votados de cada trimestre, com a ficha, e os 5
+     descartados mais votados, como auditoria do corte. */
+  function construirHall() {
+    var s = state;
+    var hall = DADOS.hall || [];
+    var out = [];
+
+    if (!hall.length) {
+      out.push(
+        '<div class="card" style="padding: 62px 26px; text-align: center;">' +
+          '<div style="font-family: Newsreader, Georgia, serif; font-size: 28px; font-weight: 400; color: #f5f3ee; margin-bottom: 12px;">Nenhum período saiu da janela ainda</div>' +
+          '<div style="font-size: 13px; line-height: 1.65; color: #8b8f96; max-width: 580px; margin: 0 auto;">Um paper entra no registro histórico quando completa ' +
+            (DADOS.diasRefresh || DADOS.diasHall) + ' dias — a mesma marca em que o pipeline para de reconsultar os votos dele. Até lá ele está na aba <em style="color: #a8a49b;">Aprovados</em>, com o número de votos ainda vivo.</div>' +
+        '</div>');
+      out.push(rodape('REGISTRO HISTÓRICO · NENHUM PERÍODO FECHADO'));
+      return out.join('');
+    }
+
+    var atual = null;
+    hall.forEach(function (per) { if (per.per === s.perSel) atual = per; });
+    if (!atual) atual = hall[0];
+
+    /* ── seletor de trimestre ──────────────────────────────────────────── */
+    var chipsPer = hall.map(function (per) {
+      var on = per.per === atual.per;
+      return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' +
+        ev('c', function () { setState({ perSel: per.per, abertaH: null, justExp: {} }); }) +
+        ' style="' + (on ? pillOnGlobal() : pill(false)) + '">' +
+        esc(per.rot) +
+        '<span style="margin-left: 7px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; opacity: 0.62;">' + per.n + '</span>' +
+        (per.cons ? '<span style="margin-left: 8px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7;">consolidando</span>' : '') +
+        '</div>';
+    }).join('');
+
+    out.push(
+      '<div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 30px;">' +
+        '<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">' +
+          '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96; width: 74px;">PERÍODO</span>' + chipsPer +
+        '</div>' +
+      '</div>'
+    );
+
+    var avisoCons = atual.cons
+      ? '<span style="display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: ' + ACCENT + '; background: rgba(217,164,65,0.1); border: 1px solid rgba(217,164,65,0.35); border-radius: 100px; padding: 6px 13px;">' +
+          '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ' + ACCENT + ';"></span>' +
+          'em consolidação — o trimestre ainda não saiu inteiro do corte</span>'
+      : '<span style="font-size: 11.5px; color: #6d7178;">período fechado · ranking definitivo</span>';
+
+    /* ── 01 · os mais votados entre os aprovados ────────────────────────── */
+    out.push(secao('01', 'Os mais votados entre os aprovados'));
+
+    var ap = atual.ap.slice()
+      .sort(function (a, b) { return b.u - a.u || a.id.localeCompare(b.id); })
+      .slice(0, TOPO_HALL);
+
+    var colunasH = '30px 132px minmax(240px, 1.3fr) minmax(200px, 1fr) 110px 56px 54px';
+    var linhasAp = ap.map(function (p, i) {
+      var aberta = s.abertaH === p.id;
+      var corpo = aberta
+        ? corpoAberto(p, p.f ? p : null, 'hall:' + p.id,
+            p.uq ? '<span style="font-size: 11.5px; color: #5f636a;">votos medidos em ' + esc(diaCurto(p.uq)) + '</span>' : '')
+        : '';
+      return '<div style="border-bottom: 1px solid #1d2226;">' +
+        '<div class="row tab-hall" data-card="' + esc(p.id) + '"' + ev('c', function () { setState({ abertaH: aberta ? null : p.id }); }) + ' role="button" tabindex="0" aria-expanded="' + aberta + '" style="display: grid; grid-template-columns: ' + colunasH + '; gap: 14px; padding: 14px 24px; align-items: center;">' +
+          '<span class="c-pos" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: ' + (i < 3 ? ACCENT : '#4a5058') + ';">' + (i + 1) + '</span>' +
+          '<span class="c-nat">' + seloNatureza(p.nt) + '</span>' +
+          '<div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">' +
+            '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.t) + '</span>' +
+            '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc(p.org || '—') + (p.f ? '' : ' · sem ficha') + '</span>' +
+          '</div>' +
+          '<span class="c-area" style="font-size: 11.5px; color: #8b8f96; line-height: 1.5;">' + esc(parArea(p)) + '</span>' +
+          '<span class="c-vert">' + celulaVertente(p) + '</span>' +
+          '<span class="c-num" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12.5px; color: #ecebe6; text-align: right;">' + p.u + '</span>' +
+          '<span class="c-dia" style="font-family: \'IBM Plex Mono\', monospace; font-size: 11.5px; color: #6d7178; text-align: right;">' + diaCurto(p.d) + '</span>' +
+        '</div>' + corpo +
+        '</div>';
+    }).join('');
+
+    out.push(
+      '<div class="card" style="overflow-x: auto; margin-bottom: 34px;">' +
+        '<div class="card-cab-lista" style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px; flex-wrap: wrap;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O que ficou do ' + esc(atual.rot) + '</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">' + ap.length + ' de ' + atual.na + ' aprovados, ordenados por voto da comunidade. Clique para abrir o porquê da classificação — e a ficha completa.</div>' +
+          '</div>' + avisoCons +
+        '</div>' +
+        '<div class="tab-cab" style="display: grid; grid-template-columns: ' + colunasH + '; gap: 14px; padding: 11px 24px; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; background: #131619; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">' +
+          '<span>#</span><span>NATUREZA</span><span>TÍTULO</span><span>ÁREA &gt; SUB-ÁREA</span><span>VERTENTE</span><span style="text-align: right;">VOTOS</span><span style="text-align: right;">DIA</span>' +
+        '</div>' +
+        linhasAp +
+        (linhasAp ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum aprovado neste trimestre.</div>') +
+      '</div>'
+    );
+
+    /* ── 02 · auditoria: votados e descartados ──────────────────────────── */
+    out.push(secao('02', 'Auditoria: votados pela comunidade, descartados pelo pipeline'));
+
+    var linhasDe = atual.de.map(function (p, i) {
+      return '<div style="display: grid; grid-template-columns: 30px 66px minmax(0, 1fr); gap: 16px; padding: 15px 24px; border-bottom: 1px solid #1d2226; align-items: start;">' +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: #4a5058; padding-top: 2px;">' + (i + 1) + '</span>' +
+        '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 13px; color: #9aa1a9; text-align: right; padding-top: 1px;">' + p.u + '</span>' +
+        '<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">' +
+          '<div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">' +
+            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-size: 13.5px; color: #ecebe6; border-bottom-color: rgba(236,235,230,0.18);">' + esc(p.t) + '</a>' +
+            (p.rf
+              ? '<span style="font-size: 10.5px; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">' + esc(rotulo(p.rf)) + '</span>'
+              : '') +
+            '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.org || '—') + ' · ' + diaCurto(p.d) + '</span>' +
+          '</div>' +
+          (function () {
+            var aviso = avisoDecisao(p.h);
+            return aviso
+              ? '<div style="font-size: 12.5px; font-style: italic; color: #6d7178;">' + aviso + '</div>'
+              : '<div style="font-family: Newsreader, Georgia, serif; font-size: 15px; font-weight: 300; line-height: 1.6; color: #a8a49b; text-wrap: pretty;">' + esc(p.j) + '</div>';
+          })() +
+        '</div>' +
+        '</div>';
+    }).join('');
+
+    out.push(
+      '<div class="card" style="overflow-x: auto; margin-bottom: 34px;">' +
+        '<div class="card-cab-lista" style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px; flex-wrap: wrap;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">O outro lado do voto</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Os ' + atual.de.length + ' mais votados entre os ' + atual.nd + ' descartados do trimestre, com a regra e a justificativa que os tiraram.' +
+              (atual.nx ? ' <span style="color: #6d7178;">Outros ' + atual.nx + ' do trimestre nunca chegaram a ser classificados e ficam fora das duas listas.</span>' : '') +
+            '</div>' +
+          '</div>' +
+          '<span style="font-size: 11.5px; color: #6d7178; text-align: right; max-width: 300px; line-height: 1.5;">Upvote não entra em decisão nenhuma do pipeline. Esta lista existe para medir a divergência, não para reabrir o descarte.</span>' +
+        '</div>' +
+        linhasDe +
+        (linhasDe ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum descarte neste trimestre.</div>') +
+      '</div>'
+    );
+
+    var somaDe = 0;
+    hall.forEach(function (per) { somaDe += per.de.length; });
+    out.push(rodape('REGISTRO HISTÓRICO · ' + hall.length + ' TRIMESTRE(S) · ' + TOPO_HALL + ' APROVADOS · ' + somaDe + ' DESCARTADOS'));
+    return out.join('');
+  }
+
+  // a pilula "ligada" tambem e usada fora de construir()
+  function pillOnGlobal() {
+    return 'display: inline-flex; align-items: center; gap: 0; font-size: 12.5px; line-height: 1; padding: 8px 15px; border-radius: 100px; white-space: nowrap; background: ' + ACCENT + '; border: 1px solid ' + ACCENT + '; color: #14161a; font-weight: 600;';
+  }
+
+  /* Pilula com bolinha de cor e contador - o mesmo desenho para natureza,
+     marca e veredito, que e o que os testes procuram. */
+  var COM_CONTAGEM = 'margin-left: 7px; font-family: \'IBM Plex Mono\', monospace; font-size: 11px; opacity: 0.62;';
+  function pilula(rotuloP, on, corP, n, fn, dica, extra) {
+    return '<div class="' + (on ? 'chip chip-on' : 'chip') + '"' + ev('c', fn) +
+      (dica ? ev('e', dica) + ev('l', escondeTip()) : '') +
+      ' style="' + pill(on, corP) + (extra || '') + '">' +
+      '<span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; background: ' + corP + ';"></span>' + esc(rotuloP) +
+      (n === null || n === undefined ? '' : '<span style="' + COM_CONTAGEM + '">' + n + '</span>') +
+      '</div>';
+  }
+
+  function construir() {
+    var s = state;
+    var todos = DADOS.papers;
+    var sel = filtrados();
+    var total = sel.length;
+
+    /* Um recorte por dimensao, cada um com a SUA solta: e o que faz os
+       numeros da barra de filtro descreverem o recorte em vigor em vez da
+       janela inteira, sem que o seletor se apague depois do primeiro clique. */
+    var recDia = filtrados('diasSel');
+    var recVeredito = filtrados('vereditos');
+    var recArea = filtrados('areas');
+    var recSubarea = filtrados('subareas');
+    var recVert = filtrados('vertentes');
+    var recOrg = filtrados('orgs');
+    var recNatureza = filtrados('naturezas');
+    var recMarca = filtrados('marcas');
+
+    var aprovadosSel = sel.filter(function (p) { return p.v === 'aprovado'; });
+    var nFora = total - aprovadosSel.length;
+
+    // Aprovado nao classificado (linha anterior a reclassificacao total) na
+    // janela inteira: e o que decide se a pilula e a nota de transicao existem.
+    var naoClassificados = todos.filter(function (p) { return p.v === 'aprovado' && natureza(p) === NAO_CLASSIFICADO; }).length;
+    var naturezasVisiveis = NATUREZAS.concat(naoClassificados ? [NAO_CLASSIFICADO] : []);
+
+    var dias = [];
+    todos.forEach(function (p) { if (p.d && dias.indexOf(p.d) < 0) dias.push(p.d); });
+    dias.sort();
+
+    var out = [];
+    out.push('<div class="pagina" style="background: #0d0f11; color: #ecebe6; padding: 44px 46px 60px;">');
+
+    /* ══════════════ CABEÇALHO ══════════════ */
+    out.push(
+      '<header class="cab" style="display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; padding-bottom: 26px; border-bottom: 1px solid #242a30;">' +
+        '<div style="display: flex; flex-direction: column; gap: 12px;">' +
+          '<div style="display: flex; align-items: center; gap: 9px;">' +
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 3a14 14 0 0 0 0 18"></path><path d="M12 3a14 14 0 0 1 0 18"></path><path d="M3.5 9h17"></path><path d="M3.5 15h17"></path></svg>' +
+            '<span style="font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: ' + ACCENT + ';">hf-papers-db</span>' +
+          '</div>' +
+          '<h1 class="titulo-grande" style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 66px; font-weight: 300; line-height: 0.96; letter-spacing: -0.02em; color: #f5f3ee;">Daily Papers,<span style="font-style: italic; font-weight: 400; color: ' + ACCENT + ';"> triados</span></h1>' +
+          '<div style="font-family: Newsreader, Georgia, serif; font-size: 17px; font-weight: 300; line-height: 1.55; color: #a8a49b; max-width: 680px; text-wrap: pretty;">Papers do Hugging Face Daily Papers, classificados pelo tema e resumidos em fichas.</div>' +
+        '</div>' +
+        '<div class="cab-meta" style="display: flex; gap: 34px; text-align: right; padding-bottom: 4px;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<span style="font-size: 10px; letter-spacing: 0.16em; color: #6d7178;">JANELA</span>' +
+            '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 14px; color: #ecebe6;">' +
+              esc(dias.length ? diaCurto(dias[0]) + ' – ' + diaCurto(dias[dias.length - 1]) : '—') +
+              '<span style="color: #6d7178;"> · ' + DADOS.janela + 'd</span>' +
+            '</span>' +
+          '</div>' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<span style="font-size: 10px; letter-spacing: 0.16em; color: #6d7178;">PAPERS</span>' +
+            '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 14px; color: #ecebe6;">' + todos.length +
+              (DADOS.pendentes ? '<span style="color: #6d7178;"> · +' + DADOS.pendentes + ' na fila</span>' : '') +
+            '</span>' +
+          '</div>' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<span style="font-size: 10px; letter-spacing: 0.16em; color: #6d7178;">EXTRAÍDO</span>' +
+            '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 14px; color: #ecebe6;">' + esc(DADOS.gerado.replace('T', ' ').slice(0, 16)) + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</header>'
+    );
+
+    out.push(navAbas(aprovadosSel.length));
+
+    /* A aba historica nao passa pela barra de filtro: `filtrados()` recorta
+       DADOS.papers, que e so a janela. O hall tem o seletor de trimestre, e
+       nada mais. */
+    if (s.aba === 'historico') {
+      out.push(construirHall());
+      out.push('</div>');
+      return out.join('');
+    }
+
+    /* ══════════════ AVISO DE NÃO CLASSIFICADOS ══════════════ */
+    if (naoClassificados) {
+      out.push(
+        '<div class="card" style="margin: 24px 0 0; padding: 16px 22px; display: flex; align-items: flex-start; gap: 14px;">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="' + ACCENT + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16.5v.01"></path></svg>' +
+          '<div style="font-size: 12.5px; line-height: 1.65; color: #a8a49b; text-wrap: pretty;">' +
+            naoClassificados + ' aprovados da janela ainda são do regime anterior e aparecem como <em>não classificado</em> até a reclassificação total.' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    /* ══════════════ FILTROS ══════════════ */
+    var contaDia = {};
+    recDia.forEach(function (p) { if (p.d) contaDia[p.d] = (contaDia[p.d] || 0) + 1; });
+    var itensDia = dias.slice().reverse().map(function (d) {
+      return { valor: d, label: diaCurto(d), n: contaDia[d] || 0 };
+    });
+
+    var contaArea = {};
+    recArea.forEach(function (p) { if (p.a) contaArea[p.a] = (contaArea[p.a] || 0) + 1; });
+    var itensArea = DADOS.areas.map(function (a) {
+      return { valor: a.a, label: a.a, n: contaArea[a.a] || 0 };
+    }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
+
+    var contaSubarea = {};
+    recSubarea.forEach(function (p) { if (p.sa) contaSubarea[p.sa] = (contaSubarea[p.sa] || 0) + 1; });
+    var itensSubarea = Object.keys(DADOS.subdef || {}).map(function (sa) {
+      return { valor: sa, label: sa, n: contaSubarea[sa] || 0 };
+    }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
+
+    var contaVert = {};
+    recVert.forEach(function (p) { var k = dominante(p); contaVert[k] = (contaVert[k] || 0) + 1; });
+    var itensVert = (DADOS.vertentes || []).map(function (v) {
+      return { valor: v.v, label: v.v, n: contaVert[v.v] || 0 };
+    }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
+    if (contaVert[VERTENTE_NULA] || s.vertentes.indexOf(VERTENTE_NULA) >= 0) {
+      itensVert.push({ valor: VERTENTE_NULA, label: 'sem vertente', n: contaVert[VERTENTE_NULA] || 0 });
+    }
+
+    /* Organizacao e a excecao a regra dos zeros: nao e vocabulario controlado,
+       e uma lista de zeros nao informa nada que a busca do menu ja nao resolva.
+       Menos a que estiver MARCADA: o filtro em vigor nunca sai do menu. */
+    var contaOrg = {};
+    recOrg.forEach(function (p) { if (p.org) contaOrg[p.org] = (contaOrg[p.org] || 0) + 1; });
+    s.orgs.forEach(function (o) { if (o !== '__sem-org__' && !contaOrg[o]) contaOrg[o] = 0; });
+    var semOrg = recOrg.filter(function (p) { return !p.org; }).length;
+    var itensOrg = Object.keys(contaOrg).map(function (o) {
+      return { valor: o, label: o, n: contaOrg[o] };
+    }).sort(function (x, y) { return y.n - x.n || x.label.localeCompare(y.label); });
+    if (semOrg || s.orgs.indexOf('__sem-org__') >= 0) {
+      itensOrg.push({ valor: '__sem-org__', label: 'sem organização', n: semOrg });
+    }
+
+    var contaNat = {};
+    recNatureza.forEach(function (p) { if (p.v === 'aprovado') { var k = natureza(p); contaNat[k] = (contaNat[k] || 0) + 1; } });
+    var chipsNatureza = naturezasVisiveis.map(function (k) {
+      var r = rotuloNatureza(k);
+      return pilula(r, s.naturezas.indexOf(k) >= 0, corNatureza(k), contaNat[k] || 0,
+        function () { alternaLista('naturezas', k); },
+        mostraTip(r, k === NAO_CLASSIFICADO ? DEF_NAO_CLASSIFICADO : (DEF_NATUREZA[k] || ''), 'natureza'));
+    }).join('') + '<span style="font-size: 11.5px; color: #6d7178; align-self: center;">recorta só os aprovados</span>';
+
+    var chipsMarca = MARCAS.map(function (m) {
+      var n = recMarca.filter(function (p) { return p.v === 'aprovado' && temMarca(p, m.k); }).length;
+      return pilula(m.r, s.marcas.indexOf(m.k) >= 0, VERDE, n, function () { alternaLista('marcas', m.k); },
+        mostraTip(m.r, m.def, 'marca'));
+    }).join('');
+
+    // Veredito so na aba Panorama: a aba Aprovados ja e so aprovado
+    var chipsVeredito = [{ k: 'aprovado', c: VERDE }, { k: 'fora', c: COR_FORA }].map(function (v) {
+      var n = recVeredito.filter(function (p) { return p.v === v.k; }).length;
+      return pilula(v.k, s.vereditos.indexOf(v.k) >= 0, v.c, n, function () { alternaLista('vereditos', v.k); });
+    }).join('');
+
+    var ativos = [];
+    if (s.diasSel.length) ativos.push(s.diasSel.length === 1 ? diaCurto(s.diasSel[0]) : s.diasSel.length + ' dias');
+    if (s.naturezas.length) ativos.push(s.naturezas.map(rotuloNatureza).join('+'));
+    if (s.marcas.length) ativos.push(s.marcas.map(function (k) { return MARCAS.filter(function (m) { return m.k === k; })[0].r; }).join(' e '));
+    if (s.aba === 'panorama' && s.vereditos.length) ativos.push(s.vereditos.join('+'));
+    if (s.areas.length) ativos.push(s.areas.length === 1 ? s.areas[0] : s.areas.length + ' áreas');
+    if (s.subareas.length) ativos.push(s.subareas.length === 1 ? s.subareas[0] : s.subareas.length + ' sub-áreas');
+    if (s.vertentes.length) ativos.push(s.vertentes.length === 1
+      ? (s.vertentes[0] === VERTENTE_NULA ? 'sem vertente' : 'dominante: ' + s.vertentes[0])
+      : s.vertentes.length + ' vertentes dominantes');
+    if (s.regrasFora.length) ativos.push(s.regrasFora.length === 1 ? 'regra: ' + rotulo(s.regrasFora[0]) : s.regrasFora.length + ' regras');
+    if (s.orgs.length) ativos.push(s.orgs.length === 1 ? (s.orgs[0] === '__sem-org__' ? 'sem organização' : s.orgs[0]) : s.orgs.length + ' organizações');
+    if (s.buscaQ) ativos.push('"' + s.buscaQ + '"');
+    /* Natureza e marcas deixam os descartados passarem (ver `filtrados`):
+       sem a quebra, "991 de 2357 · achado empírico" parece dizer que ha 991
+       achados empiricos, quando sao 164 mais os 827 descartados. */
+    var quebra = (s.naturezas.length || s.marcas.length) && nFora
+      ? ' · ' + aprovadosSel.length + ' aprovados + ' + nFora + ' descartados' : '';
+    var resumoFiltro = ativos.length ? total + ' de ' + todos.length + quebra + ' · ' + ativos.join(' · ') : todos.length + ' papers, sem recorte';
+
+    var estiloLimpar = 'display: inline-flex; align-items: center; gap: 7px; font-size: 12px; padding: 8px 14px; border-radius: 100px; background: ' +
+      (ativos.length ? 'rgba(217,164,65,0.12)' : '#1b1f23') + '; border: 1px solid ' + (ativos.length ? 'rgba(217,164,65,0.5)' : '#2b3138') +
+      '; color: ' + (ativos.length ? ACCENT : '#6d7178') + ';';
+
+    var zDia = s.menu === 'diasSel' ? 90 : 4;
+    var zTema = (s.menu === 'areas' || s.menu === 'subareas' || s.menu === 'vertentes') ? 90 : 2;
+    var zOrg = s.menu === 'orgs' ? 90 : 1;
+
+    out.push(
+      '<div class="card filtros' + (s.filtrosAbertos ? '' : ' recolhido') + '" role="search" style="margin: 14px 0 30px; padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 15px;">' +
+        '<div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">' +
+          '<div style="display: flex; align-items: center; gap: 10px;">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#767a80" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.5 7.5V19l-3 1.5v-8L4 5z"></path></svg>' +
+            '<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #a8a49b;">Recorte</span>' +
+            '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: #6d7178;">' + esc(resumoFiltro) + '</span>' +
+          '</div>' +
+          '<div class="filtros-acoes" style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">' +
+            '<div class="busca-caixa" style="position: relative; display: flex; align-items: center;">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6d7178" stroke-width="1.7" stroke-linecap="round" style="position: absolute; left: 13px;"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg>' +
+              '<input id="q-principal" class="busca" type="text" value="' + esc(s.busca) + '"' +
+                ev('i', function (e) { digitaBusca(e.target.value); }) +
+                ' aria-label="buscar título, organização ou texto da ficha" placeholder="buscar título, organização ou ficha" style="font-family: \'Instrument Sans\', sans-serif; font-size: 13px; padding: 9px 14px 9px 36px; width: 300px; border: 1px solid #2b3138; border-radius: 100px; background: #1b1f23; color: #ecebe6; outline: none;">' +
+            '</div>' +
+            '<div class="chip"' + ev('c', function () {
+                state.busca = '';
+                setState({ diasSel: [], vereditos: [], areas: [], subareas: [], vertentes: [], regrasFora: [], orgs: [], naturezas: [], marcas: [], buscaQ: '', aberta: null, menu: null, buscaMenu: '', justExp: {}, diaPag: null });
+              }) + ' style="' + estiloLimpar + '">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg><span>limpar</span>' +
+            '</div>' +
+            '<div class="chip" role="button" tabindex="0" title="copia o endereço desta visão, com os filtros"' + ev('c', copiaLink) +
+              ' style="display: inline-flex; align-items: center; gap: 7px; font-size: 12px; padding: 8px 14px; border-radius: 100px; background: #1b1f23; border: 1px solid #2b3138; color: ' + (linkCopiado ? VERDE : '#a8a49b') + ';">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>' +
+              '<span>' + (linkCopiado ? 'link copiado' : 'copiar link') + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="chip so-celular" role="button" tabindex="0" aria-expanded="' + s.filtrosAbertos + '"' + ev('c', function () { setState({ filtrosAbertos: !state.filtrosAbertos, menu: null }); }) +
+          ' style="' + pill(false) + ' justify-content: center;">' + (s.filtrosAbertos ? 'esconder filtros' : 'mostrar filtros' + (ativos.length ? ' · ' + ativos.length + ' ativo(s)' : '')) + '</div>' +
+        '<div class="filtros-sep" style="height: 1px; background: #242a30;"></div>' +
+        linhaFiltro('NATUREZA', 5, chipsNatureza) +
+        linhaFiltro('MARCAS', 5, chipsMarca) +
+        (s.aba === 'panorama'
+          ? linhaFiltro('VEREDITO', 4, chipsVeredito +
+              (DADOS.pendentes
+                ? '<span' + ev('e', mostraTip('Ainda sem veredito',
+                    'O refresh grava paper novo depois que a classificação já passou; ele entra na próxima rodada. Nunca classificado não é o mesmo que fora.')) +
+                    ev('l', escondeTip()) +
+                    ' style="font-size: 11.5px; color: #6d7178; border-bottom: 1px dotted #3a4048; cursor: help; align-self: center;">+' +
+                    DADOS.pendentes + ' na fila, sem veredito</span>'
+                : ''))
+          : '') +
+        linhaFiltro('DIA', zDia, montaMenu('DIA', 'diasSel', itensDia, { todos: 'todos os dias' })) +
+        linhaFiltro('TEMA', zTema,
+          montaMenu('ÁREA', 'areas', itensArea, { todos: 'todas' }) +
+          montaMenu('SUB-ÁREA', 'subareas', itensSubarea, { todos: 'todas' }) +
+          montaMenu('VERTENTE', 'vertentes', itensVert, { todos: 'todas' })) +
+        linhaFiltro('AUTORIA', zOrg, montaMenu('ORGANIZAÇÃO', 'orgs', itensOrg, { todos: 'todas' })) +
+      '</div>'
+    );
+
+    if (s.menu) {
+      out.push('<div' + ev('c', function () { setState({ menu: null, buscaMenu: '' }); }) + ' style="position: fixed; inset: 0; z-index: 80;"></div>');
+    }
+
+    /* As duas abas filtraveis dividem tudo acima desta linha. O que vem
+       abaixo e exclusivo de cada uma. */
+    if (s.aba === 'panorama') {
+
+    /* ══════════════ STAT TILES ══════════════ */
+    var comFicha = aprovadosSel.filter(function (p) { return p.f; }).length;
+    var comArtefato = aprovadosSel.filter(function (p) { return p.ao; }).length;
+    var contradizem = aprovadosSel.filter(function (p) { return p.pc; }).length;
+    function marca(c) { return 'display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: ' + c + ';'; }
+    var tiles = [
+      { rotulo: 'papers no recorte', valor: total, sufixo: 'de ' + todos.length, cor: '#f5f3ee', marca: marca('#4a5058'), nota: dias.length + ' dias de publicação cobertos' },
+      { rotulo: 'aprovados', valor: aprovadosSel.length, sufixo: pct(aprovadosSel.length, total) + '%', cor: VERDE, marca: marca(VERDE), nota: comFicha + ' com ficha escrita · ' + nFora + ' descartados' },
+      { rotulo: 'artefato aberto', valor: comArtefato, sufixo: pct(comArtefato, aprovadosSel.length) + '% dos aprovados', cor: '#f5f3ee', marca: marca(VERDE), nota: 'evidência no HF ou no abstract, confirmada como liberada' },
+      { rotulo: 'contradizem prática', valor: contradizem, sufixo: pct(contradizem, aprovadosSel.length) + '% dos aprovados', cor: '#f5f3ee', marca: marca('#e8a37c'), nota: 'achados contra algo que o leitor faz hoje, nomeado na ficha' }
+    ];
+    out.push('<div class="tiles" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 34px;">' +
+      tiles.map(function (k) {
+        return '<div class="card" style="padding: 18px 20px 17px; display: flex; flex-direction: column; gap: 9px;">' +
+          '<div style="display: flex; align-items: center; gap: 7px;">' +
+            '<span style="' + k.marca + '"></span>' +
+            '<span style="font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #767a80;">' + esc(k.rotulo) + '</span>' +
+          '</div>' +
+          '<div style="display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;">' +
+            '<span class="tile-valor" style="font-family: Newsreader, Georgia, serif; font-weight: 400; font-size: 46px; line-height: 0.9; letter-spacing: -0.02em; color: ' + k.cor + ';">' + k.valor + '</span>' +
+            '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: #6d7178;">' + esc(k.sufixo) + '</span>' +
+          '</div>' +
+          '<div style="font-size: 12px; line-height: 1.42; color: #8b8f96; text-wrap: pretty;">' + esc(k.nota) + '</div>' +
+          '</div>';
+      }).join('') + '</div>');
+
+    /* Empilhado de baixo para cima: descartados, depois as naturezas na
+       ordem do banco, o nao classificado no topo. */
+    var camadas = ['fora'].concat(naturezasVisiveis);
+    function corCamada(k) { return k === 'fora' ? COR_FORA : corNatureza(k); }
+    function rotuloCamada(k) { return k === 'fora' ? 'fora' : rotuloNatureza(k); }
+    function camadaDe(p) { return p.v === 'fora' ? 'fora' : natureza(p); }
+    function legendaCamadas(forma) {
+      return '<div class="legenda" role="list">' + camadas.map(function (k) {
+        return '<span role="listitem"><i style="background: ' + corCamada(k) + ';' + (forma === 'ponto' ? ' border-radius: 50%;' : '') + '"></i>' + esc(rotuloCamada(k)) + '</span>';
+      }).join('') + '</div>';
+    }
+    function detalheContagem(c) {
+      return camadas.filter(function (k) { return c[k]; }).map(function (k) { return c[k] + ' ' + rotuloCamada(k); }).join(' · ');
+    }
+
+    /* ══════════════ 01 · VOLUME E SELETIVIDADE ══════════════
+
+       Os dois graficos desta secao se contam com o DIA solto: eles SAO o
+       seletor de dia (clique numa barra ou num ponto), e marcar um dia nao
+       pode apagar os outros - os nao marcados so esmaecem. Os dois dividem o
+       eixo e o tooltip (grupo `dias`). */
+    out.push(secao('01', 'Volume e seletividade'));
+
+    var selDia = filtrados('diasSel');
+    var porDia = {};
+    dias.forEach(function (d) { porDia[d] = { total: 0, ap: 0 }; camadas.forEach(function (k) { porDia[d][k] = 0; }); });
+    selDia.forEach(function (p) {
+      var c = porDia[p.d];
+      if (!c) return;
+      c[camadaDe(p)] = (c[camadaDe(p)] || 0) + 1;
+      c.total++;
+      if (p.v === 'aprovado') c.ap++;
+    });
+    var rotDias = dias.map(diaCurto);
+    function diaApagado(d) { return s.diasSel.length > 0 && s.diasSel.indexOf(d) < 0; }
+
+    var seriesVolume = camadas.map(function (k) {
+      return {
+        name: rotuloCamada(k), type: 'bar', stack: 'lote', barCategoryGap: '28%',
+        itemStyle: { color: corCamada(k), borderColor: '#16191c', borderWidth: 1 },
+        emphasis: { focus: 'none', itemStyle: { borderColor: '#f5f3ee' } },
+        data: dias.map(function (d) {
+          return { value: porDia[d][k] || 0, itemStyle: diaApagado(d) ? { opacity: 0.28 } : undefined };
+        })
+      };
+    });
+
+    var serieTaxa = dias.map(function (d, i) {
+      var c = porDia[d];
+      var sa = 0, st = 0;
+      for (var k = Math.max(0, i - 4); k <= i; k++) { sa += porDia[dias[k]].ap; st += porDia[dias[k]].total; }
+      /* Media movel sobre a razao agregada dos cinco dias, nao sobre a media
+         das cinco taxas: um dia de 3 papers nao pode pesar igual a um de 40. */
+      return { d: d, taxa: c.total ? c.ap / c.total : null, mm: st ? sa / st : null, c: c };
+    });
+    var comDado = serieTaxa.filter(function (r) { return r.taxa !== null; });
+    var mostraMM = comDado.length >= 8;
+
+    function tipDia(i) {
+      var r = serieTaxa[i];
+      return tipHtml([diaCurto(r.d) + ' · ' + r.c.total + ' papers',
+        detalheContagem(r.c),
+        r.taxa === null ? 'sem paper neste recorte' : pct(r.c.ap, r.c.total) + '% aprovado' +
+          (mostraMM && r.mm !== null ? ' · média 5d ' + Math.round(r.mm * 100) + '%' : '')]);
+    }
+    function cliqueDia(params) {
+      var d = dias[params.dataIndex];
+      if (d) alternaLista('diasSel', d);
+    }
+
+    var totDia = selDia.length, apDia = selDia.filter(function (p) { return p.v === 'aprovado'; }).length;
+    var maiorDia = comDado.slice().sort(function (a, b) { return b.c.total - a.c.total || a.d.localeCompare(b.d); })[0];
+    var porTaxa = comDado.slice().sort(function (a, b) { return b.taxa - a.taxa || a.d.localeCompare(b.d); });
+    var resumoVolume = comDado.length
+      ? totDia + ' papers em ' + comDado.length + ' dias com publicação, média de ' + (totDia / comDado.length).toFixed(1).replace('.', ',') +
+        ' por dia. O maior lote foi em ' + diaCurto(maiorDia.d) + ', com ' + maiorDia.c.total + ' papers. ' +
+        apDia + ' aprovados no total (' + pct(apDia, totDia) + '%).'
+      : 'Nenhum dia com paper dentro deste recorte.';
+    var resumoTaxa = comDado.length
+      ? 'Taxa de aprovação do recorte: ' + pct(apDia, totDia) + '%. A maior foi em ' + diaCurto(porTaxa[0].d) + ' (' + Math.round(porTaxa[0].taxa * 100) +
+        '%) e a menor em ' + diaCurto(porTaxa[porTaxa.length - 1].d) + ' (' + Math.round(porTaxa[porTaxa.length - 1].taxa * 100) + '%).'
+      : '';
+
+    var eixoDias = eixoCategoria(rotDias, { axisLabel: { interval: 'auto', hideOverlap: true } });
+    var opVolume = baseOpcao(resumoVolume, {
+      grid: { left: 44, right: 12, top: 14, bottom: 26 },
+      tooltip: ext(TOOLTIP, { trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(255,255,255,0.04)' } },
+        formatter: function (ps) { return ps.length ? tipDia(ps[0].dataIndex) : ''; } }),
+      xAxis: eixoDias,
+      yAxis: eixoValor({ minInterval: 1 }),
+      series: seriesVolume
+    });
+    var opTaxa = baseOpcao(resumoTaxa, {
+      grid: { left: 44, right: 12, top: 12, bottom: 26 },
+      tooltip: ext(TOOLTIP, { trigger: 'axis', axisPointer: { type: 'line', lineStyle: { color: '#414a53' } },
+        formatter: function (ps) { return ps.length ? tipDia(ps[0].dataIndex) : ''; } }),
+      xAxis: eixoCategoria(rotDias, { boundaryGap: true, axisLabel: { interval: 'auto', hideOverlap: true } }),
+      yAxis: eixoValor({ min: 0, max: 100, interval: 50, axisLabel: { formatter: '{value}%' } }),
+      series: [
+        {
+          name: '% aprovado', type: 'line', connectNulls: false, symbol: 'circle', symbolSize: mostraMM ? 7 : 9,
+          lineStyle: { color: VERDE, width: 2 }, itemStyle: { color: VERDE, borderColor: '#16191c', borderWidth: 1.5 },
+          data: serieTaxa.map(function (r) {
+            return {
+              value: r.taxa === null ? null : Math.round(r.taxa * 1000) / 10,
+              symbolSize: s.diasSel.indexOf(r.d) >= 0 ? 12 : undefined,
+              itemStyle: diaApagado(r.d) ? { opacity: 0.35 } : undefined
+            };
+          })
+        }
+      ].concat(mostraMM ? [{
+        name: 'média móvel 5d', type: 'line', symbol: 'none', silent: true,
+        lineStyle: { color: '#8b8f96', width: 1.4, type: [5, 4] },
+        data: serieTaxa.map(function (r) { return r.mm === null ? null : Math.round(r.mm * 1000) / 10; })
+      }] : [])
+    });
+
+    var legendaTaxa = '<div class="legenda" role="list"><span role="listitem"><i class="traco" style="border-top-color: ' + VERDE + ';"></i>% aprovado</span>' +
+      (mostraMM ? '<span role="listitem"><i class="traco tracejado" style="border-top-color: #8b8f96;"></i>média móvel 5d</span>' : '') + '</div>';
+
+    out.push(cardGrafico({
+      id: 'lote',
+      titulo: 'O lote diário e o que sobrou dele',
+      descricao: 'Papers por dia de publicação no HF: descartados embaixo, aprovados empilhados por natureza. Clique num dia para filtrar por ele.',
+      extraCab: legendaCamadas(),
+      resumo: resumoVolume,
+      graficos: [{ nome: 'volume', altura: 230, opcao: opVolume, clique: cliqueDia, grupo: 'dias' }],
+      vazio: comDado.length ? null : 'Nenhum dia com paper dentro deste recorte.',
+      depois: '<div class="card-cab" style="padding-top: 14px; border-top: 1px solid #242a30;">' +
+          '<div class="card-tit"><h4 class="subtitulo-card">Taxa de aprovação ao longo do tempo</h4>' +
+          '<div class="descr">aprovados ÷ total do dia, no recorte. Mede seletividade do pipeline — não qualidade nem acurácia.</div></div>' +
+          legendaTaxa + '</div>' +
+        (resumoTaxa ? '<p class="resumo-grafico">' + esc(resumoTaxa) + '</p>' : '') +
+        (comDado.length ? placeholder({ nome: 'taxa', altura: 140, opcao: opTaxa, clique: cliqueDia, grupo: 'dias' }) : ''),
+      tabela: {
+        cab: ['dia', 'total'].concat(camadas.map(rotuloCamada)).concat(['% aprovado']),
+        linhas: comDado.map(function (r) {
+          return [diaCurto(r.d), r.c.total].concat(camadas.map(function (k) { return r.c[k] || 0; })).concat([pct(r.c.ap, r.c.total) + '%']);
+        })
+      }
+    }));
+
+    /* ══════════════ 02 · NATUREZA × VERTENTE ══════════════ */
+    out.push(secao('02', 'Natureza × vertente'));
+
+    /* A matriz solta as duas dimensoes dela: e o seletor das duas, e marcar
+       uma celula nao pode apagar as outras. Clique alterna o par (natureza,
+       vertente dominante) - marca ou desmarca os dois. Colunas por volume,
+       a maior primeiro; a celula ganha a cor da natureza da linha. */
+    var selMatriz = filtrados(['naturezas', 'vertentes']).filter(function (p) { return p.v === 'aprovado'; });
+    var linhasN = NATUREZAS.slice();
+    if (selMatriz.some(function (p) { return !p.nt; })) linhasN.push(NAO_CLASSIFICADO);
+    var celula = {}, maxCel = 1, somaLinha = {}, somaCol = {};
+    selMatriz.forEach(function (p) {
+      var n = natureza(p), d = dominante(p);
+      var k = n + '|' + d;
+      celula[k] = (celula[k] || 0) + 1;
+      if (celula[k] > maxCel) maxCel = celula[k];
+      somaLinha[n] = (somaLinha[n] || 0) + 1;
+      somaCol[d] = (somaCol[d] || 0) + 1;
+    });
+    var colunasV = Object.keys(somaCol).sort(function (x, y) {
+      return (x === VERTENTE_NULA) - (y === VERTENTE_NULA) || somaCol[y] - somaCol[x] || x.localeCompare(y);
+    });
+    function rotuloVert(v) { return v === VERTENTE_NULA ? 'sem vertente' : v; }
+    var dadosMatriz = [];
+    linhasN.forEach(function (n, yi) {
+      colunasV.forEach(function (d, xi) {
+        var v = celula[n + '|' + d] || 0;
+        var on = s.naturezas.indexOf(n) >= 0 && s.vertentes.indexOf(d) >= 0;
+        dadosMatriz.push({
+          value: [xi, yi, v],
+          itemStyle: {
+            color: v ? comAlfa(corNatureza(n), 0.12 + (v / maxCel) * 0.78) : '#1b1f23',
+            borderColor: on ? '#f5f3ee' : '#16191c', borderWidth: on ? 2 : 3
+          },
+          label: { color: v ? '#f5f3ee' : '#4a5058' }
+        });
+      });
+    });
+    var parTopo = null;
+    Object.keys(celula).forEach(function (k) { if (!parTopo || celula[k] > celula[parTopo] || (celula[k] === celula[parTopo] && k < parTopo)) parTopo = k; });
+    var natTopo = linhasN.slice().sort(function (a, b) { return (somaLinha[b] || 0) - (somaLinha[a] || 0); })[0];
+    var resumoMatriz = selMatriz.length
+      ? selMatriz.length + ' aprovados. O par mais comum é ' + rotuloNatureza(parTopo.split('|')[0]) + ' × ' + rotuloVert(parTopo.split('|')[1]) +
+        ', com ' + celula[parTopo] + ' (' + pct(celula[parTopo], selMatriz.length) + '%). A natureza mais frequente é ' + rotuloNatureza(natTopo) +
+        ' (' + (somaLinha[natTopo] || 0) + ') e a vertente dominante mais frequente é ' + rotuloVert(colunasV[0]) + ' (' + somaCol[colunasV[0]] + ').'
+      : 'Nenhum aprovado dentro deste recorte.';
+    var estreito = larguraTela() < 760;
+    var opMatriz = baseOpcao(resumoMatriz, {
+      grid: { left: 8, right: 12, top: 8, bottom: 8, containLabel: true },
+      tooltip: ext(TOOLTIP, { trigger: 'item', formatter: function (p) {
+        var n = linhasN[p.value[1]], d = colunasV[p.value[0]], v = p.value[2];
+        return tipHtml([rotuloNatureza(n) + ' · ' + rotuloVert(d), v + (v === 1 ? ' aprovado' : ' aprovados') + ' · clique para filtrar']);
+      } }),
+      xAxis: eixoCategoria(colunasV.map(function (d) { return rotuloVert(d) + '\n' + (somaCol[d] || 0); }), {
+        position: 'bottom', splitArea: { show: false }, axisLine: { show: false },
+        axisLabel: { interval: 0, color: '#a8a49b', fontFamily: FONTE_UI, fontSize: 11, width: estreito ? 60 : 92, overflow: 'truncate', lineHeight: 15 }
+      }),
+      yAxis: eixoCategoria(linhasN.map(function (n) { return rotuloNatureza(n) + '  ' + (somaLinha[n] || 0); }), {
+        inverse: true, axisLabel: { color: '#ecebe6', fontFamily: FONTE_UI, fontSize: 12.5 }
+      }),
+      series: [{
+        type: 'heatmap', data: dadosMatriz,
+        label: { show: true, fontFamily: FONTE_MONO, fontSize: 12, formatter: function (p) { return p.value[2] || '·'; } },
+        emphasis: { itemStyle: { borderColor: '#f5f3ee', borderWidth: 2 } }
+      }]
+    });
+    out.push(cardGrafico({
+      id: 'matriz',
+      titulo: 'O que os aprovados afirmam, e para quê',
+      descricao: 'Linhas: natureza da afirmação. Colunas: vertente dominante, da mais frequente à menos, com o total embaixo. A intensidade da célula acompanha a contagem. Clique numa célula para filtrar pelo par.',
+      resumo: resumoMatriz,
+      graficos: selMatriz.length ? [{ nome: 'matriz', altura: 64 + linhasN.length * 46, opcao: opMatriz, larguraMin: 620, clique: function (p) {
+        if (!p.value) return;
+        var n = linhasN[p.value[1]], d = colunasV[p.value[0]];
+        var on = state.naturezas.indexOf(n) >= 0 && state.vertentes.indexOf(d) >= 0;
+        var ns = state.naturezas.slice(), vs = state.vertentes.slice();
+        if (on) { ns.splice(ns.indexOf(n), 1); vs.splice(vs.indexOf(d), 1); }
+        else { if (ns.indexOf(n) < 0) ns.push(n); if (vs.indexOf(d) < 0) vs.push(d); }
+        setState({ naturezas: ns, vertentes: vs, aberta: null, justExp: {}, diaPag: null });
+      } }] : [],
+      vazio: selMatriz.length ? null : 'Nenhum aprovado dentro deste recorte.',
+      tabela: {
+        cab: ['natureza'].concat(colunasV.map(rotuloVert)).concat(['total']),
+        linhas: linhasN.map(function (n) {
+          return [rotuloNatureza(n)].concat(colunasV.map(function (d) { return celula[n + '|' + d] || 0; })).concat([somaLinha[n] || 0]);
+        })
+      }
+    }));
+
+    /* ══════════════ 03 · VOCABULÁRIO DA GRADE ══════════════ */
+    out.push(secao('03', 'Vocabulário da grade'));
+
+    /* Um recorte para as duas vistas. `areas` sai do recorte nas duas, porque
+       as barras e os blocos SAO o seletor de area; na vista de sub-areas
+       `subareas` sai tambem, pelo mesmo motivo. */
+    var vista = s.vistaArea === 'sub' ? 'sub' : 'dist';
+    var selArea = filtrados(vista === 'sub' ? ['areas', 'subareas'] : 'areas');
+    var areaMap = {};
+    var semArea = 0;
+    selArea.forEach(function (p) {
+      if (!p.a) { semArea++; return; }
+      if (!areaMap[p.a]) { areaMap[p.a] = { total: 0, ap: 0, sub: {} }; camadas.forEach(function (k) { areaMap[p.a][k] = 0; }); }
+      var c = areaMap[p.a];
+      c[camadaDe(p)] = (c[camadaDe(p)] || 0) + 1;
+      c.total++;
+      if (p.v === 'aprovado') c.ap++;
+      if (p.sa) c.sub[p.sa] = (c.sub[p.sa] || 0) + 1;
+    });
+    var areasOrd = Object.keys(areaMap).sort(function (x, y) {
+      return areaMap[y].total - areaMap[x].total || x.localeCompare(y);
+    });
+    var defArea = {};
+    (DADOS.areas || []).forEach(function (a) { defArea[a.a] = a.def || ''; });
+    var defSub = DADOS.subdef || {};
+    var semSub = selArea.filter(function (p) { return p.a && !p.sa; }).length;
+    var faltantes = [];
+    if (semArea) faltantes.push(semArea + (semArea === 1 ? ' paper sem área primária' : ' papers sem área primária'));
+    if (vista === 'sub' && semSub) faltantes.push(semSub + ' sem sub-área');
+
+    var totArea = 0;
+    areasOrd.forEach(function (a) { totArea += areaMap[a].total; });
+    var resumoArea, opArea, cliqueArea;
+    if (vista === 'dist') {
+      var porTaxaArea = areasOrd.filter(function (a) { return areaMap[a].total >= 5; })
+        .sort(function (a, b) { return areaMap[b].ap / areaMap[b].total - areaMap[a].ap / areaMap[a].total; });
+      resumoArea = areasOrd.length
+        ? areasOrd.length + ' áreas com papers. A maior é ' + areasOrd[0] + ', com ' + areaMap[areasOrd[0]].total + ' papers (' + pct(areaMap[areasOrd[0]].total, totArea) + '% do recorte).' +
+          (porTaxaArea.length > 1 ? ' Entre as áreas com pelo menos 5 papers, a mais aprovada é ' + porTaxaArea[0] + ' (' + pct(areaMap[porTaxaArea[0]].ap, areaMap[porTaxaArea[0]].total) +
+            '%) e a menos aprovada é ' + porTaxaArea[porTaxaArea.length - 1] + ' (' + pct(areaMap[porTaxaArea[porTaxaArea.length - 1]].ap, areaMap[porTaxaArea[porTaxaArea.length - 1]].total) + '%).' : '')
+        : 'Nenhuma área dentro deste recorte.';
+      var rich = { n: { color: '#ecebe6', fontSize: 13 }, on: { color: ACCENT, fontSize: 13, fontWeight: 600 } };
+      opArea = baseOpcao(resumoArea, {
+        grid: { left: estreito ? 136 : 210, right: estreito ? 76 : 120, top: 4, bottom: 4 },
+        tooltip: ext(TOOLTIP, { trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(255,255,255,0.04)' } },
+          formatter: function (ps) {
+            var a = areasOrd[ps[0].dataIndex];
+            return tipHtml([a, defArea[a] || '', detalheContagem(areaMap[a]) + ' · clique para filtrar']);
+          } }),
+        xAxis: eixoValor({ show: false }),
+        yAxis: [
+          eixoCategoria(areasOrd, { inverse: true, triggerEvent: true, axisLine: { show: false },
+            axisLabel: { width: estreito ? 128 : 200, overflow: 'truncate', rich: rich,
+              formatter: function (a) { return '{' + (s.areas.indexOf(a) >= 0 ? 'on' : 'n') + '|' + a + '}'; } } }),
+          eixoCategoria(areasOrd.map(function (a) { return areaMap[a].total + ' · ' + pct(areaMap[a].ap, areaMap[a].total) + '%'; }),
+            { inverse: true, position: 'right', axisLine: { show: false }, axisLabel: { color: '#8b8f96', fontFamily: FONTE_MONO, fontSize: 11.5 } })
+        ],
+        series: camadas.slice().reverse().map(function (k) {
+          return {
+            name: rotuloCamada(k), type: 'bar', stack: 'area', barWidth: 14,
+            itemStyle: { color: corCamada(k), borderColor: '#16191c', borderWidth: 1 },
+            data: areasOrd.map(function (a) {
+              return { value: areaMap[a][k] || 0, itemStyle: s.areas.length && s.areas.indexOf(a) < 0 ? { opacity: 0.35 } : undefined };
+            })
+          };
+        })
+      });
+      cliqueArea = function (p) {
+        var a = p.componentType === 'yAxis' ? p.value : areasOrd[p.dataIndex];
+        if (a && areaMap[a]) alternaLista('areas', a);
+      };
+    } else {
+      var subTopo = null;
+      areasOrd.forEach(function (a) {
+        Object.keys(areaMap[a].sub).forEach(function (sa) {
+          if (!subTopo || areaMap[a].sub[sa] > subTopo.n) subTopo = { a: a, sa: sa, n: areaMap[a].sub[sa] };
+        });
+      });
+      resumoArea = subTopo
+        ? 'A sub-área mais frequente é ' + subTopo.a + ' › ' + subTopo.sa + ', com ' + subTopo.n + ' papers. ' + areasOrd.length + ' áreas e ' +
+          areasOrd.reduce(function (n, a) { return n + Object.keys(areaMap[a].sub).length; }, 0) + ' sub-áreas aparecem no recorte.'
+        : 'Nenhuma sub-área dentro deste recorte.';
+      opArea = baseOpcao(resumoArea, {
+        tooltip: ext(TOOLTIP, { trigger: 'item', formatter: function (p) {
+          var cam = p.treePathInfo || [];
+          if (cam.length === 2) return tipHtml([p.name, defArea[p.name] || '', p.value + ' papers · clique para filtrar a área']);
+          var a = cam.length > 1 ? cam[1].name : '';
+          return tipHtml([a + ' › ' + p.name, defSub[p.name] || '', p.value + ' papers · ' + pct(p.value, (areaMap[a] || {}).total || 0) + '% da área · clique para filtrar']);
+        } }),
+        series: [{
+          type: 'treemap', roam: false, nodeClick: false, breadcrumb: { show: false },
+          left: 0, right: 0, top: 0, bottom: 0, sort: 'desc', squareRatio: 1.2,
+          levels: [
+            { itemStyle: { borderColor: '#16191c', borderWidth: 0, gapWidth: 4 } },
+            { itemStyle: { borderColor: '#262c33', borderWidth: 3, gapWidth: 2 },
+              upperLabel: { show: true, height: 24, color: '#ecebe6', fontWeight: 600, fontSize: 12, fontFamily: FONTE_UI, overflow: 'truncate',
+                formatter: function (p) { return p.name + '  ' + p.value; } } },
+            { itemStyle: { borderColor: '#16191c', borderWidth: 1, gapWidth: 1 },
+              label: { show: true, color: '#14161a', fontSize: 11, fontFamily: FONTE_UI, overflow: 'truncate', formatter: '{b}\n{c}' } }
+          ],
+          data: areasOrd.map(function (a, i) {
+            var on = s.areas.indexOf(a) >= 0;
+            return {
+              name: a, value: areaMap[a].total,
+              itemStyle: { color: RAMPA[i % RAMPA.length], borderColor: on ? ACCENT : '#262c33' },
+              children: Object.keys(areaMap[a].sub).map(function (sa) {
+                var onS = s.subareas.indexOf(sa) >= 0;
+                return { name: sa, value: areaMap[a].sub[sa], itemStyle: onS ? { borderColor: ACCENT, borderWidth: 2 } : undefined };
+              })
+            };
+          })
+        }]
+      });
+      cliqueArea = function (p) {
+        var cam = p.treePathInfo || [];
+        if (cam.length === 2) alternaLista('areas', p.name);
+        else if (cam.length === 3) alternaLista('subareas', p.name);
+      };
+    }
+    var LEGENDAS_VISTA = {
+      dist: 'Barras na largura do volume, empilhadas como o lote diário: descartados e as naturezas. À direita, o total e a taxa de aprovação. A LLM escolhe a área de uma lista fechada. Clique numa área para filtrar.',
+      sub: 'Cada bloco grande é uma área, do tamanho do volume dela; dentro, as sub-áreas. Clique no nome da área para filtrar por ela, ou numa sub-área para filtrar por ela.'
+    };
+    var notaVista = faltantes.length ? ' <span style="color: #6d7178;">' + faltantes.join(' e ') + ': fora do gráfico.</span>' : '';
+    out.push(cardGrafico({
+      id: 'areas',
+      titulo: 'Área primária',
+      descricao: LEGENDAS_VISTA[vista] + notaVista,
+      extraCab: '<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 9px; padding-top: 3px;" role="group" aria-label="vista do gráfico">' +
+        chipVista('Distribuição', vista === 'dist', function () { setState({ vistaArea: 'dist' }); }) +
+        chipVista('Sub-áreas', vista === 'sub', function () { setState({ vistaArea: 'sub' }); }) +
+        '</div>' + (vista === 'dist' ? legendaCamadas() : ''),
+      resumo: resumoArea,
+      graficos: areasOrd.length ? [{ nome: 'areas-' + vista, altura: vista === 'sub' ? 460 : 12 + areasOrd.length * 34, opcao: opArea, clique: cliqueArea }] : [],
+      vazio: areasOrd.length ? null : 'Nenhuma área dentro deste recorte.',
+      tabela: vista === 'dist'
+        ? { cab: ['área', 'total', 'aprovados', '% aprovado'], linhas: areasOrd.map(function (a) { return [a, areaMap[a].total, areaMap[a].ap, pct(areaMap[a].ap, areaMap[a].total) + '%']; }) }
+        : { cab: ['área', 'sub-área', 'papers', '% da área'], linhas: [].concat.apply([], areasOrd.map(function (a) {
+            return Object.keys(areaMap[a].sub).sort(function (x, y) { return areaMap[a].sub[y] - areaMap[a].sub[x] || x.localeCompare(y); })
+              .map(function (sa) { return [a, sa, areaMap[a].sub[sa], pct(areaMap[a].sub[sa], areaMap[a].total) + '%']; });
+          })) }
+    }));
+
+    /* ══════════════ 04 · REGRAS DO CORTE ══════════════ */
+    out.push(secao('04', 'Regras do corte'));
+
+    var selPareto = filtrados('regrasFora');
+    var descartes = selPareto.filter(function (p) { return p.v === 'fora'; });
+    var contaRegra = {};
+    descartes.forEach(function (p) {
+      var k = chaveRegra(p);
+      contaRegra[k] = (contaRegra[k] || 0) + 1;
+    });
+    var regrasOrd = Object.keys(contaRegra).sort(function (x, y) { return contaRegra[y] - contaRegra[x] || x.localeCompare(y); });
+    var totalDesc = descartes.length;
+    function regraApagada(k) { return k === REGRA_NULA || /regra antiga/.test(rotulo(k)); }
+    var antigas = regrasOrd.filter(function (k) { return /regra antiga/.test(rotulo(k)); }).length;
+    var resumoRegras = totalDesc
+      ? totalDesc + ' descartes. A regra que mais corta é ' + rotulo(regrasOrd[0]) + ', com ' + contaRegra[regrasOrd[0]] + ' (' + pct(contaRegra[regrasOrd[0]], totalDesc) + '%).' +
+        (regrasOrd.length > 1 ? ' Em seguida vem ' + rotulo(regrasOrd[1]) + ' (' + pct(contaRegra[regrasOrd[1]], totalDesc) + '%).' : '')
+      : 'Nenhum descarte dentro deste recorte.';
+    var opRegras = baseOpcao(resumoRegras, {
+      grid: { left: estreito ? 130 : 260, right: estreito ? 84 : 150, top: 4, bottom: 4 },
+      tooltip: ext(TOOLTIP, { trigger: 'item', formatter: function (p) {
+        var k = regrasOrd[p.dataIndex];
+        return tipHtml([rotulo(k), contaRegra[k] + ' descartes · ' + (contaRegra[k] / totalDesc * 100).toFixed(1).replace('.', ',') + '% dos descartados · clique para filtrar']);
+      } }),
+      xAxis: eixoValor({ show: false }),
+      yAxis: [
+        eixoCategoria(regrasOrd, { inverse: true, triggerEvent: true, axisLine: { show: false },
+          axisLabel: { width: estreito ? 122 : 250, overflow: 'truncate',
+            rich: { n: { color: '#ecebe6', fontSize: 13 }, a: { color: '#8b8f96', fontSize: 13, fontStyle: 'italic' }, on: { color: ACCENT, fontSize: 13, fontWeight: 600 } },
+            formatter: function (k) { return '{' + (s.regrasFora.indexOf(k) >= 0 ? 'on' : (regraApagada(k) ? 'a' : 'n')) + '|' + rotulo(k) + '}'; } } }),
+        eixoCategoria(regrasOrd.map(function (k) { return contaRegra[k] + ' · ' + (contaRegra[k] / totalDesc * 100).toFixed(1).replace('.', ',') + '%'; }),
+          { inverse: true, position: 'right', axisLine: { show: false }, axisLabel: { color: '#8b8f96', fontFamily: FONTE_MONO, fontSize: 11.5 } })
+      ],
+      series: [{
+        type: 'bar', barWidth: 13,
+        data: regrasOrd.map(function (k) {
+          var on = s.regrasFora.indexOf(k) >= 0;
+          return { value: contaRegra[k], itemStyle: { color: COR_FORA, borderRadius: [0, 3, 3, 0], borderColor: on ? '#f5f3ee' : COR_FORA, borderWidth: on ? 2 : 0,
+            opacity: s.regrasFora.length && !on ? 0.4 : 1 } };
+        })
+      }]
+    });
+    out.push(cardGrafico({
+      id: 'regras',
+      titulo: 'Onde o pipeline corta',
+      descricao: 'Motivos de descarte, do mais frequente ao menos frequente: geração de mídia, percepção e robótica, e o que não é sobre modelo de linguagem. Clique para filtrar.' +
+        (antigas ? ' <span style="color: #6d7178;">As regras em itálico saíram em 20/10/2026 e só aparecem em descartes anteriores à reclassificação total.</span>' : ''),
+      resumo: resumoRegras,
+      graficos: totalDesc ? [{ nome: 'regras', altura: 12 + regrasOrd.length * 36, opcao: opRegras, clique: function (p) {
+        var k = p.componentType === 'yAxis' ? p.value : regrasOrd[p.dataIndex];
+        if (k && contaRegra[k]) alternaLista('regrasFora', k);
+      } }] : [],
+      vazio: totalDesc ? null : 'Nenhum descarte dentro deste recorte.',
+      tabela: { cab: ['regra', 'descartes', '% dos descartados'], linhas: regrasOrd.map(function (k) { return [rotulo(k), contaRegra[k], pct(contaRegra[k], totalDesc) + '%']; }) }
+    }));
+
+    /* ══════════════ 05 · ATENÇÃO E ADOÇÃO ══════════════ */
+    out.push(secao('05', 'Atenção e adoção'));
+
+    /* As duas medidas de voto chegam pre-agregadas por paper em
+       `gerar_painel.atencao`: `vg` e o ganho da ultima semana, `vm` a
+       trajetoria normalizada de quem tem historico elegivel. Aqui so se
+       recorta e se resume. */
+    var ROXO_VOTO = '#9085e9';
+    var fimVoto = String(DADOS.gerado).slice(0, 10);
+    var hojeNum = diaNum(fimVoto);
+    var crescimento = [];
+    sel.forEach(function (p) {
+      if (p.vg) crescimento.push({ p: p, de: [p.vg[0], p.vg[1]], ate: [p.vg[2], p.vg[3]], delta: p.vg[3] - p.vg[1] });
+    });
+    crescimento.sort(function (a, b) { return b.delta - a.delta || a.p.id.localeCompare(b.p.id); });
+    var topVotos = crescimento.slice(0, 10);
+    var somaTop = topVotos.reduce(function (n, r) { return n + r.delta; }, 0);
+    var resumoGanho = topVotos.length
+      ? 'Quem mais ganhou votos nos últimos 7 dias foi “' + topVotos[0].p.t + '”, com +' + topVotos[0].delta + ' (de ' + topVotos[0].de[1] + ' para ' + topVotos[0].ate[1] + '). Os ' + topVotos.length + ' primeiros somam +' + somaTop + ' votos.'
+      : 'Nenhum paper com duas medições e crescimento positivo nesta janela.';
+    var LIMITE_TIT = estreito ? 30 : 52;
+    var opGanho = baseOpcao(resumoGanho, {
+      grid: { left: 8, right: 50, top: 6, bottom: 22, containLabel: true },
+      tooltip: ext(TOOLTIP, { trigger: 'item', formatter: function (p) {
+        var r = topVotos[p.dataIndex];
+        if (!r) return '';
+        return tipHtml([r.p.t, '+' + r.delta + ' votos · ' + r.de[1] + ' → ' + r.ate[1] + ' · ' + diaCurto(r.de[0]) + '–' + diaCurto(r.ate[0]) + ' · ' + (r.p.v === 'fora' ? 'fora' : rotuloNatureza(natureza(r.p))) + ' · clique para abrir']);
+      } }),
+      xAxis: eixoValor({ min: 0, axisLabel: { color: '#6d7178', fontFamily: FONTE_MONO, fontSize: 10.5 } }),
+      yAxis: eixoCategoria(topVotos.map(function (r) { return rotuloCurto(r.p.t, LIMITE_TIT); }), {
+        inverse: true, axisLine: { show: false }, axisLabel: { color: '#ecebe6', fontSize: 12, fontFamily: FONTE_UI }
+      }),
+      series: [
+        { type: 'bar', stack: 'g', silent: true, barWidth: 2, itemStyle: { color: 'transparent' }, tooltip: { show: false },
+          data: topVotos.map(function (r) { return r.de[1]; }) },
+        { type: 'bar', stack: 'g', barWidth: 2,
+          data: topVotos.map(function (r) { return { value: r.delta, itemStyle: { color: comAlfa(corPaper(r.p), 0.6) } }; }) },
+        { type: 'scatter', symbol: 'circle', symbolSize: 9, z: 3,
+          data: topVotos.map(function (r, i) { return { value: [r.de[1], i], itemStyle: { color: '#16191c', borderColor: corPaper(r.p), borderWidth: 1.5 } }; }) },
+        { type: 'scatter', symbol: 'circle', symbolSize: 11, z: 4,
+          label: { show: true, position: 'right', color: '#ecebe6', fontFamily: FONTE_MONO, fontSize: 12, formatter: function (p) { return '+' + topVotos[p.dataIndex].delta; } },
+          data: topVotos.map(function (r, i) { return { value: [r.ate[1], i], itemStyle: { color: corPaper(r.p), borderColor: '#16191c', borderWidth: 1.5 } }; }) }
+      ]
+    });
+
+    var acumuloVoto = {}, nMaduros = 0, MIN_VOTO = 5, HORIZONTE_VOTO = 30;
+    sel.forEach(function (p) {
+      if (!p.vm || !p.vm.length) return;
+      nMaduros++;
+      // plano: [idade, pct, idade, pct, ...]
+      for (var im = 0; im + 1 < p.vm.length; im += 2) {
+        if (p.vm[im] > HORIZONTE_VOTO) continue;
+        (acumuloVoto[p.vm[im]] = acumuloVoto[p.vm[im]] || []).push(p.vm[im + 1]);
+      }
+    });
+    var curvaVoto = [];
+    for (var iv = 0; iv <= HORIZONTE_VOTO; iv++) {
+      var xs = acumuloVoto[iv] || [];
+      curvaVoto.push(xs.length < MIN_VOTO ? null : { idade: iv, n: xs.length, med: quartil(xs, 0.5), q1: quartil(xs, 0.25), q3: quartil(xs, 0.75) });
+    }
+    var validosVoto = curvaVoto.filter(Boolean);
+    // `.filter(...)[0]` e nao `.find(...)`: `find` e ES6.
+    var marcoVoto = validosVoto.filter(function (r) { return r.med >= 90; })[0];
+    var maxIdadeVoto = validosVoto.length ? Math.max(14, validosVoto[validosVoto.length - 1].idade) : 14;
+    var tetoVoto = Math.max(100, Math.ceil(Math.max.apply(null, validosVoto.map(function (r) { return r.q3; }).concat([100])) / 50) * 50);
+    var idades = [];
+    for (var ia = 0; ia <= maxIdadeVoto; ia++) idades.push(ia);
+    function valorCurva(i, campo) { var r = curvaVoto[i]; return r ? Math.round(r[campo] * 10) / 10 : null; }
+    var resumoMaturacao = validosVoto.length
+      ? (marcoVoto ? 'A mediana dos papers chega a 90% do último total observado no dia +' + marcoVoto.idade + ' desde a entrada no HF Daily. '
+                   : 'A mediana não chega a 90% do último total dentro de ' + maxIdadeVoto + ' dias. ') +
+        nMaduros + ' papers têm histórico elegível.'
+      : 'Amostra insuficiente: nenhuma idade reúne pelo menos ' + MIN_VOTO + ' papers com acompanhamento desde o início e medição aos 14 dias ou depois.';
+    var opMaturacao = baseOpcao(resumoMaturacao, {
+      grid: { left: 8, right: 16, top: 12, bottom: 40, containLabel: true },
+      tooltip: ext(TOOLTIP, { trigger: 'axis', axisPointer: { type: 'line', lineStyle: { color: '#414a53' } }, formatter: function (ps) {
+        var r = curvaVoto[ps[0].dataIndex];
+        return r ? tipHtml(['Dia +' + r.idade + ' desde o HF Daily', 'Mediana ' + r.med.toFixed(1) + '% · P25–P75: ' + r.q1.toFixed(1) + '–' + r.q3.toFixed(1) + '% · ' + r.n + ' papers medidos'])
+                 : tipHtml(['Dia +' + ps[0].dataIndex, 'menos de ' + MIN_VOTO + ' papers medidos nesta idade']);
+      } }),
+      xAxis: eixoCategoria(idades.map(String), { boundaryGap: false, name: 'dias desde a entrada no HF Daily', nameLocation: 'middle', nameGap: 26,
+        nameTextStyle: { color: '#8b8f96', fontSize: 11 }, axisLabel: { interval: function (i) { return i % Math.max(1, passoEixo(maxIdadeVoto, 6)) === 0; } } }),
+      yAxis: eixoValor({ min: 0, max: tetoVoto, splitNumber: 4, axisLabel: { formatter: '{value}%' } }),
+      series: [
+        { name: 'P25', type: 'line', stack: 'faixa', symbol: 'none', silent: true, lineStyle: { opacity: 0 },
+          data: idades.map(function (i) { return valorCurva(i, 'q1'); }) },
+        { name: 'P25–P75', type: 'line', stack: 'faixa', symbol: 'none', silent: true, lineStyle: { opacity: 0 }, areaStyle: { color: ROXO_VOTO, opacity: 0.18 },
+          data: idades.map(function (i) { var r = curvaVoto[i]; return r ? Math.round((r.q3 - r.q1) * 10) / 10 : null; }) },
+        { name: 'mediana', type: 'line', symbol: 'circle', symbolSize: 8, connectNulls: false,
+          lineStyle: { color: ROXO_VOTO, width: 2.5 }, itemStyle: { color: ROXO_VOTO, borderColor: '#16191c', borderWidth: 2 },
+          data: idades.map(function (i) { return valorCurva(i, 'med'); }),
+          markLine: { silent: true, symbol: 'none', lineStyle: { color: '#8b8f96', type: [4, 4], width: 1 },
+            label: { color: '#8b8f96', fontSize: 10.5, formatter: '90%', position: 'insideEndTop' }, data: [{ yAxis: 90 }] } }
+      ]
+    });
+
+    out.push('<div class="votos-grid">' +
+      cardGrafico({
+        id: 'ganho', classe: 'voto-card',
+        titulo: 'Os 10 papers que mais ganharam votos',
+        descricao: 'Ganho absoluto medido nos últimos 7 dias, até ' + diaCurto(fimVoto) + '. Círculo vazio: início; preenchido: fim, na mesma escala de votos. Clique para abrir o paper.',
+        extraCab: legendaCamadas('ponto'),
+        resumo: resumoGanho,
+        graficos: topVotos.length ? [{ nome: 'ganho', altura: 26 + topVotos.length * 34, opcao: opGanho, clique: function (p) {
+          var r = topVotos[p.dataIndex];
+          if (r) abrePaper(r.p.url);
+        } }] : [],
+        vazio: topVotos.length ? null : 'Nenhum paper com duas medições e crescimento positivo nesta janela.',
+        depois: '<div class="voto-nota" style="border-top: 1px solid #242a30; padding-top: 12px;">Última menos primeira medição disponível na janela. Não é uma taxa diária.</div>',
+        tabela: { cab: ['paper', 'votos no início', 'votos no fim', 'ganho', 'intervalo'], linhas: topVotos.map(function (r) {
+          return [r.p.t, r.de[1], r.ate[1], '+' + r.delta, diaCurto(r.de[0]) + '–' + diaCurto(r.ate[0])];
+        }) }
+      }) +
+      cardGrafico({
+        id: 'maturacao', classe: 'voto-card',
+        titulo: 'Quando os votos chegam a 90%?',
+        descricao: 'A linha roxa mostra a mediana do percentual de votos acumulados em relação ao último total observado de cada paper; a faixa, o intervalo entre P25 e P75. Chegar a 90% não significa estabilização definitiva.',
+        antes: '<div class="voto-resumo"><div><strong>' + (marcoVoto ? 'D+' + marcoVoto.idade : '—') + '</strong><div class="voto-nota">primeira idade medida com mediana ≥ 90%</div></div><div><strong>' + nMaduros + '</strong><div class="voto-nota">papers com histórico elegível</div></div></div>',
+        resumo: resumoMaturacao,
+        graficos: validosVoto.length ? [{ nome: 'maturacao', altura: 250, opcao: opMaturacao }] : [],
+        vazio: validosVoto.length ? null : resumoMaturacao,
+        depois: '<div class="voto-nota" style="border-top: 1px solid #242a30; padding-top: 12px;">Entram papers com pelo menos duas medições, a primeira no dia 0 ou 1 e a última aos 14 dias ou depois, com total de votos positivo. Cada ponto usa apenas quem foi medido naquela idade, com mínimo de ' + MIN_VOTO + ' papers; por isso, a amostra varia ao longo da curva. Lacunas não são interpoladas e o último total observado ainda pode crescer.</div>',
+        tabela: { cab: ['idade (dias)', 'papers medidos', 'P25', 'mediana', 'P75'], linhas: validosVoto.map(function (r) {
+          return ['+' + r.idade, r.n, r.q1.toFixed(1) + '%', r.med.toFixed(1) + '%', r.q3.toFixed(1) + '%'];
+        }) }
+      }) +
+      '</div>');
+
+    /* ── upvotes no HF × stars no GitHub ────────────────────────────────── */
+    /* So papers com repositorio. `gs = 0` e um repositorio sem estrela nenhuma
+       e continua no grafico, na base do eixo; paper sem repositorio nao tem
+       coordenada Y e fica de fora - as duas coisas parecem "zero" e nao sao.
+       Os dois eixos sao log1p, com os ticks redondos de `ticksLog`. */
+    var selGh = sel.filter(function (p) { return !s.ghVeredito || p.v === s.ghVeredito; });
+    var comRepo = selGh.filter(function (p) { return p.oa === 1; });
+    var semRepo = selGh.length - comRepo.length;
+    var zeroStar = comRepo.filter(function (p) { return !p.gs; }).length;
+    var maxU = Math.max.apply(null, comRepo.map(function (p) { return p.u; }).concat([1]));
+    var maxG = Math.max.apply(null, comRepo.map(function (p) { return p.gs; }).concat([1]));
+    var rotulados = {};
+    comRepo.slice().sort(function (a, b) { return b.u - a.u; }).slice(0, 3).forEach(function (p) { rotulados[p.id] = 1; });
+    comRepo.slice().sort(function (a, b) { return b.gs - a.gs; }).slice(0, 3).forEach(function (p) { rotulados[p.id] = 1; });
+    var l1p = function (v) { return Math.log(1 + v); };
+    var pontosGh = [];
+    var seriesGh = camadas.map(function (k) {
+      return {
+        name: rotuloCamada(k), type: 'scatter', z: 2, labelLayout: { hideOverlap: true },
+        itemStyle: { color: corCamada(k), opacity: 0.85, borderColor: '#16191c', borderWidth: 1 },
+        emphasis: { scale: 1.5, itemStyle: { opacity: 1, borderColor: '#f5f3ee' } },
+        data: comRepo.filter(function (p) { return camadaDe(p) === k; }).map(function (p) {
+          var i = pontosGh.push(p) - 1;
+          var direita = l1p(p.u) / l1p(maxU) > 0.62;
+          return {
+            value: [l1p(p.u), l1p(p.gs), i],
+            symbol: p.pp ? 'diamond' : 'circle', symbolSize: p.pp ? 12 : 9,
+            label: rotulados[p.id] ? { show: true, position: direita ? 'left' : 'right', distance: 7, color: '#8b8f96', fontSize: 10.5,
+              formatter: rotuloCurto(p.t, estreito ? 22 : 34) } : undefined
+          };
+        })
+      };
+    });
+    function postos(xs) {
+      var ord = xs.map(function (v, i) { return [v, i]; }).sort(function (a, b) { return a[0] - b[0]; });
+      var r = new Array(xs.length);
+      for (var i = 0; i < ord.length;) {
+        var j = i;
+        while (j + 1 < ord.length && ord[j + 1][0] === ord[i][0]) j++;
+        for (var k = i; k <= j; k++) r[ord[k][1]] = (i + j) / 2;
+        i = j + 1;
+      }
+      return r;
+    }
+    function spearman(xs, ys) {
+      if (xs.length < 3) return null;
+      var rx = postos(xs), ry = postos(ys), n = xs.length, mx = 0, my = 0, sxy = 0, sxx = 0, syy = 0, i;
+      for (i = 0; i < n; i++) { mx += rx[i]; my += ry[i]; }
+      mx /= n; my /= n;
+      for (i = 0; i < n; i++) { sxy += (rx[i] - mx) * (ry[i] - my); sxx += (rx[i] - mx) * (rx[i] - mx); syy += (ry[i] - my) * (ry[i] - my); }
+      return sxx && syy ? sxy / Math.sqrt(sxx * syy) : null;
+    }
+    var rho = spearman(comRepo.map(function (p) { return p.u; }), comRepo.map(function (p) { return p.gs; }));
+    var maisEstrelado = comRepo.slice().sort(function (a, b) { return b.gs - a.gs || a.id.localeCompare(b.id); })[0];
+    var resumoGh = comRepo.length
+      ? comRepo.length + ' papers com repositório. ' + (rho === null ? '' : 'A correlação de postos entre votos e stars é ' + rho.toFixed(2).replace('.', ',') +
+          (Math.abs(rho) < 0.3 ? ' (fraca)' : Math.abs(rho) < 0.6 ? ' (moderada)' : ' (forte)') + '. ') +
+        'O mais estrelado é “' + maisEstrelado.t + '”, com ' + maisEstrelado.gs + ' stars e ' + maisEstrelado.u + ' votos.'
+      : 'Nenhum paper com repositório dentro deste recorte.';
+    function eixoLog(max, extra) {
+      var ticks = ticksLog(max).map(l1p);
+      return eixoValor(ext({
+        min: 0, max: l1p(max) * 1.03, splitNumber: 4,
+        axisLabel: { customValues: ticks, hideOverlap: true, formatter: function (v) { return String(Math.round(Math.exp(v) - 1)); } },
+        axisTick: { show: false }, splitLine: { show: false }
+      }, extra || {}));
+    }
+    var opGh = baseOpcao(resumoGh, {
+      grid: { left: 50, right: 18, top: 24, bottom: 38 },
+      tooltip: ext(TOOLTIP, { trigger: 'item', formatter: function (pt) {
+        var p = pontosGh[pt.value[2]];
+        return tipHtml([p.t, (p.v === 'fora' ? 'fora' : rotuloNatureza(natureza(p))) + ' · ' + (p.a ? parArea(p) : 'sem área') + ' · ' + (p.org || 'sem organização') +
+          (hojeNum !== null && diaNum(p.d) !== null ? ' · ' + (hojeNum - diaNum(p.d)) + 'd no HF' : ''),
+          p.u + ' votos · ' + p.gs + ' stars · ' + p.c + ' comentários']);
+      } }),
+      xAxis: eixoLog(maxU, { name: 'UPVOTES →', nameLocation: 'end', nameGap: -60, nameTextStyle: { color: '#6d7178', fontSize: 10, padding: [30, 0, 0, 0] } }),
+      yAxis: eixoLog(maxG, { name: 'STARS ↑', nameLocation: 'end', nameTextStyle: { color: '#8b8f96', fontSize: 10.5, align: 'left' } }),
+      dataZoom: [
+        { type: 'inside', xAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: 'ctrl', moveOnMouseMove: true, moveOnMouseWheel: false },
+        { type: 'inside', yAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: 'ctrl', moveOnMouseMove: true, moveOnMouseWheel: false }
+      ],
+      series: seriesGh
+    });
+    var filtroGh = '<div style="display: flex; gap: 9px; flex-wrap: wrap; align-items: center;" role="group" aria-label="veredito no gráfico">' +
+      ['', 'aprovado', 'fora'].map(function (v) {
+        return '<button type="button" class="chip" aria-pressed="' + (s.ghVeredito === v) + '"' + ev('c', function () { setState({ ghVeredito: v }); }) +
+          ' style="' + (s.ghVeredito === v ? pillOnGlobal() : pill(false)) + ' font: inherit; font-size: 11.5px; padding: 6px 12px;">' + (v || 'todos') + '</button>';
+      }).join('') + '</div>';
+    out.push(cardGrafico({
+      id: 'github',
+      titulo: 'Upvotes no HF × stars no GitHub',
+      descricao: 'Um ponto por paper com repositório, nas duas escalas logarítmicas, na cor da natureza; losango quando há página do projeto. ' +
+        '<span style="color: #6d7178;">' + zeroStar + ' com repositório e zero star ficam na base do eixo; ' + semRepo + ' sem repositório não entram. Arraste para mover; Ctrl + roda (ou pinça) para aproximar. Clique para abrir o paper.</span>',
+      extraCab: filtroGh,
+      antes: '<div class="legenda-linha">' + legendaCamadas('ponto') +
+        '<div class="legenda"><span><i style="background: transparent; border: 1px solid #f5f3ee; transform: rotate(45deg); width: 8px; height: 8px;"></i>com página do projeto</span></div></div>',
+      resumo: resumoGh,
+      graficos: comRepo.length ? [{ nome: 'github', altura: 320, opcao: opGh, clique: function (pt) {
+        var p = pt.value && pontosGh[pt.value[2]];
+        if (p) abrePaper(p.url);
+      } }] : [],
+      vazio: comRepo.length ? null : 'Nenhum paper com repositório dentro deste recorte.',
+      tabela: { cab: ['paper', 'votos', 'stars', 'comentários', 'classificação'], nota: 'Os 25 mais votados entre os ' + comRepo.length + ' com repositório.',
+        linhas: comRepo.slice().sort(function (a, b) { return b.u - a.u || a.id.localeCompare(b.id); }).slice(0, 25).map(function (p) {
+          return [p.t, p.u, p.gs, p.c, p.v === 'fora' ? 'fora' : rotuloNatureza(natureza(p))];
+        }) }
+    }));
+
+    }  // fim da aba Panorama
+
+    /* ══════════════ APROVADOS · POR DIA ══════════════
+
+       Paginacao por DIA de publicacao, e nao por blocos de dez: com o escopo do
+       ADR 004 sao dezenas de aprovados por dia, e o dia e a unidade em que o
+       painel e lido. So o dia visivel e desenhado. Dentro do dia, a ordem e o
+       voto - upvote ordena a exibicao, nunca classifica nem corta. O filtro de veredito do
+       Panorama nao vale aqui: esta aba e so de aprovados. */
+    if (s.aba === 'aprovados') {
+
+    var listaAp = filtrados('vereditos').filter(function (p) { return p.v === 'aprovado'; });
+    var porDiaAp = {};
+    listaAp.forEach(function (p) { (porDiaAp[p.d] = porDiaAp[p.d] || []).push(p); });
+    var diasAp = Object.keys(porDiaAp).sort().reverse();   // mais recente primeiro
+    var diaAtual = diasAp.indexOf(s.diaPag) >= 0 ? s.diaPag : (diasAp[0] || null);
+    var posDia = diaAtual ? diasAp.indexOf(diaAtual) : -1;
+    var doDia = (porDiaAp[diaAtual] || []).slice().sort(function (a, b) {
+      return b.u - a.u || a.id.localeCompare(b.id);
+    });
+
+    var colunas = '132px minmax(240px, 1.3fr) 150px minmax(200px, 1fr) 110px 56px';
+    var linhasFicha = doDia.map(function (p) {
+      var f = p.f ? (fichaPorId[p.id] || (fichasProntas ? null : CARREGANDO)) : null;
+      var aberta = s.aberta === p.id;
+      return '<div style="border-bottom: 1px solid #1d2226;">' +
+        '<div class="row tab-ap" data-card="' + esc(p.id) + '"' + ev('c', function () { setState({ aberta: aberta ? null : p.id }); }) + ' role="button" tabindex="0" aria-expanded="' + aberta + '" style="display: grid; grid-template-columns: ' + colunas + '; gap: 14px; padding: 14px 24px; align-items: center;">' +
+          '<span class="c-nat">' + seloNatureza(p.nt) + '</span>' +
+          '<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">' +
+            '<span style="font-size: 13.5px; color: #ecebe6; line-height: 1.35; text-wrap: pretty;">' + esc(p.t) + '</span>' +
+            (p.org || !f
+              ? '<span style="font-size: 11.5px; color: #6d7178; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + esc([p.org, f ? '' : 'sem ficha'].filter(Boolean).join(' · ')) + '</span>'
+              : '') +
+          '</div>' +
+          '<span class="c-marcas" style="display: flex; gap: 6px; flex-wrap: wrap;">' + marcasCard(p) + '</span>' +
+          '<span class="c-area" style="font-size: 11.5px; color: #8b8f96; line-height: 1.5;">' + esc(parArea(p)) + '</span>' +
+          '<span class="c-vert">' + celulaVertente(p) + '</span>' +
+          '<span class="c-num" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12.5px; color: #ecebe6; text-align: right;">' + p.u + '</span>' +
+        '</div>' + (aberta ? corpoAberto(p, f, 'jan:' + p.id, '<span style="font-size: 11.5px; color: #6d7178;">' + esc(p.org || '') + '</span>') : '') +
+        '</div>';
+    }).join('');
+
+    function navDia(alvo, texto, ativo) {
+      return ativo
+        ? '<div class="chip" data-nav-dia="' + esc(texto) + '"' + ev('c', function () { setState({ diaPag: alvo, aberta: null, justExp: {} }); }) +
+            ' style="' + pill(false) + ' font-size: 11.5px; padding: 6px 12px;">' + texto + '</div>'
+        : '<div style="' + pill(false) + ' font-size: 11.5px; padding: 6px 12px; opacity: 0.35;">' + texto + '</div>';
+    }
+    var navegacao = diaAtual
+      ? '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">' +
+          navDia(diasAp[posDia + 1], '← dia anterior', posDia + 1 < diasAp.length) +
+          '<span data-dia-atual="' + esc(diaAtual) + '" style="font-family: \'IBM Plex Mono\', monospace; font-size: 13px; color: #ecebe6;">' + diaCurto(diaAtual) +
+            '<span style="color: #6d7178;"> · ' + doDia.length + ' aprovado(s) · dia ' + (posDia + 1) + ' de ' + diasAp.length + '</span></span>' +
+          navDia(diasAp[posDia - 1], 'dia seguinte →', posDia > 0) +
+        '</div>'
+      : '';
+
+    out.push(
+      '<div class="card" style="overflow-x: auto;">' +
+        '<div class="card-cab-lista" style="display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; padding: 22px 24px 18px; flex-wrap: wrap;">' +
+          '<div style="display: flex; flex-direction: column; gap: 5px;">' +
+            '<div style="font-family: Newsreader, Georgia, serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: #f5f3ee;">Aprovados, dia a dia</div>' +
+            '<div style="font-size: 12.5px; color: #8b8f96;">Ordenados por voto. Clique numa linha para abrir o porquê da classificação — e a ficha completa.</div>' +
+          '</div>' +
+          navegacao +
+        '</div>' +
+        '<div class="tab-cab" style="display: grid; grid-template-columns: ' + colunas + '; gap: 14px; padding: 11px 24px; border-top: 1px solid #242a30; border-bottom: 1px solid #242a30; background: #131619; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; color: #8b8f96;">' +
+          '<span>NATUREZA</span><span>TÍTULO</span><span>MARCAS</span><span>ÁREA &gt; SUB-ÁREA</span><span>VERTENTE</span><span style="text-align: right;">VOTOS</span>' +
+        '</div>' +
+        linhasFicha +
+        (linhasFicha ? '' : '<div style="padding: 54px 24px; text-align: center; font-size: 13px; color: #6d7178;">Nenhum paper aprovado dentro deste recorte.</div>') +
+        '<div style="display: flex; align-items: center; gap: 14px; padding: 15px 24px; flex-wrap: wrap;">' +
+          '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 11px; color: #6d7178;">' +
+            listaAp.length + ' aprovado(s) no recorte, em ' + diasAp.length + ' dia(s).' +
+          '</span>' +
+          navegacao +
+        '</div>' +
+      '</div>'
+    );
+
+    }  // fim da aba Aprovados
+
+    /* ══════════════ RODAPÉ ══════════════ */
+    out.push(rodape('FONTE: data/hfpapers.db → marts/*.parquet · ' + todos.length + ' PAPERS · ' + N_FICHAS + ' FICHAS'));
+
+    out.push('</div>');
+    return out.join('');
+  }
+
+  function render() {
+    // guarda foco/cursor: o re-render troca o input inteiro a cada tecla
+    var ativo = document.activeElement;
+    var focoId = ativo && ativo.id ? ativo.id : null;
+    var caret = focoId ? ativo.selectionStart : null;
+
+    H = [];
+    root.innerHTML = construir();
+    montaGraficos();
+    escreveUrl();
+
+    root.querySelectorAll('[data-c]').forEach(function (el) {
+      el.addEventListener('click', H[+el.getAttribute('data-c')]);
+    });
+    root.querySelectorAll('[data-e]').forEach(function (el) {
+      el.addEventListener('mouseenter', H[+el.getAttribute('data-e')]);
+      el.addEventListener('mousemove', H[+el.getAttribute('data-e')]);
+    });
+    root.querySelectorAll('[data-l]').forEach(function (el) {
+      el.addEventListener('mouseleave', H[+el.getAttribute('data-l')]);
+    });
+    root.querySelectorAll('[data-i]').forEach(function (el) {
+      el.addEventListener('input', H[+el.getAttribute('data-i')]);
+    });
+
+    if (focoId) {
+      var novo = document.getElementById(focoId);
+      if (novo) {
+        novo.focus();
+        if (caret !== null && novo.setSelectionRange) novo.setSelectionRange(caret, caret);
+      }
+    }
+  }
+
+  lerUrl();
+  render();
+  rolaParaAberta();
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    var larguraAntes = larguraTela();
+    var timerResize = null;
+    window.addEventListener('resize', function () {
+      if (timerResize !== null) clearTimeout(timerResize);
+      timerResize = setTimeout(function () {
+        timerResize = null;
+        /* Cruzar a quebra de layout muda rotulo e margem dos graficos, que
+           sao decididos na montagem; dentro da mesma faixa, so redimensiona. */
+        var agora = larguraTela();
+        if ((agora < 760) !== (larguraAntes < 760)) render(); else redimensiona();
+        larguraAntes = agora;
+      }, 120);
+    });
+    window.addEventListener('hashchange', function () {
+      if (lerUrl()) render();
+    });
+  }
+  return { recebeFichas: recebeFichas };
+  }
+
+  var global = typeof window !== 'undefined' ? window : this;
+  if (typeof DADOS !== 'undefined') {
+    var app = iniciar(DADOS, typeof FICHAS !== 'undefined' ? FICHAS : null);
+    void app;
+  } else if (typeof PAINEL_ARQUIVOS !== 'undefined' && typeof fetch === 'function') {
+    var alvo = document.getElementById('painel');
+    var json = function (r) { if (!r.ok) throw new Error(r.status + ' em ' + r.url); return r.json(); };
+    fetch(PAINEL_ARQUIVOS.dados).then(json).then(function (dados) {
+      var app = iniciar(dados, null);
+      return fetch(PAINEL_ARQUIVOS.fichas).then(json).then(app.recebeFichas);
+    }).catch(function (erro) {
+      if (alvo && !alvo.querySelector('.card')) {
+        alvo.innerHTML = '<div class="carregando"><h1>Daily Papers, triados</h1><p>Não foi possível carregar os dados do painel (' +
+          String(erro && erro.message || erro).replace(/</g, '&lt;') + '). Recarregue a página.</p></div>';
+      }
+      if (global.console) global.console.error(erro);
+    });
+  }
+})();
+</script>
+</body></html>

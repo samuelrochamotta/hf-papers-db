@@ -16,7 +16,7 @@ relatorio da v1, e rodar o script sem ele apagava a medicao que justifica as
 fusoes ja feitas.
 
 A saida vai para `docs/relatorios/` de proposito, e nao para o `relatorios/` da
-raiz: aquele nao e versionado (so o `painel.html` escapa do `.gitignore`) e
+raiz: aquele nao e versionado (so `relatorios/painel/` escapa do `.gitignore`) e
 guarda artefato de leitura descartavel, enquanto este relatorio e entrada do
 proximo ticket.
 

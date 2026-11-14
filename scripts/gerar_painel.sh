@@ -60,6 +60,10 @@ set -e
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] codigo de saida: $CODIGO" | tee -a "$LOG"
 
+# O painel publicado e a pasta relatorios/painel/ (index.html, dados.json,
+# fichas.json e o ECharts), que o workflow do GitHub Pages copia para o site.
+PAINEL_DIR="relatorios/painel"
+
 # Recorte na mao nao vai para o ar. `--dias`/`--dias-hall` mudam o QUE o painel
 # mostra: com --dias 10 sao 270 papers em vez de 455, e os 185 que sobram nao
 # aparecem em aba nenhuma. Publicar isso trocaria o painel do dia por um
@@ -72,21 +76,18 @@ for arg in "$@"; do
     esac
 done
 
-# Publica o painel no repo remoto so quando o script deu certo: e o que
-# permite a rotina cloud (RemoteTrigger, trig_01RW4ZtwQ2Kyspc2WHHrTDG8)
-# enxergar o painel.html atualizado e republicar no Artifact - o tool
-# Artifact so existe em sessao interativa ou de rotina cloud (CCR), nao
-# em `claude -p` headless local, entao nao da pra pular o GitHub aqui.
+# Publica o painel no repo remoto so quando o script deu certo: o push dispara
+# o deploy do GitHub Pages (.github/workflows/pages.yml).
 if [ "$CODIGO" -eq 0 ] && [ "$PUBLICAVEL" -eq 0 ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] geracao com recorte manual, nao publica." | tee -a "$LOG"
-elif [ "$CODIGO" -eq 0 ] && [ -z "$(git -C "$RAIZ" status --porcelain -- relatorios/painel.html 2>/dev/null)" ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] painel.html sem alteracoes, nada a publicar." | tee -a "$LOG"
+elif [ "$CODIGO" -eq 0 ] && [ -z "$(git -C "$RAIZ" status --porcelain -- "$PAINEL_DIR" 2>/dev/null)" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] painel sem alteracoes, nada a publicar." | tee -a "$LOG"
 elif [ "$CODIGO" -eq 0 ]; then
     {
-        git -C "$RAIZ" add relatorios/painel.html
-        git -C "$RAIZ" commit -m "chore: atualiza painel.html ($(date '+%Y-%m-%d %H:%M'))"
+        git -C "$RAIZ" add -A -- "$PAINEL_DIR"
+        git -C "$RAIZ" commit -m "chore: atualiza painel ($(date '+%Y-%m-%d %H:%M'))"
         git -C "$RAIZ" push origin main
-    } >>"$LOG" 2>&1 || echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: falha ao publicar painel.html no repo." | tee -a "$LOG"
+    } >>"$LOG" 2>&1 || echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: falha ao publicar o painel no repo." | tee -a "$LOG"
 fi
 
 # rotacao: mantem 30 dias de log, igual ao run_daily.sh

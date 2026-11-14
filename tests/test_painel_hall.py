@@ -91,7 +91,7 @@ def test_periodo_rotula_em_portugues():
 # ══════════════ ordenacao ══════════════
 
 def test_por_voto_ordena_decrescente_e_desempata_por_id():
-    # o desempate por id e o que impede o commit diario de painel.html de ganhar
+    # o desempate por id e o que impede o commit diario do painel de ganhar
     # diff sem significado quando dois papers empatam em votos
     dia = dt.date(2026, 7, 1)
     ps = [paper("b", dia, 10), paper("c", dia, 50), paper("a", dia, 10)]

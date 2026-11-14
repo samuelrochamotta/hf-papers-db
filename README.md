@@ -3,7 +3,8 @@
 Camada de preparação de dados dos **Hugging Face Daily Papers**: coleta diária,
 classificação por LLM em dois estágios, base SQLite e export em esquema estrela
 em Parquet. A interface de leitura é o painel feito por código,
-`relatorios/painel.html`, gerado de `marts/` por `scripts/gerar_painel.py`.
+`relatorios/painel/` (site estático no GitHub Pages), gerado de `marts/` por
+`scripts/gerar_painel.py`.
 
 ## Instalação
 
@@ -67,28 +68,50 @@ tail -f logs/run_*.log
 
 ## Painel HTML
 
-`scripts/gerar_painel.py` lê os Parquet e embute dados, `scripts/painel_app.js`
-e CSS em um único HTML, sem dependência de rede. Três abas: **Aprovados**
-(últimos 90 dias, um dia por página, ordenados por voto; colunas natureza,
-título, marcas, área › sub-área e vertente; filtros de natureza, das marcas —
-artefato aberto, contradiz prática, somente princípio —, área, vertente e busca
-no texto da ficha), **Panorama** (lote diário por natureza, natureza ×
-vertente, área por natureza, onde o pipeline corta, votos) e **Registro
-histórico** (por trimestre já fora da janela, os 15 aprovados mais votados e os
-5 descartados mais votados como auditoria). O pré-requisito, os perfis e o
-Padrão Extraído continuam no banco, mas não aparecem no painel (os perfis não
-são mais exportados; ADR 005). O corte do histórico é
-`refresh.janela_morna_dias`, não `--dias`.
+Um site estático, sem servidor, publicado no GitHub Pages. `scripts/gerar_painel.py`
+lê os Parquet e grava `relatorios/painel/`:
+
+| arquivo | o que é |
+|---|---|
+| `index.html` | a página, com o CSS, o app (`scripts/painel_app.js`) e um resumo em texto para buscador e prévia de link |
+| `dados.json` | o que a primeira pintura precisa: papers da janela, vocabulário, registro histórico e os votos já pré-agregados |
+| `fichas.json` | o texto das fichas, buscado depois da primeira pintura (é a maior parte do peso) |
+| `echarts.painel.min.js` | Apache ECharts só com os módulos usados (build em `scripts/echarts/`) |
+
+Três abas: **Aprovados** (últimos 90 dias, um dia por página, ordenados por voto;
+colunas natureza, título, marcas, área › sub-área e vertente; filtros de
+natureza, das marcas — artefato aberto, contradiz prática, somente princípio —,
+área, vertente e busca no texto da ficha), **Panorama** (lote diário por
+natureza, natureza × vertente, área por natureza ou por sub-área, onde o
+pipeline corta, votos) e **Registro histórico** (por trimestre já fora da janela,
+os 15 aprovados mais votados e os 5 descartados mais votados como auditoria).
+
+Os gráficos do Panorama são **interligados**: clicar num dia, numa célula da
+matriz, numa área, sub-área ou regra recorta o painel inteiro, como as pílulas.
+O recorte fica no endereço (`#aba=panorama&area=...`), então um link abre a mesma
+visão; o botão *copiar link* copia esse endereço, e `#paper=<id>` abre direto
+um card. Cada gráfico tem título, um resumo em texto do que mostra (também
+usado como descrição acessível) e a tabela dos números. A paleta das naturezas
+é segura para daltonismo (validada com o cinza do `fora`, todos os pares). O
+layout se ajusta ao celular.
+
+O pré-requisito, os perfis e o Padrão Extraído continuam no banco, mas não
+aparecem no painel (os perfis não são mais exportados; ADR 005). O corte do
+histórico é `refresh.janela_morna_dias`, não `--dias`.
 
 ```bash
 python scripts/gerar_painel.py --force                         # após editar JS/CSS
 python scripts/gerar_painel.py --dias 10 --force --destino /tmp/previa.html   # prévia
+python -m http.server -d relatorios/painel 8000                # ver o site local
 ```
 
-`gerar_painel.sh` faz commit e push de `relatorios/painel.html` para
-`origin main` quando o HTML mudou e nenhuma opção de prévia (`--dias`,
-`--dias-hall`, `--destino`) foi passada. O `.py` sai em no-op se o `run_id`
-não mudou desde a última geração (`marts/.painel_run_id`).
+`--destino` terminado em `.html` gera um **arquivo único** com dados, fichas e
+ECharts embutidos, que abre offline (prévia, e-mail). Sem `.html`, é a pasta.
+
+`gerar_painel.sh` faz commit e push de `relatorios/painel/` para `origin main`
+quando algo mudou e nenhuma opção de prévia (`--dias`, `--dias-hall`,
+`--destino`) foi passada; o push dispara o deploy do Pages. O `.py` sai em
+no-op se o `run_id` não mudou desde a última geração (`marts/.painel_run_id`).
 
 ## Testes
 
@@ -116,8 +139,10 @@ src/hfpapers/
 scripts/
 ├── run_daily.sh        pipeline diário (launchd)
 ├── gerar_painel.sh     wrapper do painel (launchd)
-├── gerar_painel.py     monta relatorios/painel.html a partir dos Parquet
-├── painel_app.js       app do painel
+├── gerar_painel.py     monta relatorios/painel/ a partir dos Parquet
+├── painel_app.js       app do painel (gráficos em ECharts)
+├── echarts/            build do ECharts só com os módulos usados
+├── vendor/             saída desse build (versionada)
 ├── coleta_retroativa.py  varre dias anteriores ao início do pipeline (sem LLM)
 └── relatorio_massa.py    mede a grade: distribuição, checagens, roteamento
 prompts/            regras versionadas
@@ -126,6 +151,6 @@ docs/adr/           decisões, uma por arquivo
 docs/specs/         desenhos entregues
 docs/relatorios/    medições da base, uma por rodada (versionadas)
 marts/              Parquet — o painel lê daqui (não versionado)
-relatorios/         painel.html (versionado); o resto não
+relatorios/         painel/ (versionado, é o site); o resto não
 data/               o banco SQLite — a fonte (não versionado)
 ```
