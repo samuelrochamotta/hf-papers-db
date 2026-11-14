@@ -12,6 +12,7 @@ from hfpapers import db
 from hfpapers.config import Config
 from hfpapers import leitura
 from hfpapers.leitura import derivar, extrator, texto
+from hfpapers.llm.cliente import Resposta, Uso
 
 FIX = Path(__file__).parent / "fixtures" / "leitura"
 
@@ -81,16 +82,16 @@ def test_esquema_api_tira_o_que_a_saida_estruturada_recusa():
 
 
 class _Cliente:
+    """Duble do ClienteLLM: devolve as respostas na ordem e guarda as chamadas."""
+
     def __init__(self, respostas):
         self.respostas = list(respostas)
         self.chamadas = []
-        self.messages = self
 
-    def create(self, **kw):
+    def chamar(self, **kw):
         self.chamadas.append(kw)
-        stop, dados = self.respostas.pop(0)
-        return SimpleNamespace(stop_reason=stop, usage=SimpleNamespace(input_tokens=40_000, output_tokens=3_000),
-                               content=[SimpleNamespace(type="text", text=json.dumps(dados))])
+        dados = self.respostas.pop(0)
+        return Resposta(dados, Uso(40_000, 3_000, 0.0055, 1), kw["modelo"], 1, 1200)
 
 
 def _extracao():
@@ -111,16 +112,26 @@ def _extracao():
 
 def test_extrair_confere_e_fixa_a_cobertura():
     tp = texto.html_para_texto("2611.00001", HTML)
-    cli = _Cliente([("max_tokens", {}), ("end_turn", _extracao())])
+    cli = _Cliente([_extracao()])
     lt = extrator.extrair(tp, {"titulo": "Um Metodo"}, cliente=cli, cfg=_cfg())
-    assert cli.chamadas[1]["max_tokens"] == 2 * cli.chamadas[0]["max_tokens"]
-    assert cli.chamadas[0]["model"] == "claude-haiku-5-5"
-    assert cli.chamadas[0]["output_config"]["format"]["type"] == "json_schema"
+    kw = cli.chamadas[0]
+    assert kw["modelo"] == "anthropic/claude-haiku-5.5" and kw["etapa"] == "leitura"
+    assert kw["response_format"]["type"] == "json_schema" and kw["response_format"]["json_schema"]["strict"]
+    assert kw["esforco_raciocinio"] == "low" and kw["paper_id"] == "2611.00001"
     assert lt.dados["id"] == "2611.00001"
     assert lt.dados["leitura"]["cobertura"] == "completa"  # o codigo decide, nao o modelo
     assert lt.conferencia == {"trechos": 3, "trechos_ok": 2, "numeros": 3, "numeros_ok": 2}
-    assert lt.custo_usd == pytest.approx((40_000 * 0.10 + 3_000 * 0.50) / 1e6)
+    assert lt.custo_usd == pytest.approx(0.0055) and lt.tokens_entrada == 40_000
 
+
+def test_leitura_tem_prazo_proprio():
+    cfg = extrator.config_leitura(_cfg())
+    assert cfg.llm.prazo_total_s == 300 and cfg.llm.timeout_s >= 300
+    assert _cfg().llm.prazo_total_s == 90  # os estagios A e B nao mudam
+
+def test_numero_nao_conferido_nao_vira_rival():
+    tp = texto.html_para_texto("2611.00001", HTML)
+    lt = extrator.extrair(tp, {}, cliente=_Cliente([_extracao()]), cfg=_cfg())
     p = derivar.derivar(lt.dados, {"u": 10, "d": "2026-11-10"})
     r = p["res"][0]
     assert r["ext"][0] == "Baseline"  # a linha de numero nao conferido nao vira rival
@@ -170,7 +181,7 @@ def test_rodar_le_grava_e_nao_repete(tmp_path):
                            "primeiro_visto_em": "2026-11-10T09:00:00"})
     http = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, text=HTML)))
     cfg = _cfg()
-    cli = _Cliente([("end_turn", _extracao())])
+    cli = _Cliente([_extracao()])
     import datetime as dt
     hoje = dt.date(2026, 11, 14)
     assert [c["paper_id"] for c in leitura.candidatos(conn, cfg, dias=7, min_votos=0, hoje=hoje)] == ["2611.00001"]
@@ -179,6 +190,5 @@ def test_rodar_le_grava_e_nao_repete(tmp_path):
     linha = dict(conn.execute("SELECT * FROM leitura_texto").fetchone())
     assert linha["cobertura"] == "completa" and linha["numeros_ok"] == 2
     assert json.loads(linha["extracao"])["resultados"][0]["linhas"][2]["_ok"] is False
-    assert conn.execute("SELECT etapa, provedor FROM log_llm").fetchone()[:] == ("leitura", "anthropic")
     assert leitura.candidatos(conn, cfg, dias=7, min_votos=0, hoje=hoje) == []
     conn.close()

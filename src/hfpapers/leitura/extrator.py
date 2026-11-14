@@ -11,9 +11,10 @@ resultado fica marcado no proprio JSON (`_ok`), e o painel so desenha numero
 conferido. Isso transforma a alucinacao em dado faltante, que e visivel, em vez
 de dado errado, que nao e.
 
-A chamada vai direto a API da Anthropic, com saida estruturada
-(`output_config.format`): o JSON volta valido contra o esquema, entao a
-retentativa so existe para rede, limite de taxa e resposta cortada.
+A chamada passa pelo OpenRouter, com o mesmo `ClienteLLM` dos estagios A e B
+e saida estruturada (`response_format` json_schema estrito, que o catalogo
+anuncia para o Haiku 5.5): o JSON volta valido contra o esquema, e o cliente
+cuida de retentativa, prazo, resposta cortada e custo pela tabela viva.
 """
 
 from __future__ import annotations
@@ -21,34 +22,21 @@ from __future__ import annotations
 import copy
 import json
 import sqlite3
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from .. import db
-from ..config import Config, ambiente, config
+from ..config import Config, config
 from ..log import logger
 from .texto import Conferidor, TextoPaper
 
 log = logger("leitura")
 
-# Palavras-chave de JSON Schema que a saida estruturada nao aceita. O SDK so as
-# remove sozinho em `messages.parse` com modelo Pydantic; com esquema cru,
-# quem remove somos nos (e quem confere os limites e `validar_limites`).
+# Palavras-chave de JSON Schema que a saida estruturada da Anthropic nao aceita
+# (o OpenRouter repassa o esquema). Quem remove somos nos, e quem confere os
+# limites depois e `validar_limites`.
 _NAO_SUPORTADAS = {"maxLength", "minLength", "pattern", "maxItems", "minItems",
                    "minimum", "maximum", "multipleOf", "$schema", "$id", "title"}
-
-# Precos da API da Anthropic para o Haiku 5.5 ate 100 mil tokens de prompt
-# (US$ por milhao). So servem para a estimativa gravada em `log_llm`; a fatura
-# de verdade esta no console da Anthropic.
-PRECO_ENTRADA = 0.10
-PRECO_SAIDA = 0.50
-
-
-class ErroLeitura(RuntimeError):
-    pass
-
 
 def carregar_esquema(cfg: Optional[Config] = None) -> dict:
     cfg = cfg or config()
@@ -172,88 +160,50 @@ class Leitura:
     avisos: list[str] = field(default_factory=list)
 
 
-def cliente_anthropic(cfg: Optional[Config] = None):
-    import anthropic  # import tardio: o resto do pipeline nao depende do SDK
+def config_leitura(cfg: Config) -> Config:
+    """Copia do config com o prazo da leitura no lugar do prazo dos estagios."""
+    lc = cfg.leitura
+    llm = cfg.llm.model_copy(update={"prazo_total_s": lc.prazo_s,
+                                     "timeout_s": max(cfg.llm.timeout_s, lc.prazo_s)})
+    return cfg.model_copy(update={"llm": llm})
 
-    cfg = cfg or config()
-    chave = ambiente().chave_anthropic()
-    if not chave:
-        raise ErroLeitura("ANTHROPIC_API_KEY ausente - veja o .env.example")
-    # max_retries=0: a retentativa e nossa, para cada tentativa ir ao log_llm.
-    return anthropic.Anthropic(api_key=chave, timeout=cfg.leitura.timeout_s, max_retries=0)
+
+def cliente_llm(cfg: Optional[Config] = None, *, conn: Optional[sqlite3.Connection] = None,
+                run_id: str = "sem-run"):
+    """O mesmo cliente do OpenRouter dos estagios A e B: retentativa, prazo,
+    preco da tabela viva e linha em `log_llm` por tentativa."""
+    from ..llm.cliente import ClienteLLM
+
+    return ClienteLLM(config_leitura(cfg or config()), conn=conn, run_id=run_id)
+
+
+def formato_resposta(esquema: dict) -> dict:
+    return {"type": "json_schema",
+            "json_schema": {"name": "leitura_paper", "strict": True, "schema": esquema_api(esquema)}}
 
 
 def extrair(tp: TextoPaper, meta: dict, *, cliente: Any, cfg: Optional[Config] = None,
-            conn: Optional[sqlite3.Connection] = None, run_id: str = "sem-run",
             esquema: Optional[dict] = None) -> Leitura:
-    import anthropic
-
+    """`cliente` e um `ClienteLLM` (ou um duble com o mesmo `chamar`)."""
     cfg = cfg or config()
     lc = cfg.leitura
     esquema = esquema or carregar_esquema(cfg)
-    formato = {"type": "json_schema", "schema": esquema_api(esquema)}
-    sistema = instrucoes(esquema)
-    prompt = montar_prompt(tp, meta)
-    teto = lc.max_tokens
-    espera = 5.0
-    ultimo: Optional[Exception] = None
-    t0 = time.monotonic()
-
-    for tentativa in range(1, max(1, lc.tentativas) + 1):
-        ent = sai = 0
-        try:
-            r = cliente.messages.create(
-                model=lc.modelo,
-                max_tokens=teto,
-                system=sistema,
-                messages=[{"role": "user", "content": prompt}],
-                output_config={"format": formato, "effort": lc.esforco},
-            )
-            ent = int(getattr(r.usage, "input_tokens", 0) or 0)
-            sai = int(getattr(r.usage, "output_tokens", 0) or 0)
-            if r.stop_reason == "max_tokens":
-                raise _Cortada(f"resposta cortada em {teto} tokens")
-            if r.stop_reason == "refusal":
-                raise ErroLeitura("o modelo recusou a leitura")
-            texto = next(b.text for b in r.content if getattr(b, "type", "") == "text")
-            dados = json.loads(texto)
-        except _Cortada as e:
-            ultimo = e
-            _log(conn, run_id, tp.arxiv_id, lc.modelo, ent, sai, tentativa, str(e))
-            teto *= 2
-            continue
-        except ErroLeitura as e:
-            _log(conn, run_id, tp.arxiv_id, lc.modelo, ent, sai, tentativa, str(e))
-            raise
-        except (anthropic.RateLimitError, anthropic.APIConnectionError,
-                anthropic.InternalServerError) as e:
-            ultimo = e
-            _log(conn, run_id, tp.arxiv_id, lc.modelo, ent, sai, tentativa, type(e).__name__)
-            log.warning("leitura %s: %s (tentativa %s)", tp.arxiv_id, type(e).__name__, tentativa)
-            time.sleep(espera)
-            espera *= 2
-            continue
-        except anthropic.APIStatusError as e:  # 4xx: repetir nao muda nada
-            _log(conn, run_id, tp.arxiv_id, lc.modelo, ent, sai, tentativa,
-                 f"{type(e).__name__} {e.status_code}")
-            raise ErroLeitura(f"{tp.arxiv_id}: API recusou ({e.status_code})") from e
-        except (json.JSONDecodeError, StopIteration) as e:
-            ultimo = e
-            _log(conn, run_id, tp.arxiv_id, lc.modelo, ent, sai, tentativa, "json invalido")
-            continue
-        latencia = int((time.monotonic() - t0) * 1000)
-        custo = (ent * PRECO_ENTRADA + sai * PRECO_SAIDA) / 1e6
-        _log(conn, run_id, tp.arxiv_id, lc.modelo, ent, sai, tentativa, None, latencia, custo)
-        fixar_leitura(dados, tp)
-        conf = conferir(dados, tp)
-        avisos = validar_limites(dados, esquema)
-        return Leitura(tp.arxiv_id, dados, conf, lc.modelo, ent, sai, custo, latencia,
-                       tp.caracteres, avisos)
-    raise ErroLeitura(f"{tp.arxiv_id}: leitura falhou apos {lc.tentativas} tentativas: {ultimo}")
-
-
-class _Cortada(RuntimeError):
-    pass
+    r = cliente.chamar(
+        etapa="leitura",
+        modelo=lc.modelo,
+        prompt=montar_prompt(tp, meta),
+        sistema=instrucoes(esquema),
+        response_format=formato_resposta(esquema),
+        max_tokens=lc.max_tokens,
+        esforco_raciocinio=lc.esforco,
+        paper_id=tp.arxiv_id,
+    )
+    dados = r.dados
+    fixar_leitura(dados, tp)
+    conf = conferir(dados, tp)
+    avisos = validar_limites(dados, esquema)
+    return Leitura(tp.arxiv_id, dados, conf, r.modelo, r.uso.tokens_entrada, r.uso.tokens_saida,
+                   r.uso.custo_usd, r.latencia_ms, tp.caracteres, avisos)
 
 
 def validar_limites(dados: dict, esquema: dict) -> list[str]:
@@ -287,15 +237,3 @@ def _resolver(sch: dict, raiz: dict) -> dict:
     if ref and ref.startswith("#/$defs/"):
         return raiz.get("$defs", {}).get(ref.split("/")[-1], {})
     return sch
-
-
-def _log(conn, run_id, paper_id, modelo, ent, sai, tentativa, erro, latencia=None, custo=None):
-    if conn is None:
-        return
-    db.registrar_llm(conn, {
-        "run_id": run_id, "paper_id": paper_id, "etapa": "leitura", "modelo": modelo,
-        "tokens_entrada": ent, "tokens_saida": sai, "tokens_cache_leitura": None,
-        "custo_usd": custo if custo is not None else (ent * PRECO_ENTRADA + sai * PRECO_SAIDA) / 1e6,
-        "latencia_ms": latencia, "tentativas": tentativa, "erro": erro,
-        "provedor": "anthropic", "criado_em": db.agora(),
-    })

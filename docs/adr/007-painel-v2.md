@@ -17,13 +17,15 @@ quando se desce num paper.
 
 ## Decisão
 
-1. **Leitura com Claude Haiku 5.5, direto na API da Anthropic.** Saída
-   estruturada nativa (`output_config.format` com JSON Schema), sem a camada do
-   OpenRouter: o esquema de extração é grande e a garantia de JSON válido vale
-   mais que um provedor só. Custo estimado: ~US$ 0,006 por paper
+1. **Leitura com Claude Haiku 5.5 pelo OpenRouter** (`anthropic/claude-haiku-5.5`),
+   com o mesmo `ClienteLLM` dos estágios A e B e a mesma chave. O catálogo do
+   OpenRouter anuncia `structured_outputs` e `response_format` para o modelo
+   (conferido em 2026-11-14), então a saída vai em `json_schema` estrito.
+   A leitura tem prazo próprio (`leitura.prazo_s`, 300 s), porque o de 90 s dos
+   estágios é curto para o texto inteiro. Custo estimado: ~US$ 0,006 por paper
    (40–80 mil tokens de entrada a US$ 0,10/M, 3–6 mil de saída a US$ 0,50/M).
    O teto de 320 mil caracteres mantém o prompt abaixo de 100 mil tokens, onde
-   o preço dobra. Chave nova: `ANTHROPIC_API_KEY` no `.env`.
+   o preço quintuplica (US$ 0,50/M de entrada e 2,50/M de saída).
 2. **O modelo só copia e escolhe; o código confere e conta.** Cada trecho é
    procurado no texto enviado e cada valor de tabela precisa existir como
    número nele (`_ok`). Linha não conferida não entra em gráfico. Deltas,
@@ -48,7 +50,7 @@ quando se desce num paper.
 ## Consequências
 
 - `leitura_texto` guarda a extração conferida por paper e versão de esquema;
-  `log_llm` ganha linhas `etapa='leitura'`, `provedor='anthropic'`.
+  `log_llm` ganha linhas `etapa='leitura'`, com o provedor que o OpenRouter escolheu.
 - `hfpapers ler` roda à parte do `run` diário até haver medição contra um
   conjunto-ouro; depois pode entrar no `run_daily.sh`.
 - Os cortes de solidez e esforço são heurísticas do estudo, não calibradas.
