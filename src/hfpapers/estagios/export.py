@@ -1,12 +1,12 @@
-"""Estagio 5 - EXPORT: materializa os Parquet que o Power BI le.
+"""Estagio 5 - EXPORT: materializa os Parquet que o painel le.
 
 Tres regras que valem para o arquivo inteiro:
 
-* datas saem como `date32`, nunca string - senao o relacionamento com
-  `dim_calendario` nao fecha no Power BI;
-* nada e pre-agregado: o grao fino vai inteiro e a agregacao e papel do DAX;
-* escrita atomica (`os.replace`), porque o Power BI pode estar com o arquivo
-  aberto na hora do export.
+* datas saem como `date32`, nunca string - senao o cruzamento com
+  `dim_calendario` nao fecha no painel;
+* nada e pre-agregado: o grao fino vai inteiro e a agregacao e papel do codigo do painel;
+* escrita atomica (`os.replace`), porque o painel pode estar lendo o arquivo
+  na hora do export.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ def _b(v: Any) -> Optional[bool]:
 
 
 def faixa_upvotes(valor: Optional[int], bordas: Sequence[int]) -> str:
-    """Bucket textual pronto para slicer: 0 | 1-9 | 10-49 | 50-99 | 100+."""
+    """Bucket textual pronto para filtro: 0 | 1-9 | 10-49 | 50-99 | 100+."""
     if valor is None:
         return "sem dado"
     if valor < bordas[0]:
@@ -196,7 +196,7 @@ def _dim_paper(conn: sqlite3.Connection, cfg: Config, hoje: dt.date) -> tuple[li
 
 
 def _fato_metrica(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
-    """Grao fino + duas derivacoes que o Power BI nao faz bem sozinho:
+    """Grao fino + duas derivacoes que o painel nao deve refazer sozinho:
 
     * `qtd_modelos/datasets/spaces` propagados para frente com o ultimo valor
       nao nulo - eles so vem nos snapshots `por_paper` e sem isso o grafico abre
@@ -250,8 +250,8 @@ def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
 
     `contradiz_pratica` e `como_incompleto` derivam dos textos (nao sao
     gravados duas vezes no banco); `artefato_aberto` e `evidencia_artefato` vem
-    de `vw_artefato`, a unica fonte da regra. O Power BI le os booleanos
-    prontos para nao reimplementar nenhuma das duas regras em DAX.
+    de `vw_artefato`, a unica fonte da regra. O painel le os booleanos
+    prontos para nao reimplementar nenhuma das duas regras.
     """
     linhas = []
     for r in _rows(
@@ -391,7 +391,7 @@ def _simples(conn: sqlite3.Connection, tabela: str, schema: pa.Schema) -> tuple[
 
 _SCHEMAS_SIMPLES = {
     # `area_pai` e o que faz a dimensao ser hierarquica: sem ela os dois niveis
-    # chegam ao Power BI como uma lista plana de rotulos, sem dizer qual e area
+    # chegam ao painel como uma lista plana de rotulos, sem dizer qual e area
     # raiz (pai nulo) nem de quem cada sub-area e filha. `_escrever` monta as
     # colunas a partir dos nomes do schema, entao coluna fora daqui nao sai.
     "dim_area": pa.schema(
@@ -414,12 +414,12 @@ _SCHEMAS_SIMPLES = {
         ]
     ),
     # `ordem` vai como coluna, e nao so a linha da dominante: e ela que separa
-    # a vertente dominante (1) da secundaria (2) nas medidas do Power BI.
+    # a vertente dominante (1) da secundaria (2) nas contagens do painel.
     "ponte_paper_vertente": pa.schema(
         [("paper_id", pa.string()), ("vertente", pa.string()), ("ordem", pa.int32())]
     ),
     # Vocabulario dos dois eixos e dos perfis (ADR 004). `ordem` e a unica
-    # copia da ordenacao: no Power BI, "classificar por coluna" aponta para ela.
+    # copia da ordenacao: o painel ordena por ela.
     "dim_natureza": pa.schema(
         [
             ("natureza", pa.string()),
@@ -460,7 +460,7 @@ _SCHEMAS_SIMPLES = {
 VERSAO_SCHEMA = 2
 
 # Tabelas que deixaram de existir. O export so escreve, nao apaga: sem esta
-# lista o Parquet antigo ficaria em `marts/` e o Power BI continuaria a carrega-lo.
+# lista o Parquet antigo ficaria em `marts/` e o painel continuaria a carrega-lo.
 ARQUIVOS_MORTOS = ("ponte_paper_criterio",)
 
 
@@ -507,8 +507,8 @@ def rodar(
             linhas = [{**l, campo: _b(l[campo])} for l in linhas]
         tabelas.append((nome, (linhas, sch)))
 
-    # "Da para agir" sai da view, pronto: o painel e o Power BI leem a mesma
-    # regra em vez de cada um reimplementar o conjunto de degraus do perfil.
+    # "Da para agir" sai da view, pronto: o painel le a regra
+    # pronta em vez de reimplementar o conjunto de degraus do perfil.
     tabelas.append(
         (
             "ponte_paper_perfil",

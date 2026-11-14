@@ -87,7 +87,7 @@ Ordem normativa dos campos do JSON:
   própria, engine ou kernel modificados.
 - `treino` — atualização de gradiente (FT, LoRA, RL, destilação).
 - `sem_acao` — nada a adotar (teoria, panorama, achado sem ação). É valor
-  explícito, não NULL: a view, o Power BI e o filtro não precisam tratar nulo.
+  explícito, não NULL: a view, o painel e o filtro não precisam tratar nulo.
 - Desempates: "exige código novo além de cola?" → `implementar`. "Roda só via
   API de chat com logprobs?" → no máximo `implementar`. Pesos liberados: ganho
   é **usar** o checkpoint → `implementar`; ganho é a **receita** → `treino`.
@@ -179,8 +179,8 @@ vw_artefato       -- paper: evidencia, artefato_aberto
   escrita, e numa consulta do `doutor`. Não há rebuild posterior à total.
 - `dim_natureza`/`dim_prerequisito` com `INSERT OR IGNORE` no `schema.sql` +
   teste que confere contra os Enums de `llm/schemas.py`.
-- A ordem do degrau vive só em `dim_prerequisito` (Power BI: "classificar por
-  coluna").
+- A ordem do degrau vive só em `dim_prerequisito` (o painel ordena
+  por ela).
 - `log_execucao`: `qtd_aprovados` + contagem por degrau (`qtd_pr_*`); é o único
   histórico de distribuição. Linhas antigas: `qtd_aprovados = amplo + estrito`.
 - `ponte_paper_criterio`: DROP. Apagar `marts/ponte_paper_criterio.parquet` à

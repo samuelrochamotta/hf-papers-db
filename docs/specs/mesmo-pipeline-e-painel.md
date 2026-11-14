@@ -261,7 +261,7 @@ novo aparecer no código.
 
 ## 8. Fora de escopo (mapa)
 
-Rubrica com pontuação; mudanças no Power BI além das colunas novas dos
+Rubrica com pontuação; mudanças de consumo além das colunas novas dos
 Parquet; concorrência no estágio 3 para encurtar a rodada total.
 
 ## 9. Errata (pós-implementação, 05/09/2026)

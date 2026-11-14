@@ -1,7 +1,7 @@
 # hf-papers-db
 
 Camada de dados dos Hugging Face Daily Papers: coleta, classificação por LLM em
-dois estágios, base SQLite e export para o Power BI e o painel HTML.
+dois estágios, base SQLite e export em Parquet lido pelo painel HTML.
 
 ## Language
 
@@ -32,7 +32,7 @@ O que o leitor precisa ter para obter o ganho principal de um aprovado. É uma
 escada — `nenhum` < `implementar` < `acesso_interno` < `treino` — mais
 `sem_acao`, quando não há nada a adotar. Cada valor é um **degrau**. A
 contradição de uma prática recebe o degrau necessário para aplicar a correção.
-Fica no banco e no Power BI; saiu do painel HTML em 21/10/2026, onde confundia
+Fica no banco e nos Parquet; saiu do painel HTML em 21/10/2026, onde confundia
 mais do que separava — lá, natureza, área › sub-área e vertente categorizam.
 _Avoid_: adoção, acionabilidade, estrito/amplo
 

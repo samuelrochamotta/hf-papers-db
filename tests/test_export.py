@@ -105,7 +105,7 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
 
 def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
     """O analista corta o acervo pelos dois niveis da area, e a coluna precisa
-    chegar ate o Power BI - o painel le o mesmo arquivo."""
+    chegar ate o Parquet - o painel le o mesmo arquivo."""
     _semear(conn)
     with db.transacao(conn):
         db.upsert_area(conn, {"area": "Contexto & recuperação", "definicao": "d"})
@@ -132,7 +132,7 @@ def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
 
 
 def test_dim_area_leva_o_pai_ao_parquet(conn, cfg):
-    """Sem `area_pai` a dimensao chega ao Power BI como 74 rotulos planos: nao ha
+    """Sem `area_pai` a dimensao chega ao painel como 74 rotulos planos: nao ha
     como saber qual e area raiz e qual e sub-area, nem de quem cada sub-area e
     filha. A hierarquia por auto-referencia so existe se a coluna atravessar."""
     _semear(conn)
@@ -175,7 +175,7 @@ def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
 
 
 def test_fato_triagem_leva_a_classificacao_e_os_booleanos_derivados(conn, cfg):
-    """Os booleanos saem prontos para o Power BI nao reimplementar as regras:
+    """Os booleanos saem prontos para o painel nao reimplementar as regras:
     `contradiz_pratica` e `como_incompleto` derivam dos textos, e o artefato
     aberto vem de `vw_artefato` (evidencia + `liberado`)."""
     _semear(conn)
@@ -201,7 +201,7 @@ def test_perfis_e_vocabulario_saem_no_parquet(conn, cfg):
 
 
 def test_parquet_da_ponte_de_criterios_e_apagado(conn, cfg):
-    """O export so escreve; sem a limpeza o Power BI continuaria lendo o
+    """O export so escreve; sem a limpeza o painel continuaria lendo o
     arquivo da tabela que saiu no ADR 004."""
     cfg.dir_marts.mkdir(parents=True, exist_ok=True)
     morto = cfg.dir_marts / "ponte_paper_criterio.parquet"
@@ -233,7 +233,7 @@ def test_numtotal_propaga_para_frente_e_delta_e_calculado(conn, cfg):
     assert t[1]["upvotes_delta_dia"] == 15
 
 
-def test_colunas_derivadas_de_slicer(conn, cfg):
+def test_colunas_derivadas_de_filtro(conn, cfg):
     _semear(conn)
     export.rodar(conn, cfg, hoje=HOJE)
     r = pq.read_table(cfg.dir_marts / "dim_paper.parquet").to_pylist()[0]

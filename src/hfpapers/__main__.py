@@ -21,7 +21,7 @@ from .llm.cliente import catalogo_modelos, suporta_saida_estruturada
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
-    help="Camada de preparacao de dados dos HF Daily Papers para o Power BI.",
+    help="Camada de preparacao de dados dos HF Daily Papers para o painel.",
 )
 app_tax = typer.Typer(no_args_is_help=True, help="Governanca do vocabulario controlado.")
 app_modelos = typer.Typer(no_args_is_help=True, help="Catalogo de modelos do OpenRouter.")
@@ -141,7 +141,7 @@ def auditar_datas_arxiv(
 
 @app.command()
 def export() -> None:
-    """Materializa os Parquet do Power BI em marts/."""
+    """Materializa os Parquet do painel em marts/."""
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:

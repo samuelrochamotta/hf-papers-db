@@ -2,7 +2,7 @@
 
 Os `enum` de area, sub-area e vertente do Estagio A sao injetados em tempo de
 execucao a partir do banco. E isso que impede a LLM de inventar rotulo e
-fragmentar os filtros do Power BI.
+fragmentar os filtros do painel.
 
 No Estagio B a **ordem das propriedades e normativa**: ela reproduz a ordem do
 raciocinio (a natureza e o padrao vem antes do pre-requisito, e a justificativa
@@ -48,7 +48,7 @@ NATUREZAS_SEM_ADOCAO = ("teoria", "panorama")
 
 # Escada de capacidade: cada degrau implica os anteriores. A ordem desta lista
 # e a ordem de `dim_prerequisito` (teste em `test_vocabulario_v2`), e e ela que
-# o painel e o Power BI usam para ordenar. `sem_acao` e valor explicito, e nao
+# o painel usa para ordenar. `sem_acao` e valor explicito, e nao
 # NULL, para que nenhum filtro precise tratar nulo.
 PREREQUISITOS = ["nenhum", "implementar", "acesso_interno", "treino", "sem_acao"]
 SEM_ACAO = "sem_acao"

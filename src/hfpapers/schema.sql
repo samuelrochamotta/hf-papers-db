@@ -90,7 +90,7 @@ INSERT OR IGNORE INTO dim_natureza VALUES
     ('panorama',        'Panorama',        'Sistematiza o que existe: survey, taxonomia.', 4);
 
 -- A escada de capacidade: cada degrau implica os anteriores. `ordem` é a única
--- cópia da ordenação (o Power BI classifica por ela; o painel também).
+-- cópia da ordenação (o painel ordena por ela).
 CREATE TABLE IF NOT EXISTS dim_prerequisito (
     prerequisito TEXT PRIMARY KEY,
     rotulo       TEXT NOT NULL,
@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS log_llm (
 );
 CREATE INDEX IF NOT EXISTS ix_llm_run ON log_llm(run_id);
 
--- ══════════════ CALENDÁRIO (o Power BI precisa) ══════════════
+-- ══════════════ CALENDÁRIO (o painel precisa) ══════════════
 CREATE TABLE IF NOT EXISTS dim_calendario (
     data            DATE PRIMARY KEY,
     ano             INTEGER, mes INTEGER, dia INTEGER,
