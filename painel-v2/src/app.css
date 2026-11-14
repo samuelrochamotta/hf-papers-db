@@ -1,0 +1,64 @@
+/* Tokens: tudo que tem cor passa por aqui, inclusive os graficos (tema.js le
+   estas variaveis e monta o tema do ECharts). */
+:root{
+  --bg:#f2f4f7; --surface:#fdfdfe; --sunk:#e9ecf1; --raise:#ffffff;
+  --ink:#10151c; --ink2:#4a5361; --muted:#7a8391; --line:#dfe3e9; --ring:rgba(16,21,28,.10);
+  --accent:#2a63e0; --accent-soft:rgba(42,99,224,.12);
+  --win:#2a63e0; --noise:#a3abb7; --lose:#eb6834; --warn:#eb6834;
+  /* solidez: uma rampa so, do mais forte ao mais fragil */
+  --s-forte:#173a9e; --s-firme:#3468e0; --s-basico:#86a6f0; --s-fragil:#cbd8f8; --s-nada:#a2aab5;
+  --compare-1:#2a63e0; --compare-2:#e0662a; --compare-3:#13a39a;
+  --shade:rgba(235,104,52,.08);
+  --shadow:0 18px 50px rgba(16,21,28,.16);
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --gutter:max(16px,env(safe-area-inset-left,0px));
+  --gutter-r:max(16px,env(safe-area-inset-right,0px));
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c0f13; --surface:#151a20; --sunk:#1d232b; --raise:#1b2129;
+  --ink:#eef1f5; --ink2:#b9c1cc; --muted:#8791a0; --line:#272e38; --ring:rgba(255,255,255,.10);
+  --accent:#6b9bff; --accent-soft:rgba(107,155,255,.16);
+  --win:#5b8ff7; --noise:#5d6673; --lose:#f07a45; --warn:#f07a45;
+  --s-forte:#a9c4ff; --s-firme:#6b9bff; --s-basico:#3c63b8; --s-fragil:#263e70; --s-nada:#58616e;
+  --compare-1:#6b9bff; --compare-2:#f08a52; --compare-3:#3cc7bd;
+  --shade:rgba(240,122,69,.12); --shadow:0 18px 50px rgba(0,0,0,.55); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c0f13; --surface:#151a20; --sunk:#1d232b; --raise:#1b2129;
+  --ink:#eef1f5; --ink2:#b9c1cc; --muted:#8791a0; --line:#272e38; --ring:rgba(255,255,255,.10);
+  --accent:#6b9bff; --accent-soft:rgba(107,155,255,.16);
+  --win:#5b8ff7; --noise:#5d6673; --lose:#f07a45; --warn:#f07a45;
+  --s-forte:#a9c4ff; --s-firme:#6b9bff; --s-basico:#3c63b8; --s-fragil:#263e70; --s-nada:#58616e;
+  --compare-1:#6b9bff; --compare-2:#f08a52; --compare-3:#3cc7bd;
+  --shade:rgba(240,122,69,.12); --shadow:0 18px 50px rgba(0,0,0,.55); color-scheme:dark}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+button:focus-visible,a:focus-visible,[tabindex]:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+a{color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1320px;margin:0 auto;padding-left:var(--gutter);padding-right:var(--gutter-r)}
+svg{display:block}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.card{background:var(--surface);border-radius:20px;box-shadow:0 0 0 1px var(--ring),0 1px 2px rgba(0,0,0,.03);padding:16px 16px 12px;display:flex;flex-direction:column;min-width:0;position:relative;overflow:hidden;
+  transition:box-shadow .25s ease, transform .25s ease}
+.card:hover{box-shadow:0 0 0 1px var(--ring),0 10px 30px rgba(16,21,28,.08)}
+.card h2{font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0;line-height:1.2}
+.kpi{display:flex;align-items:baseline;gap:8px;margin:6px 0 4px;flex-wrap:wrap}
+.kpi b{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--ink2)}
+.chart{flex:1;min-height:0;position:relative}
+.vazio{color:var(--muted);font-size:13px;padding:24px 0;text-align:center}
+
+.seg{display:inline-flex;background:var(--sunk);border-radius:999px;padding:3px;gap:2px}
+.seg button{padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:500;color:var(--ink2);transition:background .2s,color .2s}
+.seg button[aria-pressed="true"]{background:var(--raise);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border-radius:999px;background:var(--sunk);font-size:12.5px;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+.dot.nada{background:transparent!important;box-shadow:inset 0 0 0 1.5px var(--s-nada);border:0}

@@ -1,0 +1,59 @@
+{
+  "id": "2611.00859",
+  "titulo": "Wave Forcing: Towards Speed-of-Light Streaming Video Generation",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "Referências (entrada Wang et al. 2026b)",
+    "tem_apendice": true,
+    "secao_limitacoes": "presente"
+  },
+  "entrega": {
+    "primaria": "metodo",
+    "secundaria": null,
+    "trecho": "WF currently uses a complex multi-stage training procedure.",
+    "secao": "7 Limitations"
+  },
+  "problema": "geração de vídeo em streaming",
+  "afiliacoes": [
+    {"org": "DENG Lab, Shanghai Jiao Tong University", "n_autores": 3},
+    {"org": "Peking University", "n_autores": 1},
+    {"org": "East China Normal University", "n_autores": 1},
+    {"org": "National Tsing Hua University", "n_autores": 1},
+    {"org": "Xi'an Jiaotong University", "n_autores": null}
+  ],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [
+    {
+      "tabela": "Tabela 1",
+      "benchmark": "VBench",
+      "arena": "geracao_video_mundo",
+      "metrica": "Total",
+      "direcao": "maior_melhor",
+      "unidade": null,
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {"nome": "Wave Forcing (Ours), 5 passos", "papel": "nosso", "fechado": false, "valor": 81.64, "pm": null},
+        {"nome": "Rolling Forcing, 5 passos", "papel": "externo", "fechado": false, "valor": 81.15, "pm": null},
+        {"nome": "Causal Forcing (Full Attn.), 4 passos", "papel": "externo", "fechado": false, "valor": 79.61, "pm": null}
+      ],
+      "secao": "Tabela 1"
+    }
+  ],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "evidencia": ["benchmark_automatico"],
+  "alegacoes": [],
+  "ressalvas": [
+    {"tipo": "escopo", "trecho": "WF currently uses a complex multi-stage training procedure.", "secao": "7 Limitations"},
+    {"tipo": "medicao", "trecho": "VBench-based scores do not fully characterize long-stream quality", "secao": "7 Limitations"}
+  ],
+  "artefatos": [],
+  "nao_extraivel": [
+    {"local": "Tabela 2", "motivo": "tabela_multinivel"}
+  ]
+}

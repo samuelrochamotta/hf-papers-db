@@ -1,0 +1,64 @@
+{
+ "id": "2610.39497",
+ "titulo": "Does Scaling Toward AGI Depend on What System-1 Lets System-2 Execute?",
+ "leitura": {
+  "fonte_texto": "html",
+  "cobertura": "parcial",
+  "termina_em": "1 Introdução: 'A potentially tighter Cost–QoS–Intelligence frontier' (texto cortado na frase 'per unit of e')",
+  "tem_apendice": false,
+  "secao_limitacoes": "nao_lida"
+ },
+ "entrega": {
+  "primaria": "panorama_posicao",
+  "secundaria": null,
+  "trecho": "Our position: co-design the two systems, and the conditional interaction decides what the other pays for.",
+  "secao": "1 Introdução"
+ },
+ "camada": {
+  "primaria": "agente_harness",
+  "secundaria": null,
+  "trecho": "We study conditional interaction, a predict–gate–execute–update loop:",
+  "secao": "Abstract"
+ },
+ "problema": "conditional interaction",
+ "afiliacoes": [],
+ "entidades": [],
+ "relacoes": [],
+ "resultados": [],
+ "efeitos_custo": [],
+ "hardware": [],
+ "compute_declarado": [],
+ "escala": [],
+ "estatistica": {
+  "seeds": null,
+  "trials": null,
+  "variancia": "nenhuma",
+  "teste_significancia": false,
+  "trecho": null
+ },
+ "evidencia": [],
+ "alegacoes": [
+  {
+   "tipo": "tese",
+   "trecho": "hypothesized to dominate",
+   "numero": null,
+   "unidade": null,
+   "contra": null,
+   "tabela_ref": null,
+   "secao": "1 Introdução"
+  }
+ ],
+ "ressalvas": [
+  {
+   "tipo": "escopo",
+   "trecho": "the scope is intentionally confined to situations with a reliable utility predictor",
+   "secao": "1 Introdução"
+  }
+ ],
+ "artefatos": [],
+ "envelope": {
+  "idiomas": [],
+  "dominio_treino": null
+ },
+ "nao_extraivel": []
+}

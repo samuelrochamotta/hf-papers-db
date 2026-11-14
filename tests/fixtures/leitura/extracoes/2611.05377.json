@@ -1,0 +1,149 @@
+{
+  "id": "2611.05377",
+  "titulo": "DreamX: Video Diffusion Model is a Universal Latent Action Learner",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "Apêndice C.2, Tabela 7 (truncada)",
+    "tem_apendice": true,
+    "secao_limitacoes": "ausente"
+  },
+  "entrega": {
+    "primaria": "metodo",
+    "secundaria": null,
+    "trecho": "We introduce DreamX, a framework that uses the spatiotemporal and generative priors of a pretrained video diffusion model to learn universal latent actions.",
+    "secao": "Introduction"
+  },
+  "camada": {
+    "primaria": "arquitetura_pretreino",
+    "secundaria": null,
+    "trecho": "We introduce DreamX, a framework that uses the spatiotemporal and generative priors of a pretrained video diffusion model to learn universal latent actions.",
+    "secao": "Introduction"
+  },
+  "problema": "Latent action learning",
+  "afiliacoes": [
+    {
+      "org": "KAIST",
+      "n_autores": 8
+    },
+    {
+      "org": "NVIDIA",
+      "n_autores": 1
+    }
+  ],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [
+    {
+      "tabela": "Tabela 1",
+      "benchmark": "LARYBench",
+      "arena": "robotica_acao",
+      "metrica": "Avg. classificação",
+      "direcao": "maior_melhor",
+      "unidade": "%",
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {
+          "nome": "DreamX",
+          "papel": "nosso",
+          "fechado": false,
+          "valor": 69.67,
+          "pm": null
+        },
+        {
+          "nome": "DiLA",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 62.25,
+          "pm": null
+        }
+      ],
+      "secao": "Tabela 1"
+    },
+    {
+      "tabela": "Tabela 2",
+      "benchmark": "H&R",
+      "arena": "robotica_acao",
+      "metrica": "FVD",
+      "direcao": "menor_melhor",
+      "unidade": null,
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {
+          "nome": "Ours",
+          "papel": "nosso",
+          "fechado": false,
+          "valor": 57.44,
+          "pm": null
+        },
+        {
+          "nome": "AdaWorld",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 170.19,
+          "pm": null
+        },
+        {
+          "nome": "VideoWorld2",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 241.92,
+          "pm": null
+        }
+      ],
+      "secao": "Tabela 2"
+    },
+    {
+      "tabela": "Tabela 3",
+      "benchmark": "drawer-closing real-world",
+      "arena": "robotica_acao",
+      "metrica": "SR médio",
+      "direcao": "maior_melhor",
+      "unidade": "%",
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {
+          "nome": "DreamX",
+          "papel": "nosso",
+          "fechado": false,
+          "valor": 96.7,
+          "pm": null
+        },
+        {
+          "nome": "Mimic-Video",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 50.0,
+          "pm": null
+        }
+      ],
+      "secao": "Tabela 3"
+    }
+  ],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "estatistica": {
+    "seeds": null,
+    "trials": 10,
+    "variancia": "nenhuma",
+    "teste_significancia": false,
+    "trecho": null
+  },
+  "evidencia": [
+    "benchmark_automatico",
+    "mundo_real"
+  ],
+  "alegacoes": [],
+  "ressalvas": [],
+  "artefatos": [],
+  "envelope": {
+    "idiomas": [],
+    "dominio_treino": null
+  },
+  "nao_extraivel": []
+}

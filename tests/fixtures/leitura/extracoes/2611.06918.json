@@ -1,0 +1,1216 @@
+{
+ "id": "2611.06918",
+ "titulo": "From Pixels to Actions – Towards Native Vision-Language-Action Policies",
+ "leitura": {
+  "fonte_texto": "html",
+  "cobertura": "completa",
+  "termina_em": "References",
+  "tem_apendice": true,
+  "secao_limitacoes": "ausente"
+ },
+ "entrega": {
+  "primaria": "metodo",
+  "secundaria": "modelo",
+  "trecho": "We introduce NEO-VLA, a structurally encoder-free vision-language-action framework.",
+  "secao": "Abstract"
+ },
+ "camada": {
+  "primaria": "arquitetura_pretreino",
+  "secundaria": null,
+  "trecho": "a structurally native VLA policy built directly on pixels and words",
+  "secao": "1 Introdução"
+ },
+ "problema": "native vision-language-action policy",
+ "afiliacoes": [],
+ "entidades": [
+  {
+   "nome": "NEO-VLA",
+   "tipo": "modelo",
+   "papel": "criada_aqui",
+   "tamanho": "2B",
+   "fechado": false,
+   "trecho": "We introduce NEO-VLA, a structurally encoder-free vision-language-action framework.",
+   "secao": "Abstract"
+  },
+  {
+   "nome": "Qwen3-VL-2B",
+   "tipo": "modelo",
+   "papel": "base",
+   "tamanho": "2B",
+   "fechado": false,
+   "trecho": "We compare the native-input backbone of NEO-VLA with Qwen3-VL-2B",
+   "secao": "5.1"
+  },
+  {
+   "nome": "Gemma-3-4B",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "4B",
+   "fechado": false,
+   "trecho": "Gemma-3",
+   "secao": "Tabela 2"
+  },
+  {
+   "nome": "OpenVLA",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "7B",
+   "fechado": false,
+   "trecho": "OpenVLA",
+   "secao": "Tabela 7"
+  },
+  {
+   "nome": "π0.5",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "3B",
+   "fechado": false,
+   "trecho": "π0.5",
+   "secao": "Tabela 7"
+  },
+  {
+   "nome": "π0",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "3B",
+   "fechado": false,
+   "trecho": "π0",
+   "secao": "Tabela 5"
+  },
+  {
+   "nome": "StarVLA",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "4B",
+   "fechado": false,
+   "trecho": "StarVLA",
+   "secao": "Tabela 5"
+  },
+  {
+   "nome": "MMaDA-VLA",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "8B",
+   "fechado": false,
+   "trecho": "MMaDA-VLA",
+   "secao": "Tabela 7"
+  },
+  {
+   "nome": "EO-1",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "3B",
+   "fechado": false,
+   "trecho": "EO-1",
+   "secao": "Tabela 7"
+  },
+  {
+   "nome": "Qwen-RobotManip",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "4B",
+   "fechado": true,
+   "trecho": "Qwen-RobotManip",
+   "secao": "Tabela 5"
+  },
+  {
+   "nome": "OLA-Sem",
+   "tipo": "modelo",
+   "papel": "baseline",
+   "tamanho": "8B",
+   "fechado": true,
+   "trecho": "OLA-Sem",
+   "secao": "Tabela 9"
+  },
+  {
+   "nome": "LIBERO",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "LIBERO",
+   "secao": "5.1"
+  },
+  {
+   "nome": "LIBERO-Plus",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "LIBERO-plus",
+   "secao": "5.4"
+  },
+  {
+   "nome": "LIBERO-Pro",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "LIBERO-Pro",
+   "secao": "5.4"
+  },
+  {
+   "nome": "RoboTwin 2.0",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "RoboTwin 2.0",
+   "secao": "5.4"
+  },
+  {
+   "nome": "Open X-Embodiment",
+   "tipo": "dataset",
+   "papel": "dados_treino",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "Open X-Embodiment",
+   "secao": "5.1"
+  }
+ ],
+ "relacoes": [],
+ "resultados": [
+  {
+   "tabela": "Tabela 7",
+   "benchmark": "LIBERO Spatial",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "OpenVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 84.7,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 98.8,
+     "pm": null
+    },
+    {
+     "nome": "MMaDA-VLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 98.8,
+     "pm": null
+    },
+    {
+     "nome": "EO-1",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 99.7,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 98.4,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 7",
+   "benchmark": "LIBERO Object",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "OpenVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 88.4,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 98.2,
+     "pm": null
+    },
+    {
+     "nome": "MMaDA-VLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 99.8,
+     "pm": null
+    },
+    {
+     "nome": "EO-1",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 99.8,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 99.4,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 7",
+   "benchmark": "LIBERO Goal",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "OpenVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 79.2,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 98.0,
+     "pm": null
+    },
+    {
+     "nome": "MMaDA-VLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 98.0,
+     "pm": null
+    },
+    {
+     "nome": "EO-1",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 99.2,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 95.6,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 7",
+   "benchmark": "LIBERO Long",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "OpenVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 53.7,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 92.4,
+     "pm": null
+    },
+    {
+     "nome": "MMaDA-VLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 95.2,
+     "pm": null
+    },
+    {
+     "nome": "EO-1",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 94.8,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 96.2,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 7",
+   "benchmark": "LIBERO Average",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "OpenVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 76.5,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 96.8,
+     "pm": null
+    },
+    {
+     "nome": "MMaDA-VLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 98.0,
+     "pm": null
+    },
+    {
+     "nome": "EO-1",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 98.4,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 99.1,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 97.4,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 5",
+   "benchmark": "LIBERO-plus Camera",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "π0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 13.8,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 52.5,
+     "pm": null
+    },
+    {
+     "nome": "ABot-M0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 60.4,
+     "pm": null
+    },
+    {
+     "nome": "Cosmos-Policy",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 75.8,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 78.4,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip-scratch",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 70.4,
+     "pm": null
+    },
+    {
+     "nome": "Being-H0.7",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 82.0,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 87.2,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 94.5,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 5",
+   "benchmark": "LIBERO-plus Robot",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "π0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 6.0,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 49.8,
+     "pm": null
+    },
+    {
+     "nome": "ABot-M0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 67.9,
+     "pm": null
+    },
+    {
+     "nome": "Cosmos-Policy",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 63.3,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 73.6,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip-scratch",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 44.9,
+     "pm": null
+    },
+    {
+     "nome": "Being-H0.7",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 59.0,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 75.5,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 72.6,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 5",
+   "benchmark": "LIBERO-plus Language",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "π0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 58.8,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 88.5,
+     "pm": null
+    },
+    {
+     "nome": "ABot-M0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 86.4,
+     "pm": null
+    },
+    {
+     "nome": "Cosmos-Policy",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 81.7,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 80.8,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip-scratch",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 88.1,
+     "pm": null
+    },
+    {
+     "nome": "Being-H0.7",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 82.8,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 85.6,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 91.7,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 5",
+   "benchmark": "LIBERO-plus Light",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "π0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 85.0,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 95.7,
+     "pm": null
+    },
+    {
+     "nome": "ABot-M0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 96.2,
+     "pm": null
+    },
+    {
+     "nome": "Cosmos-Policy",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 96.5,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 96.2,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip-scratch",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 95.8,
+     "pm": null
+    },
+    {
+     "nome": "Being-H0.7",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 97.8,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 96.6,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 96.2,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 5",
+   "benchmark": "LIBERO-plus Background",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "π0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 81.4,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 95.7,
+     "pm": null
+    },
+    {
+     "nome": "ABot-M0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 91.6,
+     "pm": null
+    },
+    {
+     "nome": "Cosmos-Policy",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 88.9,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 94.1,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip-scratch",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 95.5,
+     "pm": null
+    },
+    {
+     "nome": "Being-H0.7",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 90.0,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 97.7,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 96.6,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 5",
+   "benchmark": "LIBERO-plus Noise",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "π0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 79.0,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 73.0,
+     "pm": null
+    },
+    {
+     "nome": "ABot-M0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 86.4,
+     "pm": null
+    },
+    {
+     "nome": "Cosmos-Policy",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 92.7,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 89.0,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip-scratch",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 84.4,
+     "pm": null
+    },
+    {
+     "nome": "Being-H0.7",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 93.5,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 97.7,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 96.9,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 5",
+   "benchmark": "LIBERO-plus Layout",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "π0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 68.9,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 76.9,
+     "pm": null
+    },
+    {
+     "nome": "ABot-M0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 82.6,
+     "pm": null
+    },
+    {
+     "nome": "Cosmos-Policy",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 82.2,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 84.5,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip-scratch",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 79.1,
+     "pm": null
+    },
+    {
+     "nome": "Being-H0.7",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 88.5,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 87.3,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 82.4,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 5",
+   "benchmark": "LIBERO-plus Total",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "π0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 53.6,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 74.1,
+     "pm": null
+    },
+    {
+     "nome": "ABot-M0",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 80.5,
+     "pm": null
+    },
+    {
+     "nome": "Cosmos-Policy",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 82.2,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 84.4,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip-scratch",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 78.3,
+     "pm": null
+    },
+    {
+     "nome": "Being-H0.7",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 84.8,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 89.0,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 89.7,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 9",
+   "benchmark": "RoboTwin 2.0 Clean",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "FastWAM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 77.8,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA-OFT",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 46.52,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 70.7,
+     "pm": null
+    },
+    {
+     "nome": "OLA-Sem",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 75.12,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 89.58,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 75.78,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  },
+  {
+   "tabela": "Tabela 9",
+   "benchmark": "RoboTwin 2.0 Clean2Rand",
+   "arena": "robotica_acao",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "confiabilidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "FastWAM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 1.9,
+     "pm": null
+    },
+    {
+     "nome": "StarVLA-OFT",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 3.16,
+     "pm": null
+    },
+    {
+     "nome": "π0.5",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 46.0,
+     "pm": null
+    },
+    {
+     "nome": "OLA-Sem",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 67.56,
+     "pm": null
+    },
+    {
+     "nome": "Qwen-RobotManip",
+     "papel": "externo",
+     "fechado": true,
+     "valor": 68.12,
+     "pm": null
+    },
+    {
+     "nome": "NEO-VLA",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 69.4,
+     "pm": null
+    }
+   ],
+   "secao": "5.4"
+  }
+ ],
+ "efeitos_custo": [],
+ "hardware": [
+  {
+   "tipo": "NVIDIA RTX 3090",
+   "qtd": 1,
+   "uso": "inferencia",
+   "trecho": "the policy served on a single NVIDIA RTX 3090 (24 GB) in bf16"
+  }
+ ],
+ "compute_declarado": [
+  {
+   "valor": 113400,
+   "unidade": "passos",
+   "trecho": "This stage uses 113,400 optimizer steps, a global batch size of 8192"
+  }
+ ],
+ "escala": [],
+ "estatistica": {
+  "seeds": null,
+  "trials": 2000,
+  "variancia": "nenhuma",
+  "teste_significancia": false,
+  "trecho": "averaged over 2,000 episodes"
+ },
+ "evidencia": [
+  "benchmark_automatico",
+  "simulacao",
+  "mundo_real"
+ ],
+ "alegacoes": [
+  {
+   "tipo": "manchete",
+   "trecho": "NEO-VLA consequently achieves stronger and more robust control.",
+   "numero": null,
+   "unidade": null,
+   "contra": null,
+   "tabela_ref": null,
+   "secao": "Abstract"
+  },
+  {
+   "tipo": "negativa",
+   "trecho": "remains challenged when the spatial configuration or task goal itself changes.",
+   "numero": null,
+   "unidade": null,
+   "contra": null,
+   "tabela_ref": null,
+   "secao": "6 Conclusão"
+  }
+ ],
+ "ressalvas": [
+  {
+   "tipo": "escopo",
+   "trecho": "degrades substantially when object positions or task goals are altered.",
+   "secao": "5.4"
+  },
+  {
+   "tipo": "confusao",
+   "trecho": "preclude attributing the gains solely to encoder removal",
+   "secao": "1 Introdução"
+  }
+ ],
+ "artefatos": [
+  {
+   "tipo": "pagina",
+   "estado": "so_pagina",
+   "url": "https://www.lmms-lab.com/posts/neo_vla/",
+   "licenca": null,
+   "trecho": "https://www.lmms-lab.com/posts/neo_vla/"
+  }
+ ],
+ "envelope": {
+  "idiomas": [
+   "en"
+  ],
+  "dominio_treino": "robótica (AgiBot-World, Open X-Embodiment, DROID e outros) e compreensão multimodal"
+ },
+ "nao_extraivel": []
+}

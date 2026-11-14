@@ -1,0 +1,92 @@
+{
+  "id": "2611.12762",
+  "titulo": "Sage-Taiyi: A Metacognitive Architecture for Scientific Discovery",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "3.3.1 (Metal Catalysis), parágrafo Implementation",
+    "tem_apendice": true,
+    "secao_limitacoes": "nao_lida"
+  },
+  "entrega": {
+    "primaria": "sistema",
+    "secundaria": "metodo",
+    "trecho": "We introduce Sage-Taiyi, a metacognition-inspired architecture that uses accumulated scientific understanding",
+    "secao": "Introduction"
+  },
+  "camada": {
+    "primaria": "agente_harness",
+    "secundaria": null,
+    "trecho": "We introduce Sage-Taiyi, a metacognition-inspired architecture that uses accumulated scientific understanding",
+    "secao": "Introduction"
+  },
+  "problema": "Scientific Discovery",
+  "afiliacoes": [
+    {
+      "org": "Shanghai Artificial Intelligence Laboratory",
+      "n_autores": null
+    }
+  ],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [
+    {
+      "tabela": "Tabela 3",
+      "benchmark": "Taiyi-Bench",
+      "arena": "ciencia_dominio",
+      "metrica": "Overall",
+      "direcao": "nao_marcada",
+      "unidade": null,
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {
+          "nome": "Sage-Taiyi (GPT-5.6-Sol)",
+          "papel": "nosso",
+          "fechado": true,
+          "valor": 53.95,
+          "pm": null
+        },
+        {
+          "nome": "AI Scientist-v2",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 47.85,
+          "pm": null
+        }
+      ],
+      "secao": "Tabela 3"
+    }
+  ],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "estatistica": {
+    "seeds": null,
+    "trials": null,
+    "variancia": "nenhuma",
+    "teste_significancia": false,
+    "trecho": null
+  },
+  "evidencia": [
+    "benchmark_automatico",
+    "mundo_real"
+  ],
+  "alegacoes": [],
+  "ressalvas": [],
+  "artefatos": [
+    {
+      "tipo": "pagina",
+      "estado": "so_pagina",
+      "url": "https://alpha-innovator.github.io/Sage-Taiyi/",
+      "licenca": null,
+      "trecho": "Homepage"
+    }
+  ],
+  "envelope": {
+    "idiomas": [],
+    "dominio_treino": null
+  },
+  "nao_extraivel": []
+}

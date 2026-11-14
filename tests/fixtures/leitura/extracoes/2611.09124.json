@@ -1,0 +1,51 @@
+{
+  "id": "2611.09124",
+  "titulo": "Toward the Era of Agentic Embodied Intelligence",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "3.1 (Motion-aware visual history encoding), em uma equação",
+    "tem_apendice": true,
+    "secao_limitacoes": "nao_lida"
+  },
+  "entrega": {
+    "primaria": "sistema",
+    "secundaria": "metodo",
+    "trecho": "We introduce A2-MEAS, an embodied multi-agent framework built around code as a scaling interface.",
+    "secao": "Introdução"
+  },
+  "camada": {
+    "primaria": "agente_harness",
+    "secundaria": "pos_treino",
+    "trecho": "We introduce A2-MEAS, an embodied multi-agent framework built around code as a scaling interface.",
+    "secao": "Introdução"
+  },
+  "problema": "Agentic Embodied Intelligence",
+  "afiliacoes": [],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "estatistica": {
+    "seeds": null,
+    "trials": null,
+    "variancia": "nenhuma",
+    "teste_significancia": false,
+    "trecho": null
+  },
+  "evidencia": [
+    "benchmark_automatico",
+    "mundo_real"
+  ],
+  "alegacoes": [],
+  "ressalvas": [],
+  "artefatos": [],
+  "envelope": {
+    "idiomas": [],
+    "dominio_treino": null
+  },
+  "nao_extraivel": []
+}

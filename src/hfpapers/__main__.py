@@ -153,6 +153,35 @@ def export() -> None:
     typer.echo(f"\n{len(r.arquivos)} arquivos em {r.dir_saida} (+ _manifest.json)")
 
 
+# ── ler (texto completo, painel v2) ─────────────────────────────────────────
+
+
+@app.command()
+def ler(
+    dias: Optional[int] = typer.Option(None, "--dias", help="Janela em dias de HF Daily (padrao: config)."),
+    limite: Optional[int] = typer.Option(None, "--limite", help="No maximo N papers, dos mais votados."),
+    min_votos: Optional[int] = typer.Option(None, "--min-votos", help="Piso de votos (padrao: config)."),
+    ids: Optional[Path] = typer.Option(None, "--ids", help="Arquivo com um id do arXiv por linha."),
+    refazer: bool = typer.Option(False, "--refazer", help="Le de novo quem ja foi lido nesta versao do esquema."),
+) -> None:
+    """Le o texto completo com o Claude Haiku 5.5 e grava em leitura_texto (ADR 007)."""
+    from . import leitura
+
+    cfg = _preparar()
+    conn = db.abrir(cfg)
+    try:
+        r = leitura.rodar(conn, cfg, dias=dias, limite=limite, min_votos=min_votos,
+                          ids=ler_ids(ids) if ids else None, refazer=refazer)
+    finally:
+        conn.close()
+    typer.echo(f"{len(r.lidos)} lidos ({len(r.so_abstract)} so com abstract), "
+               f"{len(r.falhas)} falhas, US$ {r.custo_usd:.4f} estimados")
+    for pid, erro in r.falhas.items():
+        typer.echo(f"  [falha] {pid}: {erro}")
+    if r.falhas and not r.lidos:
+        raise typer.Exit(1)
+
+
 # ── reclassificar ───────────────────────────────────────────────────────────
 
 

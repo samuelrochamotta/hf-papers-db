@@ -1,0 +1,86 @@
+{
+ "id": "2611.10771",
+ "titulo": "WorldFoundry: Towards Unified Infrastructure for World Intelligence",
+ "leitura": {
+  "fonte_texto": "html",
+  "cobertura": "parcial",
+  "termina_em": "2 Related Work (cabeçalho e Tabela 1 sem linhas; HTML de 14.515 caracteres)",
+  "tem_apendice": false,
+  "secao_limitacoes": "nao_lida"
+ },
+ "entrega": {
+  "primaria": "sistema",
+  "secundaria": null,
+  "trecho": "We introduce WorldFoundry, an open-source infrastructure that standardizes execution and evaluation across video, 3D, 4D, embodied-action, and interactive world systems",
+  "secao": "1 Introdução"
+ },
+ "camada": {
+  "primaria": "avaliacao",
+  "secundaria": null,
+  "trecho": "standardizes execution and evaluation across video, 3D, 4D, embodied-action, and interactive world systems",
+  "secao": "1 Introdução"
+ },
+ "problema": "unified infrastructure for world intelligence",
+ "afiliacoes": [],
+ "entidades": [
+  {
+   "nome": "WorldFoundry",
+   "tipo": "software",
+   "papel": "criada_aqui",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "We introduce WorldFoundry, an open-source infrastructure that standardizes execution and evaluation",
+   "secao": "1 Introdução"
+  }
+ ],
+ "relacoes": [],
+ "resultados": [],
+ "efeitos_custo": [],
+ "hardware": [],
+ "compute_declarado": [],
+ "escala": [
+  {"n": 270, "unidade": "entradas de modelos", "trecho": "The current catalog contains 270 model entries, 74 benchmarks, and 62 registered metric entries", "secao": "Abstract"},
+  {"n": 74, "unidade": "benchmarks", "trecho": "The current catalog contains 270 model entries, 74 benchmarks, and 62 registered metric entries", "secao": "Abstract"},
+  {"n": 62, "unidade": "entradas de métricas", "trecho": "The current catalog contains 270 model entries, 74 benchmarks, and 62 registered metric entries", "secao": "Abstract"}
+ ],
+ "estatistica": {
+  "seeds": null,
+  "trials": null,
+  "variancia": "nenhuma",
+  "teste_significancia": false,
+  "trecho": null
+ },
+ "evidencia": [],
+ "alegacoes": [
+  {
+   "tipo": "manchete",
+   "trecho": "The current catalog contains 270 model entries",
+   "numero": 270,
+   "unidade": "entradas",
+   "contra": null,
+   "tabela_ref": null,
+   "secao": "Abstract"
+  }
+ ],
+ "ressalvas": [
+  {
+   "tipo": "escopo",
+   "trecho": "yielding an auditable record of operational readiness under the tested configurations",
+   "secao": "1 Introdução"
+  }
+ ],
+ "artefatos": [
+  {
+   "tipo": "pagina",
+   "estado": "so_pagina",
+   "url": "https://openenvision.org/WorldFoundry/",
+   "licenca": null,
+   "trecho": "https://openenvision.org/WorldFoundry/"
+  }
+ ],
+ "envelope": {
+  "idiomas": [],
+  "dominio_treino": null
+ },
+ "nao_extraivel": []
+}

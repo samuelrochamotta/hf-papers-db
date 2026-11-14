@@ -1,0 +1,88 @@
+{
+  "id": "2611.00883",
+  "titulo": "Random Is Almost Enough? Stable and Low-Cost Benchmark Compression via BestRand",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "Referências (letra J); corpo lido até a Conclusão",
+    "tem_apendice": true,
+    "secao_limitacoes": "nao_lida"
+  },
+  "entrega": {
+    "primaria": "metodo",
+    "secundaria": null,
+    "trecho": "we introduce BestRand, a stable and low-cost benchmark compression method",
+    "secao": "Introduction"
+  },
+  "camada": {
+    "primaria": "avaliacao",
+    "secundaria": null,
+    "trecho": "we introduce BestRand, a stable and low-cost benchmark compression method",
+    "secao": "Introduction"
+  },
+  "problema": "Benchmark Compression",
+  "afiliacoes": [
+    {
+      "org": "Bosch Research",
+      "n_autores": 5
+    },
+    {
+      "org": "Carnegie Mellon University",
+      "n_autores": 1
+    }
+  ],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [
+    {
+      "tabela": "Tabela 1",
+      "benchmark": "70 benchmarks (texto, multimodal, agentes)",
+      "arena": "outra",
+      "metrica": "MAE média",
+      "direcao": "menor_melhor",
+      "unidade": "%",
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {
+          "nome": "BestRand",
+          "papel": "nosso",
+          "fechado": false,
+          "valor": 2.92,
+          "pm": null
+        }
+      ],
+      "secao": "Tabela 1"
+    }
+  ],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "estatistica": {
+    "seeds": null,
+    "trials": null,
+    "variancia": "pm_definido",
+    "teste_significancia": false,
+    "trecho": null
+  },
+  "evidencia": [
+    "benchmark_automatico"
+  ],
+  "alegacoes": [],
+  "ressalvas": [],
+  "artefatos": [
+    {
+      "tipo": "codigo",
+      "estado": "liberado",
+      "url": null,
+      "licenca": null,
+      "trecho": "The code and data are publicly available on GitHub"
+    }
+  ],
+  "envelope": {
+    "idiomas": [],
+    "dominio_treino": null
+  },
+  "nao_extraivel": []
+}

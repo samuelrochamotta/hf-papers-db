@@ -1,0 +1,13 @@
+{"id":"2611.04916","titulo":"Behind Video Generation: Observations and Insights on Multimodal Understanding from Kling",
+"leitura":{"fonte_texto":"html","cobertura":"parcial","termina_em":"4.2 The Semantic Contract","tem_apendice":false,"secao_limitacoes":"presente"},
+"entrega":{"primaria":"modelo","secundaria":"estudo","trecho":"We refer to this model as Kling-MLLM","secao":null},
+"camada":{"primaria":"arquitetura_pretreino","secundaria":null,"trecho":"We show that a reliable text encoder comes from perceptual training rather than from stronger language ability","secao":null},
+"problema":"Multimodal Understanding",
+"afiliacoes":[{"org":"Kling Team","n_autores":null}],
+"entidades":[{"nome":"Kling-MLLM","tipo":"modelo","papel":"criada_aqui","tamanho":null,"fechado":true,"trecho":"We refer to this model as Kling-MLLM","secao":null}],
+"relacoes":[],"resultados":[],"efeitos_custo":[],"hardware":[],"compute_declarado":[],"escala":[],
+"estatistica":{"seeds":null,"trials":null,"variancia":"nenhuma","teste_significancia":false,"trecho":null},
+"evidencia":[],
+"alegacoes":[{"tipo":"tese","trecho":"We show that a reliable text encoder comes from perceptual training rather than from stronger language ability","numero":null,"unidade":null,"contra":null,"tabela_ref":null,"secao":null}],
+"ressalvas":[{"tipo":"escopo","trecho":"Scaling the captioning system described in this section leaves several open challenges for future research.","secao":"3.6"}],
+"artefatos":[],"envelope":{"idiomas":[],"dominio_treino":null},"nao_extraivel":[]}

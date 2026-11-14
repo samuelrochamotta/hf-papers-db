@@ -1,0 +1,70 @@
+{
+ "id": "2611.06910",
+ "titulo": "FrontierPhysics: Evaluating Agents for End-to-End Physics Research",
+ "leitura": {
+  "fonte_texto": "html",
+  "cobertura": "parcial",
+  "termina_em": "E.1 Final Trial Labels and Main Findings (Tabela 5, linha 32, diffuse-ib-rigid-body-fsi)",
+  "tem_apendice": true,
+  "secao_limitacoes": "presente"
+ },
+ "entrega": {
+  "primaria": "medida",
+  "secundaria": null,
+  "trecho": "we introduce FrontierPhysics",
+  "secao": "1 Introdução"
+ },
+ "camada": {
+  "primaria": "avaliacao",
+  "secundaria": null,
+  "trecho": "we introduce FrontierPhysics",
+  "secao": "1 Introdução"
+ },
+ "problema": "end-to-end physics research",
+ "afiliacoes": [],
+ "entidades": [
+  {"nome": "FrontierPhysics", "tipo": "benchmark", "papel": "criada_aqui", "tamanho": null, "fechado": false, "trecho": "we introduce FrontierPhysics", "secao": "1 Introdução"},
+  {"nome": "Claude Opus 5.5", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": true, "trecho": "Claude Opus 5.5", "secao": "Seção 1"},
+  {"nome": "Fable 5.1", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": true, "trecho": "Fable 5.1", "secao": "Seção 1"},
+  {"nome": "GPT-6 Astra", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": true, "trecho": "GPT-6 Astra", "secao": "Seção 3.4"},
+  {"nome": "DeepSeek V4 Pro", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": false, "trecho": "DeepSeek V4 Pro", "secao": "Seção 1"},
+  {"nome": "DeepSeek V4.1 Flash", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": false, "trecho": "DeepSeek V4.1 Flash", "secao": "Seção 1"},
+  {"nome": "GLM-5.3", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": false, "trecho": "GLM-5.3", "secao": "Seção 1"},
+  {"nome": "Kimi K3", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": false, "trecho": "Kimi K3", "secao": "Seção 1"},
+  {"nome": "Kimi K3.1 Pro", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": false, "trecho": "Kimi K3.1 Pro", "secao": "Seção 1"},
+  {"nome": "MiMo V2.6 Pro", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": false, "trecho": "MiMo V2.6 Pro", "secao": "Seção 1"},
+  {"nome": "Mistral Large 4", "tipo": "modelo", "papel": "objeto_medido", "tamanho": null, "fechado": false, "trecho": "Mistral Large 4", "secao": "Seção 1"},
+  {"nome": "GPT-5.6 Sol", "tipo": "modelo", "papel": "juiz_ferramenta", "tamanho": null, "fechado": true, "trecho": "All rollouts are graded by the same reviewer agent, GPT-5.6 Sol (xhigh) in Codex CLI", "secao": "Seção 2.3"}
+ ],
+ "relacoes": [],
+ "resultados": [],
+ "efeitos_custo": [],
+ "hardware": [],
+ "compute_declarado": [],
+ "escala": [
+  {"n": 56, "unidade": "tarefas", "trecho": "Each model attempts all 56 tasks three times at its highest available inference effort", "secao": "Seção 3.1"},
+  {"n": 168, "unidade": "rollouts", "trecho": "no configuration passes more than 46 of its 168 rollouts", "secao": "Abstract"}
+ ],
+ "estatistica": {
+  "seeds": null,
+  "trials": 3,
+  "variancia": "ic",
+  "teste_significancia": false,
+  "trecho": "approximate 95% binomial confidence intervals over all rollouts"
+ },
+ "evidencia": ["juiz_llm", "caso_qualitativo"],
+ "alegacoes": [
+  {"tipo": "manchete", "trecho": "Across 22 models in 26 configurations, no configuration passes more than 46 of its 168 rollouts.", "numero": 46, "unidade": "rollouts", "contra": null, "tabela_ref": null, "secao": "Abstract"}
+ ],
+ "ressalvas": [
+  {"tipo": "escopo", "trecho": "Other models, or other model-harness pairs, may fail in different ways", "secao": "Seção 3.4"},
+  {"tipo": "medicao", "trecho": "rollouts with exclusively false failures lead to an underestimated pass rate", "secao": "Seção 3.3"},
+  {"tipo": "confusao", "trecho": "more lenient on rollouts from its own model family", "secao": "Seção 2.3"}
+ ],
+ "artefatos": [],
+ "envelope": {
+  "idiomas": [],
+  "dominio_treino": null
+ },
+ "nao_extraivel": []
+}

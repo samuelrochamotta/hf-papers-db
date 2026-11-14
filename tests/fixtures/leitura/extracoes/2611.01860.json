@@ -1,0 +1,40 @@
+{
+  "id": "2611.01860",
+  "titulo": "Advances in Agentic Computer Graphics",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "7.1 Modelagem de Objetos",
+    "tem_apendice": false,
+    "secao_limitacoes": "nao_lida"
+  },
+  "entrega": {
+    "primaria": "panorama_posicao",
+    "secundaria": null,
+    "trecho": "we introduce a unified taxonomy for characterizing agentic systems across diverse computer graphics tasks",
+    "secao": "Abstract"
+  },
+  "problema": "taxonomia de sistemas agentes gráficos",
+  "afiliacoes": [
+    {"org": "University of Texas at Austin", "n_autores": 5},
+    {"org": "Stanford University", "n_autores": 5},
+    {"org": "Simon Fraser University", "n_autores": 2},
+    {"org": "University of California, Berkeley", "n_autores": 1},
+    {"org": "University of Cambridge", "n_autores": 1}
+  ],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "evidencia": [],
+  "alegacoes": [],
+  "ressalvas": [],
+  "artefatos": [],
+  "nao_extraivel": [
+    {"local": "Tabela 2", "motivo": "tabela_icones"},
+    {"local": "Tabela 3", "motivo": "tabela_icones"}
+  ]
+}

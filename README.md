@@ -113,6 +113,21 @@ quando algo mudou e nenhuma opção de prévia (`--dias`, `--dias-hall`,
 `--destino`) foi passada; o push dispara o deploy do Pages. O `.py` sai em
 no-op se o `run_id` não mudou desde a última geração (`marts/.painel_run_id`).
 
+## Painel v2 (em construção)
+
+Classifica os papers pelo que eles provam, lido do **texto completo** pelo
+Claude Haiku 5.5 (ADR 007, especificação em `docs/specs/painel-v2.md`). Nasce
+ao lado do v1, em `relatorios/painel-v2/`, publicado em `/v2/` no Pages.
+
+```bash
+hfpapers ler --dias 7 --limite 30                 # precisa de ANTHROPIC_API_KEY no .env
+python scripts/gerar_painel_v2.py --dias 14       # grava relatorios/painel-v2/dados.json
+cd painel-v2 && npm ci && npm run build           # só quando o front-end muda
+```
+
+O front-end é Svelte 5 + Apache ECharts 6 (`painel-v2/`). O build fica
+versionado com nomes fixos, então a rodada diária só troca o `dados.json`.
+
 ## Testes
 
 ```bash

@@ -1,0 +1,923 @@
+{
+ "id": "2611.14320",
+ "titulo": "Don't Just Trust Your Memory: Evidence-Linked Memory Reduces Memory-Induced Degradation in LLM Agents",
+ "leitura": {
+  "fonte_texto": "html",
+  "cobertura": "parcial",
+  "termina_em": "Referências (entrada Li et al. 2026, texto cortado em '[Be')",
+  "tem_apendice": true,
+  "secao_limitacoes": "presente"
+ },
+ "entrega": {
+  "primaria": "metodo",
+  "secundaria": "sistema",
+  "trecho": "we present WikiTrace, an evidence-linked memory system",
+  "secao": "1 Introdução"
+ },
+ "camada": {
+  "primaria": "contexto_raciocinio",
+  "secundaria": null,
+  "trecho": "we present WikiTrace, an evidence-linked memory system",
+  "secao": "1 Introdução"
+ },
+ "problema": "memory-induced degradation",
+ "afiliacoes": [],
+ "entidades": [
+  {
+   "nome": "WikiTrace",
+   "tipo": "metodo",
+   "papel": "criada_aqui",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "we introduce WikiTrace, an evidence-linked memory system",
+   "secao": "Abstract"
+  },
+  {
+   "nome": "deepseek-v4-flash",
+   "tipo": "modelo",
+   "papel": "base",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "The agent and memory builders use deepseek-v4-flash",
+   "secao": "Seção 4"
+  },
+  {
+   "nome": "GLM-5.3-flash",
+   "tipo": "modelo",
+   "papel": "base",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "Results with GLM-5.3-flash.",
+   "secao": "Tabela 2"
+  },
+  {
+   "nome": "gpt-5.6-sol",
+   "tipo": "modelo",
+   "papel": "juiz_ferramenta",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "gpt-5.6-sol at medium reasoning effort",
+   "secao": "Seção 4"
+  },
+  {
+   "nome": "AWM",
+   "tipo": "metodo",
+   "papel": "baseline",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "AWM",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "ExpeL",
+   "tipo": "metodo",
+   "papel": "baseline",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "ExpeL",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "ReasoningBank",
+   "tipo": "metodo",
+   "papel": "baseline",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "ReasoningBank",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "Pi",
+   "tipo": "software",
+   "papel": "base",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "a Pi terminal agent",
+   "secao": "Seção 4"
+  },
+  {
+   "nome": "ALFWorld",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "ALFWorld",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "ScienceWorld",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "ScienceWorld",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "PlanCraft",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "PlanCraft",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "AppWorld",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "AppWorld",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "τ³-bench Retail",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "τ³-bench Retail",
+   "secao": "Tabela 1"
+  }
+ ],
+ "relacoes": [],
+ "resultados": [
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "ALFWorld Seen",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 94.4,
+     "pm": 2.0
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 94.7,
+     "pm": 1.2
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 92.1,
+     "pm": 2.4
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 94.4,
+     "pm": 0.9
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 96.7,
+     "pm": 0.5
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 98.7,
+     "pm": 0.5
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "ALFWorld Unseen",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 94.3,
+     "pm": 1.9
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 97.3,
+     "pm": 0.9
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 92.8,
+     "pm": 0.7
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 98.0,
+     "pm": 0.4
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 97.3,
+     "pm": 1.3
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 98.8,
+     "pm": 0.7
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "ScienceWorld Seen",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 83.7,
+     "pm": 0.8
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 88.9,
+     "pm": 4.7
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 85.0,
+     "pm": 1.3
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 91.9,
+     "pm": 1.6
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 94.9,
+     "pm": 0.6
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 96.1,
+     "pm": 1.4
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "ScienceWorld Unseen",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 72.3,
+     "pm": 1.9
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 76.3,
+     "pm": 3.7
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 84.7,
+     "pm": 2.6
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 74.0,
+     "pm": 8.5
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 88.7,
+     "pm": 6.1
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 93.3,
+     "pm": 3.4
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "PlanCraft",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 56.3,
+     "pm": 1.2
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 57.3,
+     "pm": 2.1
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 61.3,
+     "pm": 3.4
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 51.0,
+     "pm": 3.6
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 73.0,
+     "pm": 10.7
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 81.3,
+     "pm": 8.5
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "τ³-bench Retail",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 86.8,
+     "pm": 1.9
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 85.5,
+     "pm": 2.1
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 86.4,
+     "pm": 1.6
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 82.5,
+     "pm": 5.1
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 85.1,
+     "pm": 2.7
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 88.2,
+     "pm": 3.9
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AppWorld Normal",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 75.4,
+     "pm": 3.4
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 79.3,
+     "pm": 0.7
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 80.8,
+     "pm": 1.5
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 80.5,
+     "pm": 5.7
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 86.8,
+     "pm": 0.4
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 89.5,
+     "pm": 1.5
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AppWorld Challenge",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 72.7,
+     "pm": 2.2
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 73.4,
+     "pm": 1.7
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 70.7,
+     "pm": 3.0
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 70.0,
+     "pm": 3.7
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 73.7,
+     "pm": 1.4
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 75.8,
+     "pm": 2.2
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "Avg.",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 79.5,
+     "pm": 1.6
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 81.6,
+     "pm": 0.3
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 81.7,
+     "pm": 0.5
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 80.3,
+     "pm": 1.6
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 87.0,
+     "pm": 2.5
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 90.2,
+     "pm": 1.6
+    }
+   ],
+   "secao": "3.2"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "PlanCraft",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 68.7,
+     "pm": 3.3
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 66.0,
+     "pm": 2.8
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 74.7,
+     "pm": 4.2
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 79.0,
+     "pm": 12.8
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 92.3,
+     "pm": 2.1
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 95.7,
+     "pm": 1.7
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "ScienceWorld Seen",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 55.3,
+     "pm": 2.1
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 47.0,
+     "pm": 2.9
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 53.3,
+     "pm": 5.2
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 67.0,
+     "pm": 14.1
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 87.7,
+     "pm": 3.3
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 89.0,
+     "pm": 1.6
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "ScienceWorld Unseen",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 89.6,
+     "pm": 1.5
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 91.7,
+     "pm": 1.0
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 90.9,
+     "pm": 1.9
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 88.6,
+     "pm": 1.4
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 92.6,
+     "pm": 0.8
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 93.3,
+     "pm": 0.8
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "Avg.",
+   "arena": "agentes_ferramentas",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "No Memory",
+     "papel": "base",
+     "fechado": false,
+     "valor": 71.2,
+     "pm": 0.3
+    },
+    {
+     "nome": "AWM",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 68.2,
+     "pm": 0.5
+    },
+    {
+     "nome": "ReasoningBank",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 73.0,
+     "pm": 2.3
+    },
+    {
+     "nome": "ExpeL",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 78.2,
+     "pm": 8.5
+    },
+    {
+     "nome": "Insights Only",
+     "papel": "variante_propria",
+     "fechado": false,
+     "valor": 90.9,
+     "pm": 1.6
+    },
+    {
+     "nome": "WikiTrace",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 92.7,
+     "pm": 0.4
+    }
+   ],
+   "secao": "5.3"
+  }
+ ],
+ "efeitos_custo": [
+  {
+   "recurso": "computacao_inferencia",
+   "valor": 1.17,
+   "forma": "vezes",
+   "sentido": "mais",
+   "comparado_a": "Insights Only",
+   "trecho": "1.17 times as much per task as Insights Only",
+   "secao": "5.3"
+  }
+ ],
+ "hardware": [],
+ "compute_declarado": [],
+ "escala": [],
+ "estatistica": {
+  "seeds": null,
+  "trials": 3,
+  "variancia": "pm_definido",
+  "teste_significancia": false,
+  "trecho": "We run three trials per suite and method."
+ },
+ "evidencia": [
+  "benchmark_automatico"
+ ],
+ "alegacoes": [
+  {
+   "tipo": "manchete",
+   "trecho": "improving over the agent without memory by 10.7 points on average",
+   "numero": 10.7,
+   "unidade": "pontos",
+   "contra": "No Memory",
+   "tabela_ref": "Tabela 1",
+   "secao": "1 Introdução"
+  }
+ ],
+ "ressalvas": [
+  {
+   "tipo": "escopo",
+   "trecho": "A source link lets the agent check an insight against its run but does not verify the insight.",
+   "secao": "Limitations"
+  },
+  {
+   "tipo": "escopo",
+   "trecho": "a retrieval problem this work leaves open",
+   "secao": "Limitations"
+  }
+ ],
+ "artefatos": [
+  {
+   "tipo": "codigo",
+   "estado": "liberado",
+   "url": "https://github.com/yukyeongleee/wikitrace",
+   "licenca": null,
+   "trecho": "Our code is available at"
+  }
+ ],
+ "envelope": {
+  "idiomas": [],
+  "dominio_treino": "ambientes de texto e uso de ferramentas (ALFWorld, ScienceWorld, PlanCraft, AppWorld, τ³-bench Retail)"
+ },
+ "nao_extraivel": []
+}
