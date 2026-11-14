@@ -1,7 +1,7 @@
 [project]
 name = "hf-papers-db"
 version = "0.1.0"
-description = "Camada de preparacao de dados dos HF Daily Papers para o Power BI"
+description = "Camada de preparacao de dados dos HF Daily Papers para o painel"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

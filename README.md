@@ -2,8 +2,8 @@
 
 Camada de preparação de dados dos **Hugging Face Daily Papers**: coleta diária,
 classificação por LLM em dois estágios, base SQLite e export em esquema estrela
-para o Power BI. O Power BI é a interface de leitura; `relatorios/painel.html`
-é a vitrine de distribuição.
+em Parquet. A interface de leitura é o painel feito por código,
+`relatorios/painel.html`, gerado de `marts/` por `scripts/gerar_painel.py`.
 
 ## Instalação
 
@@ -76,8 +76,9 @@ no texto da ficha), **Panorama** (lote diário por natureza, natureza ×
 vertente, área por natureza, onde o pipeline corta, votos) e **Registro
 histórico** (por trimestre já fora da janela, os 15 aprovados mais votados e os
 5 descartados mais votados como auditoria). O pré-requisito, os perfis e o
-Padrão Extraído continuam no banco e no Power BI, mas não aparecem no painel. O
-corte do histórico é `refresh.janela_morna_dias`, não `--dias`.
+Padrão Extraído continuam no banco, mas não aparecem no painel (os perfis não
+são mais exportados; ADR 005). O corte do histórico é
+`refresh.janela_morna_dias`, não `--dias`.
 
 ```bash
 python scripts/gerar_painel.py --force                         # após editar JS/CSS
@@ -124,7 +125,7 @@ config/             taxonomia_inicial.json
 docs/adr/           decisões, uma por arquivo
 docs/specs/         desenhos entregues
 docs/relatorios/    medições da base, uma por rodada (versionadas)
-marts/              Parquet — o Power BI aponta para cá (não versionado)
+marts/              Parquet — o painel lê daqui (não versionado)
 relatorios/         painel.html (versionado); o resto não
 data/               o banco SQLite — a fonte (não versionado)
 ```

@@ -1,6 +1,6 @@
 """Regra de ranqueamento da aba historica do painel.
 
-O painel nao e o Power BI e nao tem teste de layout - mas o hall tem uma regra
+O painel nao tem teste de layout - mas o hall tem uma regra
 de verdade (quem entra, em que trimestre, em que ordem) e ela vira registro
 publicado todo dia. E o unico pedaco de `scripts/gerar_painel.py` que merece
 teste: o resto e extracao de Parquet e concatenacao de string.

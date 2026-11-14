@@ -172,7 +172,7 @@ Escalar ....... faz funcionar maior: horizonte, contexto, número de agentes
     gasto depois.
 25. Como operador, quero que a segunda rodada corrija apenas o nível da sub-área, para
     que área e vertente validadas na primeira não sejam refeitas.
-26. Como analista no Power BI, quero a sub-área e a vertente como colunas nos Parquet,
+26. Como analista no painel, quero a sub-área e a vertente como colunas nos Parquet,
     para cortar o acervo pelos dois eixos.
 27. Como analista, quero a ordem da vertente nos Parquet, para separar a dominante da
     secundária nas medidas.

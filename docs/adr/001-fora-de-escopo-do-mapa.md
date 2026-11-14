@@ -17,7 +17,7 @@
 ## Contexto
 
 A spec fechou o mapa deixando três itens de fora, sem decidi-los: *rubrica com
-pontuação*, *mudanças no Power BI além das colunas novas dos Parquet* e
+pontuação*, *mudanças de consumo além das colunas novas dos Parquet* e
 *concorrência no estágio 3 para encurtar a rodada total*. Este ADR os decide.
 Dois morrem, um foi implementado.
 
@@ -38,11 +38,11 @@ card *Por que o pipeline aprova* (ticket 11): um paper aprovado por três
 critérios aparece em três barras, e a leitura de força vem da contagem por
 ocorrência, sem inventar uma escala.
 
-### 2. Power BI além das colunas novas — fora
+### 2. Consumo além das colunas novas — fora
 
-Não há `.pbix` no repositório: o Power BI lê os Parquet de `marts/` e o modelo
-vive fora do git. Mudar o relatório não é mudança de código, e não há como
-versioná-la aqui. O que falta é **documentar** `ponte_paper_criterio` e
+Na época, o consumo dos Parquet de `marts/` vivia fora do git, e mudá-lo não
+era mudança de código. Desde o ADR 005 o único consumidor é o painel deste
+repositório. O que falta é **documentar** `ponte_paper_criterio` e
 `fato_triagem.fronteira_contraparte` na seção *Modelo de dados* do README —
 tarefa da seção 6 da spec, não deste ADR.
 
@@ -91,7 +91,7 @@ rodá-la mais devagar.
 - O veredito continua com uma fonte só. Quem quiser força de aprovação lê o
   card do painel, não um número novo no banco.
 - O README ganha as colunas novas no *Modelo de dados* (bloco 6); nada mais
-  muda no lado do Power BI.
+  muda no lado de quem lê os Parquet.
 - A rodada total do passo 2 da seção 3 da spec passa a ser
   `reclassificar --tudo --concorrencia 4` — de uma noite para uma manhã.
 - A rodada diária não mudou de comportamento: mesma sequência, mesmas

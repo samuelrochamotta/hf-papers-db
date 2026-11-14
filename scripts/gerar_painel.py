@@ -1,8 +1,8 @@
 """Gera o painel HTML estatico a partir dos Parquet de marts/.
 
-Nao e a interface de leitura do projeto - o Power BI continua sendo. Este
-painel existe para distribuicao: um arquivo unico, sem dependencia de rede,
-que abre em qualquer visualizador de HTML (Teams, e-mail, navegador).
+E a interface de leitura do projeto: nao ha outro dashboard. Um arquivo
+unico, sem dependencia de rede, que abre em qualquer visualizador de HTML
+(Teams, e-mail, navegador).
 
 O desenho e o mesmo do Artifact "Painel Daily Papers", que nasceu como
 artboard da Claude Design. Aquele arquivo so roda dentro do runtime do canvas;
@@ -455,8 +455,8 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     # O par inteiro, e nao so a area: os dois niveis viajam juntos porque
     # sub-area solta nao diz de quem e filha - o mesmo motivo de `taxonomia`
     # aninhar a sub-area sob a area em vez de listar as duas lado a lado.
-    # So a primaria. O par secundario existe na ponte e continua no Parquet para
-    # o Power BI; ele viajava tambem no payload, em `p.as`, para a matriz area
+    # So a primaria. O par secundario existe na ponte e continua no Parquet; ele
+    # viajava tambem no payload, em `p.as`, para a matriz area
     # primaria x secundaria - que saiu do painel em 08/09/2026. Sem consumidor,
     # eram 13 KB de nome de area repetido num arquivo distribuido por e-mail.
     par_primario: dict[str, tuple[str, str]] = {}

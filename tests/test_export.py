@@ -87,9 +87,8 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
         "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
         "dim_area", "dim_vertente",
         "ponte_paper_area", "ponte_paper_vertente",
-        "ponte_paper_keyword", "ponte_paper_autor", "dim_calendario", "fato_execucao",
-        "dim_natureza", "dim_prerequisito", "dim_perfil", "ponte_perfil_prerequisito",
-        "ponte_paper_perfil",
+        "ponte_paper_keyword", "ponte_paper_autor", "fato_execucao",
+        "dim_natureza",
     }
     assert esperados <= set(r.arquivos)
     for nome in esperados:
@@ -98,14 +97,15 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
     manifest = json.loads((cfg.dir_marts / "_manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "run-teste"
     assert manifest["linhas"]["dim_paper"] == 1
-    assert manifest["versao_schema"] == 2
-    assert manifest["linhas"]["ponte_paper_perfil"] == 1
-    assert "ponte_paper_criterio" not in manifest["linhas"]
+    assert manifest["versao_schema"] == 3
+    for morto in export.ARQUIVOS_MORTOS:
+        assert morto not in manifest["linhas"]
+        assert not (cfg.dir_marts / f"{morto}.parquet").exists()
 
 
 def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
     """O analista corta o acervo pelos dois niveis da area, e a coluna precisa
-    chegar ate o Power BI - o painel le o mesmo arquivo."""
+    chegar ate o Parquet - o painel le o mesmo arquivo."""
     _semear(conn)
     with db.transacao(conn):
         db.upsert_area(conn, {"area": "Contexto & recuperação", "definicao": "d"})
@@ -132,7 +132,7 @@ def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
 
 
 def test_dim_area_leva_o_pai_ao_parquet(conn, cfg):
-    """Sem `area_pai` a dimensao chega ao Power BI como 74 rotulos planos: nao ha
+    """Sem `area_pai` a dimensao chega ao painel como 74 rotulos planos: nao ha
     como saber qual e area raiz e qual e sub-area, nem de quem cada sub-area e
     filha. A hierarquia por auto-referencia so existe se a coluna atravessar."""
     _semear(conn)
@@ -175,7 +175,7 @@ def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
 
 
 def test_fato_triagem_leva_a_classificacao_e_os_booleanos_derivados(conn, cfg):
-    """Os booleanos saem prontos para o Power BI nao reimplementar as regras:
+    """Os booleanos saem prontos para quem le nao reimplementar as regras:
     `contradiz_pratica` e `como_incompleto` derivam dos textos, e o artefato
     aberto vem de `vw_artefato` (evidencia + `liberado`)."""
     _semear(conn)
@@ -189,26 +189,29 @@ def test_fato_triagem_leva_a_classificacao_e_os_booleanos_derivados(conn, cfg):
     assert linha["artefato_aberto"] is True
 
 
-def test_perfis_e_vocabulario_saem_no_parquet(conn, cfg):
+def test_tabelas_sem_leitor_ficam_no_banco_mas_nao_no_parquet(conn, cfg):
+    """ADR 005: so o Parquet sai. Perfis, degraus e calendario continuam no
+    banco, onde a view `vw_paper_perfil` e os testes de vocabulario os usam."""
     _semear(conn)
     export.rodar(conn, cfg, hoje=HOJE)
-    ponte = pq.read_table(cfg.dir_marts / "ponte_paper_perfil.parquet").to_pylist()
-    assert ponte == [{"paper_id": "2608.00001", "perfil": "pesquisa_treino"}]
-    degraus = pq.read_table(cfg.dir_marts / "dim_prerequisito.parquet").to_pylist()
-    assert [d["prerequisito"] for d in sorted(degraus, key=lambda d: d["ordem"])] == [
-        "nenhum", "implementar", "acesso_interno", "treino", "sem_acao",
+    assert [tuple(r) for r in conn.execute("SELECT paper_id, perfil FROM vw_paper_perfil")] == [
+        ("2608.00001", "pesquisa_treino")
     ]
+    for nome in ("ponte_paper_perfil", "dim_prerequisito", "dim_perfil",
+                 "ponte_perfil_prerequisito", "dim_calendario"):
+        assert not (cfg.dir_marts / f"{nome}.parquet").exists()
 
 
-def test_parquet_da_ponte_de_criterios_e_apagado(conn, cfg):
-    """O export so escreve; sem a limpeza o Power BI continuaria lendo o
-    arquivo da tabela que saiu no ADR 004."""
+def test_parquets_de_tabelas_mortas_sao_apagados(conn, cfg):
+    """O export so escreve; sem a limpeza `marts/` continuaria carregando o
+    arquivo das tabelas que sairam nos ADRs 004 e 005."""
     cfg.dir_marts.mkdir(parents=True, exist_ok=True)
-    morto = cfg.dir_marts / "ponte_paper_criterio.parquet"
-    morto.write_bytes(b"velho")
+    mortos = [cfg.dir_marts / f"{n}.parquet" for n in export.ARQUIVOS_MORTOS]
+    for m in mortos:
+        m.write_bytes(b"velho")
     _semear(conn)
     export.rodar(conn, cfg, hoje=HOJE)
-    assert not morto.exists()
+    assert not any(m.exists() for m in mortos)
 
 
 def test_datas_saem_como_date_nao_string(conn, cfg):
@@ -216,8 +219,6 @@ def test_datas_saem_como_date_nao_string(conn, cfg):
     export.rodar(conn, cfg, hoje=HOJE)
     t = pq.read_table(cfg.dir_marts / "dim_paper.parquet")
     assert str(t.schema.field("data_hf_daily").type) == "date32[day]"
-    cal = pq.read_table(cfg.dir_marts / "dim_calendario.parquet")
-    assert str(cal.schema.field("data").type) == "date32[day]"
     met = pq.read_table(cfg.dir_marts / "fato_metrica.parquet")
     assert str(met.schema.field("data_snapshot").type) == "date32[day]"
 
@@ -233,7 +234,7 @@ def test_numtotal_propaga_para_frente_e_delta_e_calculado(conn, cfg):
     assert t[1]["upvotes_delta_dia"] == 15
 
 
-def test_colunas_derivadas_de_slicer(conn, cfg):
+def test_colunas_derivadas_de_filtro(conn, cfg):
     _semear(conn)
     export.rodar(conn, cfg, hoje=HOJE)
     r = pq.read_table(cfg.dir_marts / "dim_paper.parquet").to_pylist()[0]

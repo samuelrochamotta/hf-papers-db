@@ -1,12 +1,12 @@
-"""Estagio 5 - EXPORT: materializa os Parquet que o Power BI le.
+"""Estagio 5 - EXPORT: materializa os Parquet que o painel le.
 
 Tres regras que valem para o arquivo inteiro:
 
-* datas saem como `date32`, nunca string - senao o relacionamento com
-  `dim_calendario` nao fecha no Power BI;
-* nada e pre-agregado: o grao fino vai inteiro e a agregacao e papel do DAX;
-* escrita atomica (`os.replace`), porque o Power BI pode estar com o arquivo
-  aberto na hora do export.
+* datas saem como `date32`, nunca string, para que o painel ordene e compare
+  datas sem converter;
+* nada e pre-agregado: o grao fino vai inteiro e a agregacao e papel do painel;
+* escrita atomica (`os.replace`), porque o painel pode estar lendo o arquivo
+  na hora do export.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ def _b(v: Any) -> Optional[bool]:
 
 
 def faixa_upvotes(valor: Optional[int], bordas: Sequence[int]) -> str:
-    """Bucket textual pronto para slicer: 0 | 1-9 | 10-49 | 50-99 | 100+."""
+    """Bucket textual pronto para filtro: 0 | 1-9 | 10-49 | 50-99 | 100+."""
     if valor is None:
         return "sem dado"
     if valor < bordas[0]:
@@ -196,7 +196,7 @@ def _dim_paper(conn: sqlite3.Connection, cfg: Config, hoje: dt.date) -> tuple[li
 
 
 def _fato_metrica(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
-    """Grao fino + duas derivacoes que o Power BI nao faz bem sozinho:
+    """Grao fino + duas derivacoes que o painel nao deve refazer sozinho:
 
     * `qtd_modelos/datasets/spaces` propagados para frente com o ultimo valor
       nao nulo - eles so vem nos snapshots `por_paper` e sem isso o grafico abre
@@ -250,8 +250,9 @@ def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
 
     `contradiz_pratica` e `como_incompleto` derivam dos textos (nao sao
     gravados duas vezes no banco); `artefato_aberto` e `evidencia_artefato` vem
-    de `vw_artefato`, a unica fonte da regra. O Power BI le os booleanos
-    prontos para nao reimplementar nenhuma das duas regras em DAX.
+    de `vw_artefato`, a unica fonte da regra. O painel le `artefato_aberto`
+    pronto; `contradiz_pratica` e `como_incompleto` saem para quem ler os
+    Parquet sem reimplementar a regra (o painel ainda usa os textos).
     """
     linhas = []
     for r in _rows(
@@ -362,36 +363,13 @@ def _fato_execucao(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
     return linhas, schema
 
 
-def _dim_calendario(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
-    linhas = [
-        {**r, "data": _d(r["data"]), "eh_dia_util": _b(r["eh_dia_util"])}
-        for r in _rows(conn, "SELECT * FROM dim_calendario ORDER BY data")
-    ]
-    schema = pa.schema(
-        [
-            ("data", pa.date32()),
-            ("ano", pa.int32()),
-            ("mes", pa.int32()),
-            ("dia", pa.int32()),
-            ("nome_mes", pa.string()),
-            ("trimestre", pa.int32()),
-            ("semana_iso", pa.int32()),
-            ("ano_semana_iso", pa.string()),
-            ("dia_semana", pa.int32()),
-            ("nome_dia_semana", pa.string()),
-            ("eh_dia_util", pa.bool_()),
-        ]
-    )
-    return linhas, schema
-
-
 def _simples(conn: sqlite3.Connection, tabela: str, schema: pa.Schema) -> tuple[list[dict], pa.Schema]:
     return _rows(conn, f"SELECT * FROM {tabela}"), schema
 
 
 _SCHEMAS_SIMPLES = {
     # `area_pai` e o que faz a dimensao ser hierarquica: sem ela os dois niveis
-    # chegam ao Power BI como uma lista plana de rotulos, sem dizer qual e area
+    # chegam ao painel como uma lista plana de rotulos, sem dizer qual e area
     # raiz (pai nulo) nem de quem cada sub-area e filha. `_escrever` monta as
     # colunas a partir dos nomes do schema, entao coluna fora daqui nao sai.
     "dim_area": pa.schema(
@@ -414,12 +392,12 @@ _SCHEMAS_SIMPLES = {
         ]
     ),
     # `ordem` vai como coluna, e nao so a linha da dominante: e ela que separa
-    # a vertente dominante (1) da secundaria (2) nas medidas do Power BI.
+    # a vertente dominante (1) da secundaria (2) nas contagens do painel.
     "ponte_paper_vertente": pa.schema(
         [("paper_id", pa.string()), ("vertente", pa.string()), ("ordem", pa.int32())]
     ),
-    # Vocabulario dos dois eixos e dos perfis (ADR 004). `ordem` e a unica
-    # copia da ordenacao: no Power BI, "classificar por coluna" aponta para ela.
+    # Vocabulario da natureza (ADR 004). `ordem` e a unica copia da
+    # ordenacao: o painel ordena `dim_natureza` por ela.
     "dim_natureza": pa.schema(
         [
             ("natureza", pa.string()),
@@ -427,20 +405,6 @@ _SCHEMAS_SIMPLES = {
             ("definicao", pa.string()),
             ("ordem", pa.int32()),
         ]
-    ),
-    "dim_prerequisito": pa.schema(
-        [
-            ("prerequisito", pa.string()),
-            ("rotulo", pa.string()),
-            ("definicao", pa.string()),
-            ("ordem", pa.int32()),
-        ]
-    ),
-    "dim_perfil": pa.schema(
-        [("perfil", pa.string()), ("rotulo", pa.string()), ("ordem", pa.int32())]
-    ),
-    "ponte_perfil_prerequisito": pa.schema(
-        [("perfil", pa.string()), ("prerequisito", pa.string())]
     ),
     "ponte_paper_keyword": pa.schema([("paper_id", pa.string()), ("keyword", pa.string())]),
     "ponte_paper_autor": pa.schema(
@@ -456,21 +420,32 @@ _SCHEMAS_SIMPLES = {
 
 
 # Versao do contrato dos Parquet: 2 desde o ADR 004 (sai estrito/amplo e a
-# ponte de criterios; entram natureza, pre-requisito e perfis).
-VERSAO_SCHEMA = 2
+# ponte de criterios; entram natureza, pre-requisito e perfis); 3 desde o
+# ADR 005 (saem as tabelas sem leitor no repositorio).
+VERSAO_SCHEMA = 3
 
 # Tabelas que deixaram de existir. O export so escreve, nao apaga: sem esta
-# lista o Parquet antigo ficaria em `marts/` e o Power BI continuaria a carrega-lo.
-ARQUIVOS_MORTOS = ("ponte_paper_criterio",)
+# lista o Parquet antigo ficaria em `marts/` e quem le `marts/` continuaria a carrega-lo.
+ARQUIVOS_MORTOS = {
+    "ponte_paper_criterio": "ADR 004",
+    # Sem leitor no repositorio: o painel nunca leu o calendario, e o
+    # pre-requisito e os perfis sairam dele em 21/10/2026. As tabelas seguem
+    # no banco; so o Parquet deixa de existir.
+    "dim_calendario": "ADR 005",
+    "dim_prerequisito": "ADR 005",
+    "dim_perfil": "ADR 005",
+    "ponte_perfil_prerequisito": "ADR 005",
+    "ponte_paper_perfil": "ADR 005",
+}
 
 
 def _apagar_mortos(dir_saida: Path) -> None:
-    for nome in ARQUIVOS_MORTOS:
+    for nome, adr in ARQUIVOS_MORTOS.items():
         for ext in (".parquet", ".csv"):
             caminho = dir_saida / f"{nome}{ext}"
             if caminho.exists():
                 caminho.unlink()
-                log.warning("%s removido: a tabela saiu no ADR 004", caminho.name)
+                log.warning("%s removido: a tabela saiu no %s", caminho.name, adr)
 
 
 # ── entrada ─────────────────────────────────────────────────────────────────
@@ -490,14 +465,11 @@ def rodar(
     res = ResultadoExport(dir_saida=dir_saida)
     csv_tambem = cfg.export.csv
 
-    db.garantir_calendario(conn)
-
     tabelas: list[tuple[str, tuple[list[dict], pa.Schema]]] = [
         ("dim_paper", _dim_paper(conn, cfg, hoje)),
         ("fato_metrica", _fato_metrica(conn)),
         ("fato_triagem", _fato_triagem(conn)),
         ("dim_ficha", _dim_ficha(conn)),
-        ("dim_calendario", _dim_calendario(conn)),
         ("fato_execucao", _fato_execucao(conn)),
     ]
     for nome, schema in _SCHEMAS_SIMPLES.items():
@@ -506,18 +478,6 @@ def rodar(
             campo = "is_primaria" if nome == "ponte_paper_area" else "verificado"
             linhas = [{**l, campo: _b(l[campo])} for l in linhas]
         tabelas.append((nome, (linhas, sch)))
-
-    # "Da para agir" sai da view, pronto: o painel e o Power BI leem a mesma
-    # regra em vez de cada um reimplementar o conjunto de degraus do perfil.
-    tabelas.append(
-        (
-            "ponte_paper_perfil",
-            (
-                _rows(conn, "SELECT paper_id, perfil FROM vw_paper_perfil"),
-                pa.schema([("paper_id", pa.string()), ("perfil", pa.string())]),
-            ),
-        )
-    )
 
     for nome, (linhas, schema) in tabelas:
         res.arquivos[nome] = _escrever(dir_saida, nome, linhas, schema, csv_tambem=csv_tambem)
