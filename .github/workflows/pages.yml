@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - relatorios/painel/**
+      - relatorios/painel-v2/**
       - .github/workflows/pages.yml
   schedule:
     - cron: "30 12 * * *" # 09:30 BRT, depois do painel das 08:30
@@ -34,6 +35,7 @@ jobs:
         run: |
           mkdir _site
           cp -R relatorios/painel/. _site/
+          if [ -d relatorios/painel-v2 ]; then mkdir -p _site/v2 && cp -R relatorios/painel-v2/. _site/v2/; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

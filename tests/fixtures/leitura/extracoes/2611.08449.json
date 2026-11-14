@@ -1,0 +1,76 @@
+{
+  "id": "2611.08449",
+  "titulo": "VFlash: Fast, Accurate Visual Planning via Flash Primitive Decoding",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "Apêndice B",
+    "tem_apendice": true,
+    "secao_limitacoes": "nao_lida"
+  },
+  "entrega": {
+    "primaria": "metodo",
+    "secundaria": null,
+    "trecho": "",
+    "secao": "Abstract"
+  },
+  "problema": "planejamento visual rápido",
+  "afiliacoes": [],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [
+    {
+      "tabela": "Tabela 6",
+      "benchmark": "MolmoSpaces",
+      "arena": "robotica_acao",
+      "metrica": "sucesso médio",
+      "direcao": "maior_melhor",
+      "unidade": "%",
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {"nome": "VFlash", "papel": "nosso", "fechado": false, "valor": 70.2, "pm": null},
+        {"nome": "Baseline", "papel": "base", "fechado": false, "valor": 62.6, "pm": null}
+      ],
+      "secao": "3.2"
+    },
+    {
+      "tabela": "Tabela 8",
+      "benchmark": "NAVSIM",
+      "arena": "outra",
+      "metrica": "PDMS",
+      "direcao": "maior_melhor",
+      "unidade": null,
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {"nome": "VFlash-RL", "papel": "nosso", "fechado": false, "valor": 90.7, "pm": null}
+      ],
+      "secao": "3.2"
+    },
+    {
+      "tabela": "Tabela 2",
+      "benchmark": "VABench-V",
+      "arena": "outra",
+      "metrica": "DFD",
+      "direcao": "nao_marcada",
+      "unidade": null,
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {"nome": "VFlash", "papel": "nosso", "fechado": false, "valor": 0.126, "pm": null},
+        {"nome": "Baseline AR", "papel": "base", "fechado": false, "valor": 0.130, "pm": null}
+      ],
+      "secao": "3"
+    }
+  ],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "evidencia": ["benchmark_automatico"],
+  "alegacoes": [],
+  "ressalvas": [],
+  "artefatos": [],
+  "nao_extraivel": []
+}

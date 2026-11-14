@@ -1,0 +1,272 @@
+[
+ {
+  "id": "2611.01860",
+  "t": "Advances in Agentic Computer Graphics",
+  "d": "2026-11-03",
+  "u": 150,
+  "org": "UTEXAS",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.00859",
+  "t": "Wave Forcing: Towards Speed-of-Light Streaming Video Generation",
+  "d": "2026-11-03",
+  "u": 128,
+  "org": "SJTU-DENG-Lab",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.08449",
+  "t": "VFlash: Fast, Accurate Visual Planning via Flash Primitive Decoding",
+  "d": "2026-11-06",
+  "u": 117,
+  "org": "nvidia",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.05376",
+  "t": "From Autonomous Agents to Cognitive Symbionts: Toward AI-Augmented Human Intelligence",
+  "d": "2026-11-06",
+  "u": 105,
+  "org": "Oxford",
+  "gh": null,
+  "pg": "https://cognitive-symbiont.github.io/"
+ },
+ {
+  "id": "2611.12806",
+  "t": "Learning Heterogeneous Tactile Representation for General Dexterous Manipulation",
+  "d": "2026-11-10",
+  "u": 102,
+  "org": "robbyant",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.03178",
+  "t": "CoworkOS:Scaling Agent Coworkers for Real-world Automation",
+  "d": "2026-11-03",
+  "u": 100,
+  "org": "RUC",
+  "gh": "https://github.com/RUC-NLPIR/CoworkOS",
+  "pg": "https://coworkos-ai.github.io"
+ },
+ {
+  "id": "2611.06043",
+  "t": "Confucius4-R2T2: A Stable-Prefix Streaming ASR Model for Real Real-Time Transcription",
+  "d": "2026-11-09",
+  "u": 93,
+  "org": "netease-youdao",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.08373",
+  "t": "SLA: Scaling Spatial-Language-Action Model via Continual Pre-training",
+  "d": "2026-11-06",
+  "u": 88,
+  "org": "HKUSTGZ",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.14033",
+  "t": "Few-Step Streaming Video Generation via Condition Shifting",
+  "d": "2026-11-11",
+  "u": 88,
+  "org": "Tsinghua",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.04916",
+  "t": "Behind Video Generation: Observations and Insights on Multimodal Understanding from Kling",
+  "d": "2026-11-04",
+  "u": 83,
+  "org": "KlingTeam",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.05275",
+  "t": "Route Anything: A Study of Model and Policy Routing for General-Purpose AI Systems",
+  "d": "2026-11-04",
+  "u": 83,
+  "org": null,
+  "gh": "https://github.com/InfRec-Cardinal/route-anything",
+  "pg": "https://mikeeeeeeeeeeeeee.github.io/RouteAnything"
+ },
+ {
+  "id": "2611.15777",
+  "t": "SO-Arena: Benchmarking the Capability Spectrum and Reliability of System One Models",
+  "d": "2026-11-13",
+  "u": 83,
+  "org": "NationalUniversityofSingapore",
+  "gh": "https://github.com/holdrain/SO-Arena",
+  "pg": "https://lichenlillc.github.io/SO-Arena"
+ },
+ {
+  "id": "2611.00617",
+  "t": "Words Caught in the Heart: Simulating Person-Specific Expression for Self-Opaque Clients in Psychotherapy",
+  "d": "2026-11-04",
+  "u": 78,
+  "org": "NextGenWhu",
+  "gh": "https://github.com/whunextgen/Pandora",
+  "pg": "https://clain.org/Pandora/"
+ },
+ {
+  "id": "2610.40191",
+  "t": "Video Generation Meets Agent Harness: Agentic Video Generation, Agentic World Modeling and Recursive Self-Improvement",
+  "d": "2026-11-03",
+  "u": 76,
+  "org": "VideoRebirthAI",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.02737",
+  "t": "MoviEdit: Long-form Multi-Shot Video Editing Made Easy",
+  "d": "2026-11-04",
+  "u": 76,
+  "org": "adobe",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.04277",
+  "t": "Harness-S: Learning from Sibling Harnesses for Generalizable Agent Training",
+  "d": "2026-11-06",
+  "u": 70,
+  "org": "SJUT1",
+  "gh": "https://github.com/DeepExperience/Harness-S",
+  "pg": null
+ },
+ {
+  "id": "2611.03953",
+  "t": "P^2-MOPD: Accelerating Multi-Teacher On-Policy Distillation via Parameter Priors",
+  "d": "2026-11-09",
+  "u": 70,
+  "org": "stepfun-ai",
+  "gh": "https://github.com/SinuoWang/P2-MOPD",
+  "pg": null
+ },
+ {
+  "id": "2611.08264",
+  "t": "SplatAnything: Gaussian Spacing Normalization for Feed-forward 3DGS across Arbitrary Scenes",
+  "d": "2026-11-09",
+  "u": 69,
+  "org": "zju",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2610.39497",
+  "t": "Does Scaling Toward AGI Depend on What System-1 Lets System-2 Execute?",
+  "d": "2026-11-02",
+  "u": 66,
+  "org": "Tsinghua",
+  "gh": null,
+  "pg": "https://cheemswang.github.io/blogs/sys1-sys2-codesign.html"
+ },
+ {
+  "id": "2611.04814",
+  "t": "Think Less, Locally: Local Preference Learning for Reasoning Compression",
+  "d": "2026-11-04",
+  "u": 66,
+  "org": "tencent",
+  "gh": "https://github.com/MuyaoYuan/LoCo",
+  "pg": "https://huggingface.co/MuyaoYuan/LoCo-7B"
+ },
+ {
+  "id": "2611.14320",
+  "t": "Don't Just Trust Your Memory: Evidence-Linked Memory Reduces Memory-Induced Degradation in LLM Agents",
+  "d": "2026-11-11",
+  "u": 66,
+  "org": "kaist-ai",
+  "gh": "https://github.com/yukyeongleee/wikitrace",
+  "pg": "https://yukyeongleee.github.io/wikitrace/"
+ },
+ {
+  "id": "2611.06910",
+  "t": "FrontierPhysics: Evaluating Agents for End-to-End Physics Research",
+  "d": "2026-11-05",
+  "u": 62,
+  "org": "benchflow",
+  "gh": null,
+  "pg": "https://www.benchflow.ai/frontierphysics"
+ },
+ {
+  "id": "2611.06918",
+  "t": "From Pixels to Actions - Towards Native Vision-Language-Action Policies",
+  "d": "2026-11-05",
+  "u": 60,
+  "org": "mmlab-ntu",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.10771",
+  "t": "WorldFoundry: Towards Unified Infrastructure for World Intelligence",
+  "d": "2026-11-10",
+  "u": 58,
+  "org": "OpenEnvisionLab",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.12762",
+  "t": "Sage-Taiyi: A Metacognitive Architecture for Scientific Discovery",
+  "d": "2026-11-10",
+  "u": 57,
+  "org": "Shanghai-AI-Laboratory",
+  "gh": "https://github.com/Alpha-Innovator/Sage-Taiyi",
+  "pg": "https://alpha-innovator.github.io/Sage-Taiyi/"
+ },
+ {
+  "id": "2611.12885",
+  "t": "World In-Context Learning for Agentic Robot Manipulation",
+  "d": "2026-11-11",
+  "u": 57,
+  "org": "ArcheOne-AI",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.05377",
+  "t": "DreamX: Video Diffusion Model is a Universal Latent Action Learner",
+  "d": "2026-11-04",
+  "u": 56,
+  "org": "kaist-ai",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.00883",
+  "t": "Random Is Almost Enough? Stable and Low-Cost Benchmark Compression via BestRand",
+  "d": "2026-11-06",
+  "u": 53,
+  "org": "CarnegieMellonU",
+  "gh": "https://github.com/George-Ling3/BestRand",
+  "pg": null
+ },
+ {
+  "id": "2611.09124",
+  "t": "Toward the Era of Agentic Embodied Intelligence",
+  "d": "2026-11-09",
+  "u": 53,
+  "org": "AutoLab-SJTU",
+  "gh": null,
+  "pg": null
+ },
+ {
+  "id": "2611.02497",
+  "t": "RoboColosseum: Evaluating Physical Intelligence at Scale In-The-Wild",
+  "d": "2026-11-04",
+  "u": 51,
+  "org": "huggingface",
+  "gh": null,
+  "pg": null
+ }
+]

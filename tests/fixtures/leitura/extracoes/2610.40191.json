@@ -1,0 +1,11 @@
+{"id":"2610.40191","titulo":"Video Generation Meets Agent Harness: Agentic Video Generation, Agentic World Modeling and Recursive Self-Improvement",
+"leitura":{"fonte_texto":"html","cobertura":"parcial","termina_em":"1.2 Contributions and Positioning (Tabela 1)","tem_apendice":false,"secao_limitacoes":"nao_lida"},
+"entrega":{"primaria":"panorama_posicao","secundaria":null,"trecho":"These are building blocks rather than evidence that one system has completed the full RSI loop.","secao":"1.2"},
+"camada":{"primaria":"agente_harness","secundaria":null,"trecho":"No surveyed system yet revises the procedure that trains and validates the generator","secao":"1.2"},
+"problema":"geração de vídeo agêntica",
+"afiliacoes":[],"entidades":[],"relacoes":[],"resultados":[],"efeitos_custo":[],"hardware":[],"compute_declarado":[],"escala":[],
+"estatistica":{"seeds":null,"trials":null,"variancia":"nenhuma","teste_significancia":false,"trecho":null},
+"evidencia":[],"alegacoes":[],
+"ressalvas":[{"tipo":"escopo","trecho":"These are building blocks rather than evidence that one system has completed the full RSI loop.","secao":"1.2"}],
+"artefatos":[],"envelope":{"idiomas":[],"dominio_treino":null},
+"nao_extraivel":[{"local":"Tabela 1","motivo":"tabela_icones"}]}

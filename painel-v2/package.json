@@ -1,0 +1,21 @@
+{
+  "name": "painel-v2",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Painel v2 do hf-papers-db: Svelte 5 + Apache ECharts 6, build estatico em relatorios/painel-v2/",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "previa": "vite build --mode previa && node scripts/previa.mjs"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "svelte": "5.57.3",
+    "vite": "8.3.8",
+    "vite-plugin-singlefile": "2.3.4"
+  },
+  "dependencies": {
+    "echarts": "6.1.0"
+  }
+}

@@ -32,9 +32,15 @@ class Ambiente(BaseSettings):
     )
 
     openrouter_api_key: Optional[SecretStr] = Field(default=None)
+    # So a leitura do texto completo (painel v2) usa: o Haiku 5.5 e chamado
+    # direto na API da Anthropic, ver docs/adr/007-painel-v2.md.
+    anthropic_api_key: Optional[SecretStr] = Field(default=None)
 
     def chave_openrouter(self) -> Optional[str]:
         return self.openrouter_api_key.get_secret_value() if self.openrouter_api_key else None
+
+    def chave_anthropic(self) -> Optional[str]:
+        return self.anthropic_api_key.get_secret_value() if self.anthropic_api_key else None
 
 
 # ── config.yaml ─────────────────────────────────────────────────────────────
@@ -162,6 +168,27 @@ PERFIS_PADRAO = [
 ]
 
 
+class Leitura(BaseModel):
+    """Leitura do texto completo para o painel v2 (ADR 007)."""
+
+    modelo: str = "claude-haiku-5-5"
+    # Extracao e copia de trechos e escolha em listas fechadas: `low` basta e
+    # gasta menos tokens de raciocinio. Suba so com medicao no conjunto-ouro.
+    esforco: str = "low"
+    max_tokens: int = 16000
+    # O Haiku 5.5 cobra o dobro acima de 100 mil tokens de prompt. ~4 caracteres
+    # por token: 320 mil caracteres ficam perto de 80 mil tokens, com folga para
+    # o esquema e as instrucoes. O que passar disso e cortado no fim (apendices
+    # primeiro, porque o texto ja chega sem as referencias).
+    teto_caracteres: int = 320_000
+    timeout_s: float = 300
+    tentativas: int = 3
+    # Janela padrao do comando `ler`, em dias de HF Daily, e piso de votos.
+    dias: int = 7
+    min_votos: int = 0
+    versao_esquema: str = "v1"
+
+
 class Export(BaseModel):
     csv: bool = False
     faixas_upvotes: list[int] = [1, 10, 50, 100]
@@ -174,6 +201,7 @@ class Config(BaseModel):
     refresh: Refresh = Refresh()
     guardrails: Guardrails = Guardrails()
     export: Export = Export()
+    leitura: Leitura = Leitura()
     perfis: list[Perfil] = PERFIS_PADRAO
 
     raiz: Path = RAIZ

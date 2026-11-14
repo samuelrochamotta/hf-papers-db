@@ -1,0 +1,79 @@
+{
+  "id": "2611.12885",
+  "titulo": "World In-Context Learning for Agentic Robot Manipulation",
+  "leitura": {
+    "fonte_texto": "abstract",
+    "cobertura": "parcial",
+    "termina_em": "Abstract",
+    "tem_apendice": false,
+    "secao_limitacoes": "nao_lida"
+  },
+  "entrega": {
+    "primaria": "metodo",
+    "secundaria": null,
+    "trecho": "we propose World In-Context Learning (WICL), a paradigm in which a frozen model starts from a demonstration",
+    "secao": "Abstract"
+  },
+  "camada": {
+    "primaria": "contexto_raciocinio",
+    "secundaria": "agente_harness",
+    "trecho": "rehearses the task in a world such as a simulator, and writes the feedback into its context rather than its weights",
+    "secao": "Abstract"
+  },
+  "problema": "World In-Context Learning",
+  "afiliacoes": [],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [
+    {
+      "tabela": "Abstract",
+      "benchmark": "RoboTwin 2.0",
+      "arena": "robotica_acao",
+      "metrica": "sucesso médio",
+      "direcao": "maior_melhor",
+      "unidade": "%",
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {
+          "nome": "WICL",
+          "papel": "nosso",
+          "fechado": false,
+          "valor": 83.4,
+          "pm": null
+        }
+      ],
+      "secao": "Abstract"
+    }
+  ],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "estatistica": {
+    "seeds": null,
+    "trials": null,
+    "variancia": "nenhuma",
+    "teste_significancia": false,
+    "trecho": null
+  },
+  "evidencia": [
+    "benchmark_automatico"
+  ],
+  "alegacoes": [],
+  "ressalvas": [],
+  "artefatos": [
+    {
+      "tipo": "codigo",
+      "estado": "liberado",
+      "url": "https://github.com/ArcheOne-AI/RoboScript",
+      "licenca": null,
+      "trecho": "All code is available at"
+    }
+  ],
+  "envelope": {
+    "idiomas": [],
+    "dominio_treino": null
+  },
+  "nao_extraivel": []
+}

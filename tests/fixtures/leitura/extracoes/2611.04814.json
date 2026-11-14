@@ -1,0 +1,1213 @@
+{
+ "id": "2611.04814",
+ "titulo": "Think Less, Locally: Local Preference Learning for Reasoning Compression",
+ "leitura": {
+  "fonte_texto": "html",
+  "cobertura": "completa",
+  "termina_em": "Appendix B Qualitative Examples",
+  "tem_apendice": true,
+  "secao_limitacoes": "ausente"
+ },
+ "entrega": {
+  "primaria": "metodo",
+  "secundaria": null,
+  "trecho": "we propose LoCo (Local Compression), a local preference learning method for reasoning compression.",
+  "secao": "1 Introduction"
+ },
+ "camada": {
+  "primaria": "pos_treino",
+  "secundaria": "contexto_raciocinio",
+  "trecho": "a local preference learning method for reasoning compression",
+  "secao": "1 Introduction"
+ },
+ "problema": "reasoning compression",
+ "afiliacoes": [],
+ "entidades": [
+  {
+   "nome": "LoCo",
+   "tipo": "metodo",
+   "papel": "criada_aqui",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "we propose LoCo (Local Compression), a local preference learning method for reasoning compression.",
+   "secao": "1 Introduction"
+  },
+  {
+   "nome": "DeepSeek-R1-Distill-Qwen-7B",
+   "tipo": "modelo",
+   "papel": "base",
+   "tamanho": "7B",
+   "fechado": false,
+   "trecho": "self-generated traces of DeepSeek-R1-Distill-Qwen-7B",
+   "secao": "5.1"
+  },
+  {
+   "nome": "Qwen3-30B",
+   "tipo": "modelo",
+   "papel": "juiz_ferramenta",
+   "tamanho": "30B",
+   "fechado": false,
+   "trecho": "re-examine each flagged reasoning step with Qwen3-30B as the judge.",
+   "secao": "5.1"
+  },
+  {
+   "nome": "DAST",
+   "tipo": "metodo",
+   "papel": "baseline",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "DAST",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "TokenSqueeze",
+   "tipo": "metodo",
+   "papel": "baseline",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "TokenSqueeze",
+   "secao": "Tabela 1"
+  },
+  {
+   "nome": "math14k",
+   "tipo": "dataset",
+   "papel": "dados_treino",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "math14k training pool",
+   "secao": "5.1"
+  },
+  {
+   "nome": "MATH-500",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "MATH-500",
+   "secao": "5.2"
+  },
+  {
+   "nome": "AMC23",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "AMC23",
+   "secao": "5.2"
+  },
+  {
+   "nome": "Olympiad",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "Olympiad",
+   "secao": "5.2"
+  },
+  {
+   "nome": "AIME24",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "AIME24",
+   "secao": "5.2"
+  },
+  {
+   "nome": "AIME25",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "AIME25",
+   "secao": "5.2"
+  },
+  {
+   "nome": "MBPP",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "MBPP",
+   "secao": "5.3"
+  },
+  {
+   "nome": "LiveCodeBench",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "LiveCodeBench",
+   "secao": "5.3"
+  },
+  {
+   "nome": "CodeContests",
+   "tipo": "benchmark",
+   "papel": "avaliacao",
+   "tamanho": null,
+   "fechado": false,
+   "trecho": "CodeContests",
+   "secao": "5.3"
+  }
+ ],
+ "relacoes": [],
+ "resultados": [
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "MATH-500",
+   "arena": "matematica_raciocinio",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 91.88,
+     "pm": 1.2
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 91.38,
+     "pm": 0.79
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 91.18,
+     "pm": 0.89
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 91.8,
+     "pm": 0.88
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "MATH-500",
+   "arena": "matematica_raciocinio",
+   "metrica": "Tokens",
+   "direcao": "menor_melhor",
+   "unidade": "tokens",
+   "recurso": "computacao_inferencia",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 4015.0,
+     "pm": 177.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 3720.0,
+     "pm": 119.0
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 2442.0,
+     "pm": 52.0
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 2243.0,
+     "pm": 83.0
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "MATH-500",
+   "arena": "matematica_raciocinio",
+   "metrica": "AUC",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 82.64,
+     "pm": 1.12
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 83.95,
+     "pm": 0.66
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 85.92,
+     "pm": 0.73
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 86.56,
+     "pm": 0.76
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AMC23",
+   "arena": "matematica_raciocinio",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 90.31,
+     "pm": 2.48
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 88.12,
+     "pm": 4.17
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 88.44,
+     "pm": 4.62
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 91.56,
+     "pm": 2.65
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AMC23",
+   "arena": "matematica_raciocinio",
+   "metrica": "Tokens",
+   "direcao": "menor_melhor",
+   "unidade": "tokens",
+   "recurso": "computacao_inferencia",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 6285.0,
+     "pm": 516.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 5981.0,
+     "pm": 304.0
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 4350.0,
+     "pm": 582.0
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 3663.0,
+     "pm": 270.0
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AMC23",
+   "arena": "matematica_raciocinio",
+   "metrica": "AUC",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 76.95,
+     "pm": 2.07
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 76.89,
+     "pm": 3.22
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 79.42,
+     "pm": 4.01
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 83.44,
+     "pm": 2.12
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "Olympiad",
+   "arena": "matematica_raciocinio",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 61.33,
+     "pm": 0.41
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 59.91,
+     "pm": 0.73
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 60.98,
+     "pm": 0.95
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 62.78,
+     "pm": 0.64
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "Olympiad",
+   "arena": "matematica_raciocinio",
+   "metrica": "Tokens",
+   "direcao": "menor_melhor",
+   "unidade": "tokens",
+   "recurso": "computacao_inferencia",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 8972.0,
+     "pm": 130.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 9155.0,
+     "pm": 313.0
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 6149.0,
+     "pm": 105.0
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 4968.0,
+     "pm": 133.0
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "Olympiad",
+   "arena": "matematica_raciocinio",
+   "metrica": "AUC",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 51.28,
+     "pm": 0.37
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 51.86,
+     "pm": 0.59
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 54.29,
+     "pm": 0.78
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 56.61,
+     "pm": 0.61
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AIME24",
+   "arena": "matematica_raciocinio",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 50.83,
+     "pm": 6.61
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 50.83,
+     "pm": 6.36
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 48.75,
+     "pm": 4.69
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 54.17,
+     "pm": 4.27
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AIME24",
+   "arena": "matematica_raciocinio",
+   "metrica": "Tokens",
+   "direcao": "menor_melhor",
+   "unidade": "tokens",
+   "recurso": "computacao_inferencia",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 13493.0,
+     "pm": 1367.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 14423.0,
+     "pm": 2075.0
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 10457.0,
+     "pm": 831.0
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 7364.0,
+     "pm": 399.0
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AIME24",
+   "arena": "matematica_raciocinio",
+   "metrica": "AUC",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 40.33,
+     "pm": 5.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 41.4,
+     "pm": 4.81
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 40.14,
+     "pm": 4.05
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 46.82,
+     "pm": 3.89
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AIME25",
+   "arena": "matematica_raciocinio",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 37.92,
+     "pm": 5.62
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 37.92,
+     "pm": 4.34
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 35.83,
+     "pm": 4.96
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 40.42,
+     "pm": 3.75
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AIME25",
+   "arena": "matematica_raciocinio",
+   "metrica": "Tokens",
+   "direcao": "menor_melhor",
+   "unidade": "tokens",
+   "recurso": "computacao_inferencia",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 15134.0,
+     "pm": 920.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 15652.0,
+     "pm": 1637.0
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 11055.0,
+     "pm": 585.0
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 8291.0,
+     "pm": 250.0
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 1",
+   "benchmark": "AIME25",
+   "arena": "matematica_raciocinio",
+   "metrica": "AUC",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": false,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 30.29,
+     "pm": 3.82
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 31.66,
+     "pm": 3.79
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 31.2,
+     "pm": 4.12
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 34.55,
+     "pm": 3.13
+    }
+   ],
+   "secao": "5.2"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "MBPP",
+   "arena": "codigo",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 84.05,
+     "pm": 0.91
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 81.13,
+     "pm": 1.87
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 81.37,
+     "pm": 2.18
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 84.05,
+     "pm": 1.94
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "MBPP",
+   "arena": "codigo",
+   "metrica": "Tokens",
+   "direcao": "menor_melhor",
+   "unidade": "tokens",
+   "recurso": "computacao_inferencia",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 3403.0,
+     "pm": 234.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 4097.0,
+     "pm": 444.0
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 2196.0,
+     "pm": 131.0
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 2167.0,
+     "pm": 119.0
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "MBPP",
+   "arena": "codigo",
+   "metrica": "AUC",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 78.42,
+     "pm": 0.83
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 76.32,
+     "pm": 1.68
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 77.4,
+     "pm": 1.9
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 79.95,
+     "pm": 1.95
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "LiveCodeBench",
+   "arena": "codigo",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 41.77,
+     "pm": 1.1
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 39.82,
+     "pm": 2.5
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 41.69,
+     "pm": 2.22
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 42.51,
+     "pm": 2.81
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "LiveCodeBench",
+   "arena": "codigo",
+   "metrica": "Tokens",
+   "direcao": "menor_melhor",
+   "unidade": "tokens",
+   "recurso": "computacao_inferencia",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 12319.0,
+     "pm": 352.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 14158.0,
+     "pm": 476.0
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 9670.0,
+     "pm": 200.0
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 9278.0,
+     "pm": 204.0
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "LiveCodeBench",
+   "arena": "codigo",
+   "metrica": "AUC",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 32.86,
+     "pm": 0.87
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 31.88,
+     "pm": 1.66
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 35.03,
+     "pm": 1.38
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 35.64,
+     "pm": 2.15
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "CodeContests",
+   "arena": "codigo",
+   "metrica": "Acc",
+   "direcao": "maior_melhor",
+   "unidade": "%",
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 18.48,
+     "pm": 2.17
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 16.06,
+     "pm": 2.42
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 19.09,
+     "pm": 0.97
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 20.61,
+     "pm": 1.07
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "CodeContests",
+   "arena": "codigo",
+   "metrica": "Tokens",
+   "direcao": "menor_melhor",
+   "unidade": "tokens",
+   "recurso": "computacao_inferencia",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 14900.0,
+     "pm": 223.0
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 17757.0,
+     "pm": 623.0
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 11677.0,
+     "pm": 305.0
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 11413.0,
+     "pm": 243.0
+    }
+   ],
+   "secao": "5.3"
+  },
+  {
+   "tabela": "Tabela 2",
+   "benchmark": "CodeContests",
+   "arena": "codigo",
+   "metrica": "AUC",
+   "direcao": "maior_melhor",
+   "unidade": null,
+   "recurso": "qualidade",
+   "colunas_inferidas": true,
+   "linhas": [
+    {
+     "nome": "Base",
+     "papel": "base",
+     "fechado": false,
+     "valor": 13.87,
+     "pm": 1.5
+    },
+    {
+     "nome": "DAST",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 12.61,
+     "pm": 1.79
+    },
+    {
+     "nome": "TokenSqueeze",
+     "papel": "externo",
+     "fechado": false,
+     "valor": 15.54,
+     "pm": 0.81
+    },
+    {
+     "nome": "LoCo",
+     "papel": "nosso",
+     "fechado": false,
+     "valor": 16.78,
+     "pm": 0.98
+    }
+   ],
+   "secao": "5.3"
+  }
+ ],
+ "efeitos_custo": [
+  {
+   "recurso": "computacao_inferencia",
+   "valor": 41.7,
+   "forma": "percentual",
+   "sentido": "menos",
+   "comparado_a": "Base",
+   "trecho": "reduces completion length by 41.7%–45.4% on mathematics",
+   "secao": "Abstract"
+  }
+ ],
+ "hardware": [
+  {
+   "tipo": "H20",
+   "qtd": 4,
+   "uso": "treino",
+   "trecho": "Training is conducted on four H20 GPUs with a maximum sequence length of 14,336 tokens."
+  }
+ ],
+ "compute_declarado": [],
+ "escala": [],
+ "estatistica": {
+  "seeds": null,
+  "trials": 8,
+  "variancia": "pm_sem_definicao",
+  "teste_significancia": false,
+  "trecho": "We sample eight completions per problem for all benchmarks."
+ },
+ "evidencia": [
+  "benchmark_automatico"
+ ],
+ "alegacoes": [
+  {
+   "tipo": "manchete",
+   "trecho": "LoCo reduces completion length by 41.7%–45.4% on mathematics",
+   "numero": 41.7,
+   "unidade": "%",
+   "contra": null,
+   "tabela_ref": "Tabela 1",
+   "secao": "Abstract"
+  },
+  {
+   "tipo": "superlativa",
+   "trecho": "achieving the best AUC across all code benchmarks",
+   "numero": null,
+   "unidade": null,
+   "contra": null,
+   "tabela_ref": "Tabela 2",
+   "secao": "Abstract"
+  }
+ ],
+ "ressalvas": [],
+ "artefatos": [
+  {
+   "tipo": "codigo",
+   "estado": "prometido",
+   "url": "https://github.com/MuyaoYuan/LoCo",
+   "licenca": null,
+   "trecho": "The code and model will be publicly released at https://github.com/MuyaoYuan/LoCo."
+  },
+  {
+   "tipo": "pesos",
+   "estado": "prometido",
+   "url": "https://github.com/MuyaoYuan/LoCo",
+   "licenca": null,
+   "trecho": "The code and model will be publicly released at https://github.com/MuyaoYuan/LoCo."
+  }
+ ],
+ "envelope": {
+  "idiomas": [],
+  "dominio_treino": "matemática (traços autogerados do DeepSeek-R1-Distill-Qwen-7B)"
+ },
+ "nao_extraivel": []
+}

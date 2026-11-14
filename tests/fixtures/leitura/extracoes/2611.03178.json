@@ -1,0 +1,88 @@
+{
+  "id": "2611.03178",
+  "titulo": "CoworkOS: Scaling Agent Coworkers for Real-world Automation",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "6 Author Contributions (lista de afiliações)",
+    "tem_apendice": true,
+    "secao_limitacoes": "nao_lida"
+  },
+  "entrega": {
+    "primaria": "sistema",
+    "secundaria": null,
+    "trecho": "We introduce CoworkOS, a general-purpose harness for long-horizon work",
+    "secao": "Abstract"
+  },
+  "problema": "automação de trabalho de longo prazo",
+  "afiliacoes": [
+    {"org": "Renmin University of China", "n_autores": null},
+    {"org": "Fudan University", "n_autores": null}
+  ],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [
+    {
+      "tabela": "Tabela 1",
+      "benchmark": "BrowseComp",
+      "arena": "agentes_ferramentas",
+      "metrica": "pontuação na tabela",
+      "direcao": "nao_marcada",
+      "unidade": null,
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {"nome": "CoworkOS", "papel": "nosso", "fechado": false, "valor": 81.80, "pm": null},
+        {"nome": "OpenHands", "papel": "externo", "fechado": false, "valor": 83.00, "pm": null},
+        {"nome": "Codex", "papel": "externo", "fechado": true, "valor": 75.50, "pm": null},
+        {"nome": "DeepSeek Harness", "papel": "externo", "fechado": false, "valor": 80.80, "pm": null}
+      ],
+      "secao": "4.1"
+    },
+    {
+      "tabela": "Tabela 1",
+      "benchmark": "WideSearch",
+      "arena": "agentes_ferramentas",
+      "metrica": "pontuação na tabela",
+      "direcao": "nao_marcada",
+      "unidade": null,
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {"nome": "CoworkOS", "papel": "nosso", "fechado": false, "valor": 82.47, "pm": null},
+        {"nome": "OpenHands", "papel": "externo", "fechado": false, "valor": 81.43, "pm": null},
+        {"nome": "Codex", "papel": "externo", "fechado": true, "valor": 82.05, "pm": null},
+        {"nome": "DeepSeek Harness", "papel": "externo", "fechado": false, "valor": 72.48, "pm": null}
+      ],
+      "secao": "4.1"
+    },
+    {
+      "tabela": "Tabela 1",
+      "benchmark": "MLE-Bench-Lite",
+      "arena": "codigo",
+      "metrica": "pontuação na tabela",
+      "direcao": "nao_marcada",
+      "unidade": null,
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {"nome": "CoworkOS", "papel": "nosso", "fechado": false, "valor": 76.90, "pm": null},
+        {"nome": "OpenHands", "papel": "externo", "fechado": false, "valor": 60.40, "pm": null},
+        {"nome": "Codex", "papel": "externo", "fechado": true, "valor": 67.28, "pm": null},
+        {"nome": "DeepSeek Harness", "papel": "externo", "fechado": false, "valor": 76.70, "pm": null}
+      ],
+      "secao": "4.1"
+    }
+  ],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "evidencia": ["benchmark_automatico"],
+  "alegacoes": [
+    {"tipo": "tese", "trecho": "We introduce CoworkOS, a general-purpose harness for long-horizon work", "numero": null, "unidade": null, "contra": null, "tabela_ref": null, "secao": "Abstract"}
+  ],
+  "ressalvas": [],
+  "artefatos": [],
+  "nao_extraivel": []
+}

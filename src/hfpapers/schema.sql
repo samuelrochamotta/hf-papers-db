@@ -265,3 +265,28 @@ CREATE TABLE IF NOT EXISTS dim_calendario (
     nome_dia_semana TEXT,
     eh_dia_util     INTEGER
 );
+
+-- ══════════════ LEITURA DO TEXTO COMPLETO (painel v2, ADR 007) ══════════════
+-- Uma linha por paper e versao do esquema. `extracao` e o JSON devolvido pelo
+-- Haiku 5.5 depois da conferencia: cada trecho e cada valor de tabela carrega
+-- `_ok` (achado ou nao no texto enviado). Nada aqui e calculado pelo modelo;
+-- deltas, solidez e radar saem de hfpapers.leitura.derivar na hora do export.
+CREATE TABLE IF NOT EXISTS leitura_texto (
+    paper_id        TEXT NOT NULL REFERENCES dim_paper(paper_id),
+    versao_esquema  TEXT NOT NULL,
+    modelo          TEXT NOT NULL,
+    fonte           TEXT NOT NULL,       -- 'html' | 'abstract'
+    cobertura       TEXT NOT NULL,       -- 'completa' | 'parcial'
+    caracteres      INTEGER,
+    trechos         INTEGER,
+    trechos_ok      INTEGER,
+    numeros         INTEGER,
+    numeros_ok      INTEGER,
+    extracao        TEXT NOT NULL,
+    avisos          TEXT,                -- JSON array de strings
+    tokens_entrada  INTEGER,
+    tokens_saida    INTEGER,
+    custo_usd       REAL,
+    lido_em         TIMESTAMP NOT NULL,
+    PRIMARY KEY (paper_id, versao_esquema)
+);

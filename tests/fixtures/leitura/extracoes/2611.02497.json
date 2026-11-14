@@ -1,0 +1,137 @@
+{
+  "id": "2611.02497",
+  "titulo": "RoboColosseum: Evaluating Physical Intelligence at Scale In-The-Wild",
+  "leitura": {
+    "fonte_texto": "html",
+    "cobertura": "parcial",
+    "termina_em": "Referências (entrada Team et al., 2024); seções 7 a 10 só no índice",
+    "tem_apendice": true,
+    "secao_limitacoes": "presente"
+  },
+  "entrega": {
+    "primaria": "medida",
+    "secundaria": "sistema",
+    "trecho": "General-purpose robot policies must work across robots, tasks, and environments",
+    "secao": "Introdução"
+  },
+  "camada": {
+    "primaria": "avaliacao",
+    "secundaria": null,
+    "trecho": "General-purpose robot policies must work across robots, tasks, and environments",
+    "secao": "Introdução"
+  },
+  "problema": "Physical Intelligence at Scale",
+  "afiliacoes": [
+    {
+      "org": "National University of Singapore",
+      "n_autores": null
+    },
+    {
+      "org": "University of Washington",
+      "n_autores": null
+    },
+    {
+      "org": "Stanford University",
+      "n_autores": null
+    },
+    {
+      "org": "University of North Carolina at Chapel Hill",
+      "n_autores": null
+    },
+    {
+      "org": "Allen Institute for AI",
+      "n_autores": null
+    },
+    {
+      "org": "University of Oxford",
+      "n_autores": null
+    },
+    {
+      "org": "Hugging Face",
+      "n_autores": null
+    },
+    {
+      "org": "BitRobot",
+      "n_autores": null
+    },
+    {
+      "org": "Singapore Embodied AI Centre",
+      "n_autores": null
+    }
+  ],
+  "entidades": [],
+  "relacoes": [],
+  "resultados": [
+    {
+      "tabela": "Tabela 2",
+      "benchmark": "Fine-tune Track (DROID/Franka)",
+      "arena": "robotica_acao",
+      "metrica": "SR",
+      "direcao": "maior_melhor",
+      "unidade": "%",
+      "recurso": "qualidade",
+      "colunas_inferidas": false,
+      "linhas": [
+        {
+          "nome": "π0.5",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 84.0,
+          "pm": null
+        },
+        {
+          "nome": "MolmoAct2",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 54.4,
+          "pm": null
+        },
+        {
+          "nome": "GR00T N1.7",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 42.4,
+          "pm": null
+        },
+        {
+          "nome": "LingBot-VLA v2",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 40.8,
+          "pm": null
+        },
+        {
+          "nome": "G0.5",
+          "papel": "externo",
+          "fechado": false,
+          "valor": 16.0,
+          "pm": null
+        }
+      ],
+      "secao": "Tabela 2"
+    }
+  ],
+  "efeitos_custo": [],
+  "hardware": [],
+  "compute_declarado": [],
+  "escala": [],
+  "estatistica": {
+    "seeds": null,
+    "trials": null,
+    "variancia": "pm_definido",
+    "teste_significancia": false,
+    "trecho": null
+  },
+  "evidencia": [
+    "benchmark_automatico",
+    "mundo_real"
+  ],
+  "alegacoes": [],
+  "ressalvas": [],
+  "artefatos": [],
+  "envelope": {
+    "idiomas": [],
+    "dominio_treino": null
+  },
+  "nao_extraivel": []
+}

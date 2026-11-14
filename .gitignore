@@ -4,6 +4,8 @@ marts/
 logs/
 relatorios/*
 !relatorios/painel/
+!relatorios/painel-v2/
+painel-v2/node_modules/
 scripts/echarts/node_modules/
 .venv/
 __pycache__/

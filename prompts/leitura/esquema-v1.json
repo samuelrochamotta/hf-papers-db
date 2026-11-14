@@ -1,0 +1,881 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "esquema-v3-paper",
+ "title": "Extração v3 por paper",
+ "description": "Instruções ao extrator (claude-haiku-5-5). Leia o texto completo do paper e preencha UM objeto. 1) Copie, não interprete: todo 'trecho' é citação literal do paper, de até 30 palavras, sem paráfrase nem tradução. 'secao' é o rótulo como aparece no paper (ex.: '4.2', 'Tabela 1', 'Apêndice B'). 2) Números: copie exatamente como na tabela ou no texto (ponto decimal). Não calcule deltas, ranks, médias, 'melhor' nem 'segundo lugar': isso é feito por código. 3) Enums: escolha só valores da lista. Na dúvida entre dois, use o mais literal; se nada servir, use 'outra' ou null. 4) Ausência: se a informação não está no texto que você recebeu, use null ou lista vazia. Nunca estime compute, GPU-horas, tamanho ou licença. Se o texto termina antes das referências finais, marque leitura.cobertura='parcial' e diga em termina_em onde parou. 5) resultados: só das até 3 tabelas principais de resultados (não de ablação, salvo se for a única). Uma entrada por par (benchmark, métrica). Em linhas, inclua a linha do método do paper (papel 'nosso') e as comparadas. 'variante_propria' é ablação ou versão do próprio método; 'trivial' é aleatório, sem memória ou regra simples; 'base' é o modelo de partida sem o método. Se precisou adivinhar a ordem das colunas, marque colunas_inferidas=true. Valores que só existem em figura vão em nao_extraivel, nunca em resultados. 6) artefatos: 'liberado' só com URL e verbo no passado ou presente ('we release', 'available at'); 'will be released' é 'prometido'; só página do projeto é 'so_pagina'. A licença do arXiv não é licença do código. 7) alegacoes: copie a frase principal do abstract com número (tipo 'manchete'), frases do tipo 'best on every'/'outperforms all' ('superlativa'), limites e falhas declarados ('negativa') e afirmações sem experimento ('tese'). Máximo 8. 8) Não preencha campos calculados (solidez, esforço, deltas, classe de hardware): eles não existem neste esquema.",
+ "type": "object",
+ "additionalProperties": false,
+ "$defs": {
+  "trecho": {
+   "type": "string",
+   "maxLength": 240,
+   "description": "Citação literal do paper, até 30 palavras."
+  },
+  "secao": {
+   "type": [
+    "string",
+    "null"
+   ],
+   "maxLength": 40,
+   "description": "Seção, tabela ou figura onde está o trecho."
+  }
+ },
+ "properties": {
+  "id": {
+   "type": "string",
+   "pattern": "^[0-9]{4}\\.[0-9]{4,5}$",
+   "description": "ID do arXiv, ex. 2611.04814."
+  },
+  "titulo": {
+   "type": "string",
+   "maxLength": 300
+  },
+  "leitura": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "fonte_texto": {
+     "type": "string",
+     "enum": [
+      "html",
+      "pdf",
+      "abstract"
+     ]
+    },
+    "cobertura": {
+     "type": "string",
+     "enum": [
+      "completa",
+      "parcial"
+     ],
+     "description": "completa só se o texto chegou às referências finais."
+    },
+    "termina_em": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "maxLength": 60,
+     "description": "Última seção vista, se parcial."
+    },
+    "tem_apendice": {
+     "type": "boolean"
+    },
+    "secao_limitacoes": {
+     "type": "string",
+     "enum": [
+      "presente",
+      "ausente",
+      "nao_lida"
+     ]
+    }
+   },
+   "required": [
+    "fonte_texto",
+    "cobertura",
+    "termina_em",
+    "tem_apendice",
+    "secao_limitacoes"
+   ]
+  },
+  "entrega": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "primaria": {
+     "type": "string",
+     "enum": [
+      "metodo",
+      "sistema",
+      "modelo",
+      "dados",
+      "medida",
+      "estudo",
+      "panorama_posicao"
+     ]
+    },
+    "secundaria": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "enum": [
+      "metodo",
+      "sistema",
+      "modelo",
+      "dados",
+      "medida",
+      "estudo",
+      "panorama_posicao",
+      null
+     ]
+    },
+    "trecho": {
+     "$ref": "#/$defs/trecho"
+    },
+    "secao": {
+     "$ref": "#/$defs/secao"
+    }
+   },
+   "required": [
+    "primaria",
+    "secundaria",
+    "trecho",
+    "secao"
+   ]
+  },
+  "camada": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "primaria": {
+     "type": "string",
+     "enum": [
+      "dados",
+      "arquitetura_pretreino",
+      "pos_treino",
+      "inferencia_serving",
+      "contexto_raciocinio",
+      "agente_harness",
+      "avaliacao",
+      "seguranca_controle"
+     ],
+     "description": "Camada em que quem adota escreveria código."
+    },
+    "secundaria": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "enum": [
+      "dados",
+      "arquitetura_pretreino",
+      "pos_treino",
+      "inferencia_serving",
+      "contexto_raciocinio",
+      "agente_harness",
+      "avaliacao",
+      "seguranca_controle",
+      null
+     ]
+    },
+    "trecho": {
+     "$ref": "#/$defs/trecho"
+    },
+    "secao": {
+     "$ref": "#/$defs/secao"
+    }
+   },
+   "required": [
+    "primaria",
+    "secundaria",
+    "trecho",
+    "secao"
+   ]
+  },
+  "problema": {
+   "type": "string",
+   "maxLength": 60,
+   "description": "Frase nominal de 2 a 5 palavras, tirada do texto."
+  },
+  "afiliacoes": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "org": {
+      "type": "string",
+      "maxLength": 80
+     },
+     "n_autores": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "org",
+     "n_autores"
+    ]
+   },
+   "maxItems": 10
+  },
+  "entidades": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "nome": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "Nome exatamente como no texto."
+     },
+     "tipo": {
+      "type": "string",
+      "enum": [
+       "modelo",
+       "metodo",
+       "dataset",
+       "benchmark",
+       "software",
+       "hardware"
+      ]
+     },
+     "papel": {
+      "type": "string",
+      "enum": [
+       "base",
+       "baseline",
+       "objeto_medido",
+       "juiz_ferramenta",
+       "professor",
+       "dados_treino",
+       "avaliacao",
+       "criada_aqui"
+      ]
+     },
+     "tamanho": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "maxLength": 20,
+      "description": "Ex.: '7B', '1.7B', '300M'; null se não escrito."
+     },
+     "fechado": {
+      "type": "boolean",
+      "description": "true se API paga, pesos ou dados não abertos, ou sistema anônimo."
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     },
+     "secao": {
+      "$ref": "#/$defs/secao"
+     }
+    },
+    "required": [
+     "nome",
+     "tipo",
+     "papel",
+     "tamanho",
+     "fechado",
+     "trecho",
+     "secao"
+    ]
+   },
+   "maxItems": 25
+  },
+  "relacoes": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "alvo": {
+      "type": "string",
+      "maxLength": 80
+     },
+     "tipo": {
+      "type": "string",
+      "enum": [
+       "estende",
+       "reutiliza",
+       "compara",
+       "diferencia_se",
+       "contradiz"
+      ],
+      "description": "contradiz só com frase explícita."
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     },
+     "secao": {
+      "$ref": "#/$defs/secao"
+     }
+    },
+    "required": [
+     "alvo",
+     "tipo",
+     "trecho",
+     "secao"
+    ]
+   },
+   "maxItems": 10
+  },
+  "resultados": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "tabela": {
+      "type": "string",
+      "maxLength": 30
+     },
+     "benchmark": {
+      "type": "string",
+      "maxLength": 60
+     },
+     "arena": {
+      "type": "string",
+      "enum": [
+       "matematica_raciocinio",
+       "codigo",
+       "agentes_ferramentas",
+       "conhecimento_linguagem",
+       "compreensao_multimodal",
+       "geracao_imagem",
+       "geracao_video_mundo",
+       "fala_audio",
+       "robotica_acao",
+       "3d_graficos",
+       "ciencia_dominio",
+       "seguranca_confiabilidade",
+       "outra"
+      ]
+     },
+     "metrica": {
+      "type": "string",
+      "maxLength": 40
+     },
+     "direcao": {
+      "type": "string",
+      "enum": [
+       "maior_melhor",
+       "menor_melhor",
+       "nao_marcada"
+      ]
+     },
+     "unidade": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "maxLength": 20
+     },
+     "recurso": {
+      "type": "string",
+      "enum": [
+       "qualidade",
+       "latencia_velocidade",
+       "computacao_inferencia",
+       "computacao_treino",
+       "memoria",
+       "dados_rotulos",
+       "hardware",
+       "confiabilidade"
+      ]
+     },
+     "colunas_inferidas": {
+      "type": "boolean"
+     },
+     "linhas": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "nome": {
+         "type": "string",
+         "maxLength": 60
+        },
+        "papel": {
+         "type": "string",
+         "enum": [
+          "nosso",
+          "externo",
+          "trivial",
+          "base",
+          "variante_propria"
+         ]
+        },
+        "fechado": {
+         "type": "boolean"
+        },
+        "valor": {
+         "type": "number"
+        },
+        "pm": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "nome",
+        "papel",
+        "fechado",
+        "valor",
+        "pm"
+       ]
+      },
+      "maxItems": 10
+     },
+     "secao": {
+      "$ref": "#/$defs/secao"
+     }
+    },
+    "required": [
+     "tabela",
+     "benchmark",
+     "arena",
+     "metrica",
+     "direcao",
+     "unidade",
+     "recurso",
+     "colunas_inferidas",
+     "linhas",
+     "secao"
+    ]
+   },
+   "maxItems": 24
+  },
+  "efeitos_custo": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "recurso": {
+      "type": "string",
+      "enum": [
+       "qualidade",
+       "latencia_velocidade",
+       "computacao_inferencia",
+       "computacao_treino",
+       "memoria",
+       "dados_rotulos",
+       "hardware",
+       "confiabilidade"
+      ]
+     },
+     "valor": {
+      "type": "number",
+      "description": "Número como escrito, ex. 1.17 ou 45.4."
+     },
+     "forma": {
+      "type": "string",
+      "enum": [
+       "vezes",
+       "percentual"
+      ]
+     },
+     "sentido": {
+      "type": "string",
+      "enum": [
+       "mais",
+       "menos"
+      ],
+      "description": "O método do paper usa mais ou menos do recurso."
+     },
+     "comparado_a": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "maxLength": 60
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     },
+     "secao": {
+      "$ref": "#/$defs/secao"
+     }
+    },
+    "required": [
+     "recurso",
+     "valor",
+     "forma",
+     "sentido",
+     "comparado_a",
+     "trecho",
+     "secao"
+    ]
+   },
+   "maxItems": 6
+  },
+  "hardware": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "tipo": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "Ex.: 'H200', 'RTX 5090', 'Jetson Thor', 'GPU não especificada'."
+     },
+     "qtd": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "uso": {
+      "type": "string",
+      "enum": [
+       "treino",
+       "inferencia",
+       "medicao",
+       "nao_dito"
+      ]
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     }
+    },
+    "required": [
+     "tipo",
+     "qtd",
+     "uso",
+     "trecho"
+    ]
+   },
+   "maxItems": 6
+  },
+  "compute_declarado": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "valor": {
+      "type": "number"
+     },
+     "unidade": {
+      "type": "string",
+      "enum": [
+       "gpu_horas",
+       "horas_parede",
+       "passos",
+       "tokens",
+       "dolares",
+       "outro"
+      ]
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     }
+    },
+    "required": [
+     "valor",
+     "unidade",
+     "trecho"
+    ]
+   },
+   "maxItems": 4
+  },
+  "escala": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "n": {
+      "type": "number"
+     },
+     "unidade": {
+      "type": "string",
+      "maxLength": 40
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     }
+    },
+    "required": [
+     "n",
+     "unidade",
+     "trecho"
+    ]
+   },
+   "maxItems": 6
+  },
+  "estatistica": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "seeds": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "trials": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "variancia": {
+     "type": "string",
+     "enum": [
+      "pm_definido",
+      "pm_sem_definicao",
+      "ic",
+      "nenhuma"
+     ]
+    },
+    "teste_significancia": {
+     "type": "boolean"
+    },
+    "trecho": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "maxLength": 240
+    }
+   },
+   "required": [
+    "seeds",
+    "trials",
+    "variancia",
+    "teste_significancia",
+    "trecho"
+   ]
+  },
+  "evidencia": {
+   "type": "array",
+   "uniqueItems": true,
+   "items": {
+    "type": "string",
+    "enum": [
+     "benchmark_automatico",
+     "juiz_llm",
+     "humana",
+     "mundo_real",
+     "simulacao",
+     "prova_formal",
+     "caso_qualitativo"
+    ]
+   }
+  },
+  "alegacoes": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "tipo": {
+      "type": "string",
+      "enum": [
+       "manchete",
+       "superlativa",
+       "negativa",
+       "tese"
+      ]
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     },
+     "numero": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "unidade": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "maxLength": 20
+     },
+     "contra": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "maxLength": 60,
+      "description": "Baseline citado na frase, se houver."
+     },
+     "tabela_ref": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "maxLength": 30
+     },
+     "secao": {
+      "$ref": "#/$defs/secao"
+     }
+    },
+    "required": [
+     "tipo",
+     "trecho",
+     "numero",
+     "unidade",
+     "contra",
+     "tabela_ref",
+     "secao"
+    ]
+   },
+   "maxItems": 8
+  },
+  "ressalvas": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "tipo": {
+      "type": "string",
+      "enum": [
+       "preliminar",
+       "amostra_pequena",
+       "pesos_ficticios",
+       "dado_fechado",
+       "escopo",
+       "medicao",
+       "confusao"
+      ]
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     },
+     "secao": {
+      "$ref": "#/$defs/secao"
+     }
+    },
+    "required": [
+     "tipo",
+     "trecho",
+     "secao"
+    ]
+   },
+   "maxItems": 6
+  },
+  "artefatos": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "tipo": {
+      "type": "string",
+      "enum": [
+       "codigo",
+       "pesos",
+       "dados",
+       "demo",
+       "pagina"
+      ]
+     },
+     "estado": {
+      "type": "string",
+      "enum": [
+       "liberado",
+       "prometido",
+       "so_pagina",
+       "ausente"
+      ]
+     },
+     "url": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "maxLength": 200
+     },
+     "licenca": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "maxLength": 40
+     },
+     "trecho": {
+      "$ref": "#/$defs/trecho"
+     }
+    },
+    "required": [
+     "tipo",
+     "estado",
+     "url",
+     "licenca",
+     "trecho"
+    ]
+   },
+   "maxItems": 6
+  },
+  "envelope": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "idiomas": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "maxLength": 5
+     },
+     "maxItems": 12,
+     "description": "Códigos ISO 639-1 avaliados, ex. 'en', 'zh'."
+    },
+    "dominio_treino": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "maxLength": 60
+    }
+   },
+   "required": [
+    "idiomas",
+    "dominio_treino"
+   ]
+  },
+  "nao_extraivel": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "local": {
+      "type": "string",
+      "maxLength": 40
+     },
+     "motivo": {
+      "type": "string",
+      "enum": [
+       "so_em_figura",
+       "tabela_icones",
+       "tabela_multinivel"
+      ]
+     }
+    },
+    "required": [
+     "local",
+     "motivo"
+    ]
+   },
+   "maxItems": 5
+  }
+ },
+ "required": [
+  "id",
+  "titulo",
+  "leitura",
+  "entrega",
+  "camada",
+  "problema",
+  "afiliacoes",
+  "entidades",
+  "relacoes",
+  "resultados",
+  "efeitos_custo",
+  "hardware",
+  "compute_declarado",
+  "escala",
+  "estatistica",
+  "evidencia",
+  "alegacoes",
+  "ressalvas",
+  "artefatos",
+  "envelope",
+  "nao_extraivel"
+ ]
+}

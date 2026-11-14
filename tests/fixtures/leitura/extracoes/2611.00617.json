@@ -1,0 +1,13 @@
+{"id":"2611.00617","titulo":"Words Caught in the Heart: Simulating Person-Specific Expression for Self-Opaque Clients in Psychotherapy",
+"leitura":{"fonte_texto":"abstract","cobertura":"parcial","termina_em":"resumo","tem_apendice":false,"secao_limitacoes":"nao_lida"},
+"entrega":{"primaria":"metodo","secundaria":null,"trecho":"It achieves the highest expression similarity and overall disclosure-alignment score among the compared systems.","secao":"Resumo"},
+"camada":{"primaria":"agente_harness","secundaria":null,"trecho":"A separate expression planner then turns these decisions into language","secao":"Resumo"},
+"problema":"simulação de clientes em psicoterapia",
+"afiliacoes":[],
+"entidades":[{"nome":"Pandora","tipo":"metodo","papel":"criada_aqui","tamanho":null,"fechado":false,"trecho":"Pandora","secao":"Resumo"}],
+"relacoes":[],"resultados":[],"efeitos_custo":[],"hardware":[],"compute_declarado":[],"escala":[],
+"estatistica":{"seeds":null,"trials":null,"variancia":"nenhuma","teste_significancia":false,"trecho":null},
+"evidencia":["humana","benchmark_automatico"],
+"alegacoes":[{"tipo":"superlativa","trecho":"It achieves the highest expression similarity and overall disclosure-alignment score among the compared systems.","numero":null,"unidade":null,"contra":null,"tabela_ref":null,"secao":"Resumo"}],
+"ressalvas":[{"tipo":"escopo","trecho":"within the settings they tested","secao":"Resumo"}],
+"artefatos":[],"envelope":{"idiomas":[],"dominio_treino":null},"nao_extraivel":[]}
