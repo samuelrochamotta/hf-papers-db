@@ -88,6 +88,20 @@ test('o recorte vai para a URL e volta dela', () => {
   assert.match(q.html, /Natureza × vertente/);
 });
 
+test('valor desconhecido no fragmento sai do recorte em vez de quebrar o painel', () => {
+  const p = painel({ hash: '#marca=xyz&natureza=nada&vista=outra&gh=talvez&aba=panorama' });
+  assert.match(p.recorte, /sem recorte/);
+  assert.ok(p.graficos['areas-dist']);
+  assert.equal(p.hash, '#aba=panorama');
+});
+
+test('href so aceita http(s)', () => {
+  const dados = structuredClone(DADOS);
+  Object.assign(dados.papers[0], { url: 'javascript:alert(1)', gh: 'javascript:alert(2)', ao: 1 });
+  const p = montarPainel(dados, { hash: '#paper=a1' });
+  assert.doesNotMatch(p.html, /href="javascript:/);
+});
+
 test('link para um paper abre o card no dia dele', () => {
   const p = painel({ hash: '#paper=a1' });
   assert.equal(p.diaAtual, '2026-09-01');

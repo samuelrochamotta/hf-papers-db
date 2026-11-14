@@ -52,6 +52,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import hashlib
 import os
 import re
 import sys
@@ -314,9 +315,16 @@ def classificacao(triagem: dict, paper: dict) -> dict:
         if triagem.get(campo):
             extra[chave] = triagem[campo]
     for chave, campo in (("gh", "github_repo"), ("pg", "project_page")):
-        if paper.get(campo):
+        if url_segura(paper.get(campo)):
             extra[chave] = paper[campo]
     return extra
+
+
+def url_segura(url: Any) -> bool:
+    """So `http(s)://` vira link. Repositorio e pagina do projeto vem de dado
+    externo (HF, abstract), e o painel e publico: um `javascript:` ali seria
+    executado no clique."""
+    return isinstance(url, str) and re.match(r"https?://", url.strip(), re.IGNORECASE) is not None
 
 
 def por_voto(papers: list[dict]) -> list[dict]:
@@ -718,15 +726,17 @@ def _json(obj: Any) -> str:
 
 
 def _embutivel(texto: str, *, codigo: bool = False) -> str:
-    """Escapa o que fecharia a tag <script> no meio do texto.
+    """Escapa o que fecharia (ou desviaria) a tag <script> no meio do texto.
 
-    JSON: `</` vira `<\\/` (um titulo de paper com "</script>" fecharia a tag
-    e o painel viraria texto solto). Codigo: so `</script`, porque um `</`
-    generico tambem aparece em regex literal (`/</g`) e o escape a quebraria.
+    JSON: todo `<` vira `\\u003c`, que e valido em JSON e em JS. Cobre o
+    `</script>` de um titulo e tambem `<!--` seguido de `<script`, que poe o
+    tokenizador do HTML em "script data double escaped" e engoliria o resto da
+    pagina. Codigo: so `</script`, porque um `<` generico aparece em
+    comparacao e em regex literal (`/</g`) e o escape os quebraria.
     """
     if codigo:
         return re.sub(r"</(script)", r"<\\/\1", texto, flags=re.IGNORECASE)
-    return texto.replace("</", "<\\/")
+    return texto.replace("<", "\\u003c")
 
 
 def resumo_texto(dados: dict) -> str:
@@ -742,10 +752,17 @@ def resumo_texto(dados: dict) -> str:
             f"área e vertente. Atualizado em {str(dados['gerado'])[:10]}.")
 
 
-def documento(dados: dict, *, embutido: bool, versao: str) -> str:
+def versao(conteudo: str) -> str:
+    """Hash curto do conteudo, para o `?v=` furar o cache do navegador e do
+    CDN do Pages exatamente quando o arquivo muda - inclusive num `--force`
+    do mesmo run depois de uma mudanca no formato dos dados."""
+    return hashlib.sha256(conteudo.encode("utf-8")).hexdigest()[:10]
+
+
+def documento(dados: dict, *, embutido: bool, versoes: dict[str, str] | None = None) -> str:
     """O `index.html`. Embutido leva dados, fichas e ECharts dentro dele;
-    senao aponta para os arquivos irmaos, com `?v=` para furar o cache do CDN
-    quando o run muda."""
+    senao aponta para os arquivos irmaos, cada um com o `?v=` do proprio
+    conteudo (`versoes`, nome -> hash)."""
     app = APP_JS.read_text(encoding="utf-8")
     resumo = resumo_texto(dados)
     esc = lambda t: (t.replace("&", "&amp;").replace('"', "&quot;")
@@ -759,9 +776,10 @@ def documento(dados: dict, *, embutido: bool, versao: str) -> str:
                  f"<script>var DADOS={_embutivel(_json(leve))};"
                  f"var FICHAS={_embutivel(_json(fichas))};</script>")
     else:
-        v = esc(versao)
-        carga = (f'<script>var PAINEL_ARQUIVOS={{dados:"dados.json?v={v}",fichas:"fichas.json?v={v}"}};</script>\n'
-                 f'<script src="echarts.painel.min.js?v={v}"></script>')
+        v = {k: esc(x) for k, x in (versoes or {}).items()}
+        carga = (f'<script>var PAINEL_ARQUIVOS={{dados:"dados.json?v={v.get("dados.json", "")}",'
+                 f'fichas:"fichas.json?v={v.get("fichas.json", "")}"}};</script>\n'
+                 f'<script src="echarts.painel.min.js?v={v.get("echarts.painel.min.js", "")}"></script>')
 
     return f"""<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8">
@@ -795,16 +813,21 @@ def montar(janela: int, dias_hall: int | None = None, *, embutido: bool = False
     primeira pintura, as fichas (buscadas depois) e o ECharts.
     """
     dados, manifest = montar_dados(janela, dias_hall)
-    versao = str(manifest.get("run_id") or dados["gerado"])
     if embutido:
-        return {"index.html": documento(dados, embutido=True, versao=versao)}, manifest
+        return {"index.html": documento(dados, embutido=True)}, manifest
+    return arquivos_da_pasta(dados), manifest
+
+
+def arquivos_da_pasta(dados: dict) -> dict[str, str]:
+    """A pasta do site; o `index.html` aponta para os irmaos pelo hash deles."""
     leve = {k: v for k, v in dados.items() if k != "fichas"}
-    return {
-        "index.html": documento(dados, embutido=False, versao=versao),
+    irmaos = {
         "dados.json": _json(leve),
         "fichas.json": _json(dados["fichas"]),
         "echarts.painel.min.js": ECHARTS_JS.read_text(encoding="utf-8"),
-    }, manifest
+    }
+    versoes = {nome: versao(conteudo) for nome, conteudo in irmaos.items()}
+    return {"index.html": documento(dados, embutido=False, versoes=versoes), **irmaos}
 
 
 def escrever(arquivos: dict[str, str], destino: Path) -> int:

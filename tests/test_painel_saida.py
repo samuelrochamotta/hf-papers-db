@@ -86,7 +86,10 @@ def test_a_pasta_separa_dados_fichas_e_echarts(monkeypatch, tmp_path):
     assert dados["papers"][0]["vg"][1::2] == [1, 3]
     assert json.loads(arquivos["fichas.json"])[0]["ach"] == "achado longo"
     pagina = arquivos["index.html"]
-    assert 'dados.json?v=r1' in pagina and 'src="echarts.painel.min.js?v=r1"' in pagina
+    # cada irmao com o hash do proprio conteudo no ?v=
+    assert f'dados.json?v={g.versao(arquivos["dados.json"])}' in pagina
+    assert f'fichas.json?v={g.versao(arquivos["fichas.json"])}' in pagina
+    assert f'src="echarts.painel.min.js?v={g.versao(arquivos["echarts.painel.min.js"])}"' in pagina
     assert "var DADOS" not in pagina
     # o resumo em texto vai para a meta description, para buscador e previa de link
     assert '<meta name="description" content="1 papers do Hugging Face' in pagina
@@ -103,10 +106,29 @@ def test_o_html_unico_embute_tudo_sem_quebrar_a_tag(monkeypatch, tmp_path):
     pagina = arquivos["index.html"]
     assert "var DADOS=" in pagina and "var FICHAS=" in pagina and "var PAINEL_ARQUIVOS" not in pagina
     # o titulo com </script> nao pode fechar a tag do JSON
-    assert "Um <\\/script> no título" in pagina
+    assert "Um \\u003c/script> no título" in pagina
+    assert "Um </script>" not in pagina
     destino = tmp_path / "previa.html"
     g.escrever(arquivos, destino)
     assert destino.read_text(encoding="utf-8") == pagina
+
+
+def test_escape_de_json_cobre_comentario_seguido_de_script():
+    import gerar_painel as g
+    texto = g._embutivel(g._json({"t": "<!--<script> e </script>"}))
+    assert "<" not in texto
+    assert json.loads(texto) == {"t": "<!--<script> e </script>"}
+
+
+@pytest.mark.parametrize("url,ok", [
+    ("https://github.com/x/y", True), ("http://p.io", True), (" HTTPS://a", True),
+    ("javascript:alert(1)", False), ("data:text/html,x", False), ("", False), (None, False),
+])
+def test_so_http_vira_link(url, ok):
+    import gerar_painel as g
+    assert g.url_segura(url) is ok
+    extra = g.classificacao({}, {"github_repo": url, "project_page": url})
+    assert ("gh" in extra) is ok and ("pg" in extra) is ok
 
 
 def test_escape_de_codigo_nao_estraga_regex_literal():

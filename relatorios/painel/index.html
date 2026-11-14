@@ -115,8 +115,8 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
 <noscript><p>O painel interativo precisa de JavaScript.</p></noscript>
 </div></main>
 <div id="tip" role="tooltip"></div>
-<script>var PAINEL_ARQUIVOS={dados:"dados.json?v=2026-11-14T07:30:52",fichas:"fichas.json?v=2026-11-14T07:30:52"};</script>
-<script src="echarts.painel.min.js?v=2026-11-14T07:30:52"></script>
+<script>var PAINEL_ARQUIVOS={dados:"dados.json?v=ffb724006b",fichas:"fichas.json?v=d0d64c8b08"};</script>
+<script src="echarts.painel.min.js?v=ab4d463063"></script>
 <script>/* Painel Daily Papers - porte do design canvas para HTML/JS puro.
  *
  * O desenho nasceu como artboard `.dc.html` da Claude Design (Artifact
@@ -307,6 +307,12 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
       state[URL_VALORES[k]] = lido[k] !== undefined ? dec(lido[k]) : PADRAO_URL[URL_VALORES[k]];
     }
     if (ABAS.indexOf(state.aba) < 0) state.aba = 'aprovados';
+    /* Link editado a mao ou vocabulario renomeado: valor que o painel nao
+       conhece sai do recorte em vez de quebrar o render ou zerar tudo. */
+    state.marcas = state.marcas.filter(function (k) { return MARCAS.some(function (m) { return m.k === k; }); });
+    state.naturezas = state.naturezas.filter(function (k) { return NATUREZAS.indexOf(k) >= 0 || k === NAO_CLASSIFICADO; });
+    if (['', 'aprovado', 'fora'].indexOf(state.ghVeredito) < 0) state.ghVeredito = '';
+    if (state.vistaArea !== 'sub') state.vistaArea = 'dist';
     state.busca = state.buscaQ;
     /* Link para um paper aberto: a aba Aprovados pagina por dia, entao o dia
        dele vira a pagina - senao o card nem seria desenhado. */
@@ -402,9 +408,11 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
         .filter(Boolean).join(' \n ').toLowerCase();
     });
   }
-  function recebeFichas(lista) {
+  var fichasErro = false;
+  function recebeFichas(lista, erro) {
     (lista || []).forEach(function (f) { fichaPorId[f.p] = f; });
     fichasProntas = true;
+    fichasErro = !!erro;
     indexa();
     render();
   }
@@ -544,8 +552,11 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
     return 'rgba(' + parseInt(h.slice(0, 2), 16) + ',' + parseInt(h.slice(2, 4), 16) + ',' + parseInt(h.slice(4, 6), 16) + ',' + a + ')';
   }
   function larguraTela() { return (typeof window !== 'undefined' && window.innerWidth) || 1200; }
+  /* So http(s) vira link: o painel e publico e as URLs vem de dado externo. */
+  function urlSegura(url) { return /^\s*https?:\/\//i.test(String(url || '')) ? String(url) : '#'; }
   function abrePaper(url) {
-    if (url && typeof window !== 'undefined' && window.open) window.open(url, '_blank', 'noopener');
+    url = urlSegura(url);
+    if (url !== '#' && typeof window !== 'undefined' && window.open) window.open(url, '_blank', 'noopener');
   }
   /* Mesmo desenho do `#tip` das pilulas: rotulo, prosa no meio, numero. */
   function tipHtml(linhas) {
@@ -956,20 +967,23 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
   /* Links do paper no rodape da ficha: o HF sempre; o repositorio e a pagina
      do projeto quando existem. */
   function linksPaper(p) {
-    var out = '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px;">' + esc(p.id) + ' ↗</a>';
-    if (p.gh) out += '<a href="' + esc(p.gh) + '" target="_blank" rel="noopener" style="font-size: 12px;">repositório ↗</a>';
-    if (p.pg) out += '<a href="' + esc(p.pg) + '" target="_blank" rel="noopener" style="font-size: 12px;">página do projeto ↗</a>';
+    var out = '<a href="' + esc(urlSegura(p.url)) + '" target="_blank" rel="noopener" style="font-family: \'IBM Plex Mono\', monospace; font-size: 12px;">' + esc(p.id) + ' ↗</a>';
+    if (p.gh) out += '<a href="' + esc(urlSegura(p.gh)) + '" target="_blank" rel="noopener" style="font-size: 12px;">repositório ↗</a>';
+    if (p.pg) out += '<a href="' + esc(urlSegura(p.pg)) + '" target="_blank" rel="noopener" style="font-size: 12px;">página do projeto ↗</a>';
     return out;
   }
 
   /* Marcador de ficha que existe mas ainda nao chegou (fichas.json). */
   var CARREGANDO = { carregando: true };
+  /* ... e ficha que existe mas cujo arquivo nao carregou. */
+  var FALHOU = { falhou: true };
 
   /* O corpo aberto de um aprovado, igual na aba viva e no hall. */
   function corpoAberto(p, f, chave, extraRodape) {
     var corpo = '<div class="corpo-aberto" style="padding: 10px 24px 30px;">' + cabecalhoDecisao(p, chave);
-    if (f === CARREGANDO) {
-      corpo += '<div style="font-size: 12.5px; color: #6d7178; padding: 6px 0 14px;">Carregando a ficha…</div>';
+    if (f === CARREGANDO || f === FALHOU) {
+      corpo += '<div style="font-size: 12.5px; color: #6d7178; padding: 6px 0 14px;">' +
+        (f === CARREGANDO ? 'Carregando a ficha…' : 'Não foi possível carregar a ficha. Recarregue a página para tentar de novo.') + '</div>';
     } else if (f) {
       corpo += '<div class="ficha-grid" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px;">' +
         camposFicha(f).map(function (c) {
@@ -1003,7 +1017,7 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
     }
     if (p.ao) {
       out += p.gh
-        ? '<a href="' + esc(p.gh) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size: 10.5px; white-space: nowrap; border-bottom: none; color: ' + VERDE + '; border: 1px solid ' + VERDE + '59; border-radius: 100px; padding: 3px 8px;">artefato ↗</a>'
+        ? '<a href="' + esc(urlSegura(p.gh)) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size: 10.5px; white-space: nowrap; border-bottom: none; color: ' + VERDE + '; border: 1px solid ' + VERDE + '59; border-radius: 100px; padding: 3px 8px;">artefato ↗</a>'
         : '<span style="font-size: 10.5px; white-space: nowrap; color: ' + VERDE + '; border: 1px solid ' + VERDE + '59; border-radius: 100px; padding: 3px 8px;">artefato</span>';
     }
     if (p.fo) {
@@ -1173,7 +1187,7 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
         '<span style="font-family: \'IBM Plex Mono\', monospace; font-size: 13px; color: #9aa1a9; text-align: right; padding-top: 1px;">' + p.u + '</span>' +
         '<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">' +
           '<div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">' +
-            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="font-size: 13.5px; color: #ecebe6; border-bottom-color: rgba(236,235,230,0.18);">' + esc(p.t) + '</a>' +
+            '<a href="' + esc(urlSegura(p.url)) + '" target="_blank" rel="noopener" style="font-size: 13.5px; color: #ecebe6; border-bottom-color: rgba(236,235,230,0.18);">' + esc(p.t) + '</a>' +
             (p.rf
               ? '<span style="font-size: 10.5px; color: #8b8f96; background: #1d2226; border: 1px solid #2b3138; border-radius: 100px; padding: 3px 9px;">' + esc(rotulo(p.rf)) + '</span>'
               : '') +
@@ -1383,7 +1397,7 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
     var ativos = [];
     if (s.diasSel.length) ativos.push(s.diasSel.length === 1 ? diaCurto(s.diasSel[0]) : s.diasSel.length + ' dias');
     if (s.naturezas.length) ativos.push(s.naturezas.map(rotuloNatureza).join('+'));
-    if (s.marcas.length) ativos.push(s.marcas.map(function (k) { return MARCAS.filter(function (m) { return m.k === k; })[0].r; }).join(' e '));
+    if (s.marcas.length) ativos.push(s.marcas.map(function (k) { return (MARCAS.filter(function (m) { return m.k === k; })[0] || { r: k }).r; }).join(' e '));
     if (s.aba === 'panorama' && s.vereditos.length) ativos.push(s.vereditos.join('+'));
     if (s.areas.length) ativos.push(s.areas.length === 1 ? s.areas[0] : s.areas.length + ' áreas');
     if (s.subareas.length) ativos.push(s.subareas.length === 1 ? s.subareas[0] : s.subareas.length + ' sub-áreas');
@@ -2183,7 +2197,7 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
 
     var colunas = '132px minmax(240px, 1.3fr) 150px minmax(200px, 1fr) 110px 56px';
     var linhasFicha = doDia.map(function (p) {
-      var f = p.f ? (fichaPorId[p.id] || (fichasProntas ? null : CARREGANDO)) : null;
+      var f = p.f ? (fichaPorId[p.id] || (fichasProntas ? (fichasErro ? FALHOU : null) : CARREGANDO)) : null;
       var aberta = s.aberta === p.id;
       return '<div style="border-bottom: 1px solid #1d2226;">' +
         '<div class="row tab-ap" data-card="' + esc(p.id) + '"' + ev('c', function () { setState({ aberta: aberta ? null : p.id }); }) + ' role="button" tabindex="0" aria-expanded="' + aberta + '" style="display: grid; grid-template-columns: ' + colunas + '; gap: 14px; padding: 14px 24px; align-items: center;">' +
@@ -2316,7 +2330,12 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
     var json = function (r) { if (!r.ok) throw new Error(r.status + ' em ' + r.url); return r.json(); };
     fetch(PAINEL_ARQUIVOS.dados).then(json).then(function (dados) {
       var app = iniciar(dados, null);
-      return fetch(PAINEL_ARQUIVOS.fichas).then(json).then(app.recebeFichas);
+      /* Falha das fichas e tratada a parte: o painel ja esta de pe, e o que
+         falta e so o texto dos cards - que passam a dizer isso. */
+      return fetch(PAINEL_ARQUIVOS.fichas).then(json).then(function (fichas) { app.recebeFichas(fichas); }, function (erro) {
+        app.recebeFichas([], erro);
+        if (global.console) global.console.error(erro);
+      });
     }).catch(function (erro) {
       if (alvo && !alvo.querySelector('.card')) {
         alvo.innerHTML = '<div class="carregando"><h1>Daily Papers, triados</h1><p>Não foi possível carregar os dados do painel (' +
