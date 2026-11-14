@@ -76,8 +76,9 @@ no texto da ficha), **Panorama** (lote diário por natureza, natureza ×
 vertente, área por natureza, onde o pipeline corta, votos) e **Registro
 histórico** (por trimestre já fora da janela, os 15 aprovados mais votados e os
 5 descartados mais votados como auditoria). O pré-requisito, os perfis e o
-Padrão Extraído continuam no banco e nos Parquet, mas não aparecem no painel. O
-corte do histórico é `refresh.janela_morna_dias`, não `--dias`.
+Padrão Extraído continuam no banco, mas não aparecem no painel (os perfis não
+são mais exportados; ADR 005). O corte do histórico é
+`refresh.janela_morna_dias`, não `--dias`.
 
 ```bash
 python scripts/gerar_painel.py --force                         # após editar JS/CSS

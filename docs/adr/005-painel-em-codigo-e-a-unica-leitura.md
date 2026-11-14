@@ -16,19 +16,24 @@ pensando numa.
 
 ## Consequências
 
-- `marts/` continua sendo o contrato: o export não muda, e as regras dele
-  (datas como `date32`, grão fino sem pré-agregação, escrita atômica) valem
-  porque o painel lê esses arquivos.
+- `marts/` continua sendo o contrato, e as regras dele (datas como `date32`,
+  grão fino sem pré-agregação, escrita atômica) valem porque o painel lê esses
+  arquivos.
 - Agregações e ordenações que antes ficariam para a ferramenta de BI são papel
   do código do painel.
 - Hoje o painel lê só `dim_paper`, `fato_triagem`, `dim_ficha`,
   `ponte_paper_area`, `ponte_paper_vertente`, `fato_metrica`, `dim_area`,
-  `dim_vertente` e `dim_natureza`. Ficam **sem leitor no repositório**:
-  `dim_calendario`, `dim_prerequisito`, `dim_perfil`,
-  `ponte_perfil_prerequisito` e `ponte_paper_perfil` (o pré-requisito e os
-  perfis saíram do painel em 21/10/2026, ADR 004). Por ora continuam sendo
-  exportados, para análise ad hoc dos Parquet. Se vão para `ARQUIVOS_MORTOS`
-  é decisão de um PR seguinte; até lá, nenhum comentário deve citar o painel
-  como motivo para mantê-los.
+  `dim_vertente` e `dim_natureza`. `ponte_paper_autor`, `ponte_paper_keyword`
+  e `fato_execucao` também não têm leitor no painel, mas ficaram fora desta
+  decisão e seguem no export.
+- **Deixam de ser exportados**, por não terem leitor: `dim_calendario`,
+  `dim_prerequisito`, `dim_perfil`, `ponte_perfil_prerequisito` e
+  `ponte_paper_perfil`. O painel nunca leu o calendário, e o pré-requisito e os
+  perfis saíram dele em 21/10/2026 (adendo do ADR 004). Os cinco entram em
+  `ARQUIVOS_MORTOS`, e o export apaga o Parquet antigo de `marts/`.
+- As tabelas continuam **no banco**: `vw_paper_perfil` depende dos perfis e dos
+  degraus, o Estágio B grava `prerequisito`, e `fato_triagem.prerequisito`
+  segue no Parquet como coluna. Só o arquivo de cada uma sai.
+- `_manifest.versao_schema` passa a 3.
 - Os comentários, testes e docs que citavam a ferramenta externa foram
   reescritos para citar o painel ou os Parquet.

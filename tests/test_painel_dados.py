@@ -22,25 +22,9 @@ PAR_PRIMARIO = {
 
 VOCAB = {
     # fora de ordem de proposito: quem ordena e `ordem`, nao o Parquet
-    "dim_prerequisito": [
-        {"prerequisito": "treino", "rotulo": "Treino", "definicao": "d4", "ordem": 4},
-        {"prerequisito": "nenhum", "rotulo": "Nenhum", "definicao": "d1", "ordem": 1},
-        {"prerequisito": "sem_acao", "rotulo": "Sem ação", "definicao": "d5", "ordem": 5},
-        {"prerequisito": "implementar", "rotulo": "Implementar", "definicao": "d2", "ordem": 2},
-        {"prerequisito": "acesso_interno", "rotulo": "Acesso interno", "definicao": "d3", "ordem": 3},
-    ],
     "dim_natureza": [
         {"natureza": "panorama", "rotulo": "Panorama", "definicao": "", "ordem": 4},
         {"natureza": "proposta", "rotulo": "Proposta", "definicao": "", "ordem": 1},
-    ],
-    "dim_perfil": [
-        {"perfil": "pesquisa_treino", "rotulo": "Treino/pesquisa", "ordem": 2},
-        {"perfil": "produto", "rotulo": "Produto", "ordem": 1},
-    ],
-    "ponte_perfil_prerequisito": [
-        {"perfil": "produto", "prerequisito": "nenhum"},
-        {"perfil": "produto", "prerequisito": "implementar"},
-        {"perfil": "pesquisa_treino", "prerequisito": "treino"},
     ],
 }
 

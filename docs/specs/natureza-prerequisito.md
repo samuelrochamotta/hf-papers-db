@@ -179,8 +179,7 @@ vw_artefato       -- paper: evidencia, artefato_aberto
   escrita, e numa consulta do `doutor`. Não há rebuild posterior à total.
 - `dim_natureza`/`dim_prerequisito` com `INSERT OR IGNORE` no `schema.sql` +
   teste que confere contra os Enums de `llm/schemas.py`.
-- A ordem do degrau vive só em `dim_prerequisito` (o painel ordena
-  por ela).
+- A ordem do degrau vive só em `dim_prerequisito`.
 - `log_execucao`: `qtd_aprovados` + contagem por degrau (`qtd_pr_*`); é o único
   histórico de distribuição. Linhas antigas: `qtd_aprovados = amplo + estrito`.
 - `ponte_paper_criterio`: DROP. Apagar `marts/ponte_paper_criterio.parquet` à

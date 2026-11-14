@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS log_llm (
 );
 CREATE INDEX IF NOT EXISTS ix_llm_run ON log_llm(run_id);
 
--- ══════════════ CALENDÁRIO (sem leitor no repositório; ver ADR 005) ══════════════
+-- ══════════════ CALENDÁRIO (só no banco; o Parquet saiu no ADR 005) ══════════════
 CREATE TABLE IF NOT EXISTS dim_calendario (
     data            DATE PRIMARY KEY,
     ano             INTEGER, mes INTEGER, dia INTEGER,
