@@ -1,7 +1,7 @@
 <script>
   // Assinatura do paper: o radar de seis eixos em miniatura, desenhado em SVG
   // (trinta instancias de ECharts so para miniaturas seria peso demais).
-  import { EIXOS } from './dados.js';
+  import { EIXOS, radarValores } from './dados.js';
   let { radar, cor, tam = 44, tracejado = false, aceso = false } = $props();
   const n = EIXOS.length;
   const c = $derived(tam / 2);
@@ -12,8 +12,8 @@
     return [c + rr * Math.cos(a), c + rr * Math.sin(a)];
   };
   const contorno = $derived(EIXOS.map((_, i) => ponto(i, 100).join(',')).join(' '));
-  // eixo nao lido fica fora do poligono, que passa reto entre os vizinhos
-  const forma = $derived(EIXOS.map(([k], i) => (radar?.[k] == null ? null : ponto(i, radar[k]).join(','))).filter(Boolean).join(' '));
+  // mesma regra dos radares grandes: o vertice nao lido passa reto entre os vizinhos
+  const forma = $derived(radarValores(EIXOS.map(([k]) => radar?.[k])).map((v, i) => ponto(i, v).join(',')).join(' '));
 </script>
 
 <svg width={tam} height={tam} viewBox="0 0 {tam} {tam}" aria-hidden="true" class:aceso>
