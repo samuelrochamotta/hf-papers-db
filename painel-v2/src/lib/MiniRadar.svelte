@@ -2,7 +2,7 @@
   // Assinatura do paper: o radar de seis eixos em miniatura, desenhado em SVG
   // (trinta instancias de ECharts so para miniaturas seria peso demais).
   import { EIXOS, radarValores } from './dados.js';
-  let { radar, cor, tam = 44, tracejado = false, aceso = false } = $props();
+  let { radar, cor, borda = null, tam = 44, tracejado = false, aceso = false } = $props();
   const n = EIXOS.length;
   const c = $derived(tam / 2);
   const r = $derived(tam / 2 - 3);
@@ -21,14 +21,14 @@
   {#each EIXOS as _, i}
     <line x1={c} y1={c} x2={ponto(i, 100)[0]} y2={ponto(i, 100)[1]} class="raio" />
   {/each}
-  <polygon points={forma} fill={tracejado ? 'none' : cor} fill-opacity={tracejado ? 0 : 0.78}
-    stroke={tracejado ? 'var(--s-nada)' : cor} stroke-width="1.4" stroke-dasharray={tracejado ? '2.5 2' : null}
+  <polygon points={forma} fill={tracejado ? 'none' : cor} fill-opacity={tracejado ? 0 : 0.85}
+    stroke={tracejado ? 'var(--s-nada)' : borda || cor} stroke-width="1.4" stroke-dasharray={tracejado ? '2.5 2' : null}
     stroke-linejoin="round" class="forma" />
 </svg>
 
 <style>
-  .grade { fill: var(--sunk); stroke: var(--line); stroke-width: 1; }
-  .raio { stroke: var(--line); stroke-width: .7; }
+  .grade { fill: var(--sunk); stroke: var(--line-strong); stroke-width: .8; }
+  .raio { stroke: var(--line-strong); stroke-width: .5; opacity: .7; }
   .forma { transition: transform .35s cubic-bezier(.2,.8,.2,1); transform-origin: center; transform-box: fill-box; }
-  svg.aceso .forma { transform: scale(1.12); }
+  svg.aceso .forma { transform: scale(1.08); }
 </style>

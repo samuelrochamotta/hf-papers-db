@@ -30,24 +30,41 @@ DADOS=../relatorios/painel-v2/dados.json npm run previa   # HTML único em .prev
 
 ## Telas
 
-- **Topo**: marca, período (7 dias, 14 dias, tudo), lente ativa com ×, legenda
-  de cor (solidez).
-- **Assinaturas**: um mini radar por paper, do mais votado ao menos votado;
-  tracejado quando a leitura não basta. Passar o ponteiro acende o paper em
-  todos os gráficos; clicar abre o painel.
-- **Cartões** (cada um com pergunta e um número grande, sem rodapé):
-  comparar papers (radar com até 3 papers e a mediana do período), onde está a
-  disputa (arenas, vitórias, ruído, derrotas), quanto ganham do melhor rival
-  (haltere por paper), onde os votos não têm prova (enxame votos × solidez), o
-  que dá para adotar já (unidades por esforço), sobre o que se constrói e
-  contra quem se mede (barras divergentes por família), o que melhora gastando
-  menos (custo × ganho). Clicar numa arena, nível de solidez, degrau de esforço
-  ou família aplica a lente em tudo.
-- **A letra miúda**: limites admitidos, ressalvas graves e manchetes que a
-  tabela não confirma.
-- **Paper**: cartão (linha fixa, radar contra a mediana, comparar, células de
-  resultado, régua de 7 sinais, esforço, hardware, abertura), trechos literais,
-  ficha (tabelas, entidades por papel, links).
+Uma página em cinco seções numeradas, com a barra fixa no topo (marca, seções
+com "você está aqui", legenda de solidez, período e tema claro/escuro) e uma
+linha de recorte embaixo dela (quantos papers, intervalo de datas, filtro
+ativo como chip removível). Período, filtro, paper aberto e comparação vão
+para o endereço (`?periodo=7&lente=ar:codigo&paper=…&comparar=…`).
+
+1. **Papers**: índice de assinaturas (mini radar por paper), ordenável por
+   votos, ganho ou solidez; tracejado quando a leitura não basta. Clicar abre
+   o paper; o `+` do canto põe na comparação (com a cor da comparação).
+2. **Comparar**: radar com até 3 papers e a mediana do recorte, e os mesmos
+   números numa tabela por eixo.
+3. **Resultados**: onde está a disputa (arenas) e quanto ganham do melhor
+   rival (haltere).
+4. **Prova**: onde há votos sem prova (enxame) e a letra miúda (limites
+   admitidos, ressalvas graves, manchetes que a tabela não confirma).
+5. **Adoção**: o que dá para adotar já, o que melhora gastando menos e sobre
+   quem se constrói e contra quem se mede.
+
+Cada cartão tem pergunta e um número que responde. Clicar numa arena, nível
+de solidez, degrau de esforço ou família aplica a lente em tudo; o botão de
+filtro do cartão mostra as mesmas categorias como botões (teclado e leitor de
+tela). Passar o ponteiro num paper acende o mesmo paper em todos os gráficos.
+
+**Paper**: gaveta lateral no desktop (a página abre espaço para ela a partir
+de 1280 px) e folha de baixo no celular; anterior/próximo (Alt ← →), Esc
+fecha e devolve o foco. Abas Resumo (fatos, radar contra a mediana, comparar,
+resultados, sinais de prova, esforço, hardware, abertura), Trechos (frases
+literais) e Ficha (tabelas, entidades, links).
+
+**Sistema visual** (`painel-v2/src/app.css`): tokens de cor, tipo, espaço,
+raio e movimento; Newsreader para títulos e números, Geist para interface,
+Geist Mono para dados; grade de 4 px; uma família de controles (segmentado,
+botão, chip, botão de ícone) com repouso, hover, foco, ativo e desabilitado;
+`prefers-reduced-motion` respeitado. `tema.js` lê os tokens e monta o tema
+dos gráficos.
 
 ## Eixos do radar (0–100, `null` = não lido)
 
