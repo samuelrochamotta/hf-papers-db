@@ -2,7 +2,7 @@
   import Card from '../lib/Card.svelte';
   import Kpi from '../lib/Kpi.svelte';
   import Grafico from '../lib/Grafico.svelte';
-  import { ESFORCO, SOL_ROT, ART, ART_EST } from '../lib/dados.js';
+  import { ESFORCO, SOL_ROT, ART, ART_EST, esc } from '../lib/dados.js';
   import { base, estiloPonto } from '../lib/tema.js';
   import { estado, lente } from '../lib/estado.svelte.js';
 
@@ -25,7 +25,7 @@
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
         const p = papers.find((x) => x.id === q.data.pid);
         const ab = Object.entries(p.ab).map(([k, v]) => `${ART[k]} ${ART_EST[v]}`).join(' · ');
-        return `<b>${p.t}</b><br>${ESFORCO[p.esf]} · solidez ${SOL_ROT[p.sol]}<br><span style="opacity:.75">${ab}</span>`;
+        return `<b>${esc(p.t)}</b><br>${ESFORCO[p.esf]} · solidez ${SOL_ROT[p.sol]}<br><span style="opacity:.75">${ab}</span>`;
       } },
       xAxis: { type: 'value', min: -0.6, max: maxN - 0.4, show: false },
       yAxis: { type: 'category', inverse: true, data: NIVEIS.map((n) => ESFORCO[n]), triggerEvent: true,

@@ -1,7 +1,7 @@
 <script>
   import Card from '../lib/Card.svelte';
   import Grafico from '../lib/Grafico.svelte';
-  import { EIXOS, EIXO_DICA, median, curto } from '../lib/dados.js';
+  import { EIXOS, EIXO_DICA, median, curto, esc } from '../lib/dados.js';
   import { base } from '../lib/tema.js';
   import { estado, alternaComparar, abrir, MAX_COMPARAR } from '../lib/estado.svelte.js';
 
@@ -31,7 +31,7 @@
         formatter: (q) => {
           if (q.data.mediana) return `<b>Mediana do período</b>`;
           const p = porId.get(q.data.pid);
-          return `<b>${p.t}</b><br>` + EIXOS.map(([k, r]) =>
+          return `<b>${esc(p.t)}</b><br>` + EIXOS.map(([k, r]) =>
             `${r}: <b>${p.radar[k] == null ? 'não lido' : p.radar[k]}</b> <span style="opacity:.6">${EIXO_DICA[k]}</span>`).join('<br>');
         },
       },

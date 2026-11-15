@@ -2,6 +2,12 @@
 // (deltas, solidez, esforco, radar) chegam prontas do Python
 // (src/hfpapers/leitura/derivar.py): aqui so se agrega para desenhar.
 
+// Tudo que vem do paper (titulo, nomes, URLs) e texto de fora: escapa antes de
+// entrar em HTML de tooltip e so aceita link http(s).
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
+export const urlSegura = (u) => (typeof u === 'string' && /^\s*https?:\/\//i.test(u) ? u.trim() : null);
+
 export const ARENA = {
   matematica_raciocinio: 'Matemática', codigo: 'Código', agentes_ferramentas: 'Agentes',
   conhecimento_linguagem: 'Linguagem', compreensao_multimodal: 'Multimodal',

@@ -2,7 +2,7 @@
   import Card from '../lib/Card.svelte';
   import Kpi from '../lib/Kpi.svelte';
   import Grafico from '../lib/Grafico.svelte';
-  import { median, curto, fmt, sgn } from '../lib/dados.js';
+  import { median, curto, fmt, sgn, esc } from '../lib/dados.js';
   import { base, estiloPonto } from '../lib/tema.js';
   import { estado } from '../lib/estado.svelte.js';
 
@@ -30,7 +30,7 @@
       grid: { left: 4, right: 70, top: 14, bottom: 22, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
         const o = pontos.find((x) => x.p.id === q.data.pid);
-        return `<b>${o.p.t}</b><br>custo ${fmt(o.f, 2)}× · ganho ${sgn(o.g)}%`;
+        return `<b>${esc(o.p.t)}</b><br>custo ${fmt(o.f, 2)}× · ganho ${sgn(o.g)}%`;
       } },
       xAxis: { type: 'log', min: 0.02, max: 3, logBase: 10,
         axisLabel: { color: t.muted, fontFamily: t.mono, fontSize: 10.5, formatter: (v) => `${fmt(v, 2)}×` }, splitLine: { lineStyle: { color: t.line } } },

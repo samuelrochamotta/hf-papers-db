@@ -124,10 +124,19 @@ def test_extrair_confere_e_fixa_a_cobertura():
     assert lt.custo_usd == pytest.approx(0.0055) and lt.tokens_entrada == 40_000
 
 
+def test_link_de_artefato_so_aceita_http():
+    o = {"artefatos": [{"tipo": "codigo", "estado": "liberado", "url": "javascript:alert(1)"},
+                       {"tipo": "pesos", "estado": "liberado", "url": " https://huggingface.co/x "},
+                       {"tipo": "dados", "estado": "prometido", "url": None}],
+         "leitura": {"cobertura": "completa"}}
+    assert [a[2] for a in derivar.derivar(o, {})["art"]] == [None, "https://huggingface.co/x", None]
+
+
 def test_leitura_tem_prazo_proprio():
     cfg = extrator.config_leitura(_cfg())
     assert cfg.llm.prazo_total_s == 300 and cfg.llm.timeout_s >= 300
     assert _cfg().llm.prazo_total_s == 90  # os estagios A e B nao mudam
+
 
 def test_numero_nao_conferido_nao_vira_rival():
     tp = texto.html_para_texto("2611.00001", HTML)

@@ -12,6 +12,7 @@ ainda nao foram calibrados contra um conjunto-ouro.
 from __future__ import annotations
 
 import math
+import re
 import statistics as st
 from typing import Any, Iterable, Optional
 
@@ -35,6 +36,14 @@ def _pm(linha: dict) -> Optional[float]:
 
 
 # ── resultados ──────────────────────────────────────────────────────────────
+
+
+_HTTP = re.compile(r"^\s*https?://", re.I)
+
+
+def url_segura(u):
+    """A URL vem copiada pelo modelo: so http(s) vira link no painel."""
+    return u.strip() if isinstance(u, str) and _HTTP.match(u) else None
 
 
 def resultado(r: dict) -> Optional[dict]:
@@ -262,7 +271,7 @@ def derivar(o: dict, meta: dict) -> dict:
         "aleg": [[x.get("tipo"), x.get("trecho"), x.get("secao")] for x in (o.get("alegacoes") or []) if ok(x)],
         "ress": [[x.get("tipo"), x.get("trecho"), x.get("secao")] for x in (o.get("ressalvas") or []) if ok(x)],
         "ef": [x for x in (o.get("efeitos_custo") or []) if ok(x)],
-        "art": [[x.get("tipo"), x.get("estado"), x.get("url")] for x in (o.get("artefatos") or [])],
+        "art": [[x.get("tipo"), x.get("estado"), url_segura(x.get("url"))] for x in (o.get("artefatos") or [])],
         "naoex": o.get("nao_extraivel") or [],
         "best": best and {"b": best["b"], "r": best["rext"], "x": best["ext"][0]},
         "url": f"https://arxiv.org/abs/{pid}",

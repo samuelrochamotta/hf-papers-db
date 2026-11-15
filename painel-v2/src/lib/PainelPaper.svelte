@@ -6,8 +6,7 @@
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import {
-    ENTREGA, CAMADA, ESFORCO, EIXOS, EIXO_DICA, SIG, ART, ART_EST, SOL_ROT, linhaFixa, sgn, fmt, dataCurta, median,
-  } from './dados.js';
+    ENTREGA, CAMADA, ESFORCO, EIXOS, EIXO_DICA, SIG, ART, ART_EST, SOL_ROT, linhaFixa, sgn, fmt, dataCurta, median, urlSegura } from './dados.js';
   import { base, corSolidez } from './tema.js';
   import { estado, fechar, alternaComparar } from './estado.svelte.js';
 
@@ -144,7 +143,7 @@
           <div class="links">
             <a href={p.url} target="_blank" rel="noopener">arXiv ↗</a>
             <a href="https://huggingface.co/papers/{p.id}" target="_blank" rel="noopener">Hugging Face ↗</a>
-            {#each p.art.filter((a) => a[2]) as a}<a href={a[2]} target="_blank" rel="noopener">{ART[a[0]] || a[0]} ↗</a>{/each}
+            {#each p.art.filter((a) => urlSegura(a[2])) as a}<a href={urlSegura(a[2])} target="_blank" rel="noopener">{ART[a[0]] || a[0]} ↗</a>{/each}
           </div>
         {/if}
       </div>
