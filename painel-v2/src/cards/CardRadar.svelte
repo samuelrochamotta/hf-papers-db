@@ -1,7 +1,7 @@
 <script>
   import Card from '../lib/Card.svelte';
   import Grafico from '../lib/Grafico.svelte';
-  import { EIXOS, EIXO_DICA, median, curto } from '../lib/dados.js';
+  import { EIXOS, EIXO_DICA, median, curto, esc, radarValores } from '../lib/dados.js';
   import { base } from '../lib/tema.js';
   import { estado, alternaComparar, abrir, MAX_COMPARAR } from '../lib/estado.svelte.js';
 
@@ -10,15 +10,16 @@
   const porId = $derived(new Map(todos.map((p) => [p.id, p])));
   const sel = $derived(estado.comparar.map((id) => porId.get(id)).filter(Boolean));
   const cores = $derived([t.compare1, t.compare2, t.compare3]);
-  const mediana = $derived(EIXOS.map(([k]) => median(papers.map((p) => p.radar[k])) ?? 0));
+  const mediana = $derived(radarValores(EIXOS.map(([k]) => median(papers.map((p) => p.radar[k])))));
   const opcoes = $derived(todos.filter((p) => !estado.comparar.includes(p.id)));
 
   const opcao = $derived.by(() => {
     if (!t.ink) return null;
     const dados = sel.map((p, i) => ({
       name: p.t, pid: p.id,
-      value: EIXOS.map(([k]) => p.radar[k] ?? 0),
-      symbol: 'circle', symbolSize: 6,
+      value: radarValores(EIXOS.map(([k]) => p.radar[k])),
+      // com eixo nao lido o vertice e so passagem: sem ponto para nao parecer medida
+      symbol: EIXOS.some(([k]) => p.radar[k] == null) ? 'none' : 'circle', symbolSize: 6,
       itemStyle: { color: cores[i] },
       lineStyle: { color: cores[i], width: 2.2 },
       areaStyle: { color: cores[i], opacity: 0.16 },
@@ -31,12 +32,13 @@
         formatter: (q) => {
           if (q.data.mediana) return `<b>Mediana do período</b>`;
           const p = porId.get(q.data.pid);
-          return `<b>${p.t}</b><br>` + EIXOS.map(([k, r]) =>
+          return `<b>${esc(p.t)}</b><br>` + EIXOS.map(([k, r]) =>
             `${r}: <b>${p.radar[k] == null ? 'não lido' : p.radar[k]}</b> <span style="opacity:.6">${EIXO_DICA[k]}</span>`).join('<br>');
         },
       },
       radar: {
-        indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })),
+        indicator: EIXOS.map(([k, r]) => ({ name: sel.length && sel.every((p) => p.radar[k] == null) ? `${r}\nnão lido` : r, max: 100,
+          color: sel.length && sel.every((p) => p.radar[k] == null) ? t.muted : undefined })),
         radius: '68%', center: ['50%', '52%'], splitNumber: 4, shape: 'polygon',
         axisName: { color: t.ink2, fontSize: 12, fontWeight: 500 },
         splitLine: { lineStyle: { color: t.line } },

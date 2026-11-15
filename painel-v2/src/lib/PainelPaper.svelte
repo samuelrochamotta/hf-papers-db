@@ -6,8 +6,7 @@
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import {
-    ENTREGA, CAMADA, ESFORCO, EIXOS, EIXO_DICA, SIG, ART, ART_EST, SOL_ROT, linhaFixa, sgn, fmt, dataCurta, median,
-  } from './dados.js';
+    ENTREGA, CAMADA, ESFORCO, EIXOS, EIXO_DICA, SIG, ART, ART_EST, SOL_ROT, linhaFixa, sgn, fmt, dataCurta, median, urlSegura, radarValores } from './dados.js';
   import { base, corSolidez } from './tema.js';
   import { estado, fechar, alternaComparar } from './estado.svelte.js';
 
@@ -21,7 +20,7 @@
   $effect(() => { estado.sel; celula = 0; sinal = null; });
   $effect(() => { document.body.classList.toggle('painel-aberto', !!p); });
 
-  const mediana = $derived(EIXOS.map(([k]) => median(papers.map((x) => x.radar[k])) ?? 0));
+  const mediana = $derived(radarValores(EIXOS.map(([k]) => median(papers.map((x) => x.radar[k])))));
   const cor = $derived(p ? (p.sol === 'sem_leitura' ? t.sNada : corSolidez(t, p.sol)) : '');
   const opRadar = $derived.by(() => {
     if (!p || !t.ink) return null;
@@ -29,12 +28,12 @@
       ...base(t),
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => q.data.mediana ? 'Mediana do período'
         : EIXOS.map(([k, r]) => `${r}: <b>${p.radar[k] == null ? 'não lido' : p.radar[k]}</b>`).join('<br>') },
-      radar: { indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })), radius: '66%', center: ['50%', '54%'], splitNumber: 4,
+      radar: { indicator: EIXOS.map(([k, r]) => (p.radar[k] == null ? { name: `${r}\nnão lido`, max: 100, color: t.muted } : { name: r, max: 100 })), radius: '66%', center: ['50%', '54%'], splitNumber: 4,
         axisName: { color: t.ink2, fontSize: 11 }, splitLine: { lineStyle: { color: t.line } },
         splitArea: { areaStyle: { color: [t.sunk, 'transparent'] } }, axisLine: { lineStyle: { color: t.line } } },
       series: [{ type: 'radar', data: [
         { name: 'Mediana', mediana: true, value: mediana, symbol: 'none', lineStyle: { color: t.muted, type: [4, 4], width: 1 }, silent: true },
-        { name: p.t, value: EIXOS.map(([k]) => p.radar[k] ?? 0), symbol: 'circle', symbolSize: 5,
+        { name: p.t, value: radarValores(EIXOS.map(([k]) => p.radar[k])), symbol: naoLidos.length ? 'none' : 'circle', symbolSize: 5,
           itemStyle: { color: t.accent }, lineStyle: { color: t.accent, width: 2 }, areaStyle: { color: t.accent, opacity: .2 } },
       ] }],
     };
@@ -144,7 +143,7 @@
           <div class="links">
             <a href={p.url} target="_blank" rel="noopener">arXiv ↗</a>
             <a href="https://huggingface.co/papers/{p.id}" target="_blank" rel="noopener">Hugging Face ↗</a>
-            {#each p.art.filter((a) => a[2]) as a}<a href={a[2]} target="_blank" rel="noopener">{ART[a[0]] || a[0]} ↗</a>{/each}
+            {#each p.art.filter((a) => urlSegura(a[2])) as a}<a href={urlSegura(a[2])} target="_blank" rel="noopener">{ART[a[0]] || a[0]} ↗</a>{/each}
           </div>
         {/if}
       </div>

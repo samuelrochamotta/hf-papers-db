@@ -2,7 +2,7 @@
   import Card from '../lib/Card.svelte';
   import Kpi from '../lib/Kpi.svelte';
   import Grafico from '../lib/Grafico.svelte';
-  import { SOLIDEZ, SOL_ROT, median } from '../lib/dados.js';
+  import { SOLIDEZ, SOL_ROT, median, esc } from '../lib/dados.js';
   import { base, estiloPonto } from '../lib/tema.js';
   import { estado, lente } from '../lib/estado.svelte.js';
 
@@ -19,7 +19,7 @@
       grid: { left: 4, right: 10, top: 14, bottom: 26, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
         const p = papers.find((x) => x.id === q.data.pid);
-        return `<b>${p.t}</b><br>${p.u} votos · solidez ${SOL_ROT[p.sol]} (${p.T} de ${p.nl} sinais)`;
+        return `<b>${esc(p.t)}</b><br>${p.u} votos · solidez ${SOL_ROT[p.sol]} (${p.T} de ${p.nl} sinais)`;
       } },
       xAxis: { type: 'category', data: ORDEM.map((s) => SOL_ROT[s]), triggerEvent: true,
         jitter: 34, jitterOverlap: false, jitterMargin: 3,

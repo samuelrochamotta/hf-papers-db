@@ -2,6 +2,12 @@
 // (deltas, solidez, esforco, radar) chegam prontas do Python
 // (src/hfpapers/leitura/derivar.py): aqui so se agrega para desenhar.
 
+// Tudo que vem do paper (titulo, nomes, URLs) e texto de fora: escapa antes de
+// entrar em HTML de tooltip e so aceita link http(s).
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
+export const urlSegura = (u) => (typeof u === 'string' && /^\s*https?:\/\//i.test(u) ? u.trim() : null);
+
 export const ARENA = {
   matematica_raciocinio: 'Matemática', codigo: 'Código', agentes_ferramentas: 'Agentes',
   conhecimento_linguagem: 'Linguagem', compreensao_multimodal: 'Multimodal',
@@ -55,6 +61,25 @@ export async function carregar() {
   const r = await fetch('dados.json', { cache: 'no-cache' });
   if (!r.ok) throw new Error(`dados.json: HTTP ${r.status}`);
   return r.json();
+}
+
+// Eixo nao lido nao e zero. No radar, o vertice nao lido vai para o ponto em
+// que a reta entre os vizinhos lidos cruza o eixo: o poligono passa reto por
+// ele, como se o eixo nao existisse. Sem vizinhos que fechem menos de 180 graus,
+// fica no centro.
+export function radarValores(vals) {
+  const n = vals.length, passo = (2 * Math.PI) / n;
+  return vals.map((v, k) => {
+    if (v != null) return v;
+    let dl = 1; while (dl < n && vals[(k - dl + n) % n] == null) dl++;
+    let dr = 1; while (dr < n && vals[(k + dr) % n] == null) dr++;
+    if (dl >= n) return 0;
+    const t1 = dl * passo, t2 = dr * passo;
+    if (t1 + t2 >= Math.PI - 1e-9) return 0;
+    const a = vals[(k - dl + n) % n], b = vals[(k + dr) % n];
+    const den = a * Math.sin(t1) + b * Math.sin(t2);
+    return den > 0 ? Math.round((a * b * Math.sin(t1 + t2)) / den * 10) / 10 : 0;
+  });
 }
 
 export const median = (xs) => {

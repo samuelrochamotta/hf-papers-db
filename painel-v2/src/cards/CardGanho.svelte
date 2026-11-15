@@ -2,7 +2,7 @@
   import Card from '../lib/Card.svelte';
   import Kpi from '../lib/Kpi.svelte';
   import Grafico from '../lib/Grafico.svelte';
-  import { median, curto, sgn, SOL_ROT } from '../lib/dados.js';
+  import { median, curto, sgn, SOL_ROT, esc } from '../lib/dados.js';
   import { base, estiloPonto } from '../lib/tema.js';
   import { estado } from '../lib/estado.svelte.js';
 
@@ -25,7 +25,7 @@
       grid: { left: 4, right: 14, top: 6, bottom: 22, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
         const l = linhas[q.dataIndex];
-        return `<b>${l.p.t}</b><br>Mediana ${sgn(l.med)}% · de ${sgn(l.lo)}% a ${sgn(l.hi)}% em ${l.n} tabela${l.n > 1 ? 's' : ''}<br>Solidez: ${SOL_ROT[l.p.sol]}`;
+        return `<b>${esc(l.p.t)}</b><br>Mediana ${sgn(l.med)}% · de ${sgn(l.lo)}% a ${sgn(l.hi)}% em ${l.n} tabela${l.n > 1 ? 's' : ''}<br>Solidez: ${SOL_ROT[l.p.sol]}`;
       } },
       xAxis: { type: 'value', min: LO, max: HI, interval: 20,
         axisLabel: { color: t.muted, fontFamily: t.mono, fontSize: 10.5, formatter: (v) => `${v > 0 ? '+' : ''}${v}%` },

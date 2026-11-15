@@ -2,7 +2,7 @@
   import Card from '../lib/Card.svelte';
   import Kpi from '../lib/Kpi.svelte';
   import Grafico from '../lib/Grafico.svelte';
-  import { familia } from '../lib/dados.js';
+  import { familia, esc } from '../lib/dados.js';
   import { base } from '../lib/tema.js';
   import { estado, lente } from '../lib/estado.svelte.js';
 
@@ -37,7 +37,7 @@
       ...base(t),
       grid: { left: 4, right: 18, top: 22, bottom: 4, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: t.accentSoft } },
-        formatter: (qs) => `<b>${qs[0].name}</b><br>${modo === 'modelo' ? 'Base de' : 'Criado ou usado no treino em'} ${linhas[qs[0].dataIndex].l} · ${modo === 'modelo' ? 'régua de' : 'avalia'} ${linhas[qs[0].dataIndex].r}` },
+        formatter: (qs) => `<b>${esc(qs[0].name)}</b><br>${modo === 'modelo' ? 'Base de' : 'Criado ou usado no treino em'} ${linhas[qs[0].dataIndex].l} · ${modo === 'modelo' ? 'régua de' : 'avalia'} ${linhas[qs[0].dataIndex].r}` },
       xAxis: { type: 'value', min: -mx * 1.3, max: mx * 1.3, show: false },
       yAxis: { type: 'category', data: linhas.map((l) => l.f), triggerEvent: true, position: 'left',
         axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: t.ink, fontWeight: 500, fontSize: 12 } },

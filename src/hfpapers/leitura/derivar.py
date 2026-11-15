@@ -12,6 +12,7 @@ ainda nao foram calibrados contra um conjunto-ouro.
 from __future__ import annotations
 
 import math
+import re
 import statistics as st
 from typing import Any, Iterable, Optional
 
@@ -35,6 +36,23 @@ def _pm(linha: dict) -> Optional[float]:
 
 
 # ── resultados ──────────────────────────────────────────────────────────────
+
+
+_HTTP = re.compile(r"^\s*https?://", re.I)
+
+
+def _ok(x) -> bool:
+    """Trecho conferido, ou sem trecho a conferir. So `_ok is False` sai."""
+    return isinstance(x, dict) and x.get("_ok") is not False
+
+
+def _conferidos(xs) -> list[dict]:
+    return [x for x in (xs or []) if _ok(x)]
+
+
+def url_segura(u):
+    """A URL vem copiada pelo modelo: so http(s) vira link no painel."""
+    return u.strip() if isinstance(u, str) and _HTTP.match(u) else None
 
 
 def resultado(r: dict) -> Optional[dict]:
@@ -103,25 +121,26 @@ def resultado(r: dict) -> Optional[dict]:
 def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, Optional[float], Optional[dict]]:
     comp = [r for r in res if r["ext"] and r["nos"]]
     vit = round(sum(r["e"] == "ganha" for r in comp) / len(comp), 2) if comp else None
-    e = o.get("estatistica") or {}
+    # O que o codigo nao achou no texto nao conta como sinal.
+    e = o.get("estatistica") if _ok(o.get("estatistica")) else {}
     ev = o.get("evidencia") or []
     sig: dict[str, Optional[bool]] = {}
     v = e.get("variancia")
     sig["var"] = True if v in ("pm_definido", "ic") else (
         False if v == "pm_sem_definicao" or (v == "nenhuma" and not parcial) else None)
     seeds, trials = num(e.get("seeds")), num(e.get("trials"))
-    escala = max([num(x.get("n")) or 0 for x in (o.get("escala") or [])] + [0])
+    escala = max([num(x.get("n")) or 0 for x in _conferidos(o.get("escala"))] + [0])
     sig["n"] = True if ((seeds or 0) >= 3 or (trials or 0) >= 3 or escala >= 100) else (
         False if (seeds or trials) else None)
     sig["ext"] = (len(comp) > 0) if res else None
     sig["vit"] = (vit >= 0.7) if vit is not None else None
     sig["evid"] = (("humana" in ev) or ("mundo_real" in ev)) if ev else None
 
-    manchetes = [x for x in (o.get("alegacoes") or [])
+    manchetes = [x for x in _conferidos(o.get("alegacoes"))
                  if x.get("tipo") == "manchete" and num(x.get("numero")) is not None]
     man = None
     conf = None
-    if manchetes and res:
+    if manchetes:
         n0 = num(manchetes[0]["numero"])
         cands: list[float] = []
         for r in res:
@@ -133,12 +152,13 @@ def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, Optional[floa
             for k in ("rext", "rwk"):
                 if r[k] is not None:
                     cands.append(abs(r[k]))
-        conf = any(abs(c - n0) <= max(0.051, abs(n0) * 0.01) for c in cands if c is not None)
+        # Sem tabela conferida nao ha com o que comparar: conf fica None ("sem tabela").
+        conf = any(abs(c - n0) <= max(0.051, abs(n0) * 0.01) for c in cands if c is not None) if res else None
         m = manchetes[0]
         man = {"n": n0, "u": m.get("unidade"), "contra": m.get("contra"), "tr": m.get("trecho"),
                "ok": m.get("_ok"), "conf": conf}
     sig["man"] = conf
-    rs = o.get("ressalvas") or []
+    rs = _conferidos(o.get("ressalvas"))
     lim = (o.get("leitura") or {}).get("secao_limitacoes")
     sig["ress"] = False if any(x.get("tipo") in GRAVE for x in rs) else (
         True if (rs or lim == "presente") else None)
@@ -160,7 +180,7 @@ def solidez(sig: dict) -> tuple[str, int, int]:
 def abertura(o: dict, parcial: bool, github: Optional[str]) -> tuple[dict, bool]:
     ab: dict[str, str] = {}
     for t in PESO_ARTEFATO:
-        estados = [x.get("estado") for x in (o.get("artefatos") or []) if x.get("tipo") == t]
+        estados = [x.get("estado") for x in _conferidos(o.get("artefatos")) if x.get("tipo") == t]
         ab[t] = max(estados, key=lambda e: RANK_ARTEFATO.get(e, 0)) if estados else (
             "nao_lido" if parcial else "ausente")
     conferido = False
@@ -240,7 +260,7 @@ def derivar(o: dict, meta: dict) -> dict:
     esf = esforco(entrega, camada, ab)
     comp = [r for r in res if r["ext"] and r["nos"] and r["rext"] is not None]
     best = max(comp, key=lambda r: r["rext"]) if comp else None
-    ok = lambda x: x.get("_ok") is not False  # noqa: E731 - trecho nao achado fica fora
+    ok = _ok  # trecho nao achado fica fora
     p = {
         "id": pid, "t": o.get("titulo") or meta.get("t"), "d": meta.get("d"),
         "u": meta.get("u") or 0, "org": meta.get("org") or "",
@@ -254,15 +274,15 @@ def derivar(o: dict, meta: dict) -> dict:
         "ab": ab, "abConf": ab_conf, "esf": esf,
         "rel": any(ab[k] == "liberado" for k in ("codigo", "pesos", "dados")),
         "prom": any(ab[k] == "prometido" for k in ("codigo", "pesos", "dados")),
-        "hw": classe_hardware(o.get("hardware") or []),
+        "hw": classe_hardware(_conferidos(o.get("hardware"))),
         "ar": sorted({r["ar"] for r in res}),
         "ents": [[e.get("nome"), e.get("tipo"), e.get("papel"), e.get("tamanho"), bool(e.get("fechado"))]
-                 for e in (o.get("entidades") or [])],
+                 for e in _conferidos(o.get("entidades"))],
         "man": man,
         "aleg": [[x.get("tipo"), x.get("trecho"), x.get("secao")] for x in (o.get("alegacoes") or []) if ok(x)],
         "ress": [[x.get("tipo"), x.get("trecho"), x.get("secao")] for x in (o.get("ressalvas") or []) if ok(x)],
         "ef": [x for x in (o.get("efeitos_custo") or []) if ok(x)],
-        "art": [[x.get("tipo"), x.get("estado"), x.get("url")] for x in (o.get("artefatos") or [])],
+        "art": [[x.get("tipo"), x.get("estado"), url_segura(x.get("url"))] for x in _conferidos(o.get("artefatos"))],
         "naoex": o.get("nao_extraivel") or [],
         "best": best and {"b": best["b"], "r": best["rext"], "x": best["ext"][0]},
         "url": f"https://arxiv.org/abs/{pid}",
