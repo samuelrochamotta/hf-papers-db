@@ -22,7 +22,7 @@
   });
   const ativa = $derived(estado.lente?.k === 'sol' ? estado.lente.v : null);
   const opcao = $derived.by(() => {
-    if (!t.ink) return null;
+    if (!t.ink || !papers.length) return null;
     return {
       ...base(t),
       grid: { left: 0, right: 46, top: 22, bottom: 4, containLabel: true },
@@ -58,5 +58,6 @@
 <Card titulo="Onde há votos sem prova?" filtra="Clique num nível de solidez para filtrar o painel inteiro">
   {#snippet filtros()}<Filtros k="sol" rotulo="Filtrar por solidez" itens={ORDEM.map((s) => [s, SOL_ROT[s]])} />{/snippet}
   {#snippet kpi()}<Kpi valor={ruidosos} texto="papers com votos acima da mediana e prova frágil ou básica" />{/snippet}
-  {#if opcao}<Grafico {opcao} altura={280} aoClicar={clicar} rotulo="Votos de cada paper por nível de solidez, em escala logarítmica" />{/if}
+  {#if opcao}<Grafico {opcao} altura={280} aoClicar={clicar} rotulo="Votos de cada paper por nível de solidez, em escala logarítmica" />
+  {:else if !papers.length}<div class="vazio">Nenhum paper neste recorte.</div>{/if}
 </Card>

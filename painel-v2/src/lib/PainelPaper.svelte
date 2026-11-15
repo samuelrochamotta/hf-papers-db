@@ -11,7 +11,7 @@
   import {
     ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_ROT, sgn, fmt, dataCurta, median, urlSegura, radarValores, intervalo } from './dados.js';
   import { base, corSolidez, dica } from './tema.js';
-  import { estado, fechar, alternaComparar, abrir } from './estado.svelte.js';
+  import { estado, fechar, alternaComparar, abrir, mov } from './estado.svelte.js';
 
   let { papers, todos } = $props();
   const p = $derived(estado.sel ? todos.find((x) => x.id === estado.sel) : null);
@@ -94,9 +94,9 @@
 <svelte:window onkeydown={tecla} />
 
 {#if p}
-  {#if !largo}<button class="veu" aria-label="Fechar o paper" onclick={fechar} transition:fade={{ duration: 200 }}></button>{/if}
+  {#if !largo}<button class="veu" aria-label="Fechar o paper" onclick={fechar} transition:fade={{ duration: mov(200) }}></button>{/if}
   <div class="painel" bind:this={painel} aria-labelledby="paper-titulo" role="dialog" aria-modal={!largo}
-    transition:fly={largo ? { x: 40, duration: 260, easing: cubicOut, opacity: 0 } : { y: 600, duration: 320, easing: cubicOut, opacity: 1 }}>
+    transition:fly={largo ? { x: 40, duration: mov(260), easing: cubicOut, opacity: 0 } : { y: 600, duration: mov(320), easing: cubicOut, opacity: 1 }}>
     {#if !largo}<div class="alca" aria-hidden="true"></div>{/if}
     <div class="barra">
       {#if pos < 0}<span class="fora">Fora do recorte atual</span>{:else}
@@ -110,7 +110,7 @@
 
     <div class="corpo">
       {#key p.id}
-      <div in:fade={{ duration: 180 }}>
+      <div in:fade={{ duration: mov(180) }}>
         <div class="tipo"><i class="dot" class:nada={p.sol === 'sem_leitura'} class:fragil={p.sol === 'fragil'} style:background={corSolidez(t, p.sol)}></i>
           Solidez {SOL_ROT[p.sol].toLowerCase()}<span class="sep">·</span>{ENTREGA[p.ent] || p.ent}{#if p.cam}<span class="sep">·</span>{CAMADA[p.cam] || p.cam}{/if}</div>
         <h2 id="paper-titulo" tabindex="-1">{p.t}</h2>

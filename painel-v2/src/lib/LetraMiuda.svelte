@@ -4,7 +4,7 @@
   import { slide } from 'svelte/transition';
   import { curto, fmt } from './dados.js';
   import { corSolidez } from './tema.js';
-  import { estado, abrir } from './estado.svelte.js';
+  import { estado, abrir, mov } from './estado.svelte.js';
   let { papers } = $props();
   const GRAVE = ['preliminar', 'amostra_pequena', 'pesos_ficticios'];
   const TIPO = { adm: 'Limite admitido', grave: 'Ressalva grave', man: 'Manchete ≠ tabela' };
@@ -17,7 +17,7 @@
       for (const a of p.aleg) if (a[0] === 'negativa') out.push({ p, tipo: 'adm', q: a[1] });
     }
     const ordem = { man: 0, grave: 1, adm: 2 };
-    return out.sort((a, b) => ordem[a.tipo] - ordem[b.tipo] || b.p.u - a.p.u).slice(0, 24);
+    return out.sort((a, b) => ordem[a.tipo] - ordem[b.tipo] || b.p.u - a.p.u);
   });
   const contagem = $derived(Object.fromEntries(Object.keys(TIPO).map((k) => [k, itens.filter((i) => i.tipo === k).length])));
   let todos = $state(false);
@@ -30,7 +30,7 @@
   </div>
   <div class="grade">
     {#each visiveis as it, i (it.p.id + it.tipo + i)}
-      <button class="neg {it.tipo}" onclick={() => abrir(it.p.id, 2)} transition:slide={{ duration: 200 }}
+      <button class="neg {it.tipo}" onclick={() => abrir(it.p.id, 2)} transition:slide={{ duration: mov(200) }}
         onmouseenter={() => (estado.hover = it.p.id)} onmouseleave={() => (estado.hover = null)}>
         <span class="topo"><span class="tipo">{TIPO[it.tipo]}</span>{#if it.g}<span class="g mono">alega {it.g}</span>{/if}</span>
         <q lang="en">{it.q}</q>

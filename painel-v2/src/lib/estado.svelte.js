@@ -15,6 +15,10 @@ export const estado = $state({
 
 export const MAX_COMPARAR = 3;
 
+// Duracao de transicao que respeita prefers-reduced-motion (o CSS so cobre
+// animacoes CSS; as transicoes do Svelte rodam em JS).
+export const mov = (ms) => (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : ms);
+
 export function alternaComparar(id) {
   const i = estado.comparar.indexOf(id);
   if (i >= 0) estado.comparar.splice(i, 1);
@@ -32,12 +36,14 @@ export function lente(k, v) {
 
 // Tema escolhido pela pessoa: fica no navegador, e o painel funciona sem isso.
 // Escolher o mesmo tema do sistema volta a seguir o sistema.
-export function aplicarTema(m) {
-  if (m && matchMedia(`(prefers-color-scheme: ${m})`).matches) m = null;
+// So a escolha feita no botao passa por essa regra; o tema salvo e aplicado
+// como esta, mesmo que hoje coincida com o do sistema.
+export function aplicarTema(m, { escolha = true } = {}) {
+  if (escolha && m && matchMedia(`(prefers-color-scheme: ${m})`).matches) m = null;
   estado.modoTema = m;
   if (m) document.documentElement.dataset.theme = m; else delete document.documentElement.dataset.theme;
   try { m ? localStorage.setItem('painel-tema', m) : localStorage.removeItem('painel-tema'); } catch {}
 }
 export function temaSalvo() {
-  try { const m = localStorage.getItem('painel-tema'); if (m === 'light' || m === 'dark') aplicarTema(m); } catch {}
+  try { const m = localStorage.getItem('painel-tema'); if (m === 'light' || m === 'dark') aplicarTema(m, { escolha: false }); } catch {}
 }

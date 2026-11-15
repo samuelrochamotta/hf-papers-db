@@ -3,6 +3,7 @@
   // palavras o que um clique no grafico faz (vira dica no icone de filtro).
   let { titulo, extra = null, kpi = null, children, classe = '', filtra = '', filtros = null, rodape = null } = $props();
   import { slide } from 'svelte/transition';
+  import { mov } from './estado.svelte.js';
   let abertos = $state(false);
 </script>
 
@@ -18,7 +19,7 @@
       {/if}
     </div>
   </header>
-  {#if filtros && abertos}<div class="fl" transition:slide={{ duration: 180 }}>{@render filtros()}</div>{/if}
+  {#if filtros && abertos}<div class="fl" transition:slide={{ duration: mov(180) }}>{@render filtros()}</div>{/if}
   {#if kpi}{@render kpi()}{/if}
   <div class="chart">{@render children()}</div>
   {#if rodape}<footer>{@render rodape()}</footer>{/if}

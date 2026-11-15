@@ -5,7 +5,7 @@
   import Icone from './Icone.svelte';
   import Legenda from './Legenda.svelte';
   import { rotuloLente, intervalo, plural } from './dados.js';
-  import { estado, aplicarTema } from './estado.svelte.js';
+  import { estado, aplicarTema, mov } from './estado.svelte.js';
   let { total, base, dias = [] } = $props();
 
   const SECOES = [['papers', 'Papers'], ['comparar', 'Comparar'], ['resultados', 'Resultados'], ['prova', 'Prova'], ['adocao', 'Adoção']];
@@ -71,7 +71,7 @@
       <span class="sep">·</span>{intervalo(dias[0], dias[dias.length - 1])}
     </span>
     {#if estado.lente}
-      <span class="chip ativo" transition:slide={{ axis: 'x', duration: 200 }}>
+      <span class="chip ativo" transition:slide={{ axis: 'x', duration: mov(200) }}>
         {rotuloLente(estado.lente)}
         <button class="x" aria-label="Tirar o filtro" onclick={() => (estado.lente = null)}><Icone nome="x" /></button>
       </span>
