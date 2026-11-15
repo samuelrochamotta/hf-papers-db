@@ -3,7 +3,7 @@
   import Kpi from '../lib/Kpi.svelte';
   import Grafico from '../lib/Grafico.svelte';
   import { median, curto, fmt, sgn, esc } from '../lib/dados.js';
-  import { base, estiloPonto } from '../lib/tema.js';
+  import { base, estiloPonto, rotNum, grade, dica, realce } from '../lib/tema.js';
   import { estado } from '../lib/estado.svelte.js';
 
   let { papers } = $props();
@@ -27,25 +27,27 @@
     if (!t.ink || !pontos.length) return null;
     return {
       ...base(t),
-      grid: { left: 4, right: 70, top: 14, bottom: 22, containLabel: true },
+      grid: { left: 0, right: 16, top: 12, bottom: 26, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
         const o = pontos.find((x) => x.p.id === q.data.pid);
-        return `<b>${esc(o.p.t)}</b><br>custo ${fmt(o.f, 2)}× · ganho ${sgn(o.g)}%`;
+        return dica(esc(o.p.t), `Custo <b>${fmt(o.f, 2)}×</b> o do rival`, `Ganho <b>${sgn(o.g)}%</b>`);
       } },
       xAxis: { type: 'log', min: 0.02, max: 3, logBase: 10,
-        axisLabel: { color: t.muted, fontFamily: t.mono, fontSize: 10.5, formatter: (v) => `${fmt(v, 2)}×` }, splitLine: { lineStyle: { color: t.line } } },
-      yAxis: { type: 'value', min: -10, max: 30, interval: 10,
-        axisLabel: { color: t.muted, fontFamily: t.mono, fontSize: 10.5, formatter: (v) => `${v > 0 ? '+' : ''}${v}%` }, splitLine: { lineStyle: { color: t.line } } },
+        name: 'custo relativo', nameLocation: 'middle', nameGap: 26, nameTextStyle: rotNum(t),
+        axisLabel: { ...rotNum(t), formatter: (v) => `${fmt(v, 2)}×` }, splitLine: grade(t) },
+      yAxis: { type: 'value', min: -10, max: 30, interval: 10, name: 'ganho', nameTextStyle: { ...rotNum(t), align: 'left', padding: [0, 0, 0, -28] },
+        axisLabel: { ...rotNum(t), formatter: (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}%` }, splitLine: grade(t) },
       series: [{
-        type: 'scatter', symbolSize: 15,
-        emphasis: { scale: 1.4, itemStyle: { shadowBlur: 12, shadowColor: t.accent } },
+        type: 'scatter', symbolSize: 14, cursor: 'pointer',
+        emphasis: realce(t),
         labelLayout: { hideOverlap: true, moveOverlap: 'shiftY' },
-        label: { show: true, position: 'right', distance: 6, color: t.ink, fontSize: 11, formatter: (q) => curto(q.data.t) },
-        data: pontos.map((o) => ({ pid: o.p.id, t: o.p.t, value: [o.f, Math.max(-10, Math.min(30, o.g))], itemStyle: estiloPonto(t, o.p) })),
-        markArea: { silent: true, itemStyle: { color: t.accentSoft },
-          label: { show: true, position: 'insideTopLeft', color: t.accent, fontWeight: 600, fontSize: 11, formatter: 'mais barato e melhor' },
+        label: { show: true, distance: 7, color: t.ink2, fontSize: 11.5, fontFamily: t.body, formatter: (q) => curto(q.data.t, 18) },
+        data: pontos.map((o) => ({ pid: o.p.id, t: o.p.t, value: [o.f, Math.max(-10, Math.min(30, o.g))], itemStyle: estiloPonto(t, o.p),
+          label: { position: o.f > 0.5 ? 'left' : 'right' } })),
+        markArea: { silent: true, itemStyle: { color: t.sunk },
+          label: { show: true, position: 'insideTopLeft', distance: 8, color: t.ink2, fontWeight: 500, fontSize: 11, formatter: 'mais barato e melhor' },
           data: [[{ xAxis: 0.02, yAxis: 0 }, { xAxis: 1, yAxis: 30 }]] },
-        markLine: { silent: true, symbol: 'none', label: { show: false }, lineStyle: { color: t.ink2, type: 'solid', width: 1 },
+        markLine: { silent: true, symbol: 'none', label: { show: false }, lineStyle: { color: t.ink, type: 'solid', width: 1, opacity: .45 },
           data: [{ xAxis: 1 }, { yAxis: 0 }] },
       }],
     };
@@ -53,7 +55,7 @@
 </script>
 
 <Card titulo="O que melhora gastando menos?">
-  {#snippet kpi()}<Kpi valor={bons} texto="mais baratos sem perder qualidade" />{/snippet}
-  {#if opcao}<Grafico {opcao} altura={250} rotulo="Ganho contra fator de custo" />
-  {:else}<p class="vazio">Nenhum paper declara custo com número.</p>{/if}
+  {#snippet kpi()}<Kpi valor={bons} texto="papers custam menos sem perder qualidade" />{/snippet}
+  {#if opcao}<Grafico {opcao} altura={270} rotulo="Ganho contra fator de custo" />
+  {:else}<div class="vazio">Nenhum paper deste recorte declara custo com número.</div>{/if}
 </Card>

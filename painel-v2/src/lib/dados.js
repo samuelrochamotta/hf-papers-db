@@ -25,7 +25,7 @@ export const CAMADA = {
   agente_harness: 'Agentes e harness', avaliacao: 'Avaliação', seguranca_controle: 'Segurança',
 };
 export const SOLIDEZ = ['forte', 'firme', 'basico', 'fragil', 'sem_leitura'];
-export const SOL_ROT = { forte: 'Forte', firme: 'Firme', basico: 'Básico', fragil: 'Frágil', sem_leitura: 'Sem leitura' };
+export const SOL_ROT = { forte: 'Forte', firme: 'Firme', basico: 'Básica', fragil: 'Frágil', sem_leitura: 'Não lido' };
 export const ESFORCO = ['Só informa', 'Configurar', 'Integrar', 'Reimplementar', 'Treinar grande', 'Fora de alcance'];
 export const EIXOS = [
   ['ganho', 'Ganho'], ['solidez', 'Solidez'], ['abertura', 'Abertura'],
@@ -92,12 +92,35 @@ export const fmt = (n, d = 1) => n == null ? '–'
   : Math.abs(n) >= 100 ? Math.round(n).toLocaleString('pt-BR')
   : n.toLocaleString('pt-BR', { maximumFractionDigits: d });
 export const sgn = (n, d = 1) => n == null ? '–' : (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n), d);
-export const curto = (t) => {
-  let s = String(t || '').split(/[:—–]/)[0].trim();
-  if (s.length > 22) s = s.split(/\s+/).slice(0, 3).join(' ');
-  return s.length > 24 ? s.slice(0, 22) + '…' : s;
+// Nome curto do paper: o que vem antes de ":" ou travessao, cortado em
+// palavra inteira, com reticencias quando corta.
+export const curto = (t, max = 22) => {
+  const s = String(t || '').split(/[:—–]| - /)[0].trim();
+  if (s.length <= max) return s;
+  let out = '';
+  for (const w of s.split(/\s+/)) { if ((out + ' ' + w).trim().length > max) break; out = (out + ' ' + w).trim(); }
+  return (out || s.slice(0, max)).replace(/[,;.]$/, '') + '…';
 };
 export const dataCurta = (d) => d ? `${+d.slice(8, 10)}/${+d.slice(5, 7)}` : '';
+
+// Ordem do indice (e do anterior/proximo do painel): votos, ganho ou solidez.
+const RANK_SOL = { forte: 0, firme: 1, basico: 2, fragil: 3, sem_leitura: 4 };
+export function ordenar(papers, ordem) {
+  const a = [...papers];
+  if (ordem === 'ganho') a.sort((x, y) => (y.radar.ganho ?? -1) - (x.radar.ganho ?? -1) || y.u - x.u);
+  else if (ordem === 'solidez') a.sort((x, y) => RANK_SOL[x.sol] - RANK_SOL[y.sol] || y.u - x.u);
+  else a.sort((x, y) => y.u - x.u);
+  return a;
+}
+
+// Lente vinda do endereco: so chaves e valores conhecidos.
+export function lenteValida(k, v) {
+  if (k === 'ar' && v in ARENA) return { k, v };
+  if (k === 'sol' && v in SOL_ROT) return { k, v };
+  if (k === 'esf' && /^\d$/.test(v) && ESFORCO[+v]) return { k, v: +v };
+  if (k === 'fam' && v) return { k, v };
+  return null;
+}
 
 // Lentes: uma de cada vez, como no prototipo aprovado.
 export function aplicaLente(papers, lente) {
@@ -114,7 +137,7 @@ export function rotuloLente(l) {
   if (l.k === 'ar') return `Arena: ${ARENA[l.v] || l.v}`;
   if (l.k === 'sol') return `Solidez: ${SOL_ROT[l.v]}`;
   if (l.k === 'esf') return `Esforço: ${ESFORCO[l.v]}`;
-  if (l.k === 'fam') return `Constrói ou mede: ${l.v}`;
+  if (l.k === 'fam') return `Família: ${l.v}`;
   return '';
 }
 
@@ -125,3 +148,13 @@ export function linhaFixa(p) {
   partes.push(p.rel ? 'algo liberado' : p.prom ? 'só prometido' : 'nada liberado');
   return partes.join(' · ');
 }
+
+const MESES = ['jan.', 'fev.', 'mar.', 'abr.', 'maio', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+// "2 a 13 de nov." ou "28 de out. a 13 de nov."
+export function intervalo(a, b) {
+  if (!a || !b) return '';
+  const [da, ma] = [+a.slice(8, 10), +a.slice(5, 7) - 1], [db, mb] = [+b.slice(8, 10), +b.slice(5, 7) - 1];
+  if (a === b) return `${db} de ${MESES[mb]}`;
+  return ma === mb ? `${da} a ${db} de ${MESES[mb]}` : `${da} de ${MESES[ma]} a ${db} de ${MESES[mb]}`;
+}
+export const plural = (n, um, varios) => `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}`;
