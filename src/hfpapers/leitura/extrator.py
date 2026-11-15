@@ -35,8 +35,9 @@ log = logger("leitura")
 # Palavras-chave de JSON Schema que a saida estruturada da Anthropic nao aceita
 # (o OpenRouter repassa o esquema). Quem remove somos nos, e quem confere os
 # limites depois e `validar_limites`.
-_NAO_SUPORTADAS = {"maxLength", "minLength", "pattern", "maxItems", "minItems",
-                   "minimum", "maximum", "multipleOf", "$schema", "$id", "title"}
+_NAO_SUPORTADAS = {"maxLength", "minLength", "pattern", "maxItems", "minItems", "uniqueItems",
+                   "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
+                   "minProperties", "maxProperties", "$schema", "$id", "title"}
 
 def carregar_esquema(cfg: Optional[Config] = None) -> dict:
     cfg = cfg or config()
@@ -220,6 +221,8 @@ def validar_limites(dados: dict, esquema: dict) -> list[str]:
         if isinstance(no, list):
             if sch.get("maxItems") and len(no) > sch["maxItems"]:
                 avisos.append(f"{caminho}: {len(no)} itens (teto {sch['maxItems']})")
+            if sch.get("uniqueItems") and len({json.dumps(x, sort_keys=True) for x in no}) < len(no):
+                avisos.append(f"{caminho}: itens repetidos")
             for i, x in enumerate(no):
                 andar(x, _resolver(sch.get("items", {}), esquema), f"{caminho}[{i}]")
         if isinstance(no, dict):

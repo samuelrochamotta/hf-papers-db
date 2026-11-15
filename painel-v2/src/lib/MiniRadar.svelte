@@ -12,7 +12,8 @@
     return [c + rr * Math.cos(a), c + rr * Math.sin(a)];
   };
   const contorno = $derived(EIXOS.map((_, i) => ponto(i, 100).join(',')).join(' '));
-  const forma = $derived(EIXOS.map(([k], i) => ponto(i, radar?.[k]).join(',')).join(' '));
+  // eixo nao lido fica fora do poligono, que passa reto entre os vizinhos
+  const forma = $derived(EIXOS.map(([k], i) => (radar?.[k] == null ? null : ponto(i, radar[k]).join(','))).filter(Boolean).join(' '));
 </script>
 
 <svg width={tam} height={tam} viewBox="0 0 {tam} {tam}" aria-hidden="true" class:aceso>

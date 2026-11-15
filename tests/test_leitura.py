@@ -75,7 +75,7 @@ def _cfg():
 def test_esquema_api_tira_o_que_a_saida_estruturada_recusa():
     sch = extrator.esquema_api(extrator.carregar_esquema(_cfg()))
     s = json.dumps(sch)
-    for chave in ('"maxLength"', '"maxItems"', '"pattern"', '"$schema"'):
+    for chave in ('"maxLength"', '"maxItems"', '"pattern"', '"$schema"', '"uniqueItems"'):
         assert chave not in s
     sec = sch["properties"]["entrega"]["properties"]["secundaria"]
     assert sec["anyOf"][1] == {"type": "null"} and None not in sec["anyOf"][0]["enum"]
@@ -130,6 +130,24 @@ def test_link_de_artefato_so_aceita_http():
                        {"tipo": "dados", "estado": "prometido", "url": None}],
          "leitura": {"cobertura": "completa"}}
     assert [a[2] for a in derivar.derivar(o, {})["art"]] == [None, "https://huggingface.co/x", None]
+
+
+def test_trecho_nao_achado_nao_vira_sinal_nem_artefato():
+    o = {"leitura": {"cobertura": "completa"}, "entrega": {"primaria": "metodo"},
+         "artefatos": [{"tipo": "codigo", "estado": "liberado", "trecho": "inventado", "_ok": False}],
+         "estatistica": {"variancia": "ic", "seeds": 5, "trecho": "inventado", "_ok": False},
+         "ressalvas": [{"tipo": "escopo", "trecho": "inventado", "_ok": False}],
+         "entidades": [{"nome": "Llama", "tipo": "modelo", "papel": "base", "_ok": False}]}
+    p = derivar.derivar(o, {})
+    assert p["ab"]["codigo"] == "ausente" and p["art"] == [] and p["ents"] == []
+    assert p["sig"]["var"] is None and p["sig"]["n"] is None and p["sig"]["ress"] is None
+
+
+def test_manchete_sem_tabela_chega_ao_painel():
+    o = {"leitura": {"cobertura": "completa"},
+         "alegacoes": [{"tipo": "manchete", "trecho": "improves by 12%", "numero": 12, "_ok": True}]}
+    p = derivar.derivar(o, {})
+    assert p["man"]["tr"] == "improves by 12%" and p["man"]["conf"] is None and p["sig"]["man"] is None
 
 
 def test_leitura_tem_prazo_proprio():

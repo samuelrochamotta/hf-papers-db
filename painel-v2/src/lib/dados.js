@@ -63,6 +63,25 @@ export async function carregar() {
   return r.json();
 }
 
+// Eixo nao lido nao e zero. No radar, o vertice nao lido vai para o ponto em
+// que a reta entre os vizinhos lidos cruza o eixo: o poligono passa reto por
+// ele, como se o eixo nao existisse. Sem vizinhos que fechem menos de 180 graus,
+// fica no centro.
+export function radarValores(vals) {
+  const n = vals.length, passo = (2 * Math.PI) / n;
+  return vals.map((v, k) => {
+    if (v != null) return v;
+    let dl = 1; while (dl < n && vals[(k - dl + n) % n] == null) dl++;
+    let dr = 1; while (dr < n && vals[(k + dr) % n] == null) dr++;
+    if (dl >= n) return 0;
+    const t1 = dl * passo, t2 = dr * passo;
+    if (t1 + t2 >= Math.PI - 1e-9) return 0;
+    const a = vals[(k - dl + n) % n], b = vals[(k + dr) % n];
+    const den = a * Math.sin(t1) + b * Math.sin(t2);
+    return den > 0 ? Math.round((a * b * Math.sin(t1 + t2)) / den * 10) / 10 : 0;
+  });
+}
+
 export const median = (xs) => {
   const a = xs.filter((v) => v != null).sort((x, y) => x - y);
   if (!a.length) return null;
