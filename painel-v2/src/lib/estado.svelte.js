@@ -31,7 +31,9 @@ export function lente(k, v) {
 }
 
 // Tema escolhido pela pessoa: fica no navegador, e o painel funciona sem isso.
+// Escolher o mesmo tema do sistema volta a seguir o sistema.
 export function aplicarTema(m) {
+  if (m && matchMedia(`(prefers-color-scheme: ${m})`).matches) m = null;
   estado.modoTema = m;
   if (m) document.documentElement.dataset.theme = m; else delete document.documentElement.dataset.theme;
   try { m ? localStorage.setItem('painel-tema', m) : localStorage.removeItem('painel-tema'); } catch {}

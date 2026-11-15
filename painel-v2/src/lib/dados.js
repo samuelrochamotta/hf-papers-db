@@ -103,6 +103,25 @@ export const curto = (t, max = 22) => {
 };
 export const dataCurta = (d) => d ? `${+d.slice(8, 10)}/${+d.slice(5, 7)}` : '';
 
+// Ordem do indice (e do anterior/proximo do painel): votos, ganho ou solidez.
+const RANK_SOL = { forte: 0, firme: 1, basico: 2, fragil: 3, sem_leitura: 4 };
+export function ordenar(papers, ordem) {
+  const a = [...papers];
+  if (ordem === 'ganho') a.sort((x, y) => (y.radar.ganho ?? -1) - (x.radar.ganho ?? -1) || y.u - x.u);
+  else if (ordem === 'solidez') a.sort((x, y) => RANK_SOL[x.sol] - RANK_SOL[y.sol] || y.u - x.u);
+  else a.sort((x, y) => y.u - x.u);
+  return a;
+}
+
+// Lente vinda do endereco: so chaves e valores conhecidos.
+export function lenteValida(k, v) {
+  if (k === 'ar' && v in ARENA) return { k, v };
+  if (k === 'sol' && v in SOL_ROT) return { k, v };
+  if (k === 'esf' && /^\d$/.test(v) && ESFORCO[+v]) return { k, v: +v };
+  if (k === 'fam' && v) return { k, v };
+  return null;
+}
+
 // Lentes: uma de cada vez, como no prototipo aprovado.
 export function aplicaLente(papers, lente) {
   if (!lente) return papers;

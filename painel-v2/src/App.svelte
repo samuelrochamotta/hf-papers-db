@@ -13,7 +13,7 @@
   import CardAdocao from './cards/CardAdocao.svelte';
   import CardRegua from './cards/CardRegua.svelte';
   import CardCusto from './cards/CardCusto.svelte';
-  import { carregar, aplicaLente, plural } from './lib/dados.js';
+  import { carregar, aplicaLente, plural, lenteValida } from './lib/dados.js';
   import { observarTema } from './lib/tema.js';
   import { estado, temaSalvo } from './lib/estado.svelte.js';
 
@@ -22,10 +22,9 @@
     const q = new URLSearchParams(location.search);
     if (['7', '14'].includes(q.get('periodo'))) estado.periodo = q.get('periodo');
     const l = q.get('lente');
-    if (l && l.includes(':')) { const [k, ...v] = l.split(':'); estado.lente = { k, v: k === 'esf' ? +v.join(':') : v.join(':') }; }
+    if (l && l.includes(':')) { const [k, ...v] = l.split(':'); estado.lente = lenteValida(k, v.join(':')); }
     if (q.get('paper')) estado.sel = q.get('paper');
     if (q.get('comparar')) estado.comparar = q.get('comparar').split(',').filter(Boolean).slice(0, 3);
-    return q.has('comparar');
   }
   let pronto = $state(false);
   $effect(() => {
@@ -42,14 +41,14 @@
   onMount(() => {
     temaSalvo();
     const parar = observarTema((t) => (estado.tema = t));
-    const temCmp = lerEndereco();
+    lerEndereco();
     carregar().then((d) => {
       estado.dados = d;
       const ids = new Set(d.papers.map((p) => p.id));
       if (estado.sel && !ids.has(estado.sel)) estado.sel = null;
       estado.comparar = estado.comparar.filter((id) => ids.has(id));
       // Comparacao inicial: os dois mais votados com mais eixos lidos.
-      if (!temCmp) {
+      if (!estado.comparar.length) {
         const lidos = (p) => Object.values(p.radar).filter((v) => v != null).length;
         estado.comparar = [...d.papers].filter((p) => lidos(p) >= 4).slice(0, 2).map((p) => p.id);
       }
@@ -133,10 +132,9 @@
       {#if geradoEm}<span>Atualizado em {geradoEm}.</span>{/if}
       <span>Fonte: Hugging Face Daily Papers e arXiv.</span>
     </footer>
-
-    <PainelPaper {papers} todos={estado.dados.papers} />
   {/if}
 </main>
+{#if estado.dados}<PainelPaper {papers} todos={estado.dados.papers} />{/if}
 
 <style>
   main { padding-block: 0 var(--s-16); }

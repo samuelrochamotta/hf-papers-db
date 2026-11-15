@@ -9,7 +9,7 @@
   import { cubicOut } from 'svelte/easing';
   import { tick } from 'svelte';
   import {
-    ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_ROT, sgn, fmt, dataCurta, median, urlSegura, radarValores, intervalo } from './dados.js';
+    ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_ROT, sgn, fmt, dataCurta, median, urlSegura, radarValores, intervalo } from './dados.js';
   import { base, corSolidez, dica } from './tema.js';
   import { estado, fechar, alternaComparar, abrir } from './estado.svelte.js';
 
@@ -23,6 +23,12 @@
   $effect(() => { const mq = matchMedia('(min-width: 1024px)'); largo = mq.matches; const f = () => (largo = mq.matches); mq.addEventListener('change', f); return () => mq.removeEventListener('change', f); });
   $effect(() => { estado.sel; celula = 0; });
   $effect(() => { document.body.classList.toggle('painel-aberto', !!p); });
+  // no celular a folha e modal: o resto da pagina sai do alcance do Tab
+  $effect(() => {
+    const modal = !!p && !largo;
+    for (const el of document.querySelectorAll('main.wrap, header.topo, a.pular')) el.inert = modal;
+    return () => { for (const el of document.querySelectorAll('main.wrap, header.topo, a.pular')) el.inert = false; };
+  });
   // foco: entra no painel ao abrir e volta para quem abriu ao fechar
   let aberto = false;
   $effect(() => {
@@ -33,7 +39,7 @@
   });
 
   // anterior / proximo na ordem do recorte
-  const lista = $derived([...papers].sort((a, b) => b.u - a.u));
+  const lista = $derived(ordenar(papers, estado.ordem));
   const pos = $derived(p ? lista.findIndex((x) => x.id === p.id) : -1);
   const vai = (d) => { const n = lista[pos + d]; if (n) abrir(n.id, estado.prof); };
 
@@ -75,8 +81,11 @@
     if (!p) return;
     if (e.key === 'Escape') fechar();
     if (e.target.closest?.('input,select,textarea')) return;
-    if (e.key === 'ArrowRight' && e.altKey) vai(1);
-    if (e.key === 'ArrowLeft' && e.altKey) vai(-1);
+    // Alt+setas tambem e o "voltar" do navegador: o painel fica com o atalho
+    if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+      e.preventDefault();
+      if (pos >= 0) vai(e.key === 'ArrowRight' ? 1 : -1);
+    }
   }
   function irComparar() { if (!largo) fechar(); document.getElementById('comparar')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
   const ABAS = [[1, 'Resumo'], [2, 'Trechos'], [3, 'Ficha']];
@@ -90,11 +99,12 @@
     transition:fly={largo ? { x: 40, duration: 260, easing: cubicOut, opacity: 0 } : { y: 600, duration: 320, easing: cubicOut, opacity: 1 }}>
     {#if !largo}<div class="alca" aria-hidden="true"></div>{/if}
     <div class="barra">
+      {#if pos < 0}<span class="fora">Fora do recorte atual</span>{:else}
       <div class="nav">
         <button class="icon-btn" onclick={() => vai(-1)} disabled={pos <= 0} aria-label="Paper anterior" title="Anterior (Alt ←)"><Icone nome="esq" /></button>
         <span class="pos"><b class="num">{pos + 1}</b> de {lista.length}</span>
         <button class="icon-btn" onclick={() => vai(1)} disabled={pos < 0 || pos >= lista.length - 1} aria-label="Próximo paper" title="Próximo (Alt →)"><Icone nome="dir" /></button>
-      </div>
+      </div>{/if}
       <button class="icon-btn" aria-label="Fechar o paper" title="Fechar (Esc)" onclick={fechar}><Icone nome="x" /></button>
     </div>
 
@@ -232,6 +242,7 @@
   @media (min-width: 1280px) { :global(body.painel-aberto main.wrap) { padding-right: calc(min(460px, 40vw) + 32px); max-width: none; margin-left: 0; } }
   .alca { width: 36px; height: 4px; border-radius: 2px; background: var(--line-strong); margin: 8px auto 0; }
   .barra { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); }
+  .fora { font-size: var(--t-12); color: var(--muted); padding-left: var(--s-2); }
   .nav { display: flex; align-items: center; gap: 2px; }
   .pos { font-size: var(--t-12); color: var(--muted); min-width: 56px; text-align: center; }
   .pos b { color: var(--ink); font-weight: 500; }

@@ -4,7 +4,7 @@
   // o botao do canto poe o paper na comparacao.
   import MiniRadar from './MiniRadar.svelte';
   import Icone from './Icone.svelte';
-  import { curto, SOL_ROT } from './dados.js';
+  import { curto, SOL_ROT, ordenar } from './dados.js';
   import { corSolidez } from './tema.js';
   import { estado, abrir, alternaComparar } from './estado.svelte.js';
   let { papers, faltam } = $props();
@@ -13,14 +13,7 @@
   $effect(() => { const mq = matchMedia('(max-width: 899px)'); estreito = mq.matches; const f = () => (estreito = mq.matches); mq.addEventListener('change', f); return () => mq.removeEventListener('change', f); });
   const LIM = 9;
 
-  const RANK = { forte: 0, firme: 1, basico: 2, fragil: 3, sem_leitura: 4 };
-  const ordenados = $derived.by(() => {
-    const a = [...papers];
-    if (estado.ordem === 'ganho') a.sort((x, y) => (y.radar.ganho ?? -1) - (x.radar.ganho ?? -1) || y.u - x.u);
-    else if (estado.ordem === 'solidez') a.sort((x, y) => RANK[x.sol] - RANK[y.sol] || y.u - x.u);
-    else a.sort((x, y) => y.u - x.u);
-    return a;
-  });
+  const ordenados = $derived(ordenar(papers, estado.ordem));
   const idxCmp = (id) => estado.comparar.indexOf(id);
 </script>
 
