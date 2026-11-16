@@ -297,7 +297,7 @@ test('as marcas do radar: escala nos aneis, faixa no eixo e corte fora do anel',
   // a escala fica na aresta entre o primeiro e o ultimo eixo: nunca em cima de um raio, onde caem os vertices
   for (const e of els.filter((x) => x.type === 'text')) assert.ok(Math.abs(e.x - cx) > 10, 'rotulo fora do raio do topo');
   const [faixa, fim] = els.filter((e) => e.type === 'line');
-  assert.ok(faixa && !faixa.style.lineDash && faixa.style.lineWidth >= 5 && faixa.style.opacity < 0.5 && faixa.style.stroke === '#a00', 'a faixa e larga e translucida, na cor do paper, sem tracejado de serie');
+  assert.ok(faixa && !faixa.style.lineDash && faixa.style.lineWidth >= 4 && faixa.style.opacity < 0.5 && faixa.style.stroke === '#a00', 'a faixa e larga e translucida, na cor do paper, sem tracejado de serie');
   // a faixa sai do vertice (40) e vai ate o anel de 100 do segundo eixo; o traco de fim fica no 100
   assert.ok(Math.abs(Math.hypot(faixa.shape.x1 - cx, faixa.shape.y1 - cy) - 0.4 * r) < 0.01);
   assert.ok(Math.abs(Math.hypot(faixa.shape.x2 - cx, faixa.shape.y2 - cy) - r) < 0.01);

@@ -54,7 +54,7 @@
       return dica(`${q.data.letra} · ${esc(p.t)}`, ...EIXOS.map(([k, r]) => `${r}: <b>${FATO[k](p) ?? SEM_FATO[k](p)}</b>`));
     } },
     radar: {
-      indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })), radius: raio, center: ['50%', '50%'], splitNumber: 4, shape: 'polygon',
+      indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })), radius: raio, center: ['50%', '50%'], splitNumber: 4, shape: 'polygon', axisNameGap: 20,
       axisName: { color: t.ink2, fontSize: 12, fontWeight: 500, fontFamily: t.fUi },
       splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } },
     },

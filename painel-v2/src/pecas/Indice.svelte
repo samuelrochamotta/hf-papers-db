@@ -59,7 +59,7 @@
   const COLS = [['recentes', 'Data', 'c-d'], ['votos', 'Votos', 'c-n'], ['solidez', 'Prova', 'c-s'], ['ganho', 'Ganho', 'c-n'],
     ['facilidade', 'Adoção', 'c-a'], ['abertura', 'Abertura', 'c-l'], ['amplitude', 'Amplitude', 'c-n']];
   const ROT_ORDEM = { recentes: 'data', votos: 'votos', solidez: 'prova', ganho: 'ganho', facilidade: 'adoção, da mais fácil à mais difícil', abertura: 'abertura', amplitude: 'amplitude, em benchmarks' };
-  const SEM = { solidez: 'Prova não lida', ganho: 'Sem rival externo ou ganho não lido', facilidade: 'Só informa: não há o que adotar', abertura: 'Abertura não lida', amplitude: 'Amplitude não lida' };
+  const SEM = { solidez: 'Prova não avaliada', ganho: 'Sem rival externo ou ganho não lido', facilidade: 'Só informa: não há o que adotar', abertura: 'Abertura não lida', amplitude: 'Amplitude não lida' };
 
   // grade navegavel por setas (uma so parada de Tab)
   let foco = $state({ i: 0, c: 0 });
@@ -181,7 +181,7 @@
               <span class="fatos">
                 <span class="f-d num">{dataCurta(p.d)}</span>
                 <span class="f-v num">{p.u}<small> votos</small></span>
-                <span class="f-s"><i class="sol {p.sol}"></i><span class="um" class:mut={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? 'Não lida' : SOL_ROT[p.sol]}</span></span>
+                <span class="f-s"><i class="sol {p.sol}"></i><span class="um" class:mut={p.sol === 'sem_leitura'}>{SOL_ROT[p.sol]}</span></span>
                 {#if g != null}<span class="f-g num" class:neg={g < 0}><small>ganho</small>{sgn(g)}%</span>
                 {:else if p.res.length}<span class="f-g sem">sem rival</span>
                 {:else}<span class="f-g sem"><small>ganho</small>não lido</span>{/if}
@@ -266,7 +266,7 @@
   .s.tem { display: block; }                       /* a busca casou no tipo ou na camada: a linha aparece */
   .acha { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
   /* tres colunas: a abertura cai embaixo do ganho, e a adocao ocupa as duas primeiras */
-  .fatos { display: grid; grid-template-columns: 72px 68px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; align-items: start;
+  .fatos { display: grid; grid-template-columns: minmax(58px, max-content) 88px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; align-items: start;
     font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); }
   .fatos > * { min-width: 0; white-space: nowrap; }
   .f-d, .f-b { display: none; }

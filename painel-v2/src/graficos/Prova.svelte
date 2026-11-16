@@ -143,7 +143,7 @@
   };
 </script>
 
-<Quadro id="prova" pergunta="Onde há votos sem prova?" valor={zona.length} vazio={!papers.length} resposta={`${zona.length === 1 ? 'paper' : 'papers'} com votos acima da mediana e prova frágil ou básica${semLer ? `, mais ${semLer} com prova não lida` : ''}`}>
+<Quadro id="prova" pergunta="Onde há votos sem prova?" valor={zona.length} vazio={!papers.length} resposta={`${zona.length === 1 ? 'paper' : 'papers'} com votos acima da mediana e prova frágil ou básica${semLer ? `, mais ${semLer} com prova não avaliada` : ''}`}>
   {#if opcao}<div class="cresce" bind:clientWidth={larg}><Grafico {opcao} {altura} aoClicar={clicar} rotulo="Votos de cada paper por nível de prova" /></div>
   {:else}<div class="vazio">Nenhum paper neste recorte.</div>{/if}
   <Nomes papers={zona} titulo={semTitulo ? 'Muito voto, pouca prova' : ''} rotulo="Papers com muito voto e pouca prova" valor={(p) => p.u.toLocaleString('pt-BR')} alerta />

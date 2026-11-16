@@ -74,8 +74,8 @@
   /* resultado contra o rival: tinta, cinza e alerta (nao usa a rampa de solidez) */
   --res-ganha:#151a16; --res-ruido:#808981; --res-perde:#a8380f; --res-semrival:#cbd1c8;
   /* comparacao: tres identidades fora da rampa e longe do alerta. Cada uma fica na mesma familia de cor
-     nos dois temas (vinho, oliva, azul); entre claro e escuro muda so a luminosidade */
-  --cmp-1:#8d3d67; --cmp-2:#85861f; --cmp-3:#5874ea;
+     nos dois temas (azul, petroleo, violeta), longe da rampa de prova e do alerta; entre claro e escuro muda so a luminosidade */
+  --cmp-1:#2430b2; --cmp-2:#198080; --cmp-3:#e650e6;
   --sombra-1:0 1px 2px rgba(21,26,22,.06);
   --sombra-2:0 8px 24px rgba(21,26,22,.10),0 1px 2px rgba(21,26,22,.06);
   --sombra-3:0 24px 64px rgba(21,26,22,.20);
@@ -90,7 +90,7 @@
   --alert:#f0855a; --alert-soft:#2b1d16;
   --sol-forte:#94fdd9; --sol-firme:#89cd9e; --sol-basico:#7a9e6b; --sol-fragil:#a8b048; --sol-nada:#99a39a;
   --res-ganha:#eaefe9; --res-ruido:#6e786f; --res-perde:#f0855a; --res-semrival:#39403a;
-  --cmp-1:#c37894; --cmp-2:#d2ca34; --cmp-3:#84a8fd;
+  --cmp-1:#8095ff; --cmp-2:#59e3ff; --cmp-3:#8a47cc;
   --sombra-1:0 0 0 1px rgba(255,255,255,.04);
   --sombra-2:0 12px 32px rgba(0,0,0,.45);
   --sombra-3:0 24px 64px rgba(0,0,0,.65);
@@ -103,7 +103,7 @@
   --alert:#f0855a; --alert-soft:#2b1d16;
   --sol-forte:#94fdd9; --sol-firme:#89cd9e; --sol-basico:#7a9e6b; --sol-fragil:#a8b048; --sol-nada:#99a39a;
   --res-ganha:#eaefe9; --res-ruido:#6e786f; --res-perde:#f0855a; --res-semrival:#39403a;
-  --cmp-1:#c37894; --cmp-2:#d2ca34; --cmp-3:#84a8fd;
+  --cmp-1:#8095ff; --cmp-2:#59e3ff; --cmp-3:#8a47cc;
   --sombra-1:0 0 0 1px rgba(255,255,255,.04);
   --sombra-2:0 12px 32px rgba(0,0,0,.45);
   --sombra-3:0 24px 64px rgba(0,0,0,.65);

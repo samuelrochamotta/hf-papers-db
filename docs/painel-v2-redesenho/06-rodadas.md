@@ -322,3 +322,42 @@ pares e 0 abaixo do mínimo (pior texto 5,41:1); daltonismo 0 das 24
 combinações abaixo de ΔE 10 com a paleta Periódico; casos extremos 0 de 54;
 alvos de toque 0 de 176 em 360 px e 0 de 184 em 768 px; testes 27 do painel e
 420 na suíte (3 novos para a amplitude e a abertura).
+
+## Rodada 5 (2026-11-16), sobre a versão com as decisões
+
+Notas: acabamento 7, gráficos 8, celular e tablet 7, uso e texto 7.
+
+| Achado alto | Críticos | O que foi feito |
+|---|---|---|
+| A faixa da abertura no radar, tracejada, se confunde com a série B (também tracejada) e parece levar B e C ao anel de 100 | acabamento, gráficos, uso | A faixa virou uma banda larga e translúcida na cor do paper, com traço firme no fim; a legenda mostra a mesma banda |
+| O paper mais votado aparece no gráfico de votos e prova com um anel sem explicação e o nome cortado | gráficos | Ele ganha nome embaixo do gráfico ("O mais votado", com votos e prova), como os papers da zona |
+| "Onde está a disputa?" diz que nenhuma arena tem disputa e mesmo assim aponta quem mais vence | celular | Sem filtro de arena, o quadro só aponta vencedor onde há dois papers ou mais |
+| No tablet o texto da lista e o botão de comparar ficam pequenos para o toque | celular | Com ponteiro grosso e largura de tablet, os fatos e a frase do modelo sobem para 14 px e o botão para 32 px de desenho. As capturas de 768 px passaram a sair em dobro de resolução, como as de 360 |
+| "Não lida" com vários sentidos: o mesmo anel tracejado marca a fila e a prova não lida de um paper lido; "3 não lidos" solto | uso, celular | A fila perdeu a marca (a linha já diz "Na fila, ainda sem leitura"); a abertura diz "3 de 4 não lidos" |
+| O ganho do paper não diz que é mediana, e a manchete ("10.7 points") não se liga à tabela | uso | "mediana de 13 resultados, contra o melhor rival externo"; a manchete mostra o número e contra quem ("10,7 pontos contra No Memory") e leva às tabelas |
+
+Médios tratados na mesma passada: o Frágil do tema escuro ficou mais claro
+(#a8b048, 4,4:1 contra a superfície, ΔE mínimo das quatro categorias mantido
+em 11,5); as réguas da mediana no topo do paper alinham entre as colunas; o
+itálico da frase do modelo não corta mais o último glifo.
+
+Ficam como limite: a frase do problema vem do modelo e sai em inglês em 20 dos
+28 papers; trocar isso pede mudar o prompt de leitura e reler.
+
+Medidas depois das correções: axe 0; teclado 10 de 10, 186 teclas; contraste
+76 pares, 0 abaixo do mínimo; daltonismo 0 de 24; extremos 0 de 54; alvos de
+toque 0 de 177 em 360 px e 0 de 185 em 768 px; testes 27 do painel e 420 na
+suíte.
+
+## Rodada 6 (2026-11-16)
+
+Notas: acabamento 7, gráficos 8, celular e tablet 6, uso e texto 7. Gráficos e
+celular não acharam nada de prioridade alta.
+
+| Achado alto | Críticos | O que foi feito |
+|---|---|---|
+| As cores da comparação repetem a rampa de prova (B em oliva se lê como Frágil) e o A rosado fica perto do vermelho de "Perde" | acabamento | A, B e C passam a azul, petróleo e violeta nos dois temas, longe dos verdes da prova e do alerta, com ΔE de 20 ou mais entre si nas três simulações de daltonismo |
+| "Não lida" com vários sentidos: o nível de prova "Não lida" aparece em papers com ganho, adoção e amplitude lidos | uso | O nível passa a se chamar "Não avaliada" (o paper foi lido, mas com poucos sinais de prova para avaliar); "não lido" fica para o que a leitura não alcançou. No celular a coluna da prova alargou para caber a palavra |
+| A faixa da abertura sai do radar e quase toca o rótulo; três faixas juntas parecem defeito | uso (médio para acabamento e gráficos) | Banda mais fina (4 px, 5 px entre bandas) e os nomes dos eixos 5 px mais longe do anel |
+
+Médio tratado junto: faltava o espaço em "10,7 pontos contra No Memory".

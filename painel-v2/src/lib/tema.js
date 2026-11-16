@@ -192,7 +192,7 @@ export function marcasRadar(t, { cx, cy, r, itens }) {
     style: { text: String(v), fill: t.muted, font: `11px ${t.fNum}`, align: 'center', verticalAlign: 'middle', backgroundColor: t.surface, padding: [1, 3] } }));
   const total = new Map(), fila = new Map();   // marcas de corte por eixo: ficam lado a lado, atravessadas no eixo
   for (const it of itens) it.cortes?.forEach((c, i) => { if (c) total.set(i, (total.get(i) || 0) + 1); });
-  // faixas no mesmo eixo ficam lado a lado (7 px entre os centros), para uma nao esconder a outra
+  // faixas no mesmo eixo ficam lado a lado (5 px entre os centros), para uma nao esconder a outra
   const totalF = new Map(), filaF = new Map();
   for (const it of itens) it.faixas?.forEach((f, i) => { if (f != null) totalF.set(i, (totalF.get(i) || 0) + 1); });
   for (const it of itens) {
@@ -203,9 +203,9 @@ export function marcasRadar(t, { cx, cy, r, itens }) {
       // como mais uma linha de serie (a serie B ja e tracejada); um traco firme marca o fim
       if (it.faixas?.[i] != null && v != null && it.faixas[i] > v) {
         const j = filaF.get(i) || 0; filaF.set(i, j + 1);
-        const lado = (j - (totalF.get(i) - 1) / 2) * 7, ox = -uy * lado, oy = ux * lado;
-        const hi = it.faixas[i], x0 = cx + (ux * r * v) / 100 + ox, y0 = cy + (uy * r * v) / 100 + oy, x1 = cx + (ux * r * hi) / 100 + ox, y1 = cy + (uy * r * hi) / 100 + oy, wx = -uy * 4, wy = ux * 4;
-        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x0, y1: y0, x2: x1, y2: y1 }, style: { stroke: it.cor, lineWidth: 6, lineCap: 'butt', opacity: 0.3 } });
+        const lado = (j - (totalF.get(i) - 1) / 2) * 5, ox = -uy * lado, oy = ux * lado;
+        const hi = it.faixas[i], x0 = cx + (ux * r * v) / 100 + ox, y0 = cy + (uy * r * v) / 100 + oy, x1 = cx + (ux * r * hi) / 100 + ox, y1 = cy + (uy * r * hi) / 100 + oy, wx = -uy * 3, wy = ux * 3;
+        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x0, y1: y0, x2: x1, y2: y1 }, style: { stroke: it.cor, lineWidth: 4, lineCap: 'butt', opacity: 0.4 } });
         out.push({ type: 'line', silent: true, z: 19, shape: { x1: x1 - wx, y1: y1 - wy, x2: x1 + wx, y2: y1 + wy }, style: { stroke: it.cor, lineWidth: 2 } });
       }
       if (it.cortes?.[i]) {

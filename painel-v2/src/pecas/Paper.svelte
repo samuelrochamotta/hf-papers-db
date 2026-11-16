@@ -66,7 +66,7 @@
         ? dica('Mediana do período', ...EIXOS.map(([, r], i) => `${r}: <b>${medBruta[i] == null ? '–' : Math.round(medBruta[i])}</b>`))
         : dica('Este paper', ...EIXOS.map(([k, r]) => `${r}: <b>${FATO[k](p) ?? SEM_FATO[k](p)}</b>${p.radar[k] == null ? '' : ` · nota ${p.radar[k]}`}`)) },
       radar: { indicator: EIXOS.map(([k, r]) => (fatoR(k) == null ? { name: `${r}\n${SEM_FATO[k](p).toLowerCase()}`, max: 100, color: t.muted } : { name: `${r}\n{v|${fatoR(k)}}`, max: 100 })),
-        radius: raioR, center: ['50%', cyR], splitNumber: 4,
+        radius: raioR, center: ['50%', cyR], splitNumber: 4, axisNameGap: 20,
         axisName: { color: t.ink2, fontSize: 12, fontFamily: t.fUi, lineHeight: 16, rich: { v: { fontFamily: t.fUi, fontSize: 12, color: t.ink, fontWeight: 600 } } },
         splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } } },
       graphic: marcasRadar(t, { cx: largR / 2, cy: cyR, r: raioR, itens: [{ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor, simbolo: 'circle', faixas: faixasR, cortes: cortesR }] }),
@@ -197,7 +197,7 @@
               {#if ganhoDe(p) != null}<dd class="v titulo" class:neg={ganhoDe(p) < 0}>{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `mediana de ${comRival} resultados, contra o melhor rival externo` : p.best ? `ganho relativo em 1 resultado, contra ${p.best.x}` : 'ganho relativo em 1 resultado'}</dd>
               {:else}<dd class="v titulo nd">{p.res.length ? 'Sem rival' : 'Não lido'}</dd><dd class="d">{p.res.length ? 'os resultados não trazem rival externo' : 'nenhum resultado em tabela lido'}</dd>{/if}{@render frenteMed('ganho')}</div>
             <div><dt class="rot">Prova</dt>
-              <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? 'Não lida' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
+              <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? 'Não avaliada' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
               <dd class="d">{sinais}</dd>{@render frenteMed('solidez')}</div>
             <div><dt class="rot">Adoção</dt>
               <dd class="v titulo" class:nd={p.radar.facilidade == null}>{ESFORCO[p.esf]}</dd>
@@ -257,7 +257,7 @@
         {:else if estado.prof === 2}
           {#if p.entTr}<blockquote><span class="rot">O que entrega</span><q lang="en">{p.entTr}</q></blockquote>{/if}
           {#if p.man}
-            <blockquote class:alerta={p.man.conf === false}><span class="rot pts"><span>Manchete</span><span>{p.man.conf ? 'confere com a tabela' : p.man.conf === false ? 'número fora das tabelas lidas' : 'sem tabela para conferir'}</span></span><q lang="en">{p.man.tr}</q>{#if p.man.n != null}<span class="num-man t-12">o número: <b class="num">{p.man.n.toLocaleString('pt-BR')}{p.man.u ? ` ${p.man.u}` : ''}</b>{#if p.man.contra} contra {p.man.contra}{/if} · <button class="lk" onclick={() => (estado.prof = 3)}>ver as tabelas</button></span>{/if}</blockquote>
+            <blockquote class:alerta={p.man.conf === false}><span class="rot pts"><span>Manchete</span><span>{p.man.conf ? 'confere com a tabela' : p.man.conf === false ? 'número fora das tabelas lidas' : 'sem tabela para conferir'}</span></span><q lang="en">{p.man.tr}</q>{#if p.man.n != null}<span class="num-man t-12">o número: <b class="num">{p.man.n.toLocaleString('pt-BR')}</b>{p.man.u ? ` ${p.man.u}` : ''}{#if p.man.contra}{' '}contra {p.man.contra}{/if} · <button class="lk" onclick={() => (estado.prof = 3)}>ver as tabelas</button></span>{/if}</blockquote>
           {/if}
           {#each p.aleg.filter((a) => a[0] !== 'manchete') as a}
             <blockquote><span class="rot pts"><span>{ALEG[a[0]] || a[0]}</span>{#if secao(a[2])}<span>{secao(a[2])}</span>{/if}</span><q lang="en">{a[1]}</q></blockquote>

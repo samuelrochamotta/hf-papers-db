@@ -25,7 +25,7 @@ export const CAMADA = {
   agente_harness: 'Agentes e harness', avaliacao: 'Avaliação', seguranca_controle: 'Segurança',
 };
 export const SOLIDEZ = ['forte', 'firme', 'basico', 'fragil', 'sem_leitura'];
-export const SOL_ROT = { forte: 'Forte', firme: 'Firme', basico: 'Básica', fragil: 'Frágil', sem_leitura: 'Não lida' };
+export const SOL_ROT = { forte: 'Forte', firme: 'Firme', basico: 'Básica', fragil: 'Frágil', sem_leitura: 'Não avaliada' };   // poucos sinais lidos para avaliar: nao quer dizer que o paper nao foi lido
 export const ESFORCO = ['Só informa', 'Configurar', 'Integrar', 'Reimplementar', 'Treinar grande', 'Fora de alcance'];
 // Um nome por conceito: o eixo do radar, a coluna do indice e a linha da
 // comparacao usam a mesma palavra.
@@ -52,7 +52,7 @@ export const LIMITE_TIPO = { escopo: 'escopo', medicao: 'medição', confusao: '
 export const LIMITE_GRAVE = ['preliminar', 'amostra_pequena', 'pesos_ficticios'];
 export const ART = { codigo: 'Código', pesos: 'Pesos', dados: 'Dados', demo: 'Demo' };
 export const ART_EST = { liberado: 'liberado', prometido: 'prometido', so_pagina: 'só página', ausente: 'ausente', nao_lido: 'não lido' };
-export const SOL_FRASE = { forte: 'Prova forte', firme: 'Prova firme', basico: 'Prova básica', fragil: 'Prova frágil', sem_leitura: 'Prova não lida' };
+export const SOL_FRASE = { forte: 'Prova forte', firme: 'Prova firme', basico: 'Prova básica', fragil: 'Prova frágil', sem_leitura: 'Prova não avaliada' };
 
 export const FAMILIAS = [
   [/qwen/i, 'Qwen'], [/deepseek/i, 'DeepSeek'], [/glm/i, 'GLM'], [/gpt|o3|o4/i, 'GPT'],
@@ -292,7 +292,7 @@ export const FATO = {
 // poe um traco no lugar de um fato do paper.
 export const semGanho = (p) => (p.res.length ? 'sem rival externo' : 'não lido');
 export const SEM_FATO = {
-  ganho: semGanho, solidez: () => 'não lida', abertura: () => 'não lida',
+  ganho: semGanho, solidez: () => 'não avaliada', abertura: () => 'não lida',
   facilidade: (p) => ESFORCO[p.esf], amplitude: () => 'não lida', atencao: () => '',
 };
 // O radar desenha a nota de 0 a 100 que vem do Python. A amplitude e uma

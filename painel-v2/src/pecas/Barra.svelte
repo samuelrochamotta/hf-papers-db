@@ -32,7 +32,7 @@
     const ligada = (k, itens, rot) => [...itens, ...lentesDe(k).filter((v) => !itens.some((i) => String(i[0]) === String(v))).map((v) => [String(v), rot(v), 0])];
     return [
       ['ar', 'Arena', ligada('ar', ord(ar).map(([k, n]) => [k, ARENA[k] || k, n]), (v) => ARENA[v] || v), bAr.length],
-      ['sol', 'Prova', ligada('sol', SOLIDEZ.filter((s) => sol.has(s)).map((s) => [s, s === 'sem_leitura' ? 'Não lida' : SOL_ROT[s], sol.get(s)]), (v) => SOL_ROT[v]), bSol.length],
+      ['sol', 'Prova', ligada('sol', SOLIDEZ.filter((s) => sol.has(s)).map((s) => [s, SOL_ROT[s], sol.get(s)]), (v) => SOL_ROT[v]), bSol.length],
       ['esf', 'Adoção', ligada('esf', [1, 2, 3, 4, 5, 0].filter((n) => esf.has(n)).map((n) => [String(n), ESFORCO[n], esf.get(n)]), (v) => ESFORCO[v]), bEsf.length],
       ['fam', 'Família', ligada('fam', ord(fam).slice(0, 12).map(([k, n]) => [k, k, n]), (v) => v), bFam.length],
     ];
@@ -87,7 +87,7 @@
     {#if ativo}<button class="btn fan limpa" onclick={limpar} aria-label="Limpar {[estado.lentes.length ? `o filtro ${estado.lentes.map(rotuloLente).join(', ')}` : '', estado.busca.trim() ? `a busca por ${estado.busca.trim()}` : ''].filter(Boolean).join(' e ')}"><Icone nome="x" tam={12} />Limpar</button>{/if}
     <p class="cob mut" title="Quanto do texto de cada paper foi lido">
       <span class="med" aria-hidden="true"><i style:flex={cob.inteira} class="a"></i><i style:flex={cob.parcial} class="b"></i><i style:flex={cob.insuf} class="c"></i></span>
-      <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span><span><b>{cob.insuf}</b> com prova não lida</span></span>
+      <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span><span><b>{cob.insuf}</b> com prova não avaliada</span></span>
     </p>
   </div>
 </div>
