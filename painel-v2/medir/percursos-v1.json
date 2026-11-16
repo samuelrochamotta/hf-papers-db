@@ -1,0 +1,12 @@
+{
+  "K1 abrir o mais votado e voltar": { "passos": [["^Advances in Agentic", "Enter"], [null, "Escape"]], "focoFinal": "^Advances in Agentic" },
+  "K2 abrir um paper e ler os trechos": { "passos": [["^Advances in Agentic", null], ["^Confucius4-R2T2", "Enter", "ArrowDown"], ["^Resumo", null], ["^Trechos", null, "ArrowRight"]], "espera": "Limite admitido|Ressalva|Afirmação superlativa|Tese sem experimento" },
+  "K3 filtrar por Robótica": { "passos": [["Filtrar por arena", "Enter"], ["^Robótica", "Enter", "ArrowDown"]], "espera": "Arena: Robótica" },
+  "K4 limpar o filtro": { "inicio": "?lente=ar:robotica_acao", "passos": [["Limpar o filtro", "Enter"]], "espera": "28 papers" },
+  "K5 comparar dois papers": { "passos": [["^Advances in Agentic", null], ["^SLA", null, "ArrowDown"], ["^Comparar: SLA", "Enter", "ArrowRight"], ["^Comparar: MoviEdit", "Enter", "ArrowDown"]], "espera": "comparar=2611.08373(%2C|,)2611.02737" },
+  "K6 ver só a última semana": { "passos": [["^7 dias", "Enter"]], "espera": "10 papers" },
+  "K7 abrir a ficha com tabelas e links": { "passos": [["^Advances in Agentic", null], ["^Confucius4-R2T2", "Enter", "ArrowDown"], ["^Resumo", null], ["^Ficha", null, "ArrowRight"]], "espera": "ponto de partida|este paper" },
+  "K8 filtrar o que dá para integrar": { "passos": [["Filtrar por adoção", "Enter"], ["^Integrar", "Enter", "ArrowDown"]], "espera": "Adoção: Integrar" },
+  "K9 achar os frágeis e abrir um": { "passos": [["Filtrar por prova", "Enter"], ["^Frágil", "Enter", "ArrowDown"], ["^CoworkOS", "Enter"]], "espera": "paper=2611.03178", "voltar": false },
+  "K10 trocar o tema": { "passos": [["tema escuro", "Enter"]], "espera": "tema claro" }
+}

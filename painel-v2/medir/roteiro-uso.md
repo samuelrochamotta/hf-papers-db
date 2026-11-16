@@ -13,6 +13,7 @@ como alguém com mouse (ou dedo) e teclado. Não é um teste de programação.
   - `passar X Y` leva o ponteiro ao ponto sem clicar (mostra dicas de gráfico);
   - `rolar DY` rola DY pixels para baixo (negativo sobe) no ponto onde está o ponteiro;
   - `tecla Escape` (ou `Enter`, `Tab`, `ArrowRight`...) aperta uma tecla;
+  - `digitar "texto"` digita o texto no campo em que você clicou antes;
   - `responder T1 "sua resposta"` registra a resposta final da tarefa.
 - Cada comando devolve o caminho de uma captura. Leia a imagem com a
   ferramenta Read e decida o próximo passo **só pelo que vê nela**. Se a

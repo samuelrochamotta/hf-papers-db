@@ -3,7 +3,7 @@
 // apenas a nova captura. Cada acao fica no registro com o que foi atingido,
 // para medir passos, tempo estimado e acerto no primeiro clique.
 //   node medir/sessao.mjs --dir <build> --porta 4901 --largura 1280 --registro medir/saida/x/uso-a.jsonl
-// e, do outro lado:  node medir/agir.mjs 4901 iniciar T1 | clicar 400 300 | rolar 600 | tecla Escape | passar 400 300 | responder T1 "texto"
+// e, do outro lado:  node medir/agir.mjs 4901 iniciar T1 | clicar 400 300 | rolar 600 | tecla Escape | digitar "texto" | passar 400 300 | responder T1 "texto"
 import { createServer } from 'node:http';
 import { appendFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
@@ -58,6 +58,9 @@ createServer(async (q, r) => {
     } else if (a.tipo === 'tecla') {
       await page.keyboard.press(a.k); await page.waitForTimeout(450);
       grava({ tipo: 'tecla', k: a.k, url: page.url() });
+    } else if (a.tipo === 'digitar') {
+      await page.keyboard.type(String(a.texto || ''), { delay: 20 }); await page.waitForTimeout(500);
+      grava({ tipo: 'digitar', texto: a.texto, url: page.url() });
     } else if (a.tipo === 'responder') {
       grava({ tipo: 'responder', tarefa: a.tarefa || tarefa, resposta: a.resposta, url: page.url() });
       extra = 'resposta registrada. ';

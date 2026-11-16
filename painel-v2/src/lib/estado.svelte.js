@@ -8,7 +8,11 @@ export const estado = $state({
   prof: 1,           // profundidade do painel: 1 resumo, 2 trechos, 3 ficha
   comparar: [],      // ate 3 ids no radar
   hover: null,       // id sob o ponteiro, em qualquer grafico
-  ordem: 'votos',    // ordem do indice: votos | ganho | solidez
+  ordem: 'votos',    // ordem do indice (dados.js ORDENS)
+  busca: '',         // texto da busca no indice
+  vista: '',         // vista aberta, nas arquiteturas com mais de uma
+  // variantes dos experimentos (endereco: ?arq=b&indice=tabela&radar=sobre&g=a)
+  v: { arq: 'b', indice: 'tabela', dens: 'm', radar: 'sobre', g: 'a', id: '' },
   tema: {},          // cores lidas dos tokens CSS
   modoTema: null,    // null segue o sistema; 'light' | 'dark' escolhido
 });

@@ -4,6 +4,7 @@
 // 2) percursos: para cada tarefa, uma lista de [nome acessivel, tecla]; conta
 //    quantas teclas a tarefa custa e confere o resultado esperado.
 //   node medir/teclado.mjs --percursos medir/percursos-v0.json
+// O criterio de foco aceita a tecla de andar como terceiro item do passo.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium, servir, abrir, BUILD, arg, pasta } from './lib.mjs';
@@ -21,7 +22,9 @@ const FOCO = () => {
   const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
   const rot = (id) => id.split(/\s+/).map((i) => document.getElementById(i)?.textContent || '').join(' ');
   const nome = (e.getAttribute('aria-label') || (e.getAttribute('aria-labelledby') && rot(e.getAttribute('aria-labelledby'))) || e.textContent || e.getAttribute('title') || e.getAttribute('placeholder') || '').replace(/\s+/g, ' ').trim().slice(0, 90);
-  const anel = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || cs.boxShadow !== 'none';
+  // o anel pode estar no proprio elemento ou no rotulo que o envolve (campo de busca)
+  const rotulo = e.closest('label');
+  const anel = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || cs.boxShadow !== 'none' || (!!rotulo && getComputedStyle(rotulo).boxShadow !== 'none');
   const cx = Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), cy = r.top + r.height / 2;
   const topo = cy >= 0 && cy < innerHeight ? document.elementFromPoint(cx, cy) : null;
   return {
@@ -58,19 +61,22 @@ async function varrer(largura) {
 async function percorrer(nome, passos, largura = 1280) {
   const { page, ctx } = await abrir(b, { url: s.url + (passos.inicio || ''), largura });
   let teclas = 0; const trilha = [];
-  for (const [alvo, tecla] of passos.passos) {
+  // passo: [nome acessivel, tecla, tecla de andar]. A tecla de andar e Tab;
+  // dentro de grade ou lista (setas) o passo diz qual usar. { digitar } digita.
+  for (const [alvo, tecla, andar] of passos.passos) {
     if (alvo) {
       const re = new RegExp(alvo, 'i'); let achou = false;
       for (let i = 0; i < 400; i++) {
         const f = await page.evaluate(FOCO);
         if (f && re.test(f.nome) && i > 0 || (f && re.test(f.nome) && passos.semTab)) { achou = true; break; }
-        await page.keyboard.press(passos.voltar ? 'Shift+Tab' : 'Tab'); teclas++;
+        await page.keyboard.press(andar || (passos.voltar ? 'Shift+Tab' : 'Tab')); teclas++;
         const g = await page.evaluate(FOCO);
         if (g && re.test(g.nome)) { achou = true; break; }
       }
       if (!achou) { await ctx.close(); return { nome, ok: false, teclas, erro: `sem foco em /${alvo}/`, trilha }; }
     }
-    if (tecla) { for (const t of [].concat(tecla)) { await page.keyboard.press(t); teclas++; } await page.waitForTimeout(350); }
+    if (tecla && tecla.digitar) { await page.keyboard.type(tecla.digitar); teclas += tecla.digitar.length; await page.waitForTimeout(350); }
+    else if (tecla) { for (const t of [].concat(tecla)) { await page.keyboard.press(t); teclas++; } await page.waitForTimeout(350); }
     trilha.push((await page.evaluate(FOCO))?.nome?.slice(0, 40) || '(body)');
   }
   let ok = true, visto = '';

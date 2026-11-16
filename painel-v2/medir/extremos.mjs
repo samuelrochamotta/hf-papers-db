@@ -32,26 +32,29 @@ const CONFERE = () => {
   return { estouro: document.documentElement.scrollWidth > vw + 1, fora: [...new Set(fora)].slice(0, 6), cortado: [...new Set([...cortado, ...vaza.map((v) => 'vaza ' + v)])].slice(0, 6), minusculo: [...new Set(minusculo)].length };
 };
 
+// --vistas: outros enderecos para conferir em cada caso (ex.: "?vista=panorama,?vista=comparar")
+const vistas = ['', ...(arg('vistas', '') || '').split(',').filter(Boolean)];
 const linhas = []; let falhas = 0;
-for (const caso of casos) for (const largura of [360, 1280]) {
-  const { page, ctx, erros } = await abrir(b, { url: s.url, largura, caso });
+for (const caso of casos) for (const largura of [360, 1280]) for (const vista of vistas) {
+  const { page, ctx, erros } = await abrir(b, { url: s.url + vista, largura, caso });
   const r = await page.evaluate(CONFERE);
-  await page.screenshot({ path: join(saida, `${caso}-${largura}.jpg`), type: 'jpeg', quality: 60, fullPage: true });
+  const nome = `${caso}-${largura}${vista ? '-' + vista.replace(/[^a-z0-9]+/gi, '_') : ''}`;
+  await page.screenshot({ path: join(saida, `${nome}.jpg`), type: 'jpeg', quality: 60, fullPage: true });
   // abre o primeiro paper que existir (qualquer botao ou link que leve a ?paper=)
   let rp = null;
   const antes = page.url();
-  const alvo = page.locator('[data-paper], [role="listitem"] button, .it').first();
+  const alvo = page.locator('[data-paper], .linha .abre, [role="listitem"] button, .it, .zona button, .neg').first();
   if (await alvo.count()) {
     await alvo.click({ timeout: 2000 }).catch(() => {});
     await page.waitForTimeout(500);
     if (page.url() !== antes) {
       rp = await page.evaluate(CONFERE);
-      await page.screenshot({ path: join(saida, `${caso}-${largura}-paper.jpg`), type: 'jpeg', quality: 60 });
+      await page.screenshot({ path: join(saida, `${nome}-paper.jpg`), type: 'jpeg', quality: 60 });
     }
   }
   const ruim = erros.length || r.estouro || r.fora.length || r.cortado.length || (rp && (rp.estouro || rp.fora.length || rp.cortado.length));
   if (ruim) falhas++;
-  linhas.push({ caso, largura, erros: erros.length, estouro: r.estouro, fora: r.fora.length, cortado: r.cortado.length, paper: rp ? (rp.estouro || rp.fora.length || rp.cortado.length ? 'quebra' : 'ok') : 'nao abriu', det: [...erros.slice(0, 1), ...r.fora, ...r.cortado, ...(rp ? [...rp.fora, ...rp.cortado] : [])].slice(0, 4).join(' | ') });
+  linhas.push({ caso, largura, vista, erros: erros.length, estouro: r.estouro, fora: r.fora.length, cortado: r.cortado.length, paper: rp ? (rp.estouro || rp.fora.length || rp.cortado.length ? 'quebra' : 'ok') : 'nao abriu', det: [...erros.slice(0, 1), ...r.fora, ...r.cortado, ...(rp ? [...rp.fora, ...rp.cortado] : [])].slice(0, 4).join(' | ') });
   await ctx.close();
 }
 writeFileSync(join(saida, 'extremos.json'), JSON.stringify(linhas, null, 1));

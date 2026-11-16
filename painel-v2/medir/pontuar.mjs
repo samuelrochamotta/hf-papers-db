@@ -1,14 +1,16 @@
 // Pontua as sessoes de uso simulado: acerto (palavras do gabarito na resposta),
 // passos, tempo estimado e acerto no primeiro clique.
 // Tempo: modelo KLM (Card, Moran e Newell): decidir 1,35 s; apontar 1,1 s;
-// clicar 0,2 s; tecla 0,28 s; rolar 0,6 s. E estimativa, nao cronometro: serve
+// clicar 0,2 s; tecla 0,28 s (digitar: 0,28 s por caractere); rolar 0,6 s. E estimativa, nao cronometro: serve
 // para comparar duas versoes com a mesma regua.
 //   node medir/pontuar.mjs --saida medir/saida/rodada-0 --primeiro medir/primeiro-v0.json
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { arg } from './lib.mjs';
 
-const KLM = { clicar: 1.35 + 1.1 + 0.2, passar: 1.35 + 1.1, rolar: 1.35 + 0.6, tecla: 1.35 + 0.28 };
+const KLM = { clicar: 1.35 + 1.1 + 0.2, passar: 1.35 + 1.1, rolar: 1.35 + 0.6, tecla: 1.35 + 0.28, digitar: 1.35 };
+// digitar: uma decisao mais 0,28 s por caractere
+const custo = (e) => KLM[e.tipo] + (e.tipo === 'digitar' ? 0.28 * String(e.texto || '').length : 0);
 const saida = resolve(arg('saida', 'medir/saida/atual'));
 const T = JSON.parse(readFileSync(resolve('medir/tarefas.json'), 'utf8'));
 const prim = JSON.parse(readFileSync(resolve(arg('primeiro', 'medir/primeiro.json')), 'utf8'));
@@ -32,7 +34,7 @@ for (const f of readdirSync(saida).filter((x) => /^uso-.*\.jsonl$/.test(x))) {
     const p1 = c1 ? new RegExp(prim[id] || '$^', 'i').test(alvo) : certo;
     linhas.push({ tarefa: id, prio: t.prio, largura: es[0].largura, certo, desistiu, passos: acoes.length,
       cliques: acoes.filter((e) => e.tipo === 'clicar').length, rolagens: acoes.filter((e) => e.tipo === 'rolar').length,
-      tempo: +acoes.reduce((a, e) => a + KLM[e.tipo], 0).toFixed(1), primeiro: p1, alvo1: alvo.slice(0, 70), resposta: texto.slice(0, 160) });
+      tempo: +acoes.reduce((a, e) => a + custo(e), 0).toFixed(1), primeiro: p1, alvo1: alvo.slice(0, 70), resposta: texto.slice(0, 160) });
   }
 }
 linhas.sort((a, b) => a.largura - b.largura || +a.tarefa.slice(1) - +b.tarefa.slice(1));

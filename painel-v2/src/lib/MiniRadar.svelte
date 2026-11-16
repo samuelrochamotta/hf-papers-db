@@ -22,13 +22,13 @@
     <line x1={c} y1={c} x2={ponto(i, 100)[0]} y2={ponto(i, 100)[1]} class="raio" />
   {/each}
   <polygon points={forma} fill={tracejado ? 'none' : cor} fill-opacity={tracejado ? 0 : 0.85}
-    stroke={tracejado ? 'var(--s-nada)' : borda || cor} stroke-width="1.4" stroke-dasharray={tracejado ? '2.5 2' : null}
+    stroke={tracejado ? 'var(--sol-nada)' : borda || cor} stroke-width="1.4" stroke-dasharray={tracejado ? '2.5 2' : null}
     stroke-linejoin="round" class="forma" />
 </svg>
 
 <style>
-  .grade { fill: var(--sunk); stroke: var(--line-strong); stroke-width: .8; }
-  .raio { stroke: var(--line-strong); stroke-width: .5; opacity: .7; }
-  .forma { transition: transform .35s cubic-bezier(.2,.8,.2,1); transform-origin: center; transform-box: fill-box; }
+  .grade { fill: var(--sunk); stroke: var(--line); stroke-width: 1; }
+  .raio { stroke: var(--line); stroke-width: 1; }
+  .forma { transition: transform var(--dur-2) var(--sai); transform-origin: center; transform-box: fill-box; }
   svg.aceso .forma { transform: scale(1.08); }
 </style>
