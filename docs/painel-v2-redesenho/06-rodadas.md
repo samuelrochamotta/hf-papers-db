@@ -193,3 +193,95 @@ MoviEdit passa por duas linhas a mais (K2, K5 e K7, duas teclas cada). Duas vêm
 do "×" ao lado do filtro ligado, que é uma parada de Tab nova (K4 e K9, uma
 tecla cada). Em troca, a varredura com Tab perdeu as duas paradas da antiga
 lista da fila, no fim da página.
+
+## Rodada 3 (2026-11-16)
+
+134 capturas do protótipo no commit `03b9bb8`, com quatro críticos novos.
+As telas de 768 px foram capturadas sem toque, e por isso mostram os
+controles na densidade de mouse; no tablet de verdade eles crescem com
+`pointer: coarse`. A rodada 4 captura 768 px com toque.
+
+| Lente | Nota | Achados | De prioridade alta |
+|---|---|---|---|
+| Acabamento visual | 7,5 (antes 7) | 16 | 1 |
+| Gráficos | 7 (antes 7,5) | 15 | 1 |
+| Celular e tablet | 7 (antes 7) | 18 | 1 |
+| Uso e texto | 7 (antes 7) | 20 | 2 |
+
+Cinco achados de prioridade alta, nenhum repetido entre os críticos.
+
+| # | Achado | Quem viu | O que foi feito |
+|---|---|---|---|
+| 1 | A abertura do mesmo paper mudava de palavras e de valor entre telas: "nada" na lista, "nada liberado" no celular, "só a página · 3 não lidos" em Comparar. A lista nunca mostrava a parte não lida | uso; gráficos e celular como médio | Uma função só escreve a abertura em toda tela ("código", "código e pesos", "só a página", "nada liberado") e outra diz quanto ficou sem ler ("3 não lidos"). A lista, o celular, o paper e a comparação usam as duas. Coberto por teste |
+| 2 | "Mediana" apontava para bases diferentes: a do recorte na lista, no radar e em Comparar; a do período no Panorama; nenhuma nos indicadores do paper | uso | A mediana é sempre a do período escolhido, com ou sem filtro, e sempre escrita "mediana do período": divisor da lista, indicadores e radar do paper, Comparar e Panorama |
+| 3 | No celular, com busca, a contagem passava por baixo de "Limpar" | celular | A contagem mostra o que cabe ao lado do botão, por ordem de importância; os filtros ficam numa linha só, que rola de lado com os ligados na frente |
+| 4 | Gráfico de custo: nomes fora do quadro e cortados pela grade, dois nomes em negrito empilhados, cada rótulo de um lado | visual; gráficos como médio | Eixo simétrico em potências de 2 que usa a largura do cartão; os nomes ficam dentro do quadro, com fundo sobre a grade e ar mínimo entre eles |
+| 5 | O radar usa uma escala que ninguém explica e que contradiz a tabela: 5 e 9 benchmarks no mesmo vértice, abertura na borda com 3 de 4 itens não lidos | gráficos; uso, celular e visual como médio | **Não fecha no desenho.** É a terceira rodada em que a marca de corte e o vértice vazado são lidos como máximo. O que deu para fazer sem mexer na conta (D12): tabela antes do radar, polígonos sem preenchimento, "anéis em 50 e 100, a nota de cada eixo" na legenda, marcas dos anéis com fundo. O resto depende das decisões 11 e 13 |
+
+### Achados médios tratados antes da rodada 4
+
+| Achado | O que foi feito |
+|---|---|
+| Buracos de 70 a 110 px dentro dos cartões do Panorama | O gráfico cresce até 1,4 vez a altura mínima para ocupar o cartão esticado pela fileira; o quadro sem dado encolhe em vez de esticar |
+| "Onde está a disputa?": "13 de 27" incluía resultados sem rival e ficava colado na ponta da barra | Coluna própria "vencem", alinhada à direita, com o denominador só de quem tem rival ("13 de 24"); coluna "papers" em negrito; frase própria para empate e para recorte sem disputa |
+| Coluna de valores do gráfico de ganhos alinhada à esquerda; no celular a grade riscava nomes e valores | Valores alinhados à direita; no celular, nome e valor têm fundo sobre a grade |
+| "Onde há votos sem prova?": rótulo solto do mais votado; em 360 px a faixa perdia o título e os pontos embolavam | O paper mais votado ganha anel e o nome encostado no ponto; o título da faixa procura um canto livre e, se não há, desce para junto dos nomes; pontos de mesmo voto empilham |
+| "Dá para adotar já" listava quem perde do rival sem sinal; ganho negativo sem cor nos nomes | O ganho aparece ao lado de cada nome, em cor de alerta quando negativo |
+| Nomes cortados de formas diferentes ("SO-Arena Benchmarking the…") | O nome curto não termina em palavra de ligação |
+| Número grande e frase em arranjos diferentes | O número fica sempre sozinho na linha, com a frase embaixo |
+| Tema escuro: seleção fraca, prova frágil quase sumida, A, B e C em outra família de cor | Segmento ativo mais claro e com borda, os inativos mais apagados; frágil a 3,85:1 da superfície; A, B e C são vinho, verde e violeta nos dois temas |
+| Comparar: o radar empurrava a tabela para fora da primeira tela; legenda da abertura não batia com o desenho; nomes quebravam no hífen; ordem das linhas diferente da lista | Tabela antes do radar em tela estreita; quatro posições contáveis na abertura, com legenda só dos estados presentes; hífen sem quebra; linhas na ordem das colunas da lista |
+| Lista em 1280: altura gasta antes da tabela, título apertado, valores no meio da linha | A busca entra no cabeçalho da tabela; a coluna do título ganha largura; os valores alinham pela primeira linha do título; "Só informa" alinha com os outros degraus |
+| Paper aberto: faixa presa sem borda, título condensado abaixo dos metadados, endereço do código quebrando no meio da palavra, sinais com ritmo irregular, radar pequeno | A borda e o título condensado só aparecem quando a faixa prende; o endereço quebra nas barras; linhas de sinais com a mesma altura; radar maior, com a legenda embaixo; no celular a folha ocupa a tela inteira |
+| Em 768 px o paper aberto era o celular esticado | A ficha usa duas colunas de tabelas; a coluna de leitura para em 680 px |
+| Quatro nomes para os limites dos autores | "Limite admitido" e "Limite grave", com o tipo por extenso ("amostra pequena", "fator de confusão"), no Panorama e nos trechos. Coberto por teste |
+| Legendas listavam níveis de prova ausentes e deixavam uma palavra órfã | A legenda lista só os níveis presentes no gráfico e quebra por item |
+| "leitura parcial" sem dizer até onde | "Leitura parcial: o texto foi lido até …; o que vem depois ficou fora" |
+
+### O que ficou para o Samuel ou para depois
+
+- **Dependem das escolhas dele**: a escala da amplitude e a conta da abertura
+  no radar (decisões 11 e 13, o único achado alto ainda aberto); a miniatura
+  do radar na lista, apontada como ilegível por três críticos pela terceira
+  vez (decisão 12); atalhos "vale ler" e "dá para adotar já" e índice do
+  Panorama (decisões 5 e 6); frase em português no Resumo (decisão 8);
+  "Panorama" como vista e como tipo, "Amplitude", "Abertura" e os rótulos de
+  Entidades (decisão 4); dois tipos de algarismo (decisão 2).
+- **Não mexido, de prioridade baixa**: o cabeçalho anda de lugar em 1600 px
+  quando o paper abre; o resultado da busca não mostra por que casou; os
+  filtros globais continuam visíveis em Comparar; a marca de leitura parcial
+  por linha da lista.
+
+### Regressões que as medidas pegaram durante as correções
+
+- **Contraste de 3,91:1** no número do período selecionado, no tema escuro: o
+  segmento ativo ficou mais claro e o número continuou na cor apagada. O
+  número do segmento ativo usa a tinta secundária (5,8:1).
+- **Nome do mais votado sumia em 360 px** no gráfico de votos e prova: a
+  posição de baixo falhava por meio pixel e a de cima encostava na faixa.
+  Folgas ajustadas.
+- **"Harness-/S" e "ReasoningBa/nk"** quebravam no meio depois das mudanças de
+  largura em Comparar (360 px) e na Ficha em duas colunas. Corrigido com menos
+  respiro na caixa do nome e colunas mais largas na Ficha.
+- **Botão da comparação vazia** ("Comparar os dois mais votados com prova lida")
+  passava da caixa em 360 px, nos 6 casos extremos com a comparação vazia. O
+  rótulo encurtou ("Comparar os dois lidos mais votados") e pode quebrar em
+  duas linhas se ainda não couber.
+- **Toque no tablet**, medido pela primeira vez (`alvos.mjs --largura 768`,
+  com ponteiro grosso): 19 controles abaixo de 44 px. Os filtros ficavam com
+  o alto da área de toque por baixo da primeira linha do cabeçalho, e o link
+  do código no paper tinha 40 px. A segunda linha ganhou 4 px de folga no
+  toque e o link, 44 px de alvo.
+
+### Medidas depois das correções
+
+| Medida | Marco zero | Depois da rodada 2 | Depois da rodada 3 |
+|---|---|---|---|
+| axe, nós em violação | 122 | 0, em 40 estados | 0, em 40 estados |
+| Dez percursos só com teclado | 472 teclas | 10 de 10, 188 teclas | 10 de 10, 188 teclas |
+| Contraste | texto mínimo de 3,36:1 | 76 pares, 0 abaixo do mínimo; pior texto 5,35:1 | igual |
+| Daltonismo | 1 par abaixo de ΔE 10 | 0 nas 24 combinações | 0 nas 24 combinações |
+| Casos extremos, 54 combinações | 3 quebras visuais | 0 | 0 |
+| Alvos de toque em 360 px | não medido | 0 de 176 abaixo de 44 px | 0 de 176 |
+| Alvos de toque em 768 px, com toque | não medido | não medido | 0 de 184 |
+| Testes | não havia do painel | 25 do painel; 417 na suíte | 27 do painel; 417 na suíte |

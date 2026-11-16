@@ -5,7 +5,7 @@
   import Grafico from '../lib/Grafico.svelte';
   import Nomes from '../pecas/Nomes.svelte';
   import { ARENA, plural, esc } from '../lib/dados.js';
-  import { base, rotNum, grade } from '../lib/tema.js';
+  import { base, rotNum, grade, larguraTexto } from '../lib/tema.js';
   import { estado, lente, lentesDe } from '../lib/estado.svelte.js';
 
   let { papers } = $props();
@@ -27,9 +27,11 @@
   });
   const topo = $derived(linhas[0] || null);
   const empate = $derived(topo ? linhas.filter((l) => l.k !== 'outra' && l.ps.size === topo.ps.size).length : 0);
+  // com um paper por arena nao ha disputa: a frase diz isso, em vez de eleger uma "arena mais cheia"
   const resposta = $derived(!topo ? 'nenhum resultado em tabela'
-    : empate > 1 ? `${topo.ps.size === 1 ? 'paper' : 'papers'} em cada uma das ${empate} arenas mais cheias`
-    : `${topo.ps.size === 1 ? 'paper disputa' : 'papers disputam'} ${nome(topo.k)}, a arena mais cheia`);
+    : topo.ps.size === 1 ? (linhas.length > 1 ? 'paper por arena: nenhuma arena tem disputa neste recorte' : `paper em ${nome(topo.k)}, sem disputa neste recorte`)
+    : empate > 1 ? `papers em cada uma das ${empate} arenas mais cheias`
+    : `papers disputam ${nome(topo.k)}, a arena mais cheia`);
   const ativas = $derived(lentesDe('ar'));
   // "E quem vence nela?": na arena em foco (a do filtro, ou a mais cheia), os
   // papers com mais resultados vencidos contra o melhor rival.
@@ -38,24 +40,27 @@
     const m = new Map();
     if (foco) for (const p of papers) {
       const rs = p.res.filter((r) => r.ar === foco), v = rs.filter((r) => r.e === 'ganha').length;
-      if (v) m.set(p.id, { p, v, n: rs.length });
+      if (v) m.set(p.id, { p, v, n: rs.length, c: rs.filter((r) => r.e !== 'sem_rival' && r.e !== 'sem_nosso').length });
     }
     return m;
   });
   const vencem = $derived([...placar.values()].sort((a, b) => b.v - a.v || b.v / b.n - a.v / a.n || b.p.u - a.p.u).map((o) => o.p));
 
-  // o fim de cada barra diz o placar: a barra conta resultados, a coluna da esquerda conta papers
+  // a barra conta resultados; a coluna da esquerda conta papers e a da direita diz o placar. So vence
+  // quem tem rival: o resultado sem rival externo nao entra na conta
   let larg = $state(480);
   const estreito = $derived(larg < 420);
-  const placarDe = (l, i) => `${l.c.ganha} de ${l.n}${i === 0 && !estreito ? (l.c.ganha === 1 ? ' vence' : ' vencem') : ''}`;
+  const comRival = (l) => l.n - l.c.sem_rival;
+  const placarDe = (l) => (comRival(l) ? `${l.c.ganha} de ${comRival(l)}` : 'sem rival');
 
   const opcao = $derived.by(() => {
     if (!t.ink) return null;
     const cor = { ganha: t.resGanha, ruido: t.resRuido, perde: t.resPerde, sem_rival: t.surface };
     const apaga = (k) => (ativas.length && !ativas.includes(k) ? 0.3 : 1);
+    const wPlacar = Math.ceil(Math.max(larguraTexto('vencem', `12px ${t.fNum}`), ...linhas.map((l) => larguraTexto(placarDe(l), `12px ${t.fUi}`))));
     return {
       ...base(t),
-      grid: { left: 0, right: estreito ? 56 : 108, top: 22, bottom: 36, containLabel: true },
+      grid: { left: 0, right: 0, top: 22, bottom: 36, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: t.sunk, opacity: .6 } },
         formatter: (qs) => {
           const l = linhas[qs[0].dataIndex];
@@ -64,26 +69,28 @@
         } },
       xAxis: { type: 'value', minInterval: 1, splitNumber: estreito ? 3 : 5, splitLine: grade(t), axisLabel: { ...rotNum(t), hideOverlap: true },
         name: 'resultados em tabela', nameLocation: 'middle', nameGap: 26, nameTextStyle: rotNum(t) },
-      yAxis: {
+      yAxis: [{
         type: 'category', inverse: true, data: linhas.map((l) => nome(l.k)), triggerEvent: true,
         axisTick: { show: false }, axisLine: { show: false },
-        // cabecalho da coluna de numeros: sao papers; a barra conta resultados
+        // cabecalho da coluna de numeros: sao papers, e e por eles que as arenas estao ordenadas
         name: 'papers', nameLocation: 'start', nameGap: 8, nameTextStyle: { ...rotNum(t), align: 'right', padding: [0, 12, 0, 0] },
         axisLabel: { fontSize: 12, margin: 12,
-          formatter: (v, i) => `{${ativas.length && !ativas.includes(linhas[i].k) ? 'off' : 'a'}|${v}}  {n|${linhas[i].ps.size}}`,
+          formatter: (v, i) => `{${ativas.length && !ativas.includes(linhas[i].k) ? 'off' : 'a'}|${v}}  {${ativas.length && !ativas.includes(linhas[i].k) ? 'noff' : 'n'}|${linhas[i].ps.size}}`,
           rich: { a: { color: t.ink, fontWeight: 500, fontFamily: t.fUi, fontSize: 12 }, off: { color: t.muted, fontFamily: t.fUi, fontSize: 12 },
-            n: { color: t.muted, fontFamily: t.fNum, fontSize: 12, width: 16, align: 'right' } } },
-      },
+            n: { color: t.ink, fontWeight: 600, fontFamily: t.fNum, fontSize: 12, width: 16, align: 'right' }, noff: { color: t.muted, fontFamily: t.fNum, fontSize: 12, width: 16, align: 'right' } } },
+      }, {
+        // o placar em coluna propria, fora da grade: nenhuma linha passa por cima dele
+        type: 'category', inverse: true, position: 'right', data: linhas.map(placarDe), axisTick: { show: false }, axisLine: { show: false },
+        name: 'vencem', nameLocation: 'start', nameGap: 8, nameTextStyle: { ...rotNum(t), align: 'left', padding: [0, 0, 0, 12 + wPlacar - larguraTexto('vencem', `12px ${t.fNum}`)] },
+        axisLabel: { margin: 12, formatter: (v, i) => `{${v === 'sem rival' ? 'sr' : 'p'}|${v}}`,
+          rich: { p: { color: t.ink2, fontFamily: t.fUi, fontSize: 12, width: wPlacar, align: 'right' }, sr: { color: t.muted, fontFamily: t.fUi, fontSize: 12, width: wPlacar, align: 'right' } } },
+      }],
       series: ESTADOS.map(([e, rot]) => ({
         type: 'bar', name: rot, stack: 'r', barWidth: 14, cursor: 'pointer',
         itemStyle: { color: cor[e], borderRadius: 2, borderColor: e === 'sem_rival' ? t.lineStrong : t.surface, borderWidth: e === 'sem_rival' ? 1.5 : 1 },
         emphasis: { disabled: true },
         data: linhas.map((l) => ({ value: l.c[e] || 0, arena: l.k, itemStyle: { opacity: l.c[e] ? apaga(l.k) : 0 } })),
-      })).concat({
-        // serie sem barra, so para escrever o placar depois do ultimo segmento
-        type: 'bar', stack: 'r', barWidth: 14, silent: true, itemStyle: { color: 'transparent' }, emphasis: { disabled: true }, data: linhas.map(() => 0),
-        label: { show: true, position: 'right', distance: 8, color: t.ink2, fontFamily: t.fUi, fontSize: 12, formatter: (q) => placarDe(linhas[q.dataIndex], q.dataIndex) },
-      }),
+      })),
     };
   });
   const clicar = (q) => {
@@ -94,9 +101,9 @@
 
 <Quadro id="arenas" pergunta="Onde está a disputa?" valor={topo ? topo.ps.size : 0} {resposta} vazio={!linhas.length}>
   {#if opcao && linhas.length}
-    <div bind:clientWidth={larg}><Grafico {opcao} altura={Math.max(176, linhas.length * 28 + 78)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" /></div>
+    <div class="cresce" bind:clientWidth={larg}><Grafico {opcao} altura={Math.max(176, linhas.length * 28 + 78)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" /></div>
   {:else}<div class="vazio">Nenhum resultado com benchmark neste recorte.</div>{/if}
-  <Nomes papers={vencem} max={4} titulo="Mais vencem em {nome(foco)}" rotulo="Papers que mais vencem em {nome(foco)}" valor={(p) => `${placar.get(p.id).v} de ${placar.get(p.id).n}`} />
+  <Nomes papers={vencem} max={4} titulo="Mais vencem em {nome(foco)}" rotulo="Papers que mais vencem em {nome(foco)}" valor={(p) => `${placar.get(p.id).v} de ${placar.get(p.id).c}`} />
   {#snippet legenda()}
     <ul class="leg" aria-label="Desfecho contra o melhor rival">
       {#each ESTADOS as [e, rot]}<li><i class="sw {e}"></i>{rot}</li>{/each}

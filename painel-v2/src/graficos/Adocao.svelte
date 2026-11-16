@@ -7,7 +7,7 @@
   import Grafico from '../lib/Grafico.svelte';
   import Nomes from '../pecas/Nomes.svelte';
   import Chave from '../pecas/Chave.svelte';
-  import { ESFORCO, SOLIDEZ, SOL_ROT, SOL_FRASE, ART, ART_EST, FATO, esc, plural, liberados } from '../lib/dados.js';
+  import { ESFORCO, SOLIDEZ, SOL_ROT, SOL_FRASE, ART, ART_EST, ganhoDe, esc, plural, liberados } from '../lib/dados.js';
   import { base, pontoProva, corSolidez, rotNum, rotCat, dica, larguraTexto } from '../lib/tema.js';
   import { estado, lente, lentesDe } from '../lib/estado.svelte.js';
 
@@ -102,10 +102,10 @@
 </script>
 
 <Quadro id="adocao" pergunta="O que dá para adotar já?" valor={ja.length} {resposta} vazio={!papers.length}>
-  {#if opcao && papers.length}<div bind:clientWidth={larg}><Grafico {opcao} altura={228} aoClicar={clicar} rotulo="Papers por esforço de adoção, do menor ao maior, na cor da prova" /></div>
-    <Nomes papers={ja} rotulo="Papers que dá para adotar já" valor={(p) => [liberados(p), FATO.ganho(p)].filter(Boolean).join(' · ')} />
+  {#if opcao && papers.length}<div class="cresce" bind:clientWidth={larg}><Grafico {opcao} altura={228} aoClicar={clicar} rotulo="Papers por esforço de adoção, do menor ao maior, na cor da prova" /></div>
+    <Nomes papers={ja} rotulo="Papers que dá para adotar já" valor={(p) => liberados(p)} ganho={ganhoDe} />
   {:else}<div class="vazio">Nenhum paper neste recorte.</div>{/if}
-  {#snippet legenda()}<div class="leg"><Chave />{#if ja.length && !barras}<span class="k"><i class="sub"></i>dá para adotar já</span>{/if}</div>{/snippet}
+  {#snippet legenda()}<div class="leg"><Chave {papers} />{#if ja.length && !barras}<span class="k"><i class="sub"></i>dá para adotar já</span>{/if}</div>{/snippet}
 </Quadro>
 
 <style>

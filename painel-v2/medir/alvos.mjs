@@ -4,16 +4,17 @@
 // que conta a area estendida por pseudo-elementos e desconta vizinhos.
 // Criterio: 44 x 44 px (HIG e Material). Link dentro de frase fica fora, como
 // na WCAG 2.5.8. Abaixo de 24 px e falha em qualquer caso.
-// uso: node medir/alvos.mjs [--dir build] [--saida pasta] [--estados "?a,?b"]
+// uso: node medir/alvos.mjs [--dir build] [--saida pasta] [--estados "?a,?b"] [--largura 360]
+// --largura 768 mede o tablet, tambem com ponteiro grosso.
 import { chromium, servir, abrir, arg, BUILD } from './lib.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
-const dir = arg('dir', BUILD), saida = arg('saida', '');
+const dir = arg('dir', BUILD), saida = arg('saida', ''), largura = +arg('largura', 360);
 const estados = arg('estados', '?vista=papers,?lente=ar:robotica_acao,?paper=2611.14320,?paper=2611.14320&prof=3,?vista=panorama,?vista=comparar&comparar=2611.08373%2C2611.04277%2C2611.14320').split(',');
 const MIN = 44;
 const srv = await servir(dir), b = await chromium.launch();
 const linhas = [], falhas = [];
 for (const estado of estados) for (const tema of ['light']) {
-  const { page, ctx } = await abrir(b, { url: srv.url, largura: 360, tema, estado });
+  const { page, ctx } = await abrir(b, { url: srv.url, largura, tema, estado, toque: true });
   const itens = await page.evaluate((MIN) => {
     const raiz = document.querySelector('.paper') || document.body;
     const out = [];

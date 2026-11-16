@@ -12,14 +12,18 @@
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
   import Degraus from '../lib/Degraus.svelte';
-  import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, ART, liberados, intervalo, dataCurta, nBench } from '../lib/dados.js';
+  import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, FATO, aberturaFrase, faltaLer, intervalo, dataCurta, nBench } from '../lib/dados.js';
   import { corSolidez } from '../lib/tema.js';
   import { estado, abrir, alternaComparar, mov } from '../lib/estado.svelte.js';
 
-  let { papers, faltam = [] } = $props();
+  // `periodo`: todos os papers do periodo, sem filtro. A mediana e sempre a do periodo, em todas as telas
+  let { papers, faltam = [], periodo = papers } = $props();
   const PAGINA = 50;                 // linhas por vez; "Mostrar mais" traz outras 50
   let paginas = $state(1);
   let el = $state(null);
+  // a mesma fronteira do CSS (@container 980px): dali em diante a lista e uma tabela
+  let largura = $state(0);
+  const tabela = $derived(largura >= 980);
 
   const ord = $derived(ordenar(papers, estado.ordem));
   const nCom = $derived(comDado(papers, estado.ordem));
@@ -38,7 +42,7 @@
   const MED = { votos: [(p) => p.u, (v) => `${Math.round(v).toLocaleString('pt-BR')} votos`], ganho: [ganhoDe, (v) => `${sgn(v)}%`] };
   const mediana = $derived.by(() => {
     const m = MED[estado.ordem]; if (!m || estado.busca) return null;
-    const vs = papers.map(m[0]).filter((v) => v != null); if (vs.length < 4) return null;
+    const vs = periodo.map(m[0]).filter((v) => v != null); if (vs.length < 4) return null;
     const med = median(vs), i = linhas.findIndex((p) => { const v = p.fila ? POSTO[estado.ordem]?.(p) : m[0](p); return v == null || v <= med; });
     return i > 0 ? { i, rot: m[1](med) } : null;
   });
@@ -47,14 +51,11 @@
   const letra = (id) => 'ABC'[estado.comparar.indexOf(id)] || '';
   const bench = nBench;
   const sub = (p) => [ENTREGA[p.ent] || p.ent, p.cam ? CAMADA[p.cam] || p.cam : null].filter(Boolean).join(' · ');
-  const aberto = (p) => liberados(p) || (p.prom ? 'prometido' : p.radar.abertura == null ? null : 'nada');
-  // fora da tabela nao ha cabecalho de coluna: o fato leva o nome junto
-  const abertoLongo = (p) => (liberados(p) ? `liberou ${liberados(p)}` : p.prom ? 'só prometido' : p.radar.abertura == null ? 'abertura não lida' : 'nada liberado');
-  // no celular a coluna e curta: com dois ou mais artefatos, a contagem
-  const nLib = (p) => Object.values(p.ab).filter((e) => e === 'liberado').length;
-  const abertoEstreito = (p) => (nLib(p) > 1 ? `liberou ${nLib(p)} de ${Object.keys(ART).length}` : abertoLongo(p));
+  // a abertura usa as mesmas palavras em todas as telas (FATO.abertura): na
+  // tabela, o fato sob o cabecalho; fora dela, a frase ("liberou código"). O
+  // que a leitura nao alcancou vem logo abaixo ("3 não lidos")
   const nomeLongo = (p) => [p.t, `${p.u} votos`, SOL_FRASE[p.sol].toLowerCase(), ganhoDe(p) != null ? `ganho ${sgn(ganhoDe(p))}%` : null,
-    p.radar.facilidade != null ? `esforço: ${ESFORCO[p.esf].toLowerCase()}` : null, liberados(p) ? `liberou ${liberados(p)}` : null].filter(Boolean).join('. ');
+    p.radar.facilidade != null ? `esforço: ${ESFORCO[p.esf].toLowerCase()}` : null, [aberturaFrase(p), faltaLer(p) && `${faltaLer(p)} entre os artefatos`].filter(Boolean).join(', ')].filter(Boolean).join('. ');
 
   // colunas da tabela: [chave de ordem, rotulo, classe]
   const COLS = [['recentes', 'Data', 'c-d'], ['votos', 'Votos', 'c-n'], ['solidez', 'Prova', 'c-s'], ['ganho', 'Ganho', 'c-n'],
@@ -99,18 +100,25 @@
   }
 </script>
 
-<div class="indice" bind:this={el}>
-  <div class="ferr">
-    <label class="busca"><Icone nome="busca" /><span class="vh">Buscar paper</span>
-      <input type="search" placeholder="Buscar paper" bind:value={estado.busca} autocomplete="off" spellcheck="false" enterkeyhint="search" />
-      {#if estado.busca}<button class="tira" type="button" aria-label="Limpar a busca" title="Limpar a busca" onclick={(e) => { estado.busca = ''; e.currentTarget.closest('label')?.querySelector('input')?.focus(); }}><Icone nome="x" tam={12} /></button>{/if}
-    </label>
-    <span class="ordem"><Menu nome="Ordem" rotulo="Ordem: {ORDENS.find(([k]) => k === estado.ordem)?.[1]}" descricao="Ordenar por: {ORDENS.find(([k]) => k === estado.ordem)?.[1]}" valor={estado.ordem} itens={ORDENS} aoEscolher={(v) => (estado.ordem = v)} /></span>
-  </div>
+{#snippet campo()}
+  <label class="busca"><Icone nome="busca" /><span class="vh">Buscar paper</span>
+    <input type="search" placeholder="Buscar paper" bind:value={estado.busca} autocomplete="off" spellcheck="false" enterkeyhint="search" />
+    {#if estado.busca}<button class="tira" type="button" aria-label="Limpar a busca" title="Limpar a busca" onclick={(e) => { estado.busca = ''; e.currentTarget.closest('label')?.querySelector('input')?.focus(); }}><Icone nome="x" tam={12} /></button>{/if}
+  </label>
+{/snippet}
+
+<div class="indice" bind:this={el} bind:clientWidth={largura}>
+  <!-- na tabela a busca mora no cabecalho, sobre a coluna do titulo: nao gasta uma faixa so para ela e acompanha a rolagem -->
+  {#if !tabela}
+    <div class="ferr">
+      {@render campo()}
+      <span class="ordem"><Menu nome="Ordem" rotulo="Ordem: {ORDENS.find(([k]) => k === estado.ordem)?.[1]}" descricao="Ordenar por: {ORDENS.find(([k]) => k === estado.ordem)?.[1]}" valor={estado.ordem} itens={ORDENS} aoEscolher={(v) => (estado.ordem = v)} /></span>
+    </div>
+  {/if}
 
   <div class="cab">
-    <div class="cab-g" role="group" aria-label="Ordenar por coluna (seta para cima, a partir da primeira linha)">
-      <span class="c-t rot">Paper</span>
+    <div class="cab-g" role="group" aria-label="Buscar e ordenar por coluna (seta para cima, a partir da primeira linha)">
+      <span class="c-t">{#if tabela}{@render campo()}{/if}</span>
       {#each COLS as [k, r, cl]}
         <button class="{cl}" tabindex="-1" data-h={k} aria-pressed={estado.ordem === k} aria-label="Ordenar por {ROT_ORDEM[k]}" onclick={() => (estado.ordem = k)} onkeydown={(e) => cabeca(e, k)}>{r}{#if estado.ordem === k}<Icone nome="desce" tam={12} />{/if}</button>
       {/each}
@@ -134,7 +142,7 @@
         {:else if !p.fila && i === nCom && nCom > 0 && SEM[estado.ordem]}
           <div class="div" role="row"><span role="gridcell">{SEM[estado.ordem]} · {ord.length - nCom}</span></div>
         {:else if mediana && i === mediana.i}
-          <div class="div med" role="row"><span role="gridcell">Mediana do recorte · {mediana.rot}</span></div>
+          <div class="div med" role="row"><span role="gridcell">Mediana do período · {mediana.rot}</span></div>
         {/if}
         {#if p.fila}
           <!-- paper da fila: so ha titulo, data e votos; a linha leva ao arXiv -->
@@ -177,8 +185,8 @@
                 {#if g != null}<span class="f-g num" class:neg={g < 0}><small>ganho</small>{sgn(g)}%</span>
                 {:else if p.res.length}<span class="f-g sem">sem rival</span>
                 {:else}<span class="f-g sem"><small>ganho</small>não lido</span>{/if}
-                <span class="f-a" class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}<span class="um">{ESFORCO[p.esf]}</span></span>
-                <span class="f-l um" class:mut={aberto(p) == null}><span class="cur">{aberto(p) ?? 'não lida'}</span><span class="lon">{abertoLongo(p)}</span><span class="est">{abertoEstreito(p)}</span></span>
+                <span class="f-a" class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{:else}<i class="sem-deg" aria-hidden="true"></i>{/if}<span class="um">{ESFORCO[p.esf]}</span></span>
+                <span class="f-l" class:mut={FATO.abertura(p) == null}><span class="oq"><span class="cur">{FATO.abertura(p) ?? 'não lida'}</span><span class="lon">{aberturaFrase(p)}</span></span>{#if faltaLer(p)}<span class="nl">{faltaLer(p)}</span>{/if}</span>
                 {#if bench(p) != null}<span class="f-b num">{bench(p)}</span>{:else}<span class="f-b sem">não lida</span>{/if}
               </span>
             </button>
@@ -221,10 +229,11 @@
   }
 
   /* cabecalho da tabela (so na forma larga): preso logo abaixo do recorte */
-  .cab { display: none; grid-template-columns: minmax(0, 1fr) 72px; column-gap: var(--sp-3); align-items: center; padding-block: var(--sp-2); border-bottom: 1px solid var(--line-strong);
+  .cab { display: none; grid-template-columns: minmax(0, 1fr) 64px; column-gap: var(--sp-3); align-items: center; padding-block: var(--sp-2); border-bottom: 1px solid var(--line-strong);
     position: sticky; top: calc(var(--barra) + var(--recorte-alt, 53px)); z-index: 5; background: var(--bg); }
-  .cab-g { display: grid; align-items: center; column-gap: var(--sp-4); grid-template-columns: var(--colunas); padding-left: var(--sp-3); }
-  .cab .c-t { grid-column: 1 / 3; }
+  .cab-g { display: grid; align-items: center; column-gap: var(--sp-3); grid-template-columns: var(--colunas); padding-left: var(--sp-3); }
+  .cab .c-t { grid-column: 1 / 3; display: flex; min-width: 0; margin-left: calc(-1 * var(--sp-3)); padding-right: var(--sp-4); }
+  .cab .busca { flex: 1 1 auto; }
   .cab .c-cmp { text-align: center; }
   .cab button { font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; color: var(--muted); display: inline-flex; align-items: center; gap: 2px; min-height: var(--alvo); border-radius: var(--r-1); justify-self: start; transition: color var(--dur-1); }
   .cab button.c-n, .cab button.c-d { justify-self: end; flex-direction: row-reverse; }
@@ -233,7 +242,7 @@
   .cab button[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
 
   /* a adocao comeca 12 px depois da sua coluna: o numero do ganho, alinhado a direita, nao encosta nela */
-  .indice { --colunas: 32px minmax(0, 1fr) 44px 48px 84px 64px 144px 108px 72px; }
+  .indice { --colunas: 32px minmax(0, 1fr) 44px 48px 76px 64px 132px 100px 72px; }
   .lista { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); overflow: clip; }
   .linha { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; border-top: 1px solid var(--line); position: relative; background: var(--surface); }
   .grupo:first-child > :first-child { border-top: 0; }
@@ -255,7 +264,7 @@
   .s.tem { display: block; }                       /* a busca casou no tipo ou na camada: a linha aparece */
   .acha { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
   /* tres colunas: a abertura cai embaixo do ganho, e a adocao ocupa as duas primeiras */
-  .fatos { display: grid; grid-template-columns: 72px 68px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; align-items: center;
+  .fatos { display: grid; grid-template-columns: 72px 68px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; align-items: start;
     font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); }
   .fatos > * { min-width: 0; white-space: nowrap; }
   .f-d, .f-b { display: none; }
@@ -268,8 +277,15 @@
   a.abre { color: inherit; text-decoration: none; }
   .f-v small { font-family: var(--f-ui); letter-spacing: 0; font-size: inherit; margin-left: .3em; }
   .f-g small { font-family: var(--f-ui); letter-spacing: 0; font-size: inherit; margin-right: .4em; color: var(--muted); }
-  .f-l .cur, .f-l .lon { display: none; }
+  /* abertura: o fato e, embaixo, quantos artefatos a leitura nao alcancou. No
+     celular a coluna e curta e a frase pode quebrar ("liberou código e pesos") */
+  .f-l { display: grid; }
+  .f-l .cur { display: none; }
+  .f-l .oq { white-space: normal; overflow-wrap: anywhere; }
+  .f-l .nl { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
   .f-s, .f-a { display: inline-flex; align-items: center; gap: 6px; }
+  /* sem degraus (so informa), o nome comeca onde comecam os outros: a coluna tem uma margem so */
+  .sem-deg { width: 18px; flex: none; }
 
   .cmp { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-strong); font-size: var(--fs-12); font-weight: 600;
     transition: background var(--dur-1), color var(--dur-1), box-shadow var(--dur-1); position: relative; }
@@ -290,7 +306,7 @@
     .glifo { display: grid; grid-row: 1 / 3; align-self: start; padding-top: 2px; }
     .fatos { grid-column: 2; grid-template-columns: 72px 96px 104px 140px minmax(0, 1fr); column-gap: var(--sp-4); }
     .f-v, .f-s, .f-g, .f-a, .f-l { grid-column: auto; grid-row: 1; }
-    .f-l .lon { display: inline; } .f-l .est { display: none; }
+    .f-l .oq { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-fila { grid-column: 2 / -1; }
   }
 
@@ -298,10 +314,11 @@
   @container (min-width: 980px) {
     .cab { display: grid; }
     .lista { border-radius: 0 0 var(--r-3) var(--r-3); border-top: 0; }
-    .linha { grid-template-columns: minmax(0, 1fr) 72px; column-gap: var(--sp-3); }
-    .ordem { display: none; }
-    .abre { grid-template-columns: var(--colunas); column-gap: var(--sp-4); row-gap: 0; padding-block: 6px; }
-    .glifo { grid-row: auto; align-self: center; padding: 0; }
+    .linha { grid-template-columns: minmax(0, 1fr) 64px; column-gap: var(--sp-3); }
+    /* os valores ficam na linha do titulo: titulo de uma ou de duas linhas, a leitura corre pela mesma altura */
+    .abre { grid-template-columns: var(--colunas); column-gap: var(--sp-3); row-gap: 0; padding-block: var(--sp-2); align-items: start; }
+    .fatos > * { line-height: var(--lh-14); align-self: start; }
+    .glifo { grid-row: auto; align-self: start; padding: 2px 0 0; }
     .s { display: block; }
     .fatos { display: contents; }
     .f-d, .f-b { display: block; }
@@ -313,10 +330,11 @@
     .f-fila { grid-column: 5 / -1; }
     .f-g.sem, .f-b.sem { text-align: right; justify-self: end; }
     .f-a { padding-left: var(--sp-3); }
+    .f-l .nl { line-height: var(--lh-12); }
   }
   /* tabela com pouco lugar (paper aberto ao lado, em tela larga): saem a data e a amplitude, ficam as colunas da decisao */
   @container (min-width: 980px) and (max-width: 1119.98px) {
-    .cab-g, .abre { --colunas: 32px minmax(0, 1fr) 48px 84px 64px 144px 108px; }
+    .cab-g, .abre { --colunas: 32px minmax(0, 1fr) 48px 76px 64px 132px 100px; }
     .f-d, .f-b, .cab [data-h="recentes"], .cab [data-h="amplitude"] { display: none; }
     .f-fila { grid-column: 4 / -1; }
   }

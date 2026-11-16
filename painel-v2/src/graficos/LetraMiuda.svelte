@@ -1,13 +1,12 @@
 <script>
-  // A letra miuda: o que o proprio paper admite, as ressalvas graves e as
+  // A letra miuda: o que o proprio paper admite, os limites graves e as
   // manchetes que a tabela nao confirma. Abre o paper direto nos trechos.
   import Quadro from '../pecas/Quadro.svelte';
-  import { nome, fmt } from '../lib/dados.js';
+  import { nome, fmt, LIMITE_TIPO, LIMITE_GRAVE } from '../lib/dados.js';
   import { estado, abrir } from '../lib/estado.svelte.js';
   let { papers } = $props();
-  const GRAVE = ['preliminar', 'amostra_pequena', 'pesos_ficticios'];
-  const TIPO = { man: 'Manchete fora das tabelas lidas', grave: 'Ressalva grave', adm: 'Limite admitido' };
-  const TIPOS = { man: ['manchete fora das tabelas lidas', 'manchetes fora das tabelas lidas'], grave: ['ressalva grave', 'ressalvas graves'], adm: ['limite admitido', 'limites admitidos'] };
+  const TIPO = { man: 'Manchete fora das tabelas lidas', grave: 'Limite grave', adm: 'Limite admitido' };
+  const TIPOS = { man: ['manchete fora das tabelas lidas', 'manchetes fora das tabelas lidas'], grave: ['limite grave', 'limites graves'], adm: ['limite admitido', 'limites admitidos'] };
   const LIM = 4;
   // "alega 5,4 pontos": o numero da manchete com a unidade que o paper usou
   const alega = (m) => (m.n == null ? null : m.u === '%' ? `${fmt(m.n)}%` : m.u === 'posição' ? `${fmt(m.n)}ª posição` : `${fmt(m.n)}${m.u ? ' ' + m.u : ''}`);
@@ -16,7 +15,7 @@
     const out = [];
     for (const p of papers) {
       if (p.man && p.man.conf === false) out.push({ p, tipo: 'man', q: p.man.tr, g: alega(p.man) });
-      for (const r of p.ress) if (GRAVE.includes(r[0])) out.push({ p, tipo: 'grave', q: r[1] });
+      for (const r of p.ress) if (LIMITE_GRAVE.includes(r[0])) out.push({ p, tipo: 'grave', q: r[1], g: LIMITE_TIPO[r[0]] });
       for (const a of p.aleg) if (a[0] === 'negativa') out.push({ p, tipo: 'adm', q: a[1] });
     }
     const ordem = { man: 0, grave: 1, adm: 2 };

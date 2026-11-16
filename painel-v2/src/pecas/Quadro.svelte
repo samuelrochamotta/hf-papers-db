@@ -13,7 +13,7 @@
     + Math.abs(t.current).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }));
 </script>
 
-<section class="quadro" aria-labelledby="q-{id}" data-regiao={id}>
+<section class="quadro" class:oco={vazio} aria-labelledby="q-{id}" data-regiao={id}>
   <header>
     <h3 id="q-{id}">{pergunta}</h3>
   </header>
@@ -29,16 +29,18 @@
 <style>
   .quadro { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--sp-4); display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
   @media (min-width: 768px) { .quadro { padding: var(--sp-5) var(--sp-6); } }
+  /* sem dado no recorte, o quadro fica do tamanho da frase: nao estica ate o vizinho para mostrar um vazio */
+  .quadro.oco { align-self: start; }
   header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
   h3 { font-size: var(--fs-14); line-height: var(--lh-14); font-weight: 600; color: var(--ink2); text-wrap: balance; }
-  .resp { display: flex; align-items: baseline; gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-4); flex-wrap: wrap; }
+  /* o numero fica sozinho na linha e a frase vem embaixo: o mesmo arranjo em todo quadro e em toda largura */
+  .resp { display: grid; gap: var(--sp-1); margin: var(--sp-1) 0 var(--sp-4); }
   .resp b { font-size: var(--fs-35); line-height: var(--lh-35); }
   .resp b small { font-size: .5em; letter-spacing: 0; margin-left: 2px; color: var(--ink2); }
-  .resp span { font-size: var(--fs-14); line-height: var(--lh-14); color: var(--ink2); max-width: 34ch; text-wrap: balance; }
-  /* quadro estreito: o numero fica sozinho na linha e a frase vem embaixo, igual em todos os quadros da fileira */
-  @container (max-width: 440px) { .resp span { flex-basis: 100%; } }
+  .resp span { font-size: var(--fs-14); line-height: var(--lh-14); color: var(--ink2); max-width: 52ch; text-wrap: balance; }
   .extra { margin-bottom: var(--sp-3); display: flex; }
-  .g { min-width: 0; display: flex; flex-direction: column; margin-bottom: var(--sp-3); }
+  /* o miolo fica com a altura que sobra no quadro, e o desenho cresce dentro dele */
+  .g { min-width: 0; display: flex; flex-direction: column; flex: 1 1 auto; margin-bottom: var(--sp-3); }
   /* os quadros de uma fileira terminam juntos: a legenda fica no pe */
   footer { margin-top: auto; padding-top: var(--sp-3); border-top: 1px solid var(--line); }
 </style>

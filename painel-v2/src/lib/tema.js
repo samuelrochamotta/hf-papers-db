@@ -133,13 +133,15 @@ export const larguraTexto = (txt, fonte) => { tela ||= document.createElement('c
 // limpo: dentro da area, sem encobrir ponto nem outro nome, sem cruzar linha
 // de referencia e do mesmo lado da zona que o ponto. Ponto obrigatorio ganha
 // nome sempre, no lugar menos ruim. Sem sorteio: a mesma entrada da o mesmo
-// desenho.
+// desenho. Dois nomes nunca ficam colados um embaixo do outro: com menos de
+// 4 px entre eles, leem-se como um nome de duas linhas.
 export const toca = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
 export function rotular(itens, { area, zona = null, linhas = [], ocupado = [], folga = 5 } = {}) {
   const bolas = itens.map((o) => [o.x - o.r, o.y - o.r, 2 * o.r, 2 * o.r]);
   const postos = [...ocupado], saida = itens.map(() => null);
   const cabe = (c) => c[0] >= area[0] && c[1] >= area[1] && c[0] + c[2] <= area[0] + area[2] && c[1] + c[3] <= area[1] + area[3];
   const contem = (z, c) => c[0] >= z[0] && c[1] >= z[1] && c[0] + c[2] <= z[0] + z[2] && c[1] + c[3] <= z[1] + z[3];
+  const comAr = (c) => [c[0] - 2, c[1] - 4, c[2] + 4, c[3] + 8];
   itens.forEach((o, i) => {
     if (!o.w) return;
     const h = o.h ?? 14, g = o.r + folga, { x, y, r, w } = o;
@@ -157,7 +159,7 @@ export function rotular(itens, { area, zona = null, linhas = [], ocupado = [], f
         c = [Math.max(area[0], Math.min(area[0] + area[2] - w, cx)), Math.max(area[1], Math.min(area[1] + area[3] - h, cy)), w, h];
         custo += 500 + (toca(c, bolas[i]) ? 1000 : 0);
       }
-      custo += 1000 * (bolas.filter((b, j) => j !== i && toca(c, b)).length + postos.filter((b) => toca(c, b)).length);
+      custo += 1000 * (bolas.filter((b, j) => j !== i && toca(c, b)).length + postos.filter((b) => toca(comAr(c), b)).length);
       if (zona && (o.dentro ? !contem(zona, c) : toca(c, zona))) custo += 100;
       custo += 100 * linhas.filter((l) => toca(c, l)).length;
       return { c, custo };
@@ -183,7 +185,8 @@ export function marcasRadar(t, { cx, cy, r, itens }) {
   const dir = (i, n) => { const a = Math.PI / 2 + (i * 2 * Math.PI) / n; return [Math.cos(a), -Math.sin(a)]; };
   // escala nos aneis: no meio da aresta entre o primeiro e o ultimo eixo, onde nenhum vertice de dado cai
   const n0 = itens[0]?.valores.length || 6, am = Math.PI / 2 - Math.PI / n0, ap = Math.cos(Math.PI / n0);
-  const out = [50, 100].map((v) => ({ type: 'text', silent: true, z: 1,
+  // a placa do numero fica por cima das linhas das series: nenhuma linha risca a escala
+  const out = [50, 100].map((v) => ({ type: 'text', silent: true, z: 15,
     x: cx + (Math.cos(am) * r * ap * v) / 100, y: cy - (Math.sin(am) * r * ap * v) / 100,
     style: { text: String(v), fill: t.muted, font: `11px ${t.fNum}`, align: 'center', verticalAlign: 'middle', backgroundColor: t.surface, padding: [1, 3] } }));
   const total = new Map(), fila = new Map();   // marcas de corte por eixo: ficam lado a lado, atravessadas no eixo

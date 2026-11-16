@@ -107,13 +107,13 @@
       <div class="vazio">Nenhum paper neste período.{#if estado.periodo !== 'tudo'}<button class="btn sec" onclick={() => (estado.periodo = 'tudo')}>Ver todos os períodos</button>{/if}</div>
     {:else}
       {#if estado.vista === 'papers'}
-        <h2 class="vh">Papers</h2><Indice {papers} faltam={fila} />
+        <h2 class="vh">Papers</h2><Indice {papers} faltam={fila} periodo={todos} />
       {:else if estado.vista === 'panorama'}
-        <section aria-labelledby="h-res"><h2 id="h-res" class="titulo sec-t">Resultados</h2><div class="g2"><Arenas {papers} /><Ganho {papers} /></div></section>
+        <section aria-labelledby="h-res"><h2 id="h-res" class="titulo sec-t">Resultados</h2><div class="g2"><Arenas {papers} /><Ganho {papers} periodo={todos} /></div></section>
         <section aria-labelledby="h-prova" class="bloco"><h2 id="h-prova" class="titulo sec-t">Prova</h2><div class="g2 gp"><Prova {papers} {todos} /><LetraMiuda {papers} /></div></section>
         <section aria-labelledby="h-adocao" class="bloco"><h2 id="h-adocao" class="titulo sec-t">Adoção</h2><div class="g3"><Adocao {papers} /><Custo {papers} /><Regua {papers} /></div></section>
       {:else}
-        <Comparar {papers} todos={estado.dados.papers} />
+        <Comparar {papers} todos={estado.dados.papers} periodo={todos} />
       {/if}
 
       <div class="mola"></div>
@@ -126,7 +126,7 @@
     {/if}
   </main>
 </div>
-{#if estado.dados}<Paper {papers} todos={estado.dados.papers} />{/if}
+{#if estado.dados}<Paper {papers} todos={estado.dados.papers} periodo={todos} />{/if}
 
 <style>
   .palco { min-height: 100vh; min-height: 100dvh; transition: padding-right var(--dur-3) var(--sai); }

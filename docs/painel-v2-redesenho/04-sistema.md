@@ -102,6 +102,21 @@ entre as opções apresentadas a ele.
 10. Rótulo não leva ponto final; frase completa leva.
 11. Um paper tem um nome curto só (`nome()` em `dados.js`: o título até os dois-pontos, até 28 letras, cortado em palavra inteira). Gráficos, nomes, legendas e a comparação usam o mesmo; só onde ele não cabe o desenho usa o menor (`nomeMenor()`).
 12. A conferência da manchete diz o que a leitura fez: "fora das tabelas lidas", não "não confere".
+13. A abertura tem as mesmas palavras em toda tela (`aberturaFrase()` e `faltaLer()` em `dados.js`): o que foi liberado ("código", "código e pesos", "só a página", "nada liberado") e, ao lado ou embaixo, quanto ficou sem ler ("3 não lidos"). "Nada liberado" com parte não lida nunca aparece sozinho.
+14. "Mediana" é sempre a do período escolhido, com ou sem filtro, e sempre escrita "mediana do período".
+15. Limite que os autores admitem tem dois nomes, "Limite admitido" e "Limite grave", seguidos do tipo por extenso (`LIMITE_TIPO` em `dados.js`).
+16. Nível com nome leva maiúscula (Forte, Firme, Integrar, Não lida); fato leva minúscula (código, sem rival, ganho não lido).
+17. O nome curto não termina em palavra de ligação ("SO-Arena Benchmarking…", não "SO-Arena Benchmarking the…").
+
+## Gráficos dentro dos quadros
+
+1. O gráfico ocupa o quadro: cresce até 1,4 vez a altura mínima quando a fileira estica o quadro (`teto` em `Grafico.svelte`). Quadro sem dado encolhe.
+2. O número da resposta fica sozinho na linha, com a frase embaixo, em toda largura.
+3. Coluna de número alinha à direita; rótulo de texto alinha pelo lado do eixo.
+4. Rótulo dentro do gráfico tem fundo sobre a grade e ar mínimo dos vizinhos (`rotular()` em `tema.js`); nenhum sai do quadro.
+5. A legenda lista só o que aparece no gráfico e quebra por item, nunca no meio de um.
+6. Ganho negativo leva a cor de alerta em qualquer lugar, inclusive ao lado de um nome.
+7. A, B e C da comparação têm a mesma família de cor nos dois temas (vinho, verde, violeta) e ficam longe da cor de alerta.
 
 ## Radar
 

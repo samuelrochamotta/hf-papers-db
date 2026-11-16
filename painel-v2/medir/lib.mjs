@@ -38,11 +38,11 @@ export function servir(dir = BUILD, porta = 0) {
 }
 
 // Abre o painel num estado. `caso` troca o dados.json por um caso extremo.
-export async function abrir(browser, { url, largura = 1280, altura, tema = 'light', estado = '', caso = null, reduzido = true, escala = 1 }) {
+export async function abrir(browser, { url, largura = 1280, altura, tema = 'light', estado = '', caso = null, reduzido = true, escala = 1, toque = largura < 700 }) {
   const ctx = await browser.newContext({
     viewport: { width: largura, height: altura || ALTURA[largura] || 800 },
     colorScheme: tema, reducedMotion: reduzido ? 'reduce' : 'no-preference', deviceScaleFactor: escala,
-    hasTouch: largura < 700, locale: 'pt-BR',
+    hasTouch: toque, locale: 'pt-BR',
   });
   const page = await ctx.newPage();
   const erros = [];

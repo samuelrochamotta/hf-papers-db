@@ -6,16 +6,21 @@
   import Grafico from '../lib/Grafico.svelte';
   import Chave from '../pecas/Chave.svelte';
   import { median, nome as nomeDe, sgn, SOL_FRASE, esc } from '../lib/dados.js';
-  import { base, pontoProva, rotNum, rotCat, grade, dica, dominio, pct, corte } from '../lib/tema.js';
+  import { base, pontoProva, rotNum, rotCat, grade, dica, dominio, pct, corte, larguraTexto } from '../lib/tema.js';
   import { estado, abrir } from '../lib/estado.svelte.js';
 
-  let { papers, limite = 16 } = $props();
+  // `periodo`: todos os papers do periodo, sem filtro. A linha de referencia e a mediana do periodo;
+  // o numero grande e a mediana do que esta no recorte
+  let { papers, limite = 16, periodo = papers } = $props();
   const t = $derived(estado.tema);
   let tudo = $state(false);
-  const todas = $derived(papers.map((p) => {
+  const linhaDe = (p) => {
     const rx = p.res.map((r) => r.rext).filter((v) => v != null);
     return rx.length ? { p, med: median(rx), lo: Math.min(...rx), hi: Math.max(...rx), n: rx.length } : null;
-  }).filter(Boolean).sort((a, b) => b.med - a.med || b.p.u - a.p.u));
+  };
+  const todas = $derived(papers.map(linhaDe).filter(Boolean).sort((a, b) => b.med - a.med || b.p.u - a.p.u));
+  const doPeriodo = $derived(periodo.map(linhaDe).filter(Boolean).map((l) => l.med));
+  const medPer = $derived(median(doPeriodo));
   const linhas = $derived(tudo || todas.length <= limite ? todas : todas.slice(0, limite));
   const medAll = $derived(median(todas.map((l) => l.med)));
   const ganham = $derived(todas.filter((l) => l.med > 0).length);
@@ -32,11 +37,12 @@
     if (!t.ink || !linhas.length) return null;
     const [d0, d1] = dom, cl = (v) => Math.max(d0, Math.min(d1, v));
     const eixo = { type: 'category', inverse: true, axisTick: { show: false }, axisLine: { show: false } };
-    const noEixo = medAll != null && todas.length > 2 && medAll >= d0 && medAll <= d1;
+    const noEixo = medPer != null && doPeriodo.length > 2 && medPer >= d0 && medPer <= d1;
     const zero = { silent: true, symbol: 'none', z: 1, label: { show: false }, lineStyle: { color: t.ink, type: 'solid', width: 1, opacity: .6 },
-      data: [{ xAxis: 0 }, ...(noEixo ? [{ xAxis: medAll, lineStyle: { color: t.muted, type: [2, 3], width: 1, opacity: 1 },
-        label: { show: true, position: 'start', distance: 4, formatter: `mediana ${sgn(medAll)}%`, color: t.muted, fontSize: 12, fontFamily: t.fUi } }] : [])] };
+      data: [{ xAxis: 0 }, ...(noEixo ? [{ xAxis: medPer, lineStyle: { color: t.muted, type: [2, 3], width: 1, opacity: 1 },
+        label: { show: true, position: 'start', distance: 4, formatter: `mediana do período ${sgn(medPer)}%`, color: t.muted, fontSize: 12, fontFamily: t.fUi } }] : [])] };
     const fonte = `500 12px ${t.fUi}`, fonteN = `12px ${t.fNum}`;
+    const wVal = Math.ceil(Math.max(...linhas.map((l) => larguraTexto(`${sgn(l.med)}%`, fonteN))));
     const pontos = {
       type: 'custom', cursor: 'pointer', encode: { x: [0, 1, 2], y: 3 }, markLine: zero,
       renderItem: (q, api) => {
@@ -48,9 +54,10 @@
         const filhos = [];
         if (estreito) {
           const a = q.coordSys;
-          // nome e valor tem fundo proprio: as linhas do eixo passam por tras, nao por cima do texto
-          filhos.push({ type: 'text', x: a.x, y: yc - 17, style: { text: nome(l), fill: t.ink, font: fonte, backgroundColor: t.surface, padding: [1, 6, 1, 0] } },
-            { type: 'text', x: a.x + a.width + 20, y: yc - 17, style: { text: `${sgn(l.med)}%`, fill: l.med < 0 ? t.alert : t.ink, font: fonteN, align: 'right', backgroundColor: t.surface, padding: [1, 0, 1, 6] } },
+          // a linha do nome e do valor tem fundo proprio, de ponta a ponta: as linhas do eixo so aparecem na regua de cada paper
+          filhos.push({ type: 'rect', silent: true, shape: { x: a.x - 1, y: yc - 20, width: a.width + 22, height: 19 }, style: { fill: t.surface } },
+            { type: 'text', x: a.x, y: yc - 17, style: { text: nome(l), fill: t.ink, font: fonte } },
+            { type: 'text', x: a.x + a.width + 20, y: yc - 17, style: { text: `${sgn(l.med)}%`, fill: l.med < 0 ? t.alert : t.ink, font: fonteN, align: 'right' } },
             { type: 'line', silent: true, shape: { x1: a.x, y1: y, x2: a.x + a.width, y2: y }, style: { stroke: t.line, lineWidth: 1 } });
         }
         if (l.n > 1) filhos.push({ type: 'line', shape: { x1: X(cl(l.lo)), y1: y, x2: X(cl(l.hi)), y2: y }, style: { stroke: t.lineStrong, lineWidth: 2, lineCap: 'round' } });
@@ -72,7 +79,9 @@
       yAxis: [
         { ...eixo, data: linhas.map(nome), triggerEvent: true, axisLabel: { ...rotCat(t), show: !estreito, margin: 24 } },
         { ...eixo, position: 'right', data: linhas.map((l) => `${sgn(l.med)}%`),
-          axisLabel: { ...rotNum(t), show: !estreito, color: t.ink, margin: 24, formatter: (v, i) => (linhas[i]?.med < 0 ? `{neg|${v}}` : v), rich: { neg: { color: t.alert, fontFamily: t.fNum, fontSize: 12 } } } },
+          // coluna de numeros alinhada a direita, como na tabela de papers: as virgulas caem uma sob a outra
+          axisLabel: { ...rotNum(t), show: !estreito, margin: 24, formatter: (v, i) => `{${linhas[i]?.med < 0 ? 'neg' : 'v'}|${v}}`,
+            rich: { v: { color: t.ink, fontFamily: t.fNum, fontSize: 12, width: wVal, align: 'right' }, neg: { color: t.alert, fontFamily: t.fNum, fontSize: 12, width: wVal, align: 'right' } } } },
       ],
       series: [pontos],
     };
@@ -87,13 +96,13 @@
 <Quadro id="ganho" pergunta="Quanto ganham do melhor rival?" valor={medAll} casas={1} prefixo="+" sufixo="%" vazio={!todas.length}
   resposta={todas.length ? `ganho mediano · ${ganham} de ${todas.length} acima de zero` : ''}>
   {#if opcao}
-    <div bind:clientWidth={larg}><Grafico {opcao} altura={linhas.length * passo + 56} aoClicar={clicar} rotulo="Ganho relativo de cada paper contra o melhor rival externo, do maior para o menor" /></div>
+    <div class="cresce" bind:clientWidth={larg}><Grafico {opcao} altura={linhas.length * passo + 56} aoClicar={clicar} rotulo="Ganho relativo de cada paper contra o melhor rival externo, do maior para o menor" /></div>
     {#if todas.length > limite}<button class="btn sec mais" aria-expanded={tudo} onclick={() => (tudo = !tudo)}>{tudo ? 'Mostrar menos' : `Ver os ${todas.length} papers`}</button>{/if}
   {:else}<div class="vazio">Nenhum paper deste recorte compara com rival externo.</div>{/if}
   {#snippet legenda()}
     <div class="leg">
-      <Chave />
-      <span class="k"><i class="pt"></i>mediana do paper<i class="tr"></i>do pior ao melhor resultado</span>
+      <Chave papers={linhas.map((l) => l.p)} />
+      <span class="k"><i class="pt"></i>ganho do paper<i class="tr"></i>do pior ao melhor resultado</span>
       {#if cortados}<span class="k"><b aria-hidden="true">»</b>passa do eixo</span>{/if}
     </div>
   {/snippet}

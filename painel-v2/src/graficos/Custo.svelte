@@ -36,10 +36,11 @@
 
   const opcao = $derived.by(() => {
     if (!t.ink || !pontos.length) return null;
-    // eixo em dobras (metade, igual, dobro): custo igual fica a vista e quem custa 1,2x nao encosta na linha
+    // eixo em dobras (metade, igual, dobro), com o custo igual no meio: mais barato a esquerda, mais caro a direita, na
+    // mesma medida. Quem custa 1,2x nao encosta na linha e tem, do seu lado, lugar para o nome dentro do desenho
     const lx = (f) => Math.log2(f), ls = pontos.map((o) => lx(o.f));
-    const lo = Math.min(-1, Math.floor(Math.min(...ls))), hi = Math.max(1, Math.ceil(Math.max(...ls)));
-    const px = Math.max(1, Math.ceil((hi - lo) / 4)), x0 = -Math.ceil(-lo / px) * px, x1 = Math.ceil(hi / px) * px;
+    const longe = Math.max(1, Math.ceil(Math.max(...ls.map(Math.abs))));
+    const px = Math.max(1, Math.ceil(longe / 2)), x1 = 2 * px, x0 = -x1;
     const [y0, y1, passo] = dominio(pontos.map((o) => o.g), { inclui: [-10, 10] });
     const cl = (g) => Math.max(y0, Math.min(y1, g)), fora = (o) => o.g > y1 || o.g < y0;
     // marcas curtas, para caberem todas no celular: ÷16 e o custo dividido por 16
@@ -66,7 +67,7 @@
         .find((c) => c[0] + wt < z[0] + z[2] - 4 && !bolas.some((o) => toca(c, o))) || null;
       const caixas = rotular(
         ordem.map((i) => { const o = pontos[i]; return { x: pos[i][0], y: pos[i][1], r: raio(o), w: larguraTexto(texto(o), bom(o) ? fonteB : fonte), dentro: bom(o), obrigatorio: certos.has(i) }; }),
-        { area: [area.x + 2, area.y, area.width + 54, area.height], zona: z, ocupado: tit ? [tit] : [],
+        { area: [area.x + 2, area.y, area.width - 4, area.height], zona: z, ocupado: tit ? [tit] : [],
           linhas: [[b[0] - 2, area.y, 4, area.height], [area.x, b[1] - 2, area.width, 4]] });
       const rot = pontos.map(() => null); ordem.forEach((i, k) => { rot[i] = caixas[k]; });
       return { pos, z, tit, rot };
@@ -75,8 +76,7 @@
 
     return {
       ...base(t),
-      // a margem direita guarda lugar para o nome de quem fica junto da borda
-      grid: { left: 0, right: 56, top: 28, bottom: 32, containLabel: true },
+      grid: { left: 0, right: 12, top: 28, bottom: 32, containLabel: true },
       graphic: [{ type: 'text', left: 0, top: 2, silent: true, style: { text: 'ganho', fill: t.muted, font: `12px ${t.fNum}` } }],
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
         const o = porId.get(q.data?.pid); if (!o) return '';
@@ -91,18 +91,20 @@
       series: [
         { type: 'custom', silent: true, z: -1, tooltip: { show: false }, data: [[x0, y1]],
           renderItem: (q, api) => { arranjo = arranjar(api, q.coordSys); const { z, tit } = arranjo;
-            return { type: 'group', children: [
-              { type: 'rect', shape: { x: z[0], y: z[1], width: z[2], height: z[3] }, style: { fill: t.sunk } },
-              ...(tit ? [{ type: 'text', x: tit[0], y: tit[1], style: { text: TITULO, fill: t.ink2, font: fonteT, backgroundColor: t.sunk, padding: [1, 3] } }] : []),
-            ] }; },
+            return { type: 'rect', shape: { x: z[0], y: z[1], width: z[2], height: z[3] }, style: { fill: t.sunk } }; },
           markLine: { silent: true, symbol: 'none', z: 1, label: { show: false }, lineStyle: { color: t.ink, type: 'solid', width: 1, opacity: .5 },
             data: [{ xAxis: 0 }, { yAxis: 0 }] } },
+        // o titulo da zona fica acima da grade, com fundo: nenhuma linha passa por dentro do texto
+        { type: 'custom', silent: true, z: 2, tooltip: { show: false }, data: [[x0, y1]],
+          renderItem: (q, api) => { const { tit } = pronto(q, api);
+            return tit ? { type: 'text', x: tit[0] - 3, y: tit[1] - 1, style: { text: TITULO, fill: t.ink2, font: fonteT, backgroundColor: t.sunk, padding: [1, 3] } } : null; } },
         { type: 'custom', z: 3, encode: { x: 0, y: 1 }, data: pontos.map((o) => ({ pid: o.p.id, value: [lx(o.f), cl(o.g)] })),
           renderItem: (q, api) => {
             const { pos, rot } = pronto(q, api), i = q.dataIndex, o = pontos[i], c = rot[i], r = raio(o);
             const extra = { cursor: 'pointer', emphasis: { style: { stroke: t.ink, lineWidth: 2, lineDash: null } },
-              ...(c ? { textContent: { type: 'text', style: { text: texto(o), fill: bom(o) ? t.ink : t.ink2, font: bom(o) ? fonteB : fonte } },
-                textConfig: { position: [c[0] - (pos[i][0] - r), c[1] - (pos[i][1] - r) + 1] } } : {}) };
+              // o nome leva o fundo de onde esta (a zona ou o quadro): a grade para atras dele
+              ...(c ? { textContent: { type: 'text', style: { text: texto(o), fill: bom(o) ? t.ink : t.ink2, font: bom(o) ? fonteB : fonte, backgroundColor: bom(o) ? t.sunk : t.surface, padding: [1, 2] } },
+                textConfig: { position: [c[0] - (pos[i][0] - r) - 2, c[1] - (pos[i][1] - r)] } } : {}) };
             return { type: 'group', children: pontoProva(t, o.p, pos[i][0], pos[i][1], r, { extra }) };
           } },
       ],
@@ -113,7 +115,7 @@
 <Quadro id="custo" pergunta="O que melhora gastando menos?" valor={bons.length} vazio={!pontos.length}
   resposta={`de ${plural(pontos.length, 'paper', 'papers')} com custo declarado ${bons.length === 1 ? 'gasta' : 'gastam'} menos sem perder qualidade`}>
   {#if opcao}<Grafico {opcao} altura={268} rotulo="Ganho de cada paper contra o custo em relação ao rival" />
-    <Nomes papers={bons.map((o) => o.p)} rotulo="Papers que gastam menos sem perder qualidade" valor={(p) => `${vezes(porId.get(p.id).f)} · ${sgn(porId.get(p.id).g)}%`} />
+    <Nomes papers={bons.map((o) => o.p)} rotulo="Papers que gastam menos sem perder qualidade" valor={(p) => vezes(porId.get(p.id).f)} ganho={(p) => porId.get(p.id).g} />
   {:else}<div class="vazio">Nenhum paper deste recorte declara custo com número.</div>{/if}
-  {#snippet legenda()}<Chave />{/snippet}
+  {#snippet legenda()}<Chave papers={pontos.map((o) => o.p)} />{/snippet}
 </Quadro>

@@ -22,6 +22,8 @@
  *     so conta parte dos artefatos, e a escala escrita nos aneis.
  * 12. A fila (paper sem leitura) entra na busca pelo titulo e pelo id.
  * 13. O nome curto de um paper e um so em todo o painel.
+ * 14. A abertura usa as mesmas palavras em toda tela e diz quantos artefatos
+ *     a leitura nao alcancou; os limites dos autores tem um nome so.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,6 +32,7 @@ import {
   aplicaLentes, lenteValida, rotuloLente, ordenar, comDado, ORDENS, buscar, periodos, noPeriodo,
   radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ, realcar, ondeAchou,
   buscarFila, SEM_FATO, FATO, EIXOS, ESFORCO, TETO_AMPLITUDE, passaDoEixo, parteNaoLida, naoLidosDe, nBench, nome, nomeMenor,
+  aberturaFrase, faltaLer, LIMITE_TIPO, LIMITE_GRAVE,
 } from '../../painel-v2/src/lib/dados.js';
 import { enxame, rotular, toca, dominio, pontoProva, marcasRadar } from '../../painel-v2/src/lib/tema.js';
 
@@ -316,5 +319,34 @@ test('o nome curto e um so: o titulo ate os dois-pontos, cortado em palavra inte
   assert.equal(nome({ t: "Don't Just Trust Your Memory: Evidence-Linked Memory" }), "Don't Just Trust Your Memory");
   assert.equal(nome({ t: 'Advances in Agentic Computer Graphics' }), 'Advances in Agentic Computer…');
   assert.equal(nomeMenor({ t: 'Advances in Agentic Computer Graphics' }), 'Advances in…');
+  // o corte nao termina em palavra de ligacao, desde que sobrem duas palavras
+  assert.equal(nome({ t: 'SO-Arena Benchmarking the Capability Spectrum and Reliability of System One Models' }), 'SO-Arena Benchmarking…');
   for (const p of REAL.papers) { assert.ok(nome(p).length <= 29, p.t); assert.ok(nomeMenor(p).length <= nome(p).length); }
+});
+
+test('a abertura tem as mesmas palavras em toda tela e nao esconde a parte nao lida', () => {
+  const NL = { codigo: 'nao_lido', pesos: 'nao_lido', dados: 'nao_lido', demo: 'nao_lido' };
+  const codigo = paper('a', { ab: { ...NL, codigo: 'liberado' }, radar: { abertura: 100 } });
+  const dois = paper('b', { ab: { codigo: 'liberado', pesos: 'liberado', dados: 'ausente', demo: 'ausente' }, radar: { abertura: 70 } });
+  const pagina = paper('c', { ab: { ...NL, codigo: 'so_pagina' }, radar: { abertura: 15 } });
+  const nada = paper('d', { ab: { codigo: 'ausente', pesos: 'ausente', dados: 'ausente', demo: 'ausente' }, radar: { abertura: 0 } });
+  const semLer = paper('e', { ab: NL, radar: { abertura: null } });
+  // o fato, sob o rotulo "Abertura", e a frase, onde nao ha rotulo: a segunda so acrescenta o verbo
+  assert.equal(FATO.abertura(codigo), 'código'); assert.equal(aberturaFrase(codigo), 'liberou código');
+  assert.equal(FATO.abertura(dois), 'código e pesos'); assert.equal(aberturaFrase(dois), 'liberou código e pesos');
+  assert.equal(aberturaFrase(pagina), 'só a página'); assert.equal(aberturaFrase(nada), 'nada liberado');
+  assert.equal(aberturaFrase(semLer), 'abertura não lida');
+  // "nada" ou "só a página" com parte nao lida nao e ausencia: a contagem vem junto
+  assert.equal(faltaLer(codigo), '3 não lidos'); assert.equal(faltaLer(pagina), '3 não lidos');
+  assert.equal(faltaLer(dois), ''); assert.equal(faltaLer(nada), '');
+  assert.equal(faltaLer(paper('f', { ab: { codigo: 'liberado', pesos: 'liberado', dados: 'liberado', demo: 'nao_lido' }, radar: { abertura: 100 } })), '1 não lido');
+  assert.equal(faltaLer(semLer), '', 'eixo todo nao lido ja diz "abertura não lida"');
+  // nos dados publicados, todo paper tem frase, e nenhuma diz "nada" sozinha
+  for (const p of REAL.papers) { assert.ok(aberturaFrase(p).length > 3, p.id); assert.notEqual(aberturaFrase(p), 'nada'); }
+});
+
+test('os limites dos autores tem um nome so, com o tipo por extenso', () => {
+  // todo tipo que a leitura publica tem nome em portugues; grave e um subconjunto com nome
+  for (const p of REAL.papers) for (const r of p.ress) assert.ok(LIMITE_TIPO[r[0]], `tipo sem nome: ${r[0]}`);
+  for (const k of LIMITE_GRAVE) assert.ok(LIMITE_TIPO[k], k);
 });

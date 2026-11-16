@@ -13,7 +13,7 @@
 
   let { papers, todos = papers } = $props();
   const t = $derived(estado.tema);
-  const R = 6.5, TITULO = 'muito voto, pouca prova';
+  const TITULO = 'muito voto, pouca prova';
   // a regua e a mediana do periodo: filtrar nao muda o que conta como "muito voto"
   const med = $derived(median(todos.map((p) => p.u)) || 1);
   const maisVotado = $derived(papers.reduce((m, p) => (!m || p.u > m.u ? p : m), null));
@@ -23,6 +23,8 @@
   const semLer = $derived(papers.filter((p) => p.sol === 'sem_leitura' && p.u >= med).length);
   const conta = $derived(Object.fromEntries(SOLIDEZ.map((s) => [s, papers.filter((p) => p.sol === s).length])));
   const ativas = $derived(lentesDe('sol'));
+  // onde o nome da zona nao cabe dentro dela (tela estreita), ele vira o titulo dos nomes logo abaixo
+  let semTitulo = $state(false);
 
   // votos: escala linear enquanto o maior nao passa de dez vezes o menor
   const escala = $derived.by(() => {
@@ -34,8 +36,22 @@
   });
 
 
+  // a altura acompanha a fila mais cheia: em tela estreita os pontos de mesmo voto se empilham, e a faixa
+  // de cada nivel cresce ate caber a pilha inteira, sem um ponto encobrir outro
+  let larg = $state(480);
+  const estreito = $derived(larg < 420);
+  const raio = $derived(estreito ? 5 : 6.5);
+  const altura = $derived.by(() => {
+    if (!papers.length) return 320;
+    const { log, lim } = escala, w = Math.max(120, larg - 100), f = (v) => (log ? Math.log10(v) : v);
+    const pts = papers.map((p) => ({ x: (f(Math.max(1, p.u)) - f(Math.max(log ? 1 : 0, lim[0]))) / ((f(lim[1]) - f(Math.max(log ? 1 : 0, lim[0]))) || 1) * w, y: SOLIDEZ.indexOf(p.sol) }));
+    const pilha = Math.max(0, ...enxame(pts, Infinity, raio).map(Math.abs));
+    return Math.max(320, Math.ceil(SOLIDEZ.length * (2 * (pilha + raio + 1) + 8) + 56));
+  });
+
   const opcao = $derived.by(() => {
     if (!t.ink || !papers.length) return null;
+    const R = raio;
     const { log, lim } = escala, fonte = `12px ${t.fUi}`, fonteT = `500 12px ${t.fUi}`;
     const linha = (p) => SOLIDEZ.indexOf(p.sol), votos = (p) => Math.max(1, p.u);
     const iz = [SOLIDEZ.indexOf('basico'), SOLIDEZ.indexOf('fragil')];
@@ -51,27 +67,37 @@
       const z = [a[0], a[1] - faixa / 2, b[0] - a[0], b[1] - a[1] + faixa];
       const bolas = pos.map(([x, y]) => [x - R, y - R, 2 * R, 2 * R]);
       const wt = largura(TITULO, fonteT);
-      const tit = [[z[0] + z[2] - 8 - wt, z[1] + 5, wt, 14], [z[0] + z[2] - 8 - wt, z[1] + z[3] - 19, wt, 14]]
-        .find((c) => c[0] > z[0] + 4 && !bolas.some((o) => toca(c, o))) || null;
-      const caixas = tit ? [tit] : [], rot = papers.map(() => null);
+      // nome fora da zona guarda distancia dela: encostado na borda, parece titulo da zona
+      const zAr = [z[0] - 4, z[1] - 4, z[2] + 8, z[3] + 8];
       // ganham nome os papers da zona e o mais votado do recorte ("o mais votado tem prova?")
       const fila = papers.map((_, i) => i).filter((i) => naZona(papers[i]) || papers[i] === maisVotado).sort((i, j) => papers[j].u - papers[i].u);
-      for (const i of fila) {
-        const [x, y] = pos[i], dentro = naZona(papers[i]);
-        // primeiro o nome curto do painel; so onde ele nao cabe, o menor
-        achar: for (const txt of new Set([nome(papers[i]), nomeMenor(papers[i])])) {
-          const w = largura(txt, fonte);
-          // ao lado do ponto; fora da zona, tambem logo abaixo ou acima dele
-          const lados = { right: [x + R + 5, y - 7], left: [x - R - 5 - w, y - 7], below: [x + R - w, y + R + 3], above: [x + R - w, y - R - 17] };
-          for (const lado of dentro ? ['right', 'left'] : ['left', 'right', 'below', 'above']) {
-            const c = [...lados[lado], w, 14];
-            if (dentro && (c[0] < z[0] + 4 || c[0] + w > z[0] + z[2] + 12)) continue;      // o nome fica dentro da zona
-            if (!dentro && (c[0] < area.x + 2 || c[0] + w > area.x + area.width + 12 || c[1] < area.y || c[1] + 14 > area.y + area.height - 2 || toca(c, z))) continue;
-            if (bolas.some((o, j) => j !== i && toca(c, o)) || caixas.some((o) => toca(c, o))) continue;
-            caixas.push(c); rot[i] = { txt, c }; break achar;
+      // O titulo da zona tem dois cantos possiveis. Vale o canto que deixa mais papers com o nome inteiro:
+      // o titulo nunca empurra um nome para a forma abreviada se o outro canto resolve
+      const cantos = [[z[0] + z[2] - 8 - wt, z[1] + 5, wt, 14], [z[0] + z[2] - 8 - wt, z[1] + z[3] - 19, wt, 14]]
+        .filter((c) => c[0] > z[0] + 4 && !bolas.some((o) => toca(c, o)));
+      const nomear = (tit) => {
+        const caixas = tit ? [tit] : [], rot = papers.map(() => null); let inteiros = 0;
+        for (const i of fila) {
+          const [x, y] = pos[i], dentro = naZona(papers[i]);
+          // primeiro o nome curto do painel; so onde ele nao cabe, o menor
+          achar: for (const txt of new Set([nome(papers[i]), nomeMenor(papers[i])])) {
+            const w = largura(txt, fonte);
+            // ao lado do ponto; fora da zona, tambem logo abaixo ou acima dele, e com um anel no ponto
+            const lados = { right: [x + R + 5 + (dentro ? 0 : 3), y - 7], left: [x - R - 5 - (dentro ? 0 : 3) - w, y - 7], below: [x + R + 3 - w, y + R + 4], above: [x + R + 3 - w, y - R - 18] };
+            for (const lado of dentro ? ['right', 'left'] : ['left', 'right', 'below', 'above']) {
+              const c = [...lados[lado], w, 14];
+              if (dentro && (c[0] < z[0] + 4 || c[0] + w > z[0] + z[2] + 12)) continue;      // o nome fica dentro da zona
+              if (!dentro && (c[0] < area.x + 2 || c[0] + w > area.x + area.width + 12 || c[1] < area.y || c[1] + 14 > area.y + area.height || toca(c, zAr))) continue;
+              if (bolas.some((o, j) => j !== i && toca(c, o)) || caixas.some((o) => toca(c, o))) continue;
+              caixas.push(c); rot[i] = { txt, c, anel: !dentro }; if (txt === nome(papers[i])) inteiros++; break achar;
+            }
           }
         }
-      }
+        return { tit, rot, pontos: 2 * inteiros + rot.filter(Boolean).length };
+      };
+      const tentativas = (cantos.length ? cantos : [null]).map(nomear);
+      const { tit, rot } = tentativas.reduce((m, o) => (o.pontos > m.pontos ? o : m));
+      if (!tit !== semTitulo) queueMicrotask(() => (semTitulo = !tit));
       return { pos, z, tit, rot };
     }
     const pronto = (q, api) => (arranjo = q.dataIndexInside === 0 || !arranjo ? arranjar(api, q.coordSys) : arranjo);
@@ -104,7 +130,9 @@
             const { pos, rot } = pronto(q, api), i = q.dataIndex, r = rot[i];
             const extra = { cursor: 'pointer', emphasis: { style: { stroke: t.ink, lineWidth: 2, lineDash: null } },
               ...(r ? { textContent: { type: 'text', style: { text: r.txt, fill: t.ink, font: fonte } }, textConfig: { position: [r.c[0] - (pos[i][0] - R), r.c[1] - (pos[i][1] - R) + 1] } } : {}) };
-            return { type: 'group', children: pontoProva(t, papers[i], pos[i][0], pos[i][1], R, { extra }) };
+            // o ponto com nome fora da zona ganha um anel: o nome e dele, nao do vizinho por onde o texto passa
+            const anel = r?.anel ? [{ type: 'circle', silent: true, shape: { cx: pos[i][0], cy: pos[i][1], r: R + 3.5 }, style: { fill: 'none', stroke: t.ink, lineWidth: 1 } }] : [];
+            return { type: 'group', children: [...anel, ...pontoProva(t, papers[i], pos[i][0], pos[i][1], R, { extra })] };
           } },
       ],
     };
@@ -116,7 +144,7 @@
 </script>
 
 <Quadro id="prova" pergunta="Onde há votos sem prova?" valor={zona.length} vazio={!papers.length} resposta={`${zona.length === 1 ? 'paper' : 'papers'} com votos acima da mediana e prova frágil ou básica${semLer ? `, mais ${semLer} com prova não lida` : ''}`}>
-  {#if opcao}<Grafico {opcao} altura={320} aoClicar={clicar} rotulo="Votos de cada paper por nível de prova" />
+  {#if opcao}<div class="cresce" bind:clientWidth={larg}><Grafico {opcao} {altura} aoClicar={clicar} rotulo="Votos de cada paper por nível de prova" /></div>
   {:else}<div class="vazio">Nenhum paper neste recorte.</div>{/if}
-  <Nomes papers={zona} rotulo="Papers com muito voto e pouca prova" valor={(p) => p.u.toLocaleString('pt-BR')} alerta />
+  <Nomes papers={zona} titulo={semTitulo ? 'Muito voto, pouca prova' : ''} rotulo="Papers com muito voto e pouca prova" valor={(p) => p.u.toLocaleString('pt-BR')} alerta />
 </Quadro>

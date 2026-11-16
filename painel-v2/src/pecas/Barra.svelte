@@ -129,6 +129,8 @@
   /* estreito: a contagem ocupa a primeira linha e sobe com a pagina (top negativo);
      presa no topo fica so a linha dos filtros, todos a vista, sem rolagem lateral */
   .limpa { min-height: calc(var(--ctl) - 4px); padding: 0 var(--sp-2); font-size: var(--fs-12); }
+  /* no toque (tablet incluido): 4 px de folga sob a primeira linha, para o alvo de 44 px dos filtros nao ficar por baixo dela */
+  @media (pointer: coarse) { .l2 { padding-top: var(--sp-1); } .limpa::after { inset: -4px -2px; } }
   .achado { max-width: 180px; }
   @media (max-width: 639px) {
     /* a primeira linha tem altura fixa: sem filtro ela sobe com a pagina; com
@@ -137,10 +139,22 @@
     .recorte.ativo { top: 0; }
     .l2 { flex-wrap: wrap; row-gap: var(--sp-2); padding-top: var(--sp-1); }      /* 8 px entre as linhas: os alvos de 44 px do Limpar e dos filtros se encostam, sem se cobrir */
     .limpa::after { inset: -4px -2px; }
-    .rec { flex: 1 1 0; order: 1; height: var(--l1); display: flex; align-items: center; min-width: 0; }
+    /* a linha da contagem mostra o que cabe, por ordem de importancia: o que nao
+       cabe ao lado do Limpar (a fila, depois as datas) desce para uma segunda
+       linha que a altura fixa esconde, em vez de passar por baixo do botao */
+    .rec { flex: 1 1 0; order: 1; height: var(--l1); display: flex; flex-wrap: wrap; align-content: flex-start; overflow: hidden; min-width: 0; }
+    .rec > :global(*) { line-height: var(--l1); }
     .limpa { order: 2; min-height: var(--l1); }
-    .filtros { flex: 1 0 100%; order: 3; gap: var(--sp-2) 6px; }      /* 8 px entre linhas: se os filtros quebram, os alvos de 44 px se encostam sem se cobrir */
-    .filtros :global(.par.tem > .sel:first-child > svg:last-child) { display: none; }      /* o filtro ligado ja tem o × ao lado: sem a seta, os quatro cabem numa linha */
+    /* os filtros ficam numa linha so, presa no topo. Quando um filtro ligado nao
+       cabe ao lado dos outros, a linha rola de lado, com os ligados na frente e a
+       borda esmaecida do lado em que ha mais. A folga de 4 px em cima e embaixo
+       guarda o alvo de toque de 44 px dentro da area que rola */
+    .filtros { flex: 1 0 100%; order: 3; flex-wrap: nowrap; gap: 6px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+      margin: -4px calc(-1 * var(--margem)); padding: 4px var(--margem);
+      mask-image: linear-gradient(90deg, transparent, #000 var(--margem), #000 calc(100% - var(--margem)), transparent); }
+    .filtros::-webkit-scrollbar { display: none; }
+    .filtros > :global(*) { flex: none; }
+    .filtros > :global(.par.tem), .filtros > .achado { order: -1; }
     .filtros :global(.pre) { display: none; }      /* preso no topo, o filtro ligado mostra so o valor */
     .filtros :global(.sel) { padding: 0 6px 0 10px; }
   }

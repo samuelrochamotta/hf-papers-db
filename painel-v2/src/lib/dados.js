@@ -46,6 +46,10 @@ export const SIG = [
   ['vit', 'Vence em 70% ou mais'], ['evid', 'Evidência humana ou real'], ['man', 'Manchete confere'],
   ['ress', 'Admite limites'],
 ];
+// Limites que os autores admitem: um nome so em todas as telas ("Limite admitido"), com o tipo ao lado.
+// Os tipos graves (o que enfraquece o proprio resultado) viram "Limite grave", na cor de alerta.
+export const LIMITE_TIPO = { escopo: 'escopo', medicao: 'medição', confusao: 'fator de confusão', amostra_pequena: 'amostra pequena', dado_fechado: 'dado fechado', preliminar: 'resultado preliminar', pesos_ficticios: 'pesos fictícios' };
+export const LIMITE_GRAVE = ['preliminar', 'amostra_pequena', 'pesos_ficticios'];
 export const ART = { codigo: 'Código', pesos: 'Pesos', dados: 'Dados', demo: 'Demo' };
 export const ART_EST = { liberado: 'liberado', prometido: 'prometido', so_pagina: 'só página', ausente: 'ausente', nao_lido: 'não lido' };
 export const SOL_FRASE = { forte: 'Prova forte', firme: 'Prova firme', basico: 'Prova básica', fragil: 'Prova frágil', sem_leitura: 'Prova não lida' };
@@ -97,12 +101,15 @@ export const fmt = (n, d = 1) => n == null ? '–'
 export const sgn = (n, d = 1) => n == null ? '–' : (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n), d);
 // Nome curto do paper: o que vem antes de ":" ou travessao, cortado em
 // palavra inteira, com reticencias quando corta.
+const LIGACAO = 'the|a|an|of|for|in|on|to|and|or|via|with|from|by|at|as|is|de|da|do|das|dos|e|em|para|com|o|os|as';
 export const curto = (t, max = 22) => {
   const s = String(t || '').split(/[:—–]| - /)[0].trim();
   if (s.length <= max) return s;
   let out = '';
   for (const w of s.split(/\s+/)) { if ((out + ' ' + w).trim().length > max) break; out = (out + ' ' + w).trim(); }
-  return (out || s.slice(0, max)).replace(/[,;.]$/, '') + '…';
+  // o corte nao termina em palavra de ligacao ("SO-Arena Benchmarking the…"): ela sai junto, se sobrarem duas palavras
+  const semLigacao = out.replace(new RegExp(`(\\s+(${LIGACAO}))+$`, 'i'), '');
+  return ((/\s/.test(semLigacao) ? semLigacao : out) || s.slice(0, max)).replace(/[,;.]$/, '') + '…';
 };
 // O nome curto de um paper e um so em todo o painel: o titulo ate os dois-pontos,
 // cortado em palavra inteira. Onde nao couber, o desenho usa `nomeMenor`.
@@ -296,3 +303,10 @@ export const TETO_AMPLITUDE = 5;
 export const passaDoEixo = (k, p) => k === 'amplitude' && (nBench(p) ?? 0) > TETO_AMPLITUDE;
 export const naoLidosDe = (p) => Object.values(p.ab).filter((e) => e === 'nao_lido').length;
 export const parteNaoLida = (k, p) => k === 'abertura' && p.radar.abertura != null && naoLidosDe(p) > 0;
+// O que o paper liberou, com as mesmas palavras em todas as telas. Sob o rotulo
+// "Abertura" vai o fato ("código e pesos", "só a página", "nada liberado");
+// onde nao ha rotulo, a frase ("liberou código e pesos"). faltaLer diz quantos
+// artefatos a leitura nao alcancou: "nada liberado" com parte nao lida nao e
+// a mesma coisa que nada.
+export const aberturaFrase = (p) => { const f = FATO.abertura(p); return f == null ? 'abertura não lida' : liberados(p) ? `liberou ${f}` : f; };
+export const faltaLer = (p) => { const n = naoLidosDe(p); return p.radar.abertura != null && n ? `${n} ${n === 1 ? 'não lido' : 'não lidos'}` : ''; };

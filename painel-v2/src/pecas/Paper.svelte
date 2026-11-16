@@ -9,11 +9,12 @@
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { tick } from 'svelte';
-  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, median, urlSegura, radarValores, intervalo, ganhoDe, liberados, FATO, SEM_FATO, nBench, passaDoEixo, parteNaoLida } from '../lib/dados.js';
+  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, median, urlSegura, radarValores, intervalo, ganhoDe, FATO, SEM_FATO, nBench, passaDoEixo, parteNaoLida, aberturaFrase, faltaLer, LIMITE_TIPO, LIMITE_GRAVE } from '../lib/dados.js';
   import { base, corSolidez, dica, marcasRadar } from '../lib/tema.js';
   import { estado, fechar, alternaComparar, abrir, mov } from '../lib/estado.svelte.js';
 
-  let { papers, todos } = $props();
+  // `periodo`: todos os papers do periodo, sem filtro: a mediana e sempre a do periodo
+  let { papers, todos, periodo = papers } = $props();
   const p = $derived(estado.sel ? todos.find((x) => x.id === estado.sel) : null);
   const t = $derived(estado.tema);
   let todosRes = $state(false);
@@ -42,17 +43,19 @@
   const pos = $derived(p ? lista.findIndex((x) => x.id === p.id) : -1);
   const vai = (d) => { const n = lista[pos + d]; if (n) abrir(n.id, estado.prof); };
 
-  const medBruta = $derived(EIXOS.map(([k]) => median(papers.map((x) => x.radar[k]))));
-  // onde o paper fica frente a mediana do recorte, em cada eixo (mesma conta do radar)
+  const medBruta = $derived(EIXOS.map(([k]) => median(periodo.map((x) => x.radar[k]))));
+  // onde o paper fica frente a mediana do periodo, em cada eixo (mesma conta do radar). Na adocao, mais nota e mais facil
   const IDX = Object.fromEntries(EIXOS.map(([k], i) => [k, i]));
-  const frente = (k) => { const v = p.radar[k], m = medBruta[IDX[k]]; return v == null || m == null ? null : { v, m, rot: v > m ? 'acima da mediana' : v < m ? 'abaixo da mediana' : 'na mediana' }; };
+  const frente = (k) => { const v = p.radar[k], m = medBruta[IDX[k]]; return v == null || m == null ? null : { v, m, rot: v === m ? 'na mediana' : k === 'facilidade' ? (v > m ? 'mais fácil que a mediana' : 'mais difícil que a mediana') : v > m ? 'acima da mediana' : 'abaixo da mediana' }; };
   const cor = $derived(p ? (p.sol === 'sem_leitura' ? t.solNada : corSolidez(t, p.sol)) : '');
   const naoLidos = $derived(p ? EIXOS.filter(([k]) => p.radar[k] == null).map(([, r]) => r) : []);
   // O radar desenha a nota de 0 a 100; ao lado do nome de cada eixo vai o fato,
   // na unidade dele. Os avisos ficam no desenho: vertice vazado onde a abertura
   // so conta parte dos artefatos, marca de corte onde a amplitude passa do teto.
   let largR = $state(360);
-  const raioR = $derived(Math.round(Math.max(52, Math.min(74, (largR - 208) / 2))));
+  // o radar usa a largura que os nomes dos eixos deixam (uns 95 px de cada lado), ate um teto: no tablet ele nao fica miudo no meio da folha
+  const raioR = $derived(Math.round(Math.max(54, Math.min(96, (largR - 190) / 2))));
+  const cyR = $derived(raioR + 52);
   const cortesR = $derived(p ? EIXOS.map(([k]) => passaDoEixo(k, p)) : []), vazadosR = $derived(p ? EIXOS.map(([k]) => parteNaoLida(k, p)) : []);
   const fatoR = (k) => (k === 'amplitude' && nBench(p) != null ? `${nBench(p)} bench.` : FATO[k](p));
   const opRadar = $derived.by(() => {
@@ -60,17 +63,17 @@
     return {
       ...base(t),
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => q.data.mediana
-        ? dica('Mediana do recorte', ...EIXOS.map(([, r], i) => `${r}: <b>${medBruta[i] == null ? '–' : Math.round(medBruta[i])}</b>`))
+        ? dica('Mediana do período', ...EIXOS.map(([, r], i) => `${r}: <b>${medBruta[i] == null ? '–' : Math.round(medBruta[i])}</b>`))
         : dica('Este paper', ...EIXOS.map(([k, r]) => `${r}: <b>${FATO[k](p) ?? SEM_FATO[k](p)}</b>${p.radar[k] == null ? '' : ` · nota ${p.radar[k]}`}`)) },
       radar: { indicator: EIXOS.map(([k, r]) => (fatoR(k) == null ? { name: `${r}\n${SEM_FATO[k](p).toLowerCase()}`, max: 100, color: t.muted } : { name: `${r}\n{v|${fatoR(k)}}`, max: 100 })),
-        radius: raioR, center: ['50%', 129], splitNumber: 4,
+        radius: raioR, center: ['50%', cyR], splitNumber: 4,
         axisName: { color: t.ink2, fontSize: 12, fontFamily: t.fUi, lineHeight: 16, rich: { v: { fontFamily: t.fUi, fontSize: 12, color: t.ink, fontWeight: 600 } } },
         splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } } },
-      graphic: marcasRadar(t, { cx: largR / 2, cy: 129, r: raioR, itens: [{ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor, simbolo: 'circle', vazados: vazadosR, cortes: cortesR }] }),
+      graphic: marcasRadar(t, { cx: largR / 2, cy: cyR, r: raioR, itens: [{ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor, simbolo: 'circle', vazados: vazadosR, cortes: cortesR }] }),
       series: [{ type: 'radar', data: [
         { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { color: t.muted, type: [4, 4], width: 1 } },
         { name: p.t, value: radarValores(EIXOS.map(([k]) => p.radar[k])), symbol: naoLidos.length ? 'none' : 'circle', symbolSize: 5,
-          itemStyle: { color: cor }, lineStyle: { color: cor, width: 2 }, areaStyle: { color: cor, opacity: .2 } },
+          itemStyle: { color: cor }, lineStyle: { color: cor, width: 2 }, areaStyle: { color: cor, opacity: .14 } },
       ] }],
     };
   });
@@ -101,7 +104,7 @@
     if (p.L.c === 'completa') return { curta: '', frase: 'Texto lido por inteiro.' };
     if (p.L.f === 'abstract') return { curta: 'só o resumo foi lido', frase: 'Leitura parcial: só o resumo do paper foi lido.' };
     const ate = String(p.L.fim || '').split(/\s*[(;:]/)[0].trim();
-    return { curta: 'leitura parcial', frase: ate ? `Leitura parcial: o texto foi lido até “${ate}”.` : 'Leitura parcial.' };
+    return { curta: 'leitura parcial', frase: ate ? `Leitura parcial: o texto foi lido até “${ate}”; o que vem depois ficou fora.` : 'Leitura parcial.' };
   });
 
   function tecla(e) {
@@ -111,10 +114,13 @@
     if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); if (pos >= 0) vai(e.key === 'ArrowRight' ? 1 : -1); }
   }
   const ABAS = [[1, 'Resumo'], [2, 'Trechos'], [3, 'Ficha']];
-  // Quando o titulo sai da tela, a faixa das abas (presa no topo) passa a dizer de que paper e a ficha.
+  // Quando a faixa das abas prende no topo, ela passa a dizer de que paper e a ficha e ganha a linha de baixo.
+  // A sentinela fica logo acima da faixa: so conta como presa quando o cabecalho inteiro (titulo, votos, links)
+  // ja saiu da tela, nunca com os metadados ainda a vista
   let presa = $state(false);
-  function olhaTitulo(no) {
-    const io = new IntersectionObserver(([e]) => (presa = !e.isIntersecting), { root: no.closest('.corpo') });
+  function olhaFaixa(no) {
+    const raiz = no.closest('.corpo');
+    const io = new IntersectionObserver(([e]) => (presa = !e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 0) + 14), { root: raiz, rootMargin: '12px 0px 0px 0px' });
     io.observe(no);
     return { destroy() { io.disconnect(); presa = false; } };
   }
@@ -166,9 +172,10 @@
       {#key p.id}
       <div in:fade={{ duration: mov(200) }}>
         <p class="tipo"><i class="sol {p.sol}"></i><span class="pts"><b>{SOL_FRASE[p.sol]}</b>{#if leitura.curta}<span>{leitura.curta}</span>{/if}<span class="mut">{ENTREGA[p.ent] || p.ent}</span>{#if p.cam}<span class="mut">{CAMADA[p.cam] || p.cam}</span>{/if}</span></p>
-        <h2 id="paper-titulo" class="titulo" tabindex="-1" use:olhaTitulo>{p.t}</h2>
+        <h2 id="paper-titulo" class="titulo" tabindex="-1">{p.t}</h2>
         <p class="meta t-12 mut"><span class="pts"><span><span class="num">{p.u}</span> votos</span><span>{intervalo(p.d, p.d)}</span>{#if p.org}<span>{p.org}</span>{/if}</span><span class="pts"><span><a class="lk" href={p.url} target="_blank" rel="noopener">arXiv <span class="num">{p.id}</span></a></span><span><a class="lk" href="https://huggingface.co/papers/{p.id}" target="_blank" rel="noopener">Hugging Face</a></span></span></p>
 
+        <div class="sentinela" use:olhaFaixa></div>
         <div class="fixa" class:presa>
           <span class="tcurto um" aria-hidden="true">{p.t}</span>
           <div class="seg abas" role="tablist" aria-label="Profundidade da leitura">
@@ -182,17 +189,21 @@
         {#if estado.prof === 1}
           {#if p.entTr}<blockquote class="entrega"><span class="rot">O que entrega</span><q lang="en">{p.entTr}</q></blockquote>{/if}
 
+          <div class="kpis">
           <dl class="fatos">
             <div><dt class="rot">Ganho</dt>
-              {#if ganhoDe(p) != null}<dd class="v titulo" class:neg={ganhoDe(p) < 0}>{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `mediana de ${comRival} resultados` : p.best ? `em 1 resultado, contra ${p.best.x}` : 'em 1 resultado'}</dd>
+              {#if ganhoDe(p) != null}<dd class="v titulo" class:neg={ganhoDe(p) < 0}>{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `ganho relativo em ${comRival} resultados` : p.best ? `ganho relativo em 1 resultado, contra ${p.best.x}` : 'ganho relativo em 1 resultado'}</dd>
               {:else}<dd class="v titulo nd">{p.res.length ? 'Sem rival' : 'Não lido'}</dd><dd class="d">{p.res.length ? 'os resultados não trazem rival externo' : 'nenhum resultado em tabela lido'}</dd>{/if}{@render frenteMed('ganho')}</div>
             <div><dt class="rot">Prova</dt>
               <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? 'Não lida' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
               <dd class="d">{sinais}</dd>{@render frenteMed('solidez')}</div>
             <div><dt class="rot">Adoção</dt>
               <dd class="v titulo" class:nd={p.radar.facilidade == null}>{ESFORCO[p.esf]}</dd>
-              <dd class="d">{liberados(p) ? `${liberados(p)} ${liberados(p).includes(' ') ? 'liberados' : 'liberado'}` : p.prom ? 'só prometido' : p.radar.abertura == null ? 'abertura não lida' : 'nada liberado'}</dd>{@render frenteMed('facilidade')}</div>
+              <dd class="d">{[aberturaFrase(p), faltaLer(p)].filter(Boolean).join(' · ')}</dd>{@render frenteMed('facilidade')}</div>
           </dl>
+          <!-- a base da comparacao, uma vez so, para as tres reguas -->
+          {#if ['ganho', 'solidez', 'facilidade'].some((k) => frente(k))}<p class="chv-k t-12 mut"><i aria-hidden="true"></i>mediana do período</p>{/if}
+          </div>
 
           <section class="bloco">
             <header><h3>Sinais de prova</h3><span class="chave t-12 mut" aria-hidden="true"><i class="s sim"><Icone nome="check" tam={10} /></i>cumpre<i class="s nao"><Icone nome="x" tam={10} /></i>não cumpre<i class="s nl">–</i>não lido</span></header>
@@ -210,7 +221,7 @@
               <div><dt>Facilidade</dt><dd class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}{ESFORCO[p.esf]}</dd></div>
               <div><dt>Hardware</dt><dd class:mut={p.hw === 'nao_reportado'}>{HW[p.hw] || p.hw}</dd></div>
               {#each Object.entries(p.ab) as [k, v]}
-                <div><dt>{ART[k]}</dt><dd class:mut={v !== 'liberado'}>{#if linkDe(k)}<a class="lk" href={linkDe(k)} target="_blank" rel="noopener">{curtaUrl(linkDe(k))}</a>{:else}{ART_EST[v]}{/if}</dd></div>
+                <div><dt>{ART[k]}</dt><dd class:mut={v !== 'liberado'}>{#if linkDe(k)}<a class="lk" href={linkDe(k)} target="_blank" rel="noopener">{#each curtaUrl(linkDe(k)).split('/') as parte, pi}{#if pi}/<wbr />{/if}{parte}{/each}</a>{:else}{ART_EST[v]}{/if}</dd></div>
               {/each}
             </dl>
           </section>
@@ -234,8 +245,10 @@
           {/if}
 
           <section class="bloco">
-            <header><h3>Os seis eixos</h3><span class="t-12 mut chv"><span><i class="tr"></i>mediana do recorte</span>{#if vazadosR.some(Boolean)}<span><i class="oco"></i>parte não lida</span>{/if}{#if cortesR.some(Boolean)}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}</span></header>
-            <div bind:clientWidth={largR}>{#if opRadar}<Grafico opcao={opRadar} altura={248} rotulo="Radar do paper nos seis eixos, contra a mediana do recorte" />{/if}</div>
+            <header><h3>Os seis eixos</h3></header>
+            <div bind:clientWidth={largR}>{#if opRadar}<Grafico opcao={opRadar} altura={2 * raioR + 100} rotulo="Radar do paper nos seis eixos, contra a mediana do período" />{/if}</div>
+            <!-- a chave fica embaixo do desenho, como na comparacao -->
+            <p class="t-12 mut chv"><span><i class="tr"></i>mediana do período</span><span>anéis em 50 e 100, a nota de cada eixo</span>{#if vazadosR.some(Boolean)}<span><i class="oco"></i>parte não lida</span>{/if}{#if cortesR.some(Boolean)}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}</p>
           </section>
           <p class="nota t-12 mut">{leitura.frase}</p>
 
@@ -247,26 +260,28 @@
           {#each p.aleg.filter((a) => a[0] !== 'manchete') as a}
             <blockquote><span class="rot pts"><span>{ALEG[a[0]] || a[0]}</span>{#if secao(a[2])}<span>{secao(a[2])}</span>{/if}</span><q lang="en">{a[1]}</q></blockquote>
           {/each}
-          {#each p.ress.filter((r) => r[1] !== p.entTr) as r}<blockquote><span class="rot pts"><span>Ressalva</span>{#if secao(r[2])}<span>{secao(r[2])}</span>{/if}</span><q lang="en">{r[1]}</q></blockquote>{/each}
+          {#each p.ress.filter((r) => r[1] !== p.entTr) as r}<blockquote class:alerta={LIMITE_GRAVE.includes(r[0])}><span class="rot pts"><span>{LIMITE_GRAVE.includes(r[0]) ? 'Limite grave' : 'Limite admitido'}</span>{#if LIMITE_TIPO[r[0]]}<span>{LIMITE_TIPO[r[0]]}</span>{/if}{#if secao(r[2])}<span>{secao(r[2])}</span>{/if}</span><q lang="en">{r[1]}</q></blockquote>{/each}
           {#if !p.entTr && !p.man && !p.aleg.length && !p.ress.length}<div class="vazio">A leitura não trouxe trechos deste paper.</div>{/if}
           <p class="nota t-12 mut">{leitura.frase}</p>
 
         {:else}
+          <div class="tabelas">
           {#each p.res.slice(0, LIM_FICHA) as r, ri}
             {@const cv = casasDe(r, 2)}
             {@const cd = casasDe(r, 3)}
             {@const temDp = r.lin.some((l) => l[3] != null)}
             <table id="tab-{ri}">
               <caption class="pts"><b>{r.b}</b>{#if r.tab}<span class="mut">{r.tab}</span>{/if}{#if r.m && r.m !== r.b}<span class="mut">{r.m}</span>{/if}</caption>
-              <thead><tr><th scope="col">Sistema</th><th scope="col">Papel</th><th scope="col" class="num">Valor</th>{#if temDp}<th scope="col" class="num">± do paper</th>{/if}</tr></thead>
+              <thead><tr><th scope="col">Sistema</th><th scope="col">Papel</th><th scope="col" class="num">Valor</th>{#if temDp}<th scope="col" class="num">± reportado</th>{/if}</tr></thead>
               <tbody>
                 {#each r.lin as l}
                   {@const rival = l[1] === 'externo' && r.ext && l[0] === r.ext[0] && l[2] === r.ext[1]}
-                  <tr class:nos={l[1] === 'nosso'} class:rival><th scope="row">{l[0]}</th><td class="mut">{rival ? 'melhor rival' : LINHA[l[1]] || l[1]}</td><td class="num v">{l[2] == null ? '–' : fixo(l[2], cv)}</td>{#if temDp}<td class="num dp">{#if l[3] != null}±{fixo(l[3], cd)}{/if}</td>{/if}</tr>
+                  <tr class:nos={l[1] === 'nosso'} class:rival><th scope="row">{l[0]}</th><td class="mut papel">{rival ? 'melhor rival' : LINHA[l[1]] || l[1]}</td><td class="num v">{l[2] == null ? '–' : fixo(l[2], cv)}</td>{#if temDp}<td class="num dp">{#if l[3] != null}±{fixo(l[3], cd)}{/if}</td>{/if}</tr>
                 {/each}
               </tbody>
             </table>
           {/each}
+          </div>
           {#if p.res.length > LIM_FICHA}<p class="nota t-12 mut">{p.res.length - LIM_FICHA === 1 ? 'Há mais 1 resultado' : `Há mais ${p.res.length - LIM_FICHA} resultados`} no <a class="lk" href={p.url} target="_blank" rel="noopener">texto original</a>, fora desta ficha.</p>{/if}
           {#if p.ents.length}
             <section class="bloco"><header><h3>Entidades</h3></header>
@@ -292,6 +307,8 @@
   .veu { position: fixed; inset: 0; z-index: 19; background: var(--veu); border-radius: 0; }
   .paper { position: fixed; z-index: 20; inset: max(24px, env(safe-area-inset-top, 0px)) 0 0 0; display: flex; flex-direction: column; background: var(--surface);
     border-radius: var(--r-3) var(--r-3) 0 0; box-shadow: var(--sombra-3); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  /* celular: a folha ocupa a tela inteira; a faixa do fundo escurecido nao tira altura da leitura */
+  @media (max-width: 639px) { .paper { inset: 0; border-radius: 0; padding-top: env(safe-area-inset-top, 0px); } }
   @media (min-width: 1024px) {
     .paper { inset: 0 0 0 auto; width: min(var(--gaveta), 44vw); border-radius: 0; border-left: 1px solid var(--line); box-shadow: var(--sombra-2); }
   }
@@ -300,7 +317,7 @@
   .nav b { color: var(--ink); font-weight: 500; }
   .corpo { --pad: var(--sp-4); overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--pad) var(--sp-12); }
   @media (min-width: 768px) { .corpo { --pad: var(--sp-6); } }
-  .corpo > div { max-width: 640px; margin-inline: auto; padding-top: var(--sp-5); }      /* folha larga (tablet): a coluna de leitura nao estica */
+  .corpo > div { max-width: 680px; margin-inline: auto; padding-top: var(--sp-5); }      /* folha larga (tablet): a coluna de leitura nao estica */
 
   .tipo { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-12); line-height: var(--lh-12); }
   .tipo .sol { flex: none; margin-top: calc((var(--lh-12) - 10px) / 2); }      /* a marca fica na primeira linha, mesmo quando o texto quebra */
@@ -316,6 +333,7 @@
   /* abas presas no topo do paper; a linha de cima guarda o titulo, que so aparece quando o titulo grande sai da tela */
   .fixa { position: sticky; top: 0; z-index: 3; display: grid; background: var(--surface); margin: var(--sp-3) calc(-1 * var(--pad)); padding: 0 var(--pad) var(--sp-2); }
   .fixa.presa { box-shadow: 0 1px 0 var(--line); }
+  .sentinela { height: 0; }
   .tcurto { height: var(--sp-5); line-height: var(--sp-5); font-size: var(--fs-12); font-weight: 500; color: var(--ink2); opacity: 0; transition: opacity var(--dur-1); }
   .presa .tcurto { opacity: 1; }
   .abas { display: flex; }
@@ -327,7 +345,10 @@
   q { font-family: var(--f-display); font-size: var(--fs-17); line-height: var(--lh-17); quotes: '“' '”'; }
   .entrega { margin-bottom: var(--sp-5); }
 
-  .fatos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); padding-block: var(--sp-4); border-block: 1px solid var(--line); }
+  .kpis { padding-block: var(--sp-4); border-block: 1px solid var(--line); }
+  .fatos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); }
+  .chv-k { display: flex; align-items: center; gap: 6px; margin-top: var(--sp-3); }
+  .chv-k i { width: 2px; height: 10px; border-radius: 1px; background: var(--ink); }
   .fatos > div { display: grid; grid-template-rows: auto auto 1fr auto; }   /* as reguas da mediana alinham na base */
   .fatos .v { font-size: var(--fs-24); line-height: var(--lh-24); margin-top: 2px; }
   .fatos .v.nd { color: var(--muted); }
@@ -338,13 +359,13 @@
   .bloco header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-2); flex-wrap: wrap; }
   h3 { font-size: var(--fs-14); line-height: var(--lh-14); font-weight: 600; }
   .chave { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-  .chave .s { margin-left: var(--sp-2); }
+  .chave .s:not(:first-child) { margin-left: var(--sp-2); }
   .s { width: 16px; height: 16px; border-radius: 50%; display: inline-grid; place-items: center; flex: none; font-size: 12px; line-height: 1; font-style: normal; }
   .s.sim { background: var(--ink); color: var(--surface); }
   .s.nao { color: var(--alert); box-shadow: inset 0 0 0 1.5px var(--alert); }
   .s.nl { color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-strong); }
   .sinais { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--sp-2) var(--sp-4); }
-  .sinais li { display: flex; align-items: center; gap: var(--sp-2); }
+  .sinais li { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--alvo); }      /* com ou sem o link "trecho", as linhas tem a mesma altura */
   .sinais li.nl { color: var(--muted); }
   .ver { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); min-height: var(--alvo); border-radius: var(--r-1); }
 
@@ -368,9 +389,9 @@
   /* no toque: 44 px de alvo em cada link pequeno, sem que dois alvos vizinhos se cubram */
   @media (pointer: coarse) {
     .ver { position: relative; } .ver::after { content: ''; position: absolute; inset: -10px -8px; }
-    .sinais li:has(.ver) { min-height: 36px; }
+    .sinais li { min-height: 36px; }
     .det .ver::after { inset: -14px -8px; }
-    .pares .lk { position: relative; } .pares .lk::after { content: ''; position: absolute; inset: -10px 0; }
+    .pares .lk { position: relative; } .pares .lk::after { content: ''; position: absolute; inset: -12px 0; }
   }
   .chave.res { display: flex; gap: var(--sp-1) var(--sp-3); margin-bottom: var(--sp-1); }
   .chave.res span { display: inline-flex; align-items: center; gap: 6px; }
@@ -381,16 +402,21 @@
   .trilho i { display: block; height: 100%; border-radius: 2px; background: var(--line-strong); }
   .trilho b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); }
   .tr { width: 16px; border-top: 1.5px dashed var(--muted); display: inline-block; vertical-align: middle; margin-right: 6px; }
-  .chv { display: inline-flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: flex-end; }
+  .chv { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: center; margin-top: var(--sp-1); }
   .chv > span { display: inline-flex; align-items: center; white-space: nowrap; }
   .chv .oco { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink2); margin-right: 6px; }
   .chv b { font-weight: 600; color: var(--ink2); margin-right: 6px; }
   .nota { margin-top: var(--sp-5); }
 
+  /* folha larga (tablet): duas tabelas lado a lado, cada numero perto do seu nome */
+  .tabelas { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 288px), 1fr)); column-gap: var(--sp-6); align-items: start; }
   table { width: 100%; margin-bottom: var(--sp-5); font-size: var(--fs-12); line-height: var(--lh-12); }
   caption { text-align: left; padding-bottom: var(--sp-2); font-size: var(--fs-14); line-height: var(--lh-14); }
   th, td { text-align: left; padding: 6px 0; border-top: 1px solid var(--line); font-weight: 400; vertical-align: baseline; }
   td { padding-left: var(--sp-3); white-space: nowrap; }
+  /* o nome do sistema so quebra entre palavras; quem cede largura e a coluna do papel */
+  tbody th { overflow-wrap: break-word; }
+  td.papel { white-space: normal; }
   td.num { text-align: right; font-size: var(--fs-12); width: 1%; }
   td.dp { color: var(--muted); padding-left: var(--sp-2); font-weight: 400; }
   tr.nos th, tr.nos td { font-weight: 600; color: var(--ink); }

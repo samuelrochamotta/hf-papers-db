@@ -7,7 +7,9 @@
   import echarts from './echarts.js';
   import { estado, abrir } from './estado.svelte.js';
 
-  let { opcao, altura = 260, aoClicar = null, rotulo = '' } = $props();
+  // `altura` e a menor altura do desenho. Dentro de um quadro mais alto que o proprio conteudo (a fileira
+  // estica todos ate o maior), o desenho cresce ate `teto` vezes essa altura, em vez de deixar um vazio no quadro
+  let { opcao, altura = 260, aoClicar = null, rotulo = '', teto = 1.4 } = $props();
 
   let el;
   let chart = $state.raw(null);
@@ -66,8 +68,10 @@
   $effect(() => { acender(estado.hover, estado.sel); });
 </script>
 
-<div class="g" bind:this={el} style:height="{altura}px" role="img" aria-label={rotulo}></div>
+<!-- a tela fica fora do fluxo: a altura do desenho nunca empurra o quadro, so acompanha -->
+<div class="g" style:min-height="{altura}px" style:max-height="{Math.round(altura * teto)}px"><div class="tela" bind:this={el} role="img" aria-label={rotulo}></div></div>
 
 <style>
-  .g { width: 100%; }
+  .g { position: relative; width: 100%; flex: 1 1 auto; }
+  .tela { position: absolute; inset: 0; }
 </style>
