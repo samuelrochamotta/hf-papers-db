@@ -188,8 +188,8 @@
   .chave .med { width: 16px; height: 10px; border-radius: 2px; border: 1px dashed var(--muted); background: color-mix(in srgb, var(--line-strong) 12%, var(--surface)); }
   .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
   .chave .zero { width: 0; height: 12px; border-left: 1px dotted var(--ink2); }
-  .chave .fx { display: inline-block; width: 14px; height: 6px; background: color-mix(in srgb, var(--ink2) 30%, transparent); border-right: 2px solid var(--ink2); }
-  .nl { color: var(--muted); font-weight: 400; }
+  .chave .fx { display: inline-block; width: 18px; height: 7px; background: linear-gradient(var(--muted), var(--muted)) left center / 12px 1px no-repeat, radial-gradient(circle at calc(100% - 3.5px) 50%, var(--surface) 2px, var(--ink2) 2.2px, var(--ink2) 3.2px, transparent 3.4px); }
+  .nl { color: var(--muted); font-weight: 400; white-space: nowrap; display: inline-block; }   /* "3 de 4 não lidos" desce inteiro para a linha de baixo, nunca quebra no meio */
   td.neg .fato { color: var(--alert); }
 
   .letra { width: 20px; height: 20px; border-radius: 50%; background: var(--c); color: var(--surface); display: inline-grid; place-items: center; font-size: var(--fs-12); line-height: 1; font-weight: 600; font-style: normal; flex: none; }

@@ -361,3 +361,18 @@ celular não acharam nada de prioridade alta.
 | A faixa da abertura sai do radar e quase toca o rótulo; três faixas juntas parecem defeito | uso (médio para acabamento e gráficos) | Banda mais fina (4 px, 5 px entre bandas) e os nomes dos eixos 5 px mais longe do anel |
 
 Médio tratado junto: faltava o espaço em "10,7 pontos contra No Memory".
+
+## Rodada 7 (2026-11-16)
+
+Notas: acabamento 7, gráficos 8, celular e tablet 7, uso e texto 7. Gráficos
+sem achado alto; cada um dos outros três com um.
+
+| Achado alto | Crítico | O que foi feito |
+|---|---|---|
+| As faixas da abertura ainda são a marca mais forte do radar da comparação e parecem dizer "abertura máxima" | acabamento (médio para gráficos) | A faixa virou um fio fino na cor apagada, abaixo das séries, com um anel vazado na cor do paper no máximo possível |
+| "Integrar" perde a parte de baixo no radar do paper (360 e 768 px) | celular | O radar do paper ganhou 16 px de altura para os nomes de eixo em duas linhas |
+| ScienceWorld Unseen aparece em duas tabelas com rivais diferentes, e o Resumo não diz de qual tabela vem cada linha | uso | O link de cada resultado no Resumo passa a nomear a tabela ("tabela 1", "tabela 2"); a Ficha já trazia o nome no título de cada tabela |
+
+Médios tratados junto: "3 de 4 não lidos" desce inteiro para a linha de
+baixo na comparação; a linha "Facilidade" da adoção no paper passou a
+"Esforço", como o resto do painel.

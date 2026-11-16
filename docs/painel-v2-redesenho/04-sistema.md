@@ -131,7 +131,7 @@ aparece no desenho (`marcasRadar()` em `tema.js`):
 | Marca | Quando | Onde |
 |---|---|---|
 | "50" e "100" | sempre | nos anéis, na aresta entre o primeiro e o último eixo, onde nenhum vértice cai |
-| Faixa larga e translúcida, com traço firme no fim | a abertura tem artefato não lido: o vértice é o confirmado e a faixa vai até o máximo possível (`abTeto`, decisão 13) | ao longo do eixo, na cor do paper; com dois ou três papers as faixas ficam lado a lado, 7 px entre elas |
+| Fio fino na cor apagada, com anel vazado na cor do paper no fim | a abertura tem artefato não lido: o vértice é o confirmado e a faixa vai até o máximo possível (`abTeto`, decisão 13) | ao longo do eixo, na cor do paper; com dois ou três papers os fios ficam lado a lado, 6 px entre eles |
 | Marca de corte "»" | o fato passa do teto do eixo (amplitude acima de 16 benchmarks) | fora do anel, na cor do paper |
 | Fato com unidade | radar de um paper só | ao lado do nome de cada eixo ("9 bench.", "código", "+10,2%") |
 

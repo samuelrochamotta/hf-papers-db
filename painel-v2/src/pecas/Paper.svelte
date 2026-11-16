@@ -55,7 +55,7 @@
   let largR = $state(360);
   // o radar usa a largura que os nomes dos eixos deixam (uns 95 px de cada lado), ate um teto: no tablet ele nao fica miudo no meio da folha
   const raioR = $derived(Math.round(Math.max(54, Math.min(96, (largR - 190) / 2))));
-  const cyR = $derived(raioR + 52);
+  const cyR = $derived(raioR + 56);   // nome do eixo em duas linhas (32 px) a 20 px do anel, em cima e embaixo
   const cortesR = $derived(p ? EIXOS.map(([k]) => passaDoEixo(k, p)) : []), faixasR = $derived(p ? EIXOS.map(([k]) => tetoDoEixo(k, p)) : []);
   const fatoR = (k) => (k === 'amplitude' && nBench(p) != null ? `${nBench(p)} bench.` : FATO[k](p));
   const opRadar = $derived.by(() => {
@@ -220,7 +220,7 @@
           <section class="bloco">
             <header><h3>Adoção</h3></header>
             <dl class="pares">
-              <div><dt>Facilidade</dt><dd class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}{ESFORCO[p.esf]}</dd></div>
+              <div><dt>Esforço</dt><dd class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}{ESFORCO[p.esf]}</dd></div>
               <div><dt>Hardware</dt><dd class:mut={p.hw === 'nao_reportado'}>{HW[p.hw] || p.hw}</dd></div>
               {#each Object.entries(p.ab) as [k, v]}
                 <div><dt>{ART[k]}</dt><dd class:mut={v !== 'liberado'}>{#if linkDe(k)}<a class="lk" href={linkDe(k)} target="_blank" rel="noopener">{#each curtaUrl(linkDe(k)).split('/') as parte, pi}{#if pi}/<wbr />{/if}{parte}{/each}</a>{:else}{ART_EST[v]}{/if}</dd></div>
@@ -238,7 +238,7 @@
                     <i class="cel {CL_ESTADO[r.e] || 'semrival'}" aria-hidden="true"></i>
                     <span class="b pts"><b>{r.b}</b>{#if r.m && r.m !== r.b}<span class="mut">{r.m}</span>{/if}</span>
                     <span class="dif num {CL_ESTADO[r.e] || ''}" class:mut={r.rext == null}>{r.rext != null ? `${sgn(r.rext)}%` : '–'}</span>
-                    <span class="det mut">{#if r.nos && r.ext}<span class="vh">{ROT_ESTADO[r.e]}: </span><span class="num">{par(r, r.nos[1])}</span> contra <span class="num">{par(r, r.ext[1])}</span> de {r.ext[0]}{:else}{ROT_ESTADO[r.e]}{/if}{#if ri < LIM_FICHA && r.lin.length}<button class="lk ver" aria-label="Ver a tabela de {r.b}" onclick={() => verTabela(ri)}>tabela</button>{/if}</span>
+                    <span class="det mut">{#if r.nos && r.ext}<span class="vh">{ROT_ESTADO[r.e]}: </span><span class="num">{par(r, r.nos[1])}</span> contra <span class="num">{par(r, r.ext[1])}</span> de {r.ext[0]}{:else}{ROT_ESTADO[r.e]}{/if}{#if ri < LIM_FICHA && r.lin.length}<button class="lk ver" aria-label="Ver a {r.tab || 'tabela'} de {r.b}" onclick={() => verTabela(ri)}>{r.tab ? r.tab.replace(/^Tabela/, 'tabela') : 'tabela'}</button>{/if}</span>
                   </li>
                 {/each}
               </ul>
@@ -248,7 +248,7 @@
 
           <section class="bloco">
             <header><h3>Os seis eixos</h3></header>
-            <div bind:clientWidth={largR}>{#if opRadar}<Grafico opcao={opRadar} altura={2 * raioR + 100} rotulo="Radar do paper nos seis eixos, contra a mediana do período" />{/if}</div>
+            <div bind:clientWidth={largR}>{#if opRadar}<Grafico opcao={opRadar} altura={2 * raioR + 116} rotulo="Radar do paper nos seis eixos, contra a mediana do período" />{/if}</div>
             <!-- a chave fica embaixo do desenho, como na comparacao -->
             <p class="t-12 mut chv"><span><i class="tr"></i>mediana do período</span><span>anéis em 50 e 100, a nota de cada eixo</span>{#if faixasR.some((x) => x != null)}<span><i class="fx"></i>até onde a parte não lida pode levar</span>{/if}{#if cortesR.some(Boolean)}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}</p>
           </section>
@@ -407,7 +407,7 @@
   .tr { width: 16px; border-top: 1.5px dashed var(--muted); display: inline-block; vertical-align: middle; margin-right: 6px; }
   .chv { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: center; margin-top: var(--sp-1); }
   .chv > span { display: inline-flex; align-items: center; white-space: nowrap; }
-  .chv .fx { display: inline-block; width: 14px; height: 6px; background: color-mix(in srgb, var(--ink2) 30%, transparent); border-right: 2px solid var(--ink2); margin-right: 6px; vertical-align: middle; }
+  .chv .fx { display: inline-block; width: 18px; height: 7px; background: linear-gradient(var(--muted), var(--muted)) left center / 12px 1px no-repeat, radial-gradient(circle at calc(100% - 3.5px) 50%, var(--surface) 2px, var(--ink2) 2.2px, var(--ink2) 3.2px, transparent 3.4px); margin-right: 6px; vertical-align: middle; }
   .chv b { font-weight: 600; color: var(--ink2); margin-right: 6px; }
   .nota { margin-top: var(--sp-5); }
 

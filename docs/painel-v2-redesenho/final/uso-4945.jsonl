@@ -1,0 +1,32 @@
+{"t":1794845882873,"porta":4945,"largura":360,"tarefa":"T11","tipo":"iniciar"}
+{"t":1794845887804,"porta":4945,"largura":360,"tarefa":"T11","tipo":"clicar","x":192,"y":122,"alvo":{"tag":"button","nome":"Filtrar por adoção","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/"}
+{"t":1794845892642,"porta":4945,"largura":360,"tarefa":"T11","tipo":"clicar","x":214,"y":209,"alvo":{"tag":"div","nome":"Integrar9","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/?lente=esf%3A2"}
+{"t":1794845897353,"porta":4945,"largura":360,"tarefa":"T11","tipo":"clicar","x":237,"y":122,"alvo":{"tag":"button","nome":"Filtrar por prova","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/?lente=esf%3A2"}
+{"t":1794845902115,"porta":4945,"largura":360,"tarefa":"T11","tipo":"clicar","x":206,"y":249,"alvo":{"tag":"div","nome":"Firme3","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/?lente=esf%3A2&lente=sol%3Afirme"}
+{"t":1794845907170,"porta":4945,"largura":360,"tarefa":"T11","tipo":"tecla","k":"Escape","url":"http://127.0.0.1:41909/?lente=esf%3A2&lente=sol%3Afirme"}
+{"t":1794845911411,"porta":4945,"largura":360,"tarefa":"T11","tipo":"clicar","x":48,"y":122,"alvo":{"tag":"button","nome":"Prova: Firme","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/?lente=esf%3A2&lente=sol%3Afirme"}
+{"t":1794845915895,"porta":4945,"largura":360,"tarefa":"T11","tipo":"clicar","x":70,"y":209,"alvo":{"tag":"div","nome":"Forte1","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/?lente=esf%3A2&lente=sol%3Afirme&lente=sol%3Aforte"}
+{"t":1794845920573,"porta":4945,"largura":360,"tarefa":"T11","tipo":"tecla","k":"Escape","url":"http://127.0.0.1:41909/?lente=esf%3A2&lente=sol%3Afirme&lente=sol%3Aforte"}
+{"t":1794845921140,"porta":4945,"largura":360,"tarefa":"T11","tipo":"rolar","dy":330}
+{"t":1794845926381,"porta":4945,"largura":360,"tarefa":"T11","tipo":"responder","resposta":"4 papers (Adoção=Integrar, Prova=Forte ou Firme, todos liberaram artefato): Sage-Taiyi (Forte, liberou código), Confucius4-R2T2 (Firme, liberou código e pesos), Harness-S (Firme, liberou código), Don't Just Trust Your Memory (Firme, liberou código)","url":"http://127.0.0.1:41909/?lente=esf%3A2&lente=sol%3Afirme&lente=sol%3Aforte"}
+{"t":1794845929864,"porta":4945,"largura":360,"tarefa":"T12","tipo":"iniciar"}
+{"t":1794845933202,"porta":4945,"largura":360,"tarefa":"T12","tipo":"clicar","x":120,"y":191,"alvo":{"tag":"input","nome":"Buscar paper","canvas":false,"regiao":""},"url":"http://127.0.0.1:41909/"}
+{"t":1794845934096,"porta":4945,"largura":360,"tarefa":"T12","tipo":"digitar","texto":"Confucius4","url":"http://127.0.0.1:41909/?q=Confucius4"}
+{"t":1794845938650,"porta":4945,"largura":360,"tarefa":"T12","tipo":"clicar","x":150,"y":258,"alvo":{"tag":"button","nome":"Confucius4-R2T2: A Stable-Prefix Streaming ASR Model for Real Real-Time Transcription. 93 votos. pro","canvas":false,"regiao":""},"url":"http://127.0.0.1:41909/?q=Confucius4&paper=2611.06043"}
+{"t":1794845942757,"porta":4945,"largura":360,"tarefa":"T12","tipo":"rolar","dy":600}
+{"t":1794845947390,"porta":4945,"largura":360,"tarefa":"T12","tipo":"rolar","dy":500}
+{"t":1794845952646,"porta":4945,"largura":360,"tarefa":"T12","tipo":"clicar","x":294,"y":96,"alvo":{"tag":"button","nome":"Ficha","canvas":false,"regiao":"paper"},"url":"http://127.0.0.1:41909/?q=Confucius4&paper=2611.06043&prof=3"}
+{"t":1794845956915,"porta":4945,"largura":360,"tarefa":"T12","tipo":"responder","resposta":"Esforço: Integrar (nível mais fácil, basta integrar); hardware: não reportado; código: github.com/netease-youdao/Confucius4-R2T2 (pesos em huggingface.co/netease-youdao/Confucius4-R2T2)","url":"http://127.0.0.1:41909/?q=Confucius4&paper=2611.06043&prof=3"}
+{"t":1794845960890,"porta":4945,"largura":360,"tarefa":"T15","tipo":"iniciar"}
+{"t":1794845963961,"porta":4945,"largura":360,"tarefa":"T15","tipo":"clicar","x":120,"y":191,"alvo":{"tag":"input","nome":"Buscar paper","canvas":false,"regiao":""},"url":"http://127.0.0.1:41909/"}
+{"t":1794845964645,"porta":4945,"largura":360,"tarefa":"T15","tipo":"digitar","texto":"SLA","url":"http://127.0.0.1:41909/?q=SLA"}
+{"t":1794845970293,"porta":4945,"largura":360,"tarefa":"T15","tipo":"clicar","x":206,"y":191,"alvo":{"tag":"button","nome":"Limpar a busca","canvas":false,"regiao":""},"url":"http://127.0.0.1:41909/"}
+{"t":1794845971042,"porta":4945,"largura":360,"tarefa":"T15","tipo":"clicar","x":120,"y":191,"alvo":{"tag":"input","nome":"Buscar paper","canvas":false,"regiao":""},"url":"http://127.0.0.1:41909/"}
+{"t":1794845971870,"porta":4945,"largura":360,"tarefa":"T15","tipo":"digitar","texto":"Harness-S","url":"http://127.0.0.1:41909/?q=Harness-S"}
+{"t":1794845977591,"porta":4945,"largura":360,"tarefa":"T15","tipo":"responder","resposta":"Prova mais sólida: SLA (Forte, contra Firme do Harness-S). Mais fácil de adotar: Harness-S (Integrar, liberou código; o SLA está Fora de alcance, só a página)","url":"http://127.0.0.1:41909/?q=Harness-S"}
+{"t":1794845981283,"porta":4945,"largura":360,"tarefa":"T20","tipo":"iniciar"}
+{"t":1794845984135,"porta":4945,"largura":360,"tarefa":"T20","tipo":"clicar","x":48,"y":122,"alvo":{"tag":"button","nome":"Filtrar por arena","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/"}
+{"t":1794845988546,"porta":4945,"largura":360,"tarefa":"T20","tipo":"clicar","x":80,"y":209,"alvo":{"tag":"div","nome":"Robótica7","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/?lente=ar%3Arobotica_acao"}
+{"t":1794845993967,"porta":4945,"largura":360,"tarefa":"T20","tipo":"tecla","k":"Escape","url":"http://127.0.0.1:41909/?lente=ar%3Arobotica_acao"}
+{"t":1794845994728,"porta":4945,"largura":360,"tarefa":"T20","tipo":"clicar","x":114,"y":122,"alvo":{"tag":"button","nome":"Tirar o filtro de arena","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:41909/"}
+{"t":1794845998891,"porta":4945,"largura":360,"tarefa":"T20","tipo":"responder","resposta":"Robótica: 7 papers (7 de 28). Filtro removido; o painel voltou a mostrar todos os 28 papers (mais 2 na fila).","url":"http://127.0.0.1:41909/"}

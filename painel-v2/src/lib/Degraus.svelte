@@ -1,5 +1,5 @@
 <script>
-  // Facilidade de adocao em quatro degraus: quanto mais degraus acesos, mais
+  // Adocao em quatro degraus: quanto mais degraus acesos, mais
   // facil adotar (Configurar 4, Integrar 3, Reimplementar 2, Treinar grande 1,
   // Fora de alcance 0). E o mesmo sentido da barra da comparacao e do radar.
   let { esf } = $props();
