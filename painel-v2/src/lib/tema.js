@@ -162,6 +162,11 @@ export function rotular(itens, { area, zona = null, linhas = [], ocupado = [], f
       custo += 1000 * (bolas.filter((b, j) => j !== i && toca(c, b)).length + postos.filter((b) => toca(comAr(c), b)).length);
       if (zona && (o.dentro ? !contem(zona, c) : toca(c, zona))) custo += 100;
       custo += 100 * linhas.filter((l) => toca(c, l)).length;
+      // o nome fica mais perto do proprio ponto que de qualquer outro: encostado ao lado do ponto
+      // vizinho, ele se lia como o nome do vizinho (rodada 11, "Think Less" sobre MoviEdit)
+      const ate = (j) => { const q = itens[j], dx = Math.max(c[0] - q.x, 0, q.x - c[0] - c[2]), dy = Math.max(c[1] - q.y, 0, q.y - c[1] - c[3]); return Math.hypot(dx, dy) - q.r; };
+      const meu = ate(i);
+      if (itens.some((q, j) => j !== i && ate(j) < meu)) custo += 300;
       return { c, custo };
     }).filter(Boolean).sort((a, b) => a.custo - b.custo);
     const m = cands[0];

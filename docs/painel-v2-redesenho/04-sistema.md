@@ -122,6 +122,8 @@ entre as opções apresentadas a ele.
 5. A legenda lista só o que aparece no gráfico e quebra por item, nunca no meio de um.
 6. Ganho negativo leva a cor de alerta em qualquer lugar, inclusive ao lado de um nome.
 7. A, B e C da comparação têm a mesma família de cor nos dois temas (azul, petróleo, violeta) e ficam longe da rampa de prova (verdes) e da cor de alerta: B em oliva se lia como Frágil (rodada 6).
+8. Zero é linha cheia e mediana do período é pontilhada, em todo gráfico e em toda barra (Panorama, comparação e paper aberto). Até a rodada 11 a comparação e o paper usavam o inverso.
+9. Nome de ponto fica mais perto do próprio ponto que de qualquer outro (`rotular()`): encostado no vizinho, ele vira o nome do vizinho.
 
 ## Radar
 
@@ -146,7 +148,7 @@ artefatos, com os não verificados tracejados.
 
 ## Lista de papers
 
-0. A barra de cima conta só a leitura: "Leitura: 2 inteiras · 26 parciais", somando o recorte. A prova "Não avaliada" não entra nessa conta (somada, parecia um terceiro estado de leitura, rodada 9); ela fica no filtro Prova.
+0. A barra de cima conta só a leitura, com as palavras da linha de cada paper: "Leitura: 2 inteiras · 24 parciais · 2 só do resumo", somando o recorte. A prova "Não avaliada" não entra nessa conta (somada, parecia um terceiro estado de leitura, rodada 9); ela fica no filtro Prova.
 
 1. A marca de prova abre cada linha (decisão 12, no lugar da miniatura do radar): cor mais preenchimento, anel tracejado para "Não avaliada" (o paper foi lido, mas com poucos sinais de prova para avaliar). A fila não leva marca: a linha diz "Na fila, ainda sem leitura".
 2. Abaixo do título, a frase do problema escrita pelo modelo, em itálico (decisão 8). No paper aberto ela vem com o rótulo "Problema, segundo o modelo"; na lista, o itálico e a dica ao passar o ponteiro dizem de quem é a frase.

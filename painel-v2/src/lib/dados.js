@@ -221,9 +221,12 @@ export const leituraCurta = (p) => (!p.L ? '' : p.L.c === 'completa' ? 'leitura 
 // So conta quanto do texto foi lido (inteira ou parcial, somando o recorte). A
 // prova "Não avaliada" e outra pergunta, e somada aqui se lia como um terceiro
 // estado de leitura (rodada 9): ela fica no filtro Prova.
+// Tres estados, com as mesmas palavras da linha de cada paper (`leituraCurta`): "só o
+// resumo" contado como parcial escondia dois papers lidos so pelo resumo (rodada 11).
 export function cobertura(papers, faltam) {
-  const inteira = papers.filter((p) => p.L?.c === 'completa').length;
-  return { inteira, parcial: papers.length - inteira, fila: faltam.length, total: papers.length + faltam.length };
+  const inteira = papers.filter((p) => leituraCurta(p) === 'leitura inteira').length;
+  const resumo = papers.filter((p) => leituraCurta(p) === 'só o resumo lido').length;
+  return { inteira, parcial: papers.length - inteira - resumo, resumo, fila: faltam.length, total: papers.length + faltam.length };
 }
 // Artefatos liberados, em palavras: "código e pesos"
 export function liberados(p) {

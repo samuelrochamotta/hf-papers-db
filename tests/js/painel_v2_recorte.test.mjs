@@ -248,7 +248,7 @@ test('nos dados publicados, toda ordem e uma permutacao e todo filtro existente 
   for (const s of SOLIDEZ) assert.equal(aplicaLentes(ps, [{ k: 'sol', v: s }]).length, ps.filter((p) => p.sol === s).length, s);
   for (const a of new Set(ps.flatMap((p) => p.ar))) assert.ok(aplicaLentes(ps, [{ k: 'ar', v: a }]).length > 0, a);
   const c = cobertura(ps, REAL.faltam);
-  assert.equal(c.inteira + c.parcial, ps.length);
+  assert.equal(c.inteira + c.parcial + c.resumo, ps.length);
   assert.equal(c.total, ps.length + REAL.faltam.length);
 });
 

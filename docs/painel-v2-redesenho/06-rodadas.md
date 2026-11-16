@@ -409,3 +409,14 @@ gráficos e celular não acharam nada de prioridade alta.
 | Achado alto | Crítico | O que foi feito |
 |---|---|---|
 | "não lido" e "não lida" aparecem em papers lidos e se confundem com a fila ("Na fila, ainda sem leitura"); nenhuma linha diz se a leitura foi inteira ou parcial | uso (médio para celular) | O fato que a leitura parcial não alcançou passa a "não achado" ("ganho não achado", "abertura não achada"); cada linha da lista abre a linha de tipo com "leitura parcial", "leitura inteira" ou "só o resumo lido", também no celular |
+
+## Rodada 11 (2026-11-16)
+
+Notas: acabamento 7, gráficos 8, celular e tablet 7, uso e texto 7. Gráficos
+sem achado alto; cada um dos outros três com um.
+
+| Achado alto | Crítico | O que foi feito |
+|---|---|---|
+| No gráfico de custo, "Think Less, Locally" fica empilhado sobre "MoviEdit" e longe do próprio ponto: dá para trocar os papers | acabamento | `rotular()` passou a penalizar posição em que o nome fica mais perto de outro ponto que do seu |
+| Linha cheia e pontilhada trocam de sentido: no Panorama a cheia é o zero e a pontilhada a mediana; na comparação e no paper, o contrário | celular | Uma convenção só: zero cheio, mediana pontilhada, nas barras da comparação e do paper e nas legendas |
+| "26 parciais" inclui os dois papers que a linha chama de "só o resumo lido" | uso | A barra conta três estados com as palavras da linha: "2 inteiras · 24 parciais · 2 só do resumo"; o medidor deixa a parte parcial mais clara, para não parecer cheio |

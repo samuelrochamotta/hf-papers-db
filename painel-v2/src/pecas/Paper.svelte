@@ -195,7 +195,7 @@
           <dl class="fatos">
             <div><dt class="rot">Ganho</dt>
               {#if ganhoDe(p) != null}<dd class="v titulo" class:neg={ganhoDe(p) < 0}>{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `mediana de ${comRival} resultados, contra o melhor rival externo` : p.best ? `ganho relativo em 1 resultado, contra ${p.best.x}` : 'ganho relativo em 1 resultado'}</dd>
-              {:else}<dd class="v titulo nd">{p.res.length ? 'Sem rival' : 'Não lido'}</dd><dd class="d">{p.res.length ? 'os resultados não trazem rival externo' : 'nenhum resultado em tabela lido'}</dd>{/if}{@render frenteMed('ganho')}</div>
+              {:else}<dd class="v titulo nd">{p.res.length ? 'Sem rival' : 'Não achado'}</dd><dd class="d">{p.res.length ? 'os resultados não trazem rival externo' : 'nenhum resultado nas tabelas lidas'}</dd>{/if}{@render frenteMed('ganho')}</div>
             <div><dt class="rot">Prova</dt>
               <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? 'Não avaliada' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
               <dd class="d">{sinais}</dd>{@render frenteMed('solidez')}</div>
@@ -351,7 +351,7 @@
   .kpis { padding-block: var(--sp-4); border-block: 1px solid var(--line); }
   .fatos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--sp-4); }
   .chv-k { display: flex; align-items: center; gap: 6px; margin-top: var(--sp-3); }
-  .chv-k i { width: 2px; height: 10px; border-radius: 1px; background: var(--ink); }
+  .chv-k i { width: 2px; height: 10px; background: repeating-linear-gradient(to bottom, var(--ink) 0 2px, transparent 2px 4px); }   /* mediana pontilhada, como no Panorama e na comparacao */
   .fatos > div { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0; align-content: start; }   /* rotulo, valor, frase e regua em linhas comuns as tres colunas: as reguas alinham entre si */
   .fatos .v { font-size: var(--fs-24); line-height: var(--lh-24); margin-top: 2px; }
   .fatos .v.nd { color: var(--muted); }
@@ -403,7 +403,7 @@
   .pos { display: grid; gap: var(--sp-1); margin-top: var(--sp-2); font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); }
   .trilho { display: block; position: relative; height: 4px; border-radius: 2px; background: var(--sunk); }
   .trilho i { display: block; height: 100%; border-radius: 2px; background: var(--line-strong); }
-  .trilho b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); }
+  .trilho b { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: repeating-linear-gradient(to bottom, var(--ink) 0 2px, transparent 2px 4px); }
   .tr { width: 16px; border-top: 1.5px dashed var(--muted); display: inline-block; vertical-align: middle; margin-right: 6px; }
   .chv { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: center; margin-top: var(--sp-1); }
   .chv > span { display: inline-flex; align-items: center; white-space: nowrap; }

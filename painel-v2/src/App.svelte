@@ -113,7 +113,7 @@
       <div class="mola"></div>
       <footer class="rodape">
         <span>{plural(estado.dados.papers.length, 'paper', 'papers')} no período{#if estado.dados.modelo}, lidos por {nomeModelo(estado.dados.modelo)}{/if}</span>
-        {#if cob}<span>Leitura: {cob.inteira} {cob.inteira === 1 ? 'inteira' : 'inteiras'}, {cob.parcial} {cob.parcial === 1 ? 'parcial' : 'parciais'}{#if cob.fila}; mais {cob.fila} na fila{/if}</span>{/if}
+        {#if cob}<span>Leitura: {cob.inteira} {cob.inteira === 1 ? 'inteira' : 'inteiras'}, {cob.parcial} {cob.parcial === 1 ? 'parcial' : 'parciais'}{#if cob.resumo}, {cob.resumo} só do resumo{/if}{#if cob.fila}; mais {cob.fila} na fila{/if}</span>{/if}
         {#if geradoEm}<span>Atualizado em {geradoEm}</span>{/if}
         <span>Fonte: Hugging Face Daily Papers e arXiv</span>
       </footer>

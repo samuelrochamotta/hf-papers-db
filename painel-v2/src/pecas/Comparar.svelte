@@ -185,8 +185,9 @@
   .chave b { font-weight: 600; color: var(--ink); }
   .chave.pe { justify-content: flex-start; margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--line); --c: var(--ink2); }
   .chave .med { width: 16px; height: 10px; border-radius: 2px; border: 1px dashed var(--muted); background: color-mix(in srgb, var(--line-strong) 12%, var(--surface)); }
-  .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
-  .chave .zero { width: 0; height: 12px; border-left: 1px dotted var(--ink2); }
+  /* uma convencao em todo o painel (rodada 11): o zero e linha cheia, a mediana do periodo e pontilhada, como no Panorama */
+  .chave .tique { width: 2px; height: 12px; background: repeating-linear-gradient(to bottom, var(--ink2) 0 2px, transparent 2px 4px); }
+  .chave .zero { width: 0; height: 12px; border-left: 1px solid var(--ink2); }
   .nl { color: var(--muted); font-weight: 400; }
   td.neg .fato { color: var(--alert); }
 
@@ -219,8 +220,8 @@
   .trilho { display: block; position: relative; height: 6px; border-radius: 3px; background: var(--sunk); margin-top: var(--sp-2); }
   .trilho.nd { background: none; box-shadow: inset 0 0 0 1px var(--line); }
   .trilho i { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 3px; background: var(--c); transition: width var(--dur-3) var(--sai), left var(--dur-3) var(--sai); }
-  .trilho em { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 0; border-left: 1px dotted var(--ink2); }
-  .trilho b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink2); border-radius: 1px; }
+  .trilho em { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 0; border-left: 1px solid var(--ink2); }
+  .trilho b { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: repeating-linear-gradient(to bottom, var(--ink2) 0 2px, transparent 2px 4px); }
   /* abertura: um segmento por artefato (codigo, pesos, dados, demo), no estado em que a leitura o achou */
   .pecas { display: flex; gap: 3px; margin-top: var(--sp-2); }
   .pecas i { flex: 1; height: 6px; border-radius: 3px; background: var(--sunk); }
