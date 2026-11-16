@@ -11,12 +11,11 @@
   import MiniRadar from '../lib/MiniRadar.svelte';
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
-  import { ordenar, buscar, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, liberados, intervalo, curto, plural, dataCurta, nBench } from '../lib/dados.js';
+  import { ordenar, buscar, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, liberados, intervalo, dataCurta, nBench } from '../lib/dados.js';
   import { corSolidez } from '../lib/tema.js';
   import { estado, abrir, alternaComparar, mov } from '../lib/estado.svelte.js';
 
-  let { papers, faltam = [], forma = 'tabela', limite = 0, dens = 'm' } = $props();
-  let tudo = $state(false);
+  let { papers, faltam = [] } = $props();
   const PAGINA = 50;                 // linhas por vez; "Mostrar mais" traz outras 50
   let paginas = $state(1);
   let el = $state(null);
@@ -24,7 +23,7 @@
   const achados = $derived(buscar(papers, estado.busca));
   const ord = $derived(ordenar(achados, estado.ordem));
   const nCom = $derived(comDado(achados, estado.ordem));
-  const visiveis = $derived(limite && !tudo && !estado.busca ? ord.slice(0, limite) : ord.slice(0, PAGINA * paginas));
+  const visiveis = $derived(ord.slice(0, PAGINA * paginas));
   // Marca da mediana: nas ordens em que "acima da mediana" e uma pergunta
   // (votos e ganho), uma regua separa as linhas de cima das de baixo.
   const MED = { votos: [(p) => p.u, (v) => `${Math.round(v).toLocaleString('pt-BR')} votos`], ganho: [ganhoDe, (v) => `${sgn(v)}%`] };
@@ -53,7 +52,7 @@
   async function mover(e, i, c) {
     const n = visiveis.length; let ni = i, nc = c;
     if (e.key === 'ArrowDown') ni = Math.min(n - 1, i + 1);
-    else if (e.key === 'ArrowUp' && i === 0 && forma === 'tabela' && el?.querySelector('.cab')?.offsetParent) {
+    else if (e.key === 'ArrowUp' && i === 0 && el?.querySelector('.cab')?.offsetParent) {
       // da primeira linha, a seta para cima alcanca o cabecalho (ordenar por coluna)
       e.preventDefault(); (el.querySelector(`[data-h="${estado.ordem}"]`) || el.querySelector('[data-h]'))?.focus(); return;
     }
@@ -65,7 +64,7 @@
     else if (e.key === 'PageUp') ni = Math.max(0, i - 8);
     else return;
     e.preventDefault();
-    if (ni >= visiveis.length - 1 && visiveis.length < ord.length && e.key !== 'ArrowUp') { if (limite && !tudo) tudo = true; else paginas++; }
+    if (ni >= visiveis.length - 1 && visiveis.length < ord.length && e.key !== 'ArrowUp') paginas++;
     foco = { i: ni, c: nc };
     await tick();
     el?.querySelector(`[data-i="${ni}"][data-c="${nc}"]`)?.focus();
@@ -78,7 +77,7 @@
   }
 </script>
 
-<div class="indice f-{forma} d-{dens}" bind:this={el}>
+<div class="indice" bind:this={el}>
   <div class="ferr">
     <label class="busca"><Icone nome="busca" /><span class="vh">Buscar paper</span>
       <input type="search" placeholder="Buscar paper" bind:value={estado.busca} autocomplete="off" spellcheck="false" enterkeyhint="search" />
@@ -86,33 +85,19 @@
     <span class="ordem"><Menu nome="Ordem" rotulo="Ordem: {ORDENS.find(([k]) => k === estado.ordem)?.[1]}" descricao="Ordenar por: {ORDENS.find(([k]) => k === estado.ordem)?.[1]}" valor={estado.ordem} itens={ORDENS} aoEscolher={(v) => (estado.ordem = v)} /></span>
   </div>
 
-  {#if forma === 'tabela'}
-    <div class="cab">
-      <div class="cab-g" role="group" aria-label="Ordenar por coluna (seta para cima, a partir da primeira linha)">
-        <span class="c-t rot">Paper</span>
-        {#each COLS as [k, r, cl]}
-          <button class="{cl}" tabindex="-1" data-h={k} aria-pressed={estado.ordem === k} aria-label="Ordenar por {ROT_ORDEM[k]}" onclick={() => (estado.ordem = k)} onkeydown={(e) => cabeca(e, k)}>{r}{#if estado.ordem === k}<Icone nome="desce" tam={12} />{/if}</button>
-        {/each}
-      </div>
-      <span class="rot c-cmp">Comparar</span>
+  <div class="cab">
+    <div class="cab-g" role="group" aria-label="Ordenar por coluna (seta para cima, a partir da primeira linha)">
+      <span class="c-t rot">Paper</span>
+      {#each COLS as [k, r, cl]}
+        <button class="{cl}" tabindex="-1" data-h={k} aria-pressed={estado.ordem === k} aria-label="Ordenar por {ROT_ORDEM[k]}" onclick={() => (estado.ordem = k)} onkeydown={(e) => cabeca(e, k)}>{r}{#if estado.ordem === k}<Icone nome="desce" tam={12} />{/if}</button>
+      {/each}
     </div>
-  {/if}
+    <span class="rot c-cmp">Comparar</span>
+  </div>
 
   {#if !visiveis.length}
     <div class="vazio">{estado.busca ? `Nenhum paper com “${estado.busca}”.` : 'Nenhum paper neste recorte.'}
       {#if estado.busca}<button class="btn sec" onclick={() => (estado.busca = '')}>Limpar a busca</button>{/if}</div>
-  {:else if forma === 'grade'}
-    <div class="tiles" role="list">
-      {#each visiveis as p (p.id)}
-        <div class="tile" class:ativa={estado.sel === p.id} role="listitem">
-          <button class="abre" onclick={() => abrir(p.id)} aria-label={nomeLongo(p)} onmouseenter={() => (estado.hover = p.id)} onmouseleave={() => (estado.hover = null)}>
-            <MiniRadar radar={p.radar} cor={corSolidez(estado.tema, p.sol)} tam={44} tracejado={p.sol === 'sem_leitura'} />
-            <span class="nome">{curto(p.t, 26)}</span><span class="num mut">{p.u}</span>
-          </button>
-          <button class="cmp" aria-pressed={!!letra(p.id)} aria-label="{letra(p.id) ? 'Tirar da comparação' : 'Comparar'}: {p.t}" style:--c="var(--cmp-{estado.comparar.indexOf(p.id) + 1})" onclick={() => alternaComparar(p.id)}>{#if letra(p.id)}{letra(p.id)}{:else}<Icone nome="mais" tam={12} />{/if}</button>
-        </div>
-      {/each}
-    </div>
   {:else}
     <div class="lista" role="grid" aria-label="Papers do recorte" aria-rowcount={visiveis.length}>
       {#each visiveis as p, i (p.id)}
@@ -154,15 +139,11 @@
     </div>
   {/if}
 
-  {#if limite && ord.length > limite && !estado.busca}
-    <button class="btn sec mais" aria-expanded={tudo} onclick={() => (tudo = !tudo)}>{tudo ? 'Mostrar menos' : `Ver os ${ord.length} papers`}</button>
-  {/if}
-
-  {#if (!limite || tudo || estado.busca) && ord.length > visiveis.length}
+  {#if ord.length > visiveis.length}
     <button class="btn sec mais" onclick={() => paginas++}>Mostrar mais {Math.min(PAGINA, ord.length - visiveis.length)} de {ord.length - visiveis.length}</button>
   {/if}
 
-  {#if faltam.length && !estado.busca && (!limite || tudo)}
+  {#if faltam.length && !estado.busca}
     <div class="fila">
       <h3 class="rot pts"><span>Na fila, ainda sem leitura</span><span class="num">{faltam.length}</span></h3>
       <ul>{#each faltam as f (f.id)}<li><a class="lk um" href="https://arxiv.org/abs/{f.id}" target="_blank" rel="noopener">{f.t}</a><span class="mut v"><span class="num">{f.u}</span> votos</span></li>{/each}</ul>
@@ -195,7 +176,6 @@
   .cab button[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
 
   .lista { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); overflow: clip; }
-  .f-tabela .lista { border-radius: 0 0 var(--r-3) var(--r-3); border-top: 0; }
   .linha { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; border-top: 1px solid var(--line); position: relative; background: var(--surface); }
   .grupo:first-child > :first-child { border-top: 0; }
   .linha:hover, .linha.aceso { background: var(--hover); }
@@ -233,7 +213,7 @@
   /* estreito: os fatos descem para a segunda linha */
   .abre { grid-template-columns: 32px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; }
   .glifo { grid-row: 1 / 3; align-self: start; padding-top: 2px; }
-  .f-linhas .t, .f-tabela .t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .fatos { display: flex; flex-wrap: wrap; gap: 2px var(--sp-3); grid-column: 2; font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); align-items: center; }
   .fatos .c-d, .fatos .c-n:last-child, .s { display: none; }
   .fatos .c-n, .fatos .c-d { justify-self: start; }
@@ -244,28 +224,18 @@
 
   /* largo: tabela */
   @container (min-width: 880px) {
-    .f-tabela .cab { display: grid; }
-    .f-tabela .linha { grid-template-columns: minmax(0, 1fr) 72px; column-gap: var(--sp-3); }
-    .f-tabela .ordem { display: none; }
-    .f-tabela .abre { grid-template-columns: 32px minmax(0, 1fr) 44px 48px 84px 64px 136px 128px 72px; column-gap: var(--sp-4); padding-block: 6px; }
-    .f-tabela .glifo { grid-row: auto; align-self: center; padding: 0; }
-    .f-tabela .fatos { display: contents; font-size: inherit; }
-    .f-tabela .fatos .c-d, .f-tabela .fatos .c-n:last-child, .f-tabela .s, .f-tabela .fatos .mut { display: inline-flex; }
-    .f-tabela .s, .f-tabela .t { display: block; white-space: nowrap; }
-    .f-tabela .fatos .c-n, .f-tabela .fatos .c-d { justify-self: end; display: block; }
-    .f-tabela .vt small { display: none; }
-    .f-tabela.d-c .abre { min-height: 36px; padding-block: 2px; }
-    .f-tabela.d-c .s { display: none; }
-    .f-tabela.d-g .abre { min-height: 64px; }
+    .cab { display: grid; }
+    .lista { border-radius: 0 0 var(--r-3) var(--r-3); border-top: 0; }
+    .linha { grid-template-columns: minmax(0, 1fr) 72px; column-gap: var(--sp-3); }
+    .ordem { display: none; }
+    .abre { grid-template-columns: 32px minmax(0, 1fr) 44px 48px 84px 64px 136px 128px 72px; column-gap: var(--sp-4); padding-block: 6px; }
+    .glifo { grid-row: auto; align-self: center; padding: 0; }
+    .fatos { display: contents; font-size: inherit; }
+    .fatos .c-d, .fatos .c-n:last-child, .s, .fatos .mut { display: inline-flex; }
+    .s, .t { display: block; white-space: nowrap; }
+    .fatos .c-n, .fatos .c-d { justify-self: end; display: block; }
+    .vt small { display: none; }
   }
-
-  /* miniaturas (variante do experimento de densidade) */
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: var(--sp-2); }
-  .tile { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); }
-  .tile.ativa { border-color: var(--ink); }
-  .tile .abre { display: grid; grid-template-columns: 1fr; justify-items: center; gap: var(--sp-1); padding: var(--sp-3) var(--sp-2); min-height: 124px; text-align: center; border-radius: var(--r-3); }
-  .tile .nome { font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; }
-  .tile .cmp { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; }
 
   .mais { margin-top: var(--sp-3); width: 100%; }
   .fila { margin-top: var(--sp-6); }

@@ -4,7 +4,8 @@ O que um experimento pode decidir foi prototipado em variantes com os dados
 reais e medido antes de escolher. As variantes vivem no protótipo atrás de
 parâmetros de endereço (`?arq=`, `?indice=`, `?dens=`, `?radar=`, `?g=`,
 `?lentes=`, `?id=`). Depois deste registro o painel guarda só a forma escolhida;
-para refazer os experimentos, use o commit que traz este documento.
+para refazer os experimentos, use o commit `9d08bd8`, o último com todas as
+variantes.
 
 ## E1. Arquitetura de navegação
 

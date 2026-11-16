@@ -8,7 +8,7 @@
   import { ARENA, SOLIDEZ, SOL_ROT, ESFORCO, familia, intervalo, plural, periodos, cobertura, lenteValida, rotuloLente, aplicaLentes } from '../lib/dados.js';
   import { estado, aplicarTema, lente, lentesDe, semLente } from '../lib/estado.svelte.js';
 
-  let { vistas = [], ancoras = false, papers, todos, faltam, dias } = $props();
+  let { vistas = [], papers, todos, faltam, dias } = $props();
   const escuro = $derived(estado.tema.escuro);
   const pers = $derived(periodos(estado.dados));
   const cob = $derived(cobertura(todos, faltam));
@@ -48,10 +48,9 @@
       <span>Papers lidos</span>
     </a></h1>
     {#if vistas.length}
-      <nav class="vistas" aria-label={ancoras ? 'Seções' : 'Vistas'}>
+      <nav class="vistas" aria-label="Vistas">
         {#each vistas as [k, r, n]}
-          {#if ancoras}<a href="#{k}">{r}</a>
-          {:else}<button aria-current={estado.vista === k ? 'page' : undefined} onclick={() => ir(k)}>{r}{#if n}<span class="n num">{n}</span>{/if}</button>{/if}
+          <button aria-current={estado.vista === k ? 'page' : undefined} onclick={() => ir(k)}>{r}{#if n}<span class="n num">{n}</span>{/if}</button>
         {/each}
       </nav>
     {/if}
@@ -86,7 +85,7 @@
   </div>
 </div>
 
-{#if vistas.length && !ancoras}
+{#if vistas.length}
   <nav class="abas" aria-label="Vistas">
     {#each vistas as [k, r, n, ic]}
       <button aria-current={estado.vista === k ? 'page' : undefined} onclick={() => ir(k)}><Icone nome={ic || 'lista'} tam={18} /><span>{r}{#if n}<span class="num n">{n}</span>{/if}</span></button>
@@ -102,8 +101,8 @@
   .marca { font-size: var(--fs-17); line-height: var(--lh-17); white-space: nowrap; }
   .marca a { display: inline-flex; align-items: center; gap: var(--sp-2); border-radius: var(--r-1); }
   .vistas { display: none; align-items: center; gap: var(--sp-1); margin-left: var(--sp-4); }
-  .vistas a, .vistas button { min-height: var(--ctl); padding: 0 var(--sp-3); border-radius: var(--r-2); color: var(--ink2); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background var(--dur-1), color var(--dur-1); }
-  .vistas a:hover, .vistas button:hover { background: var(--sunk); color: var(--ink); }
+  .vistas button { min-height: var(--ctl); padding: 0 var(--sp-3); border-radius: var(--r-2); color: var(--ink2); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background var(--dur-1), color var(--dur-1); }
+  .vistas button:hover { background: var(--sunk); color: var(--ink); }
   .vistas [aria-current="page"] { background: var(--accent); color: var(--on-accent); }
   .vistas [aria-current="page"]:hover { background: var(--accent); color: var(--on-accent); }
   .vistas .n { font-size: var(--fs-12); opacity: .75; }

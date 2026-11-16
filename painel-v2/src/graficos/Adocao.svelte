@@ -17,7 +17,7 @@
   const conta = $derived(NIVEIS.map((n) => papers.filter((p) => p.esf === n).length));
   // sem espaco para um ponto por paper, a fila vira barra empilhada
   let larg = $state(480);
-  const barras = $derived(estado.v.g === 'b' || Math.max(0, ...conta) * 9 > larg - 170);
+  const barras = $derived(Math.max(0, ...conta) * 9 > larg - 170);
 
   const opcao = $derived.by(() => {
     if (!t.ink) return null;

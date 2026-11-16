@@ -2,8 +2,7 @@
   // Comparacao: ate 3 papers nos seis eixos. O radar da a forma; a tabela da o
   // fato de cada eixo na unidade dele (votos, nivel de prova, % de ganho...).
   // Cada paper tem letra, cor, traco e marcador proprios: a cor nunca e o
-  // unico sinal. Variantes do experimento: 'sobre' (radar sobreposto e barras),
-  // 'lado' (um radar por paper), 'pontos' (radar e trilho comum por eixo).
+  // unico sinal.
   import Grafico from '../lib/Grafico.svelte';
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
@@ -14,7 +13,6 @@
   let { papers, todos } = $props();
   let larg = $state(600);
   const t = $derived(estado.tema);
-  const forma = $derived(estado.v.radar);
   const porId = $derived(new Map(todos.map((p) => [p.id, p])));
   const sel = $derived(estado.comparar.map((id) => porId.get(id)).filter(Boolean));
   const medBruta = $derived(EIXOS.map(([k]) => median(papers.map((p) => p.radar[k]))));
@@ -23,7 +21,7 @@
   const melhor = $derived(EIXOS.map(([k]) => Math.max(-1, ...sel.map((p) => p.radar[k] ?? -1))));
   const TRACO = ['solid', [6, 3], [2, 3]], MARCA = ['circle', 'rect', 'triangle'];
 
-  const radar = (ps, idx) => ({
+  const opcao = $derived(!t.ink || !sel.length ? null : {
     ...base(t),
     tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
       if (q.data.mediana) return dica('Mediana do recorte', ...EIXOS.map(([, r], i) => `${r}: <b>${medBruta[i] == null ? '–' : Math.round(medBruta[i])}</b>`));
@@ -31,13 +29,13 @@
       return dica(`${q.data.letra} · ${esc(p.t)}`, ...EIXOS.map(([k, r]) => `${r}: <b>${FATO[k](p) ?? SEM_FATO[k]}</b>`));
     } },
     radar: {
-      indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })), radius: (ps.length === 1 && forma === 'lado') || larg < 400 ? '54%' : '64%', center: ['50%', '52%'], splitNumber: 4, shape: 'polygon',
+      indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })), radius: larg < 400 ? '54%' : '64%', center: ['50%', '52%'], splitNumber: 4, shape: 'polygon',
       axisName: { color: t.ink2, fontSize: 12, fontWeight: 500, fontFamily: t.fUi },
       splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } },
     },
     series: [{ type: 'radar', data: [
       { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { width: 0 }, areaStyle: { color: t.lineStrong, opacity: .18 } },
-      ...ps.map((p, j) => { const i = idx[j], c = corCmp(t, i);
+      ...sel.map((p, i) => { const c = corCmp(t, i);
         return { name: p.t, pid: p.id, letra: 'ABC'[i], value: radarValores(EIXOS.map(([k]) => p.radar[k])),
           // com eixo nao lido o vertice e so passagem: sem marcador, para nao parecer medida
           symbol: EIXOS.some(([k]) => p.radar[k] == null) ? 'none' : MARCA[i], symbolSize: 7,
@@ -45,14 +43,12 @@
           emphasis: { areaStyle: { opacity: 0.22 }, lineStyle: { width: 3 } } }; }),
     ] }],
   });
-  const opSobre = $derived(t.ink && sel.length ? radar(sel, sel.map((_, i) => i)) : null);
-  const opLado = $derived(t.ink ? sel.map((p, i) => radar([p], [i])) : []);
 
   const maisVotados = () => { estado.comparar = [...papers].sort((a, b) => b.u - a.u).filter((p) => Object.values(p.radar).filter((v) => v != null).length >= 4).slice(0, 2).map((p) => p.id); };
   const v = (x) => (x == null ? null : Math.round(x));
 </script>
 
-<section class="comparar f-{forma}" aria-labelledby="h-comparar" data-regiao="comparar">
+<section class="comparar" aria-labelledby="h-comparar" data-regiao="comparar">
   <header class="topo">
     <h2 id="h-comparar" class="titulo">Comparar</h2>
     <div class="acoes">
@@ -73,18 +69,9 @@
   {:else}
     <div class="corpo">
       <div class="g" bind:clientWidth={larg}>
-        {#if forma === 'lado'}
-          <div class="multi">
-            {#each sel as p, i (p.id)}
-              <figure><figcaption><i class="letra" style:--c="var(--cmp-{i + 1})">{'ABC'[i]}</i><span class="um">{curto(p.t, 22)}</span></figcaption>
-                <Grafico opcao={opLado[i]} altura={212} rotulo="Radar de {p.t} nos seis eixos" /></figure>
-            {/each}
-          </div>
-        {:else if opSobre}
-          <Grafico opcao={opSobre} altura={340} rotulo="Radar de seis eixos com os papers escolhidos e a mediana do recorte" />
-        {/if}
+        {#if opcao}<Grafico {opcao} altura={340} rotulo="Radar de seis eixos com os papers escolhidos e a mediana do recorte" />{/if}
         <p class="chave t-12 mut">
-          {#if forma !== 'lado'}{#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg>{'ABC'[i]}</span>{/each}{/if}
+          {#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg>{'ABC'[i]}</span>{/each}
           <span><i class="med"></i><i class="tique"></i>mediana do recorte</span>
         </p>
       </div>
@@ -114,20 +101,10 @@
                   {@const f = FATO[k](p)}
                   <td style:--c="var(--cmp-{i + 1})" class:top={sel.length > 1 && x != null && p.radar[k] === melhor[ei]}>
                     <span class="fato" class:mut={f == null}>{#if k === 'amplitude' && f != null}{nBench(p)} <span class="un-l">{nBench(p) === 1 ? 'benchmark' : 'benchmarks'}</span><span class="un-c">bench.</span>{:else}{f ?? SEM_FATO[k]}{/if}</span>
-                    {#if forma !== 'pontos'}
-                      <span class="trilho" class:nd={x == null} aria-hidden="true">{#if x != null}<i style:width="{x}%"></i>{/if}{#if med != null}<b style:left="{med}%"></b>{/if}</span>
-                    {/if}
+                    <span class="trilho" class:nd={x == null} aria-hidden="true">{#if x != null}<i style:width="{x}%"></i>{/if}{#if med != null}<b style:left="{med}%"></b>{/if}</span>
                   </td>
                 {/each}
               </tr>
-              {#if forma === 'pontos'}
-                <tr class="pontos" aria-hidden="true"><td></td><td colspan={sel.length}>
-                  <span class="pista" style:height="{18 + (sel.length - 1) * 14}px">
-                    {#if med != null}<b style:left="{med}%"></b>{/if}
-                    {#each sel as p, i (p.id)}{#if p.radar[k] != null}<i class="letra" style:left="{p.radar[k]}%" style:top="{i * 14}px" style:--c="var(--cmp-{i + 1})">{'ABC'[i]}</i>{/if}{/each}
-                  </span>
-                </td></tr>
-              {/if}
             {/each}
           </tbody>
         </table>
@@ -147,11 +124,8 @@
   .caixa { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding-block: var(--sp-12); }
 
   .corpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--sp-4); }
-  @container (min-width: 860px) { .corpo { grid-template-columns: minmax(300px, 5fr) minmax(0, 7fr); gap: var(--sp-8); padding: var(--sp-6); align-items: center; }
-    .f-lado .corpo { grid-template-columns: minmax(0, 1fr); } }
+  @container (min-width: 860px) { .corpo { grid-template-columns: minmax(300px, 5fr) minmax(0, 7fr); gap: var(--sp-8); padding: var(--sp-6); align-items: center; } }
   .g { min-width: 0; }
-  .multi { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--sp-4); }
-  figcaption { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; }
   .chave { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: center; margin-top: var(--sp-2); }
   .chave span { display: inline-flex; align-items: center; gap: 6px; }
   .chave .med { width: 12px; height: 12px; border-radius: 2px; background: color-mix(in srgb, var(--line-strong) 26%, var(--surface)); }
@@ -179,11 +153,7 @@
   .trilho { display: block; position: relative; height: 6px; border-radius: 3px; background: var(--sunk); margin-top: var(--sp-2); }
   .trilho.nd { background: none; box-shadow: inset 0 0 0 1px var(--line); }
   .trilho i { display: block; height: 100%; border-radius: 3px; background: var(--c); transition: width var(--dur-3) var(--sai); }
-  .trilho b, .pista b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink2); border-radius: 1px; }
-  .pontos td { border-top: 0; padding-top: 0; }
-  .pista { display: block; position: relative; margin: 0 10px; background: linear-gradient(var(--line), var(--line)) 0 50% / 100% 1px no-repeat; }
-  .pista b { top: 0; bottom: 0; }
-  .pista .letra { position: absolute; margin-left: -9px; width: 18px; height: 18px; transition: left var(--dur-3) var(--sai); }
+  .trilho b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink2); border-radius: 1px; }
 
   @container (max-width: 520px) {
     .eixo { width: 68px; }

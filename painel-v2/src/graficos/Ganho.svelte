@@ -11,7 +11,6 @@
 
   let { papers, limite = 16 } = $props();
   const t = $derived(estado.tema);
-  const barras = $derived(estado.v.g === 'b');
   let tudo = $state(false);
   const todas = $derived(papers.map((p) => {
     const rx = p.res.map((r) => r.rext).filter((v) => v != null);
@@ -46,15 +45,6 @@
       },
       data: linhas.map((l, i) => ({ pid: l.p.id, value: [cl(l.med), cl(l.lo), cl(l.hi), i] })),
     };
-    const barra = [{
-      type: 'bar', barWidth: 12, cursor: 'pointer', markLine: zero,
-      emphasis: { itemStyle: { borderColor: t.ink, borderWidth: 2 } },
-      data: linhas.map((l) => { const s = estiloPonto(t, l.p), oco = l.p.sol === 'sem_leitura';
-        return { pid: l.p.id, value: cl(l.med), itemStyle: { color: s.color, borderColor: oco ? s.borderColor : 'transparent', borderWidth: oco ? 1.5 : 0, borderType: oco ? 'dashed' : 'solid', borderRadius: 2 } }; }),
-    }, {
-      type: 'custom', silent: true, data: linhas.map((l, i) => [l.med > d1 ? d1 : d0, i, l.med > d1 ? 1 : l.med < d0 ? -1 : 0]).filter((v) => v[2]),
-      renderItem: (_, api) => { const [x, y] = api.coord([api.value(0), api.value(1)]), dir = api.value(2); return { type: 'group', children: corte(x - dir * 4, y, dir, t.surface) }; },
-    }];
     return {
       ...base(t),
       grid: { left: 0, right: 4, top: 4, bottom: 4, containLabel: true },
@@ -68,7 +58,7 @@
         { ...eixo, position: 'right', data: linhas.map((l) => `${sgn(l.med)}%`),
           axisLabel: { ...rotNum(t), color: t.ink, margin: 12, formatter: (v, i) => (linhas[i]?.med < 0 ? `{neg|${v}}` : v), rich: { neg: { color: t.alert, fontFamily: t.fNum, fontSize: 12 } } } },
       ],
-      series: barras ? barra : [pontos],
+      series: [pontos],
     };
   });
   const clicar = (q) => {
@@ -87,7 +77,7 @@
   {#snippet legenda()}
     <div class="leg">
       <Chave />
-      {#if !barras}<span class="k"><i class="pt"></i>mediana<i class="tr"></i>do pior ao melhor resultado</span>{/if}
+      <span class="k"><i class="pt"></i>mediana<i class="tr"></i>do pior ao melhor resultado</span>
       {#if cortados}<span class="k"><b aria-hidden="true">»</b>passa do eixo</span>{/if}
     </div>
   {/snippet}
