@@ -420,3 +420,12 @@ sem achado alto; cada um dos outros três com um.
 | No gráfico de custo, "Think Less, Locally" fica empilhado sobre "MoviEdit" e longe do próprio ponto: dá para trocar os papers | acabamento | `rotular()` passou a penalizar posição em que o nome fica mais perto de outro ponto que do seu |
 | Linha cheia e pontilhada trocam de sentido: no Panorama a cheia é o zero e a pontilhada a mediana; na comparação e no paper, o contrário | celular | Uma convenção só: zero cheio, mediana pontilhada, nas barras da comparação e do paper e nas legendas |
 | "26 parciais" inclui os dois papers que a linha chama de "só o resumo lido" | uso | A barra conta três estados com as palavras da linha: "2 inteiras · 24 parciais · 2 só do resumo"; o medidor deixa a parte parcial mais clara, para não parecer cheio |
+
+## Rodada 12 (2026-11-16)
+
+Notas: acabamento 7, gráficos 8, celular e tablet 7, uso e texto 7.
+Acabamento, gráficos e uso sem achado alto.
+
+| Achado alto | Crítico | O que foi feito |
+|---|---|---|
+| Com o filtro Frágil, "Onde está a disputa?" mostra "1" ao lado de "nenhuma arena tem disputa", e as arenas somam 3 papers num recorte de 2 | celular (médio para os outros três) | Sem disputa, o número grande é 0 ("arenas com disputa neste recorte: cada arena tem um paper só"), e a frase avisa quando um paper conta em mais de uma arena |
