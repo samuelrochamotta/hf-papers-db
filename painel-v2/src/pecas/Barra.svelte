@@ -107,7 +107,8 @@
   .recorte { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--line); container: recorte / inline-size; }
   .l1 { display: flex; align-items: center; gap: var(--sp-4); height: var(--barra); }
   .marca { font-size: var(--fs-17); line-height: var(--lh-17); white-space: nowrap; }
-  .marca a { display: inline-flex; align-items: center; gap: var(--sp-2); border-radius: var(--r-1); }
+  .marca a { display: inline-flex; align-items: center; gap: var(--sp-2); border-radius: var(--r-1); position: relative; }
+  .marca a::after { content: ''; position: absolute; inset: -10px 0; }                 /* alvo de 44 px */
   .vistas { display: none; align-items: center; gap: var(--sp-1); margin-left: var(--sp-4); }
   .vistas button { min-height: var(--ctl); padding: 0 var(--sp-3); border-radius: var(--r-2); color: var(--ink2); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background var(--dur-1), color var(--dur-1); }
   .vistas button:hover { background: var(--sunk); color: var(--ink); }
@@ -130,9 +131,10 @@
   @media (max-width: 639px) {
     /* a primeira linha tem altura fixa: sem filtro ela sobe com a pagina; com
        filtro ou busca ela fica presa, com a contagem e o Limpar a mao */
-    .recorte { --l1: 32px; top: calc(-1 * (var(--l1) + var(--sp-1))); }
+    .recorte { --l1: 36px; top: calc(-1 * (var(--l1) + var(--sp-1))); }
     .recorte.ativo { top: 0; }
-    .l2 { flex-wrap: wrap; row-gap: var(--sp-1); padding-top: var(--sp-1); }
+    .l2 { flex-wrap: wrap; row-gap: var(--sp-2); padding-top: var(--sp-1); }      /* 8 px entre as linhas: os alvos de 44 px do Limpar e dos filtros se encostam, sem se cobrir */
+    .limpa::after { inset: -4px -2px; }
     .rec { flex: 1 1 0; order: 1; height: var(--l1); display: flex; align-items: center; min-width: 0; }
     .limpa { order: 2; min-height: var(--l1); }
     .filtros { flex: 1 0 100%; order: 3; gap: 6px; }

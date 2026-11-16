@@ -209,7 +209,7 @@ export function liberados(p) {
   const ks = Object.entries(p.ab).filter(([, v]) => v === 'liberado').map(([k]) => ART[k].toLowerCase());
   return ks.length ? ks.join(ks.length === 2 ? ' e ' : ', ') : '';
 }
-export const HW = { nao_reportado: 'Não reportado', '1_gpu': '1 GPU', '1_no': '1 nó', cluster: 'Cluster' };
+export const HW = { nao_reportado: 'não reportado', '1_gpu': '1 GPU', '1_no': '1 nó', cluster: 'Cluster' };
 
 // Lente vinda do endereco: so chaves e valores conhecidos.
 export function lenteValida(k, v) {

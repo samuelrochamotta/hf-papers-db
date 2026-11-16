@@ -28,7 +28,8 @@ tabulares) e `--f-display` (marca, títulos e números grandes, com
 - Espaço na grade de 4 px: `--sp-1` 4, `--sp-2` 8, `--sp-3` 12, `--sp-4` 16, `--sp-5` 20, `--sp-6` 24, `--sp-8` 32, `--sp-10` 40, `--sp-12` 48, `--sp-16` 64.
 - Página: 4 colunas até 767 px, 8 até 1023, 12 dali em diante; margem de 16, 24 e 40 px; largura máxima de 1440 px.
 - Raios: `--r-1` 4 (foco, célula), `--r-2` 8 (controle), `--r-3` 12 (quadro).
-- Alturas fixas: controle 32 px (40 px com toque), menor alvo 24 px (WCAG 2.2), barra 56 px, paper aberto 480 px em tela larga.
+- Alturas fixas: controle 32 px (40 px com toque; chips 36 px), barra 56 px, paper aberto 480 px em tela larga.
+- Alvo de toque: 44 px em todo controle, medido com o dedo na tela por `medir/alvos.mjs`. O desenho pode ser menor que o alvo: a área que responde passa do contorno, sem cobrir o alvo do vizinho. Com ponteiro fino o mínimo é 24 px (WCAG 2.2).
 
 ## Cor
 
@@ -41,7 +42,7 @@ Papéis, e não cores soltas. Um bloco por tema; a identidade troca só este blo
 | Linhas | `--line` (divisão), `--line-strong` (borda de controle, 3:1) |
 | Ação e foco | `--accent`, `--on-accent`, `--focus` |
 | Alerta | `--alert`, `--alert-soft` |
-| Prova, a única codificação de cor de dado | `--sol-forte`, `--sol-firme`, `--sol-basico`, `--sol-fragil`; `--sol-nada` é um anel tracejado, porque ausência de dado não é um nível da rampa |
+| Prova, a única codificação de cor de dado | `--sol-forte`, `--sol-firme`, `--sol-basico`, `--sol-fragil`; `--sol-nada` é um anel tracejado, porque ausência de dado não é um nível da rampa. A marca repete o nível no preenchimento (inteiro, três quartos, metade, um quarto): experimento E4 |
 | Resultado contra o rival | `--res-ganha`, `--res-ruido`, `--res-perde`, `--res-semrival` |
 | Comparação de até três papers | `--cmp-1`, `--cmp-2`, `--cmp-3`, fora da rampa de prova |
 

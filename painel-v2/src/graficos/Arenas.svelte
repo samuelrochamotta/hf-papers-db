@@ -3,6 +3,7 @@
   // o melhor rival. Clicar numa arena aplica a lente.
   import Quadro from '../pecas/Quadro.svelte';
   import Grafico from '../lib/Grafico.svelte';
+  import Nomes from '../pecas/Nomes.svelte';
   import { ARENA, plural, esc } from '../lib/dados.js';
   import { base, rotNum, grade } from '../lib/tema.js';
   import { estado, lente, lentesDe } from '../lib/estado.svelte.js';
@@ -30,6 +31,18 @@
     : empate > 1 ? `${topo.ps.size === 1 ? 'paper' : 'papers'} em cada uma das ${empate} arenas mais cheias`
     : `${topo.ps.size === 1 ? 'paper disputa' : 'papers disputam'} ${nome(topo.k)}, a arena mais cheia`);
   const ativas = $derived(lentesDe('ar'));
+  // "E quem vence nela?": na arena em foco (a do filtro, ou a mais cheia), os
+  // papers com mais resultados vencidos contra o melhor rival.
+  const foco = $derived(ativas.length === 1 && linhas.some((l) => l.k === ativas[0]) ? ativas[0] : topo && topo.k !== 'outra' ? topo.k : null);
+  const placar = $derived.by(() => {
+    const m = new Map();
+    if (foco) for (const p of papers) {
+      const rs = p.res.filter((r) => r.ar === foco), v = rs.filter((r) => r.e === 'ganha').length;
+      if (v) m.set(p.id, { p, v, n: rs.length });
+    }
+    return m;
+  });
+  const vencem = $derived([...placar.values()].sort((a, b) => b.v - a.v || b.v / b.n - a.v / a.n || b.p.u - a.p.u).map((o) => o.p));
 
   const opcao = $derived.by(() => {
     if (!t.ink) return null;
@@ -74,6 +87,7 @@
   {#if opcao && linhas.length}
     <Grafico {opcao} altura={Math.max(176, linhas.length * 28 + 78)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" />
   {:else}<div class="vazio">Nenhum resultado com benchmark neste recorte.</div>{/if}
+  <Nomes papers={vencem} max={4} titulo="Mais vencem em {nome(foco)}" rotulo="Papers que mais vencem em {nome(foco)}" valor={(p) => `${placar.get(p.id).v} de ${placar.get(p.id).n}`} />
   {#snippet legenda()}
     <ul class="leg" aria-label="Desfecho contra o melhor rival">
       {#each ESTADOS as [e, rot]}<li><i class="sw {e}"></i>{rot}</li>{/each}

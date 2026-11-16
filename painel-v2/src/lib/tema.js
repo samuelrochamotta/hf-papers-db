@@ -38,11 +38,13 @@ export const marca = (t, p) => (p.sol === 'sem_leitura'
   ? { fill: t.surface, stroke: t.solNada, lineWidth: 1.5, lineDash: [3, 2] }
   : { fill: corSolidez(t, p.sol), stroke: t.surface, lineWidth: 1 });
 // A marca de prova de quem desenha a propria forma, como lista de elementos.
-// Na variante "cheio", alem da cor, o disco enche conforme a prova: forte
-// inteiro, firme 3/4, basica 1/2, fragil 1/4. Sem leitura continua anel
-// tracejado. `extra` (realce, cursor, nome) vai no primeiro elemento.
+// Alem da cor, o disco enche conforme a prova: forte inteiro, firme 3/4,
+// basica 1/2, fragil 1/4 (a cor sozinha confundiu forte e firme no tema
+// escuro: experimento E4). Sem leitura continua anel tracejado. `cheio: false`
+// e para o ponto pequeno demais para mostrar a fatia. `extra` (realce, cursor,
+// nome) vai no primeiro elemento.
 const FRACAO = { forte: 1, firme: 0.75, basico: 0.5, fragil: 0.25 };
-export function pontoProva(t, p, cx, cy, r, { cheio = false, extra = {}, borda = null } = {}) {
+export function pontoProva(t, p, cx, cy, r, { cheio = true, extra = {}, borda = null } = {}) {
   const f = FRACAO[p.sol], m = marca(t, p);
   if (!cheio || f == null || f === 1) return [{ type: 'circle', shape: { cx, cy, r }, style: borda ? { ...m, stroke: borda } : m, ...extra }];
   const cor = corSolidez(t, p.sol);

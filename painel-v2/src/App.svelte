@@ -18,7 +18,7 @@
   import { estado, temaSalvo, lente, temLente } from './lib/estado.svelte.js';
 
   const VISTAS = [['papers', 'Papers', 'lista'], ['panorama', 'Panorama', 'graficos'], ['comparar', 'Comparar', 'radar']];
-  const VARIANTES = { lentes: ['uma', 'varias'], marca: ['cor', 'cheio'] };
+  const VARIANTES = { lentes: ['uma', 'varias'] };
   const IDENTIDADES = ['', 'periodico', 'oficina'];
   const vistas = $derived(VISTAS.map(([k, r, ic]) => [k, r, k === 'comparar' && estado.comparar.length ? estado.comparar.length : '', ic]));
 
@@ -26,7 +26,6 @@
   function lerEndereco() {
     const q = new URLSearchParams(location.search);
     for (const [k, vs] of Object.entries(VARIANTES)) if (vs.includes(q.get(k))) estado.v[k] = q.get(k);
-    document.documentElement.dataset.marca = estado.v.marca;
     if (IDENTIDADES.includes(q.get('id'))) { estado.v.id = q.get('id'); if (estado.v.id) document.documentElement.dataset.id = estado.v.id; }
     if (q.get('periodo')) estado.periodo = q.get('periodo');
     for (const l of q.getAll('lente')) {

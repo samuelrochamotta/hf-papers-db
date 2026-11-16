@@ -34,6 +34,8 @@
   const medPos = $derived(EIXOS.map(([k]) => median(papers.map((p) => pos(k, p)))));
   const artefatos = (p) => Object.keys(ART).map((a) => `${ART[a]} ${ART_EST[p.ab[a]] ?? 'não lido'}`).join(' · ');
   const TRACO = ['solid', [6, 3], [2, 3]], MARCA = ['circle', 'rect', 'triangle'];
+  // o radar ocupa o que a largura deixa (os nomes dos eixos pedem uns 75 px de cada lado) e a altura acompanha: sem vao em cima nem embaixo
+  const raio = $derived(Math.round(Math.max(60, Math.min((larg - 150) / 2, 165))));
 
   const opcao = $derived(!t.ink || !sel.length ? null : {
     ...base(t),
@@ -43,12 +45,12 @@
       return dica(`${q.data.letra} · ${esc(p.t)}`, ...EIXOS.map(([k, r]) => `${r}: <b>${FATO[k](p) ?? SEM_FATO[k]}</b>`));
     } },
     radar: {
-      indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })), radius: larg < 400 ? '54%' : '64%', center: ['50%', '52%'], splitNumber: 4, shape: 'polygon',
+      indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })), radius: raio, center: ['50%', '50%'], splitNumber: 4, shape: 'polygon',
       axisName: { color: t.ink2, fontSize: 12, fontWeight: 500, fontFamily: t.fUi },
       splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } },
     },
     series: [{ type: 'radar', data: [
-      { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { width: 0 }, areaStyle: { color: t.lineStrong, opacity: .18 } },
+      { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { color: t.muted, type: [4, 4], width: 1 }, areaStyle: { color: t.lineStrong, opacity: .08 } },
       ...sel.map((p, i) => { const c = corCmp(t, i);
         return { name: p.t, pid: p.id, letra: 'ABC'[i], value: radarValores(EIXOS.map(([k]) => p.radar[k])),
           // com eixo nao lido o vertice e so passagem: sem marcador, para nao parecer medida
@@ -67,10 +69,10 @@
     <h2 id="h-comparar" class="titulo">Comparar</h2>
     <div class="acoes">
       <!-- o botao de adicionar fica sempre na ponta: nao muda de lugar quando entra o primeiro paper -->
-      {#if sel.length}<button class="btn fan limpa" onclick={() => (estado.comparar = [])}>Limpar</button>{/if}
-      <span class="t-12 mut num">{sel.length} de {MAX_COMPARAR}</span>
+      {#if sel.length}<button class="btn fan limpa" aria-label="Esvaziar a comparação" onclick={() => (estado.comparar = [])}>Esvaziar</button>{/if}
+      <span class="t-12 mut"><span class="num">{sel.length}</span> de <span class="num">{MAX_COMPARAR}</span> papers</span>
       {#if opcoes.length}
-        <span class="add"><Menu nome="Papers para comparar" icone="mais" busca rotulo={sel.length >= MAX_COMPARAR ? 'Trocar paper' : 'Adicionar paper'} descricao={sel.length >= MAX_COMPARAR ? 'Trocar um paper da comparação' : 'Adicionar paper à comparação'} valor="-"
+        <span class="add"><Menu nome="Papers para comparar" icone={sel.length >= MAX_COMPARAR ? 'troca' : 'mais'} busca rotulo={sel.length >= MAX_COMPARAR ? 'Trocar o paper A' : 'Adicionar paper'} descricao={sel.length >= MAX_COMPARAR ? 'Trocar o paper A, o mais antigo da comparação, por outro' : 'Adicionar paper à comparação'} valor="-"
           itens={opcoes.map((p) => [p.id, p.t, p.u])} aoEscolher={alternaComparar} /></span>
       {/if}
     </div>
@@ -83,7 +85,7 @@
   {:else}
     <div class="corpo">
       <div class="g" bind:clientWidth={larg}>
-        {#if opcao}<Grafico {opcao} altura={340} rotulo="Radar de seis eixos com os papers escolhidos e a mediana do recorte" />{/if}
+        {#if opcao}<Grafico {opcao} altura={2 * raio + 72} rotulo="Radar de seis eixos com os papers escolhidos e a mediana do recorte" />{/if}
         <p class="chave t-12 mut">
           {#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg><b>{'ABC'[i]}</b>{curto(p.t, 18)}</span>{/each}
           <span><i class="med"></i>mediana do recorte</span>
@@ -157,7 +159,7 @@
   .chave span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
   .chave b { font-weight: 600; color: var(--ink); }
   .chave.pe { justify-content: flex-start; margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--line); --c: var(--ink2); }
-  .chave .med { width: 12px; height: 12px; border-radius: 2px; background: color-mix(in srgb, var(--line-strong) 26%, var(--surface)); }
+  .chave .med { width: 16px; height: 10px; border-radius: 2px; border: 1px dashed var(--muted); background: color-mix(in srgb, var(--line-strong) 12%, var(--surface)); }
   .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
 
   .letra { width: 20px; height: 20px; border-radius: 50%; background: var(--c); color: var(--surface); display: inline-grid; place-items: center; font-size: var(--fs-12); line-height: 1; font-weight: 600; font-style: normal; flex: none; }
@@ -174,8 +176,11 @@
   .nome { text-align: left; overflow-wrap: break-word; font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; border-radius: var(--r-1); min-height: var(--alvo); min-width: 0; }
   .nome .nm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
   .nome:hover .nm { text-decoration-color: currentColor; }
+  @media (pointer: coarse) { .nome { position: relative; } .nome::after { content: ''; position: absolute; inset: 0 0 -22px; } }      /* para baixo: em cima fica o alvo do botao de tirar */
   .nm.fora { color: var(--muted); }
   .tira { width: 28px; height: 28px; margin: -4px -4px 0 0; border-radius: 50%; display: grid; place-items: center; color: var(--muted); transition: background var(--dur-1), color var(--dur-1); }
+  .tira { position: relative; }
+  .tira::after { content: ''; position: absolute; inset: -8px; }                 /* alvo de 44 px */
   .tira:hover { background: var(--hover); color: var(--ink); }
   .fato { display: block; overflow-wrap: break-word; }
   .un-c { display: none; }

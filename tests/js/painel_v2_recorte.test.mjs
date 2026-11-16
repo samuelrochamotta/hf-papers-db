@@ -14,6 +14,8 @@
  * 7. Nome de ponto nao encobre ponto nem outro nome e fica do mesmo lado da
  *    zona que o ponto; quem responde a pergunta do quadro ganha nome sempre.
  * 8. O eixo so corta o que foge muito: valor a menos de um passo da borda entra.
+ * 9. A marca de prova nao depende so da cor: o disco enche conforme o nivel
+ *    (inteiro, 3/4, metade, 1/4) e "nao lida" e um anel tracejado.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +24,7 @@ import {
   aplicaLentes, lenteValida, rotuloLente, ordenar, comDado, ORDENS, buscar, periodos, noPeriodo,
   radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ, realcar, ondeAchou,
 } from '../../painel-v2/src/lib/dados.js';
-import { enxame, rotular, toca, dominio } from '../../painel-v2/src/lib/tema.js';
+import { enxame, rotular, toca, dominio, pontoProva } from '../../painel-v2/src/lib/tema.js';
 
 const RADAR = { atencao: 50, solidez: 50, ganho: 50, facilidade: 50, abertura: 50, amplitude: 50 };
 function paper(id, o = {}) {
@@ -192,6 +194,18 @@ test('o eixo so corta o que foge muito', () => {
   const [, e1] = dominio([66.2, 21.4, 12.7, 10.2, 7.8, 4.7, 4.2, 3.4, 1.2, 0.6, 0.6, 0.3, -1.1, -9.2, -12.6]);
   assert.ok(e1 < 66.2 && e1 >= 21.4);
   assert.deepEqual(dominio([]), [0, 5, 5]);
+});
+
+test('a marca de prova enche conforme o nivel e nao lida e anel tracejado', () => {
+  const t = { surface: '#fff', solNada: '#999', solForte: '#001', solFirme: '#002', solBasico: '#003', solFragil: '#004' };
+  const volta = (sol) => { const [, fatia] = pontoProva(t, { sol }, 0, 0, 6); return fatia ? (fatia.shape.endAngle - fatia.shape.startAngle) / (2 * Math.PI) : null; };
+  assert.equal(pontoProva(t, { sol: 'forte' }, 0, 0, 6).length, 1, 'forte e um disco inteiro');
+  assert.deepEqual(['firme', 'basico', 'fragil'].map(volta), [0.75, 0.5, 0.25]);
+  const [anel] = pontoProva(t, { sol: 'sem_leitura' }, 0, 0, 6);
+  assert.ok(anel.style.lineDash && anel.style.fill === t.surface, 'nao lida: anel tracejado, sem fatia');
+  assert.equal(pontoProva(t, { sol: 'sem_leitura' }, 0, 0, 6).length, 1);
+  // ponto pequeno demais para a fatia: volta ao disco de cor
+  assert.equal(pontoProva(t, { sol: 'basico' }, 0, 0, 3, { cheio: false }).length, 1);
 });
 
 test('textos de apoio: intervalo, plural, sinal e nome curto', () => {

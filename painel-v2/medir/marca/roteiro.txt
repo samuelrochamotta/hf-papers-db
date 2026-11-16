@@ -1,0 +1,27 @@
+Você é um leitor num teste de leitura de gráficos. Responda só pelo que vê nas imagens. Não abra nenhum outro arquivo além das duas imagens abaixo, não pesquise nada, não amplie e não rode código para analisar pixels: use apenas a leitura visual das imagens com a ferramenta Read.
+
+Imagens (leia as duas com a ferramenta Read):
+- PASTA/adocao.png
+- PASTA/ganho.png
+
+São gráficos de um painel sobre papers de IA. Em cada gráfico, cada ponto é um paper. A marca do ponto mostra o nível de prova do paper (Forte, Firme, Básica, Frágil ou Não lida). A legenda no pé de cada gráfico mostra como é a marca de cada nível.
+
+Tarefa 1 (adocao.png): para as linhas "Integrar", "Reimplementar" e "Só informa", conte quantos pontos há de cada nível de prova.
+
+Tarefa 2 (ganho.png): para cada paper da lista, diga o nível de prova do ponto dele. Papers: DreamX, SplatAnything, Sage-Taiyi, Don't Just Trust Your, P2-MOPD, Think Less Locally, Confucius4-R2T2, MoviEdit, SLA, Wave Forcing, Few-Step Streaming Video, CoworkOS, From Pixels to Actions, Harness-S, Route Anything.
+
+Se não conseguir distinguir um nível com segurança, responda "nao_sei" naquele item em vez de chutar.
+
+Grave a resposta com a ferramenta Write no arquivo SAIDA, em JSON válido, exatamente neste formato (números inteiros ou "nao_sei" nas contagens; um dos textos "Forte", "Firme", "Básica", "Frágil", "Não lida" ou "nao_sei" nos papers):
+
+{
+  "adocao": {
+    "Integrar": {"Forte": 0, "Firme": 0, "Básica": 0, "Frágil": 0, "Não lida": 0},
+    "Reimplementar": {"Forte": 0, "Firme": 0, "Básica": 0, "Frágil": 0, "Não lida": 0},
+    "Só informa": {"Forte": 0, "Firme": 0, "Básica": 0, "Frágil": 0, "Não lida": 0}
+  },
+  "ganho": {"DreamX": "", "SplatAnything": "", "Sage-Taiyi": "", "Don't Just Trust Your": "", "P2-MOPD": "", "Think Less Locally": "", "Confucius4-R2T2": "", "MoviEdit": "", "SLA": "", "Wave Forcing": "", "Few-Step Streaming Video": "", "CoworkOS": "", "From Pixels to Actions": "", "Harness-S": "", "Route Anything": ""},
+  "dificuldade": "uma frase: o que foi fácil e o que foi difícil de distinguir"
+}
+
+Ao terminar, responda só com "gravado" e a frase de dificuldade.

@@ -43,7 +43,12 @@
 }
 @media (min-width:768px){:root{--margem:24px;--calha:24px}}
 @media (min-width:1280px){:root{--margem:40px}}
-@media (pointer:coarse){:root{--ctl:40px}}
+/* No toque o controle desenhado tem 40 px (36 nos chips) e o alvo tem 44: a area que responde ao dedo passa do desenho.
+   medir/alvos.mjs confere o alvo de cada controle com o dedo na tela. */
+@media (pointer:coarse){:root{--ctl:40px}
+  .btn,.ico,.sel,.chip,.seg>button{position:relative}
+  .btn::after,.ico::after{content:'';position:absolute;inset:-2px}
+  .sel::after,.chip::after,.seg>button::after{content:'';position:absolute;inset:-4px 0}}
 @media (prefers-reduced-motion:reduce){:root{--dur-1:0ms;--dur-2:0ms;--dur-3:0ms}}
 
 /* --- cor: claro --- */
@@ -265,11 +270,11 @@ table{border-collapse:collapse}
 .sol.sem_leitura{background:transparent;box-shadow:inset 0 0 0 1.5px var(--sol-nada);background-image:none;border-radius:50%;outline:0;
   -webkit-mask:repeating-conic-gradient(#000 0 30deg,transparent 30deg 45deg);mask:repeating-conic-gradient(#000 0 30deg,transparent 30deg 45deg)}
 
-/* variante "cheio": alem da cor, o disco enche conforme a prova (forte inteiro, firme 3/4, basica 1/2, fragil 1/4) */
-:root[data-marca=cheio] .sol:is(.firme,.basico,.fragil){box-shadow:inset 0 0 0 1.5px var(--c)}
-:root[data-marca=cheio] .sol.firme{background:conic-gradient(var(--c) 0 75%,transparent 0)}
-:root[data-marca=cheio] .sol.basico{background:conic-gradient(var(--c) 0 50%,transparent 0)}
-:root[data-marca=cheio] .sol.fragil{background:conic-gradient(var(--c) 0 25%,transparent 0)}
+/* alem da cor, o disco enche conforme a prova (forte inteiro, firme 3/4, basica 1/2, fragil 1/4): medido no experimento E4 */
+.sol:is(.firme,.basico,.fragil){box-shadow:inset 0 0 0 1.5px var(--c)}
+.sol.firme{background:conic-gradient(var(--c) 0 75%,transparent 0)}
+.sol.basico{background:conic-gradient(var(--c) 0 50%,transparent 0)}
+.sol.fragil{background:conic-gradient(var(--c) 0 25%,transparent 0)}
 
 .vazio{padding:var(--sp-8) var(--sp-4);text-align:center;color:var(--muted);display:grid;gap:var(--sp-3);justify-items:center}
 

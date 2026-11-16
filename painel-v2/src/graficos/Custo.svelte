@@ -13,7 +13,6 @@
 
   let { papers } = $props();
   const t = $derived(estado.tema);
-  const cheio = $derived(estado.v.marca === 'cheio');
   const TITULO = 'mais barato e melhor';
   const fator = (e) => {
     const v = +e.valor; if (!v) return null;
@@ -99,7 +98,7 @@
             const extra = { cursor: 'pointer', emphasis: { style: { stroke: t.ink, lineWidth: 2, lineDash: null } },
               ...(c ? { textContent: { type: 'text', style: { text: texto(o), fill: bom(o) ? t.ink : t.ink2, font: bom(o) ? fonteB : fonte } },
                 textConfig: { position: [c[0] - (pos[i][0] - r), c[1] - (pos[i][1] - r) + 1] } } : {}) };
-            return { type: 'group', children: pontoProva(t, o.p, pos[i][0], pos[i][1], r, { cheio, extra }) };
+            return { type: 'group', children: pontoProva(t, o.p, pos[i][0], pos[i][1], r, { extra }) };
           } },
       ],
     };

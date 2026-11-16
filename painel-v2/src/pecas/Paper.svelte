@@ -17,7 +17,7 @@
   const p = $derived(estado.sel ? todos.find((x) => x.id === estado.sel) : null);
   const t = $derived(estado.tema);
   let todosRes = $state(false);
-  const LIM_RES = 5;
+  const LIM_RES = 5, LIM_FICHA = 12;
   let largo = $state(false);
   let painel = $state(null);
   let origem = null;
@@ -103,6 +103,24 @@
     if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); if (pos >= 0) vai(e.key === 'ArrowRight' ? 1 : -1); }
   }
   const ABAS = [[1, 'Resumo'], [2, 'Trechos'], [3, 'Ficha']];
+  // Quando o titulo sai da tela, a faixa das abas (presa no topo) passa a dizer de que paper e a ficha.
+  let presa = $state(false);
+  function olhaTitulo(no) {
+    const io = new IntersectionObserver(([e]) => (presa = !e.isIntersecting), { root: no.closest('.corpo') });
+    io.observe(no);
+    return { destroy() { io.disconnect(); presa = false; } };
+  }
+  // Na ficha, os numeros de uma tabela tem todos as mesmas casas: a virgula fica numa coluna so.
+  const nCasas = (n) => { if (n == null || !Number.isFinite(n)) return 0; const s = String(+Math.abs(n).toFixed(2)), i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; };
+  const casasDe = (r, j) => Math.max(0, ...r.lin.map((l) => nCasas(l[j])));
+  const fixo = (n, c) => n.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
+  async function verTabela(i) {
+    estado.prof = 3; await tick();
+    painel?.querySelector(`#tab-${i}`)?.scrollIntoView({ block: 'start', behavior: mov(1) ? 'smooth' : 'auto' });
+    painel?.querySelector('#aba-3')?.focus({ preventScroll: true });
+  }
+  const CHAVE_RES = [['ganha', 'vence'], ['ruido', 'dentro do ruído'], ['perde', 'perde'], ['semrival', 'sem rival externo']];
+  const estadosRes = $derived(p ? new Set(p.res.map((r) => CL_ESTADO[r.e] || 'semrival')) : new Set());
   async function teclaAba(e) {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!d) return;
     e.preventDefault(); estado.prof = ((estado.prof - 1 + d + 3) % 3) + 1; await tick();
@@ -138,13 +156,16 @@
       {#key p.id}
       <div in:fade={{ duration: mov(200) }}>
         <p class="tipo"><i class="sol {p.sol}"></i><span class="pts"><b>{SOL_FRASE[p.sol]}</b>{#if leitura.curta}<span>{leitura.curta}</span>{/if}<span class="mut">{ENTREGA[p.ent] || p.ent}</span>{#if p.cam}<span class="mut">{CAMADA[p.cam] || p.cam}</span>{/if}</span></p>
-        <h2 id="paper-titulo" class="titulo" tabindex="-1">{p.t}</h2>
-        <p class="meta t-12 mut pts"><span><span class="num">{p.u}</span> votos</span><span>{intervalo(p.d, p.d)}</span>{#if p.org}<span>{p.org}</span>{/if}<span><a class="lk" href={p.url} target="_blank" rel="noopener">arXiv <span class="num">{p.id}</span></a></span><span><a class="lk" href="https://huggingface.co/papers/{p.id}" target="_blank" rel="noopener">Hugging Face</a></span></p>
+        <h2 id="paper-titulo" class="titulo" tabindex="-1" use:olhaTitulo>{p.t}</h2>
+        <p class="meta t-12 mut"><span class="pts"><span><span class="num">{p.u}</span> votos</span><span>{intervalo(p.d, p.d)}</span>{#if p.org}<span>{p.org}</span>{/if}</span><span class="pts"><span><a class="lk" href={p.url} target="_blank" rel="noopener">arXiv <span class="num">{p.id}</span></a></span><span><a class="lk" href="https://huggingface.co/papers/{p.id}" target="_blank" rel="noopener">Hugging Face</a></span></span></p>
 
-        <div class="seg abas" role="tablist" aria-label="Profundidade da leitura">
-          {#each ABAS as [n, r]}
-            <button role="tab" id="aba-{n}" aria-selected={estado.prof === n} aria-controls="painel-aba" tabindex={estado.prof === n ? 0 : -1} onclick={() => (estado.prof = n)} onkeydown={teclaAba}>{r}</button>
-          {/each}
+        <div class="fixa" class:presa>
+          <span class="tcurto um" aria-hidden="true">{p.t}</span>
+          <div class="seg abas" role="tablist" aria-label="Profundidade da leitura">
+            {#each ABAS as [n, r]}
+              <button role="tab" id="aba-{n}" aria-selected={estado.prof === n} aria-controls="painel-aba" tabindex={estado.prof === n ? 0 : -1} onclick={() => (estado.prof = n)} onkeydown={teclaAba}>{r}</button>
+            {/each}
+          </div>
         </div>
 
         <div id="painel-aba" role="tabpanel" aria-labelledby="aba-{estado.prof}">
@@ -186,14 +207,15 @@
 
           {#if p.res.length}
             <section class="bloco">
-              <header><h3>Resultados</h3><span class="t-12 mut">{vence} de {p.res.length} {vence === 1 ? 'vence' : 'vencem'} o rival</span></header>
+              <header><h3>Resultados</h3><span class="t-12 mut pts"><span>{vence} de {p.res.length} {vence === 1 ? 'vence' : 'vencem'} o rival</span><span>ganho relativo</span></span></header>
+              <p class="chave res t-12 mut" aria-hidden="true">{#each CHAVE_RES.filter(([k]) => estadosRes.has(k)) as [k, rot]}<span><i class="cel {k}"></i>{rot}</span>{/each}</p>
               <ul class="ress">
-                {#each todosRes ? p.res : p.res.slice(0, LIM_RES) as r}
+                {#each todosRes ? p.res : p.res.slice(0, LIM_RES) as r, ri}
                   <li>
                     <i class="cel {CL_ESTADO[r.e] || 'semrival'}" aria-hidden="true"></i>
                     <span class="b pts"><b>{r.b}</b>{#if r.m && r.m !== r.b}<span class="mut">{r.m}</span>{/if}</span>
                     <span class="dif num {CL_ESTADO[r.e] || ''}" class:mut={r.rext == null}>{r.rext != null ? `${sgn(r.rext)}%` : '–'}</span>
-                    <span class="det mut">{#if r.nos && r.ext}<span class="num">{fmt(r.nos[1], 2)}</span> contra <span class="num">{fmt(r.ext[1], 2)}</span> de {r.ext[0]}{:else}{ROT_ESTADO[r.e]}{/if}</span>
+                    <span class="det mut">{#if r.nos && r.ext}<span class="vh">{ROT_ESTADO[r.e]}: </span><span class="num">{fmt(r.nos[1], 2)}</span> contra <span class="num">{fmt(r.ext[1], 2)}</span> de {r.ext[0]}{:else}{ROT_ESTADO[r.e]}{/if}{#if ri < LIM_FICHA && r.lin.length}<button class="lk ver" aria-label="Ver a tabela de {r.b}" onclick={() => verTabela(ri)}>tabela</button>{/if}</span>
                   </li>
                 {/each}
               </ul>
@@ -220,17 +242,20 @@
           <p class="nota t-12 mut">{leitura.frase}</p>
 
         {:else}
-          {#each p.res.slice(0, 12) as r}
-            <table>
+          {#each p.res.slice(0, LIM_FICHA) as r, ri}
+            {@const cv = casasDe(r, 2)}
+            {@const cd = casasDe(r, 3)}
+            {@const temDp = r.lin.some((l) => l[3] != null)}
+            <table id="tab-{ri}">
               <caption class="pts"><b>{r.b}</b>{#if r.tab}<span class="mut">{r.tab}</span>{/if}{#if r.m && r.m !== r.b}<span class="mut">{r.m}</span>{/if}</caption>
               <tbody>
                 {#each r.lin as l}
-                  <tr class:nos={l[1] === 'nosso'}><th scope="row">{l[0]}</th><td class="mut">{LINHA[l[1]] || l[1]}</td><td class="num">{fmt(l[2], 2)}{#if l[3] != null}<small>&nbsp;±{fmt(l[3], 2)}</small>{/if}</td></tr>
+                  <tr class:nos={l[1] === 'nosso'}><th scope="row">{l[0]}</th><td class="mut">{LINHA[l[1]] || l[1]}</td><td class="num v">{l[2] == null ? '–' : fixo(l[2], cv)}</td>{#if temDp}<td class="num dp">{#if l[3] != null}±{fixo(l[3], cd)}{/if}</td>{/if}</tr>
                 {/each}
               </tbody>
             </table>
           {/each}
-          {#if p.res.length > 12}<p class="nota t-12 mut">{p.res.length - 12 === 1 ? 'Há mais 1 resultado' : `Há mais ${p.res.length - 12} resultados`} no <a class="lk" href={p.url} target="_blank" rel="noopener">texto original</a>, fora desta ficha.</p>{/if}
+          {#if p.res.length > LIM_FICHA}<p class="nota t-12 mut">{p.res.length - LIM_FICHA === 1 ? 'Há mais 1 resultado' : `Há mais ${p.res.length - LIM_FICHA} resultados`} no <a class="lk" href={p.url} target="_blank" rel="noopener">texto original</a>, fora desta ficha.</p>{/if}
           {#if p.ents.length}
             <section class="bloco"><header><h3>Entidades</h3></header>
               <dl class="pares">{#each Object.entries(porPapel) as [papel, es]}<div><dt>{PAPEL[papel] || papel}</dt><dd>{es.map((e) => e[0] + (e[3] ? ` (${e[3]})` : '')).join(', ')}</dd></div>{/each}</dl>
@@ -261,8 +286,9 @@
   .cabeca { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line); min-height: var(--barra); }
   .nav, .acoes { display: flex; align-items: center; gap: var(--sp-1); }
   .nav b { color: var(--ink); font-weight: 500; }
-  .corpo { overflow-y: auto; overscroll-behavior: contain; padding: var(--sp-5) var(--sp-4) var(--sp-12); }
-  @media (min-width: 768px) { .corpo { padding-inline: var(--sp-6); } }
+  .corpo { --pad: var(--sp-4); overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--pad) var(--sp-12); }
+  @media (min-width: 768px) { .corpo { --pad: var(--sp-6); } }
+  .corpo > div { max-width: 640px; margin-inline: auto; padding-top: var(--sp-5); }      /* folha larga (tablet): a coluna de leitura nao estica */
 
   .tipo { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-12); line-height: var(--lh-12); }
   .tipo .sol { flex: none; margin-top: calc((var(--lh-12) - 10px) / 2); }      /* a marca fica na primeira linha, mesmo quando o texto quebra */
@@ -271,8 +297,17 @@
   h2 { font-size: var(--fs-20); line-height: var(--lh-20); margin: var(--sp-2) 0; text-wrap: balance; }
   @media (min-width: 768px) { h2 { font-size: var(--fs-24); line-height: var(--lh-24); } }
   h2:focus { outline: none; }
-  .meta { line-height: var(--lh-14); }
-  .abas { display: flex; margin: var(--sp-5) 0; }
+  /* fatos e links em dois grupos: se nao cabem lado a lado, os links descem juntos, sem ponto solto no comeco da linha */
+  .meta { line-height: var(--lh-14); display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); }
+  .meta > span { white-space: nowrap; }
+  @media (pointer: coarse) { .meta .lk { position: relative; } .meta .lk::after { content: ''; position: absolute; inset: -16px -4px -12px; } }
+  /* abas presas no topo do paper; a linha de cima guarda o titulo, que so aparece quando o titulo grande sai da tela */
+  .fixa { position: sticky; top: 0; z-index: 3; display: grid; background: var(--surface); margin: var(--sp-3) calc(-1 * var(--pad)); padding: 0 var(--pad) var(--sp-2); }
+  .fixa.presa { box-shadow: 0 1px 0 var(--line); }
+  .tcurto { height: var(--sp-5); line-height: var(--sp-5); font-size: var(--fs-12); font-weight: 500; color: var(--ink2); opacity: 0; transition: opacity var(--dur-1); }
+  .presa .tcurto { opacity: 1; }
+  .abas { display: flex; }
+  table { scroll-margin-top: 96px; }
 
   blockquote { padding: var(--sp-3) 0 var(--sp-3) var(--sp-4); border-left: 2px solid var(--line-strong); display: grid; gap: var(--sp-1); margin-bottom: var(--sp-4); }
   blockquote.alerta { border-left-color: var(--alert); }
@@ -315,6 +350,18 @@
   .ress .dif { font-weight: 500; white-space: nowrap; }
   .ress .dif.perde { color: var(--alert); }
   .ress .det { grid-column: 2 / -1; font-size: var(--fs-12); line-height: var(--lh-12); }
+  .det .ver { min-height: 0; margin-left: var(--sp-2); position: relative; }
+  .det .ver::after { content: ''; position: absolute; inset: -8px -6px; }
+  /* no toque: 44 px de alvo em cada link pequeno, sem que dois alvos vizinhos se cubram */
+  @media (pointer: coarse) {
+    .ver { position: relative; } .ver::after { content: ''; position: absolute; inset: -10px -8px; }
+    .sinais li:has(.ver) { min-height: 36px; }
+    .det .ver::after { inset: -14px -8px; }
+    .pares .lk { position: relative; } .pares .lk::after { content: ''; position: absolute; inset: -10px 0; }
+  }
+  .chave.res { display: flex; gap: var(--sp-1) var(--sp-3); margin-bottom: var(--sp-1); }
+  .chave.res span { display: inline-flex; align-items: center; gap: 6px; }
+  .chave.res .cel { margin: 0; }
   .mais { width: 100%; margin-top: var(--sp-2); }
   .pos { display: grid; gap: var(--sp-1); margin-top: var(--sp-2); font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); }
   .trilho { display: block; position: relative; height: 4px; border-radius: 2px; background: var(--sunk); max-width: 96px; }
@@ -327,8 +374,8 @@
   caption { text-align: left; padding-bottom: var(--sp-2); font-size: var(--fs-14); line-height: var(--lh-14); }
   th, td { text-align: left; padding: 6px 0; border-top: 1px solid var(--line); font-weight: 400; vertical-align: baseline; }
   td { padding-left: var(--sp-3); white-space: nowrap; }
-  td.num { text-align: right; font-size: var(--fs-12); }
-  td small { color: var(--muted); }
+  td.num { text-align: right; font-size: var(--fs-12); width: 1%; }
+  td.dp { color: var(--muted); padding-left: var(--sp-2); font-weight: 400; }
   tr.nos th, tr.nos td { font-weight: 600; color: var(--ink); }
   .links { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-5); }
 </style>

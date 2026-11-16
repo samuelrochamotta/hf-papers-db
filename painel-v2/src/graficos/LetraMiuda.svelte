@@ -9,10 +9,13 @@
   const TIPO = { man: 'Manchete não confere', grave: 'Ressalva grave', adm: 'Limite admitido' };
   const TIPOS = { man: ['manchete não confere', 'manchetes não conferem'], grave: ['ressalva grave', 'ressalvas graves'], adm: ['limite admitido', 'limites admitidos'] };
   const LIM = 5;
+  // "alega 5,4 pontos": o numero da manchete com a unidade que o paper usou
+  const alega = (m) => (m.n == null ? null : m.u === '%' ? `${fmt(m.n)}%` : m.u === 'posição' ? `${fmt(m.n)}ª posição` : `${fmt(m.n)}${m.u ? ' ' + m.u : ''}`);
+  const lista = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} e ${xs.at(-1)}`);
   const itens = $derived.by(() => {
     const out = [];
     for (const p of papers) {
-      if (p.man && p.man.conf === false) out.push({ p, tipo: 'man', q: p.man.tr, g: p.man.n != null ? fmt(p.man.n) + (p.man.u === '%' ? '%' : '') : null });
+      if (p.man && p.man.conf === false) out.push({ p, tipo: 'man', q: p.man.tr, g: alega(p.man) });
       for (const r of p.ress) if (GRAVE.includes(r[0])) out.push({ p, tipo: 'grave', q: r[1] });
       for (const a of p.aleg) if (a[0] === 'negativa') out.push({ p, tipo: 'adm', q: a[1] });
     }
@@ -24,12 +27,12 @@
   const visiveis = $derived(todos ? itens : itens.slice(0, LIM));
 </script>
 
-<Quadro id="letra" pergunta="O que a letra miúda admite?" valor={itens.length} vazio={!itens.length} resposta={contagem.map(([k, n]) => `${n} ${TIPOS[k][n === 1 ? 0 : 1]}`.replace(/ /g, '\u00a0')).join(' · ')}>
+<Quadro id="letra" pergunta="O que a letra miúda admite?" valor={itens.length} vazio={!itens.length} resposta={`${itens.length === 1 ? 'trecho' : 'trechos'}: ${lista(contagem.map(([k, n]) => `${n} ${TIPOS[k][n === 1 ? 0 : 1]}`.replace(/ /g, '\u00a0')))}`}>
   {#if itens.length}
     <ul>
       {#each visiveis as it, i (it.p.id + it.tipo + i)}
         <li><button class="neg {it.tipo}" onclick={() => abrir(it.p.id, 2)} onmouseenter={() => (estado.hover = it.p.id)} onmouseleave={() => (estado.hover = null)}>
-          <span class="tipo pts"><span>{TIPO[it.tipo]}</span>{#if it.g}<span>alega <span class="num">{it.g}</span></span>{/if}</span>
+          <span class="tipo pts"><span>{TIPO[it.tipo]}</span>{#if it.g}<span>{it.g} não está nas tabelas lidas</span>{/if}</span>
           <q lang="en">{it.q}</q>
           <span class="quem"><i class="sol {it.p.sol}"></i>{curto(it.p.t, 32)}</span>
         </button></li>

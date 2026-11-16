@@ -33,6 +33,8 @@
     const med = median(vs), i = ord.findIndex((p) => { const v = m[0](p); return v == null || v <= med; });
     return i > 0 ? { i, rot: m[1](med) } : null;
   });
+  // paper aberto (por link, por Alt + setas ou por um grafico): a linha dele entra na tela
+  $effect(() => { if (estado.sel) tick().then(() => el?.querySelector('.linha.ativa')?.scrollIntoView({ block: 'nearest' })); });
   const letra = (id) => 'ABC'[estado.comparar.indexOf(id)] || '';
   const bench = nBench;
   const sub = (p) => [ENTREGA[p.ent] || p.ent, p.cam ? CAMADA[p.cam] || p.cam : null].filter(Boolean).join(' · ');
@@ -170,10 +172,15 @@
   .busca input::placeholder { color: var(--muted); opacity: 1; }
   .busca input::-webkit-search-cancel-button { display: none; }
   .tira { flex: none; width: 24px; height: 24px; margin-right: -6px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); position: relative; }
-  .tira::after { content: ''; position: absolute; inset: -8px; }
+  .tira::after { content: ''; position: absolute; inset: -10px; }
   .tira:hover { background: var(--hover); color: var(--ink); }
   .ordem { display: inline-flex; flex: none; }
   .ordem :global(.sel) { min-height: var(--ctl); }
+  @media (pointer: coarse) {
+    .busca, .ordem :global(.sel) { min-height: 44px; }
+    .ordem :global(.sel)::after { inset: 0; }
+    .fila .lk { padding-block: var(--sp-3); }
+  }
 
   /* cabecalho da tabela (so na forma larga): preso logo abaixo do recorte */
   .cab { display: none; grid-template-columns: minmax(0, 1fr) 72px; column-gap: var(--sp-3); align-items: center; padding-block: var(--sp-2); border-bottom: 1px solid var(--line-strong);

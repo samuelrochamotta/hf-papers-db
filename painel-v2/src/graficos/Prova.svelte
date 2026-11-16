@@ -14,7 +14,6 @@
   let { papers, todos = papers } = $props();
   const t = $derived(estado.tema);
   const R = 6.5, TITULO = 'muito voto, pouca prova';
-  const cheio = $derived(estado.v.marca === 'cheio');
   // a regua e a mediana do periodo: filtrar nao muda o que conta como "muito voto"
   const med = $derived(median(todos.map((p) => p.u)) || 1);
   const maisVotado = $derived(papers.reduce((m, p) => (!m || p.u > m.u ? p : m), null));
@@ -97,7 +96,7 @@
             const { pos, rot } = pronto(q, api), i = q.dataIndex, r = rot[i];
             const extra = { cursor: 'pointer', emphasis: { style: { stroke: t.ink, lineWidth: 2, lineDash: null } },
               ...(r ? { textContent: { type: 'text', style: { text: r.txt, fill: t.ink, font: fonte } }, textConfig: { position: r.lado, distance: 5 } } : {}) };
-            return { type: 'group', children: pontoProva(t, papers[i], pos[i][0], pos[i][1], R, { cheio, extra }) };
+            return { type: 'group', children: pontoProva(t, papers[i], pos[i][0], pos[i][1], R, { extra }) };
           } },
       ],
     };

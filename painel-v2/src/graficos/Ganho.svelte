@@ -12,7 +12,6 @@
   let { papers, limite = 16 } = $props();
   const t = $derived(estado.tema);
   let tudo = $state(false);
-  const cheio = $derived(estado.v.marca === 'cheio');
   const todas = $derived(papers.map((p) => {
     const rx = p.res.map((r) => r.rext).filter((v) => v != null);
     return rx.length ? { p, med: median(rx), lo: Math.min(...rx), hi: Math.max(...rx), n: rx.length } : null;
@@ -33,7 +32,10 @@
     if (!t.ink || !linhas.length) return null;
     const [d0, d1] = dom, cl = (v) => Math.max(d0, Math.min(d1, v));
     const eixo = { type: 'category', inverse: true, axisTick: { show: false }, axisLine: { show: false } };
-    const zero = { silent: true, symbol: 'none', z: 1, data: [{ xAxis: 0 }], lineStyle: { color: t.ink, type: 'solid', width: 1, opacity: .6 }, label: { show: false } };
+    const noEixo = medAll != null && todas.length > 2 && medAll >= d0 && medAll <= d1;
+    const zero = { silent: true, symbol: 'none', z: 1, label: { show: false }, lineStyle: { color: t.ink, type: 'solid', width: 1, opacity: .6 },
+      data: [{ xAxis: 0 }, ...(noEixo ? [{ xAxis: medAll, lineStyle: { color: t.muted, type: [2, 3], width: 1, opacity: 1 },
+        label: { show: true, position: 'start', distance: 4, formatter: `mediana ${sgn(medAll)}%`, color: t.muted, fontSize: 12, fontFamily: t.fUi } }] : [])] };
     const fonte = `500 12px ${t.fUi}`, fonteN = `12px ${t.fNum}`;
     const pontos = {
       type: 'custom', cursor: 'pointer', encode: { x: [0, 1, 2], y: 3 }, markLine: zero,
@@ -54,14 +56,14 @@
         if (l.n > 1) filhos.push({ type: 'line', shape: { x1: X(cl(l.lo)), y1: y, x2: X(cl(l.hi)), y2: y }, style: { stroke: t.lineStrong, lineWidth: 2, lineCap: 'round' } });
         if (l.hi > d1) filhos.push(...corte(X(d1) + 18, y, 1, t.ink2));
         if (l.lo < d0) filhos.push(...corte(X(d0) - 18, y, -1, t.ink2));
-        filhos.push(...pontoProva(t, l.p, xm, y, 6, { cheio, borda: fora ? t.ink : null, extra: { emphasis: { style: { stroke: t.ink, lineWidth: 2 } } } }));
+        filhos.push(...pontoProva(t, l.p, xm, y, 6, { borda: fora ? t.ink : null, extra: { emphasis: { style: { stroke: t.ink, lineWidth: 2 } } } }));
         return { type: 'group', children: filhos };
       },
       data: linhas.map((l, i) => ({ pid: l.p.id, value: [cl(l.med), cl(l.lo), cl(l.hi), i] })),
     };
     return {
       ...base(t),
-      grid: { left: 0, right: estreito ? 20 : 4, top: 4, bottom: 4, containLabel: true },
+      grid: { left: 0, right: estreito ? 20 : 4, top: 20, bottom: 4, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
         const l = linhas[q.dataIndex]; if (!l) return '';
         return dica(esc(l.p.t), `Ganho mediano <b>${sgn(l.med)}%</b>`, l.n > 1 ? `de ${sgn(l.lo)}% a ${sgn(l.hi)}% em ${l.n} resultados` : '1 resultado', SOL_FRASE[l.p.sol]);
@@ -85,13 +87,13 @@
 <Quadro id="ganho" pergunta="Quanto ganham do melhor rival?" valor={medAll} casas={1} prefixo="+" sufixo="%" vazio={!todas.length}
   resposta={todas.length ? `ganho mediano · ${ganham} de ${todas.length} ${ganham === 1 ? 'vence' : 'vencem'} o rival` : ''}>
   {#if opcao}
-    <div bind:clientWidth={larg}><Grafico {opcao} altura={linhas.length * passo + 40} aoClicar={clicar} rotulo="Ganho relativo de cada paper contra o melhor rival externo, do maior para o menor" /></div>
+    <div bind:clientWidth={larg}><Grafico {opcao} altura={linhas.length * passo + 56} aoClicar={clicar} rotulo="Ganho relativo de cada paper contra o melhor rival externo, do maior para o menor" /></div>
     {#if todas.length > limite}<button class="btn sec mais" aria-expanded={tudo} onclick={() => (tudo = !tudo)}>{tudo ? 'Mostrar menos' : `Ver os ${todas.length} papers`}</button>{/if}
   {:else}<div class="vazio">Nenhum paper deste recorte compara com rival externo.</div>{/if}
   {#snippet legenda()}
     <div class="leg">
       <Chave />
-      <span class="k"><i class="pt"></i>mediana<i class="tr"></i>do pior ao melhor resultado</span>
+      <span class="k"><i class="pt"></i>mediana do paper<i class="tr"></i>do pior ao melhor resultado</span>
       {#if cortados}<span class="k"><b aria-hidden="true">»</b>passa do eixo</span>{/if}
     </div>
   {/snippet}

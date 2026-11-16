@@ -13,7 +13,6 @@
 
   let { papers } = $props();
   const t = $derived(estado.tema);
-  const cheio = $derived(estado.v.marca === 'cheio');
   const NIVEIS = [1, 2, 3, 4, 5, 0];
   const RANK = Object.fromEntries(SOLIDEZ.map((s, i) => [s, i]));
   const ativas = $derived(lentesDe('esf'));
@@ -71,7 +70,7 @@
           const o = fila[pa.dataIndex]; if (!o) return null;
           const y = api.coord([0, api.value(1)])[1], larg = pa.coordSys.width - 16;
           const passo = Math.min(18, larg / maior), r = Math.max(2.5, Math.min(7, passo / 2 - 1));
-          const els = pontoProva(t, o.p, pa.coordSys.x + 8 + o.n * passo, y, r, { cheio: cheio && r >= 5, extra: { emphasis: { style: { stroke: t.ink, lineWidth: 2 } } } });
+          const els = pontoProva(t, o.p, pa.coordSys.x + 8 + o.n * passo, y, r, { cheio: r >= 5, extra: { emphasis: { style: { stroke: t.ink, lineWidth: 2 } } } });
           if (r < 5) els[0].style = { ...els[0].style, lineWidth: 0.75 };
           return { type: 'group', children: els };
         },

@@ -137,6 +137,60 @@ daltonismo. As três passam nas mesmas medidas, nos dois temas:
 
 A escolha entre elas é do Samuel.
 
+## E4. Marca de prova: só cor ou cor mais preenchimento
+
+Três dos quatro críticos da primeira rodada disseram que os quatro azuis da
+prova se confundem num ponto de 10 px (ver `06-rodadas.md`). A dúvida é de
+leitura, então foi medida.
+
+**Variantes.** `cor`: disco cheio, o nível está só na cor (como estava).
+`cheio`: a mesma cor e, além dela, o disco enche conforme a prova: Forte
+inteiro, Firme três quartos, Básica metade, Frágil um quarto. Não lida continua
+anel tracejado nas duas.
+
+**Método.** Um leitor simulado por variante e condição, sem ver a outra
+variante. Cada leitor recebe só duas imagens (o quadro de adoção e o de ganho)
+e responde 30 itens: 15 contagens de pontos por nível em três linhas do quadro
+de adoção e o nível de 15 papers no quadro de ganho. Pode responder "não sei".
+Roteiro em `painel-v2/medir/marca/roteiro.txt`.
+
+| Passada | Condições | Só cor | Cor mais preenchimento |
+|---|---|---|---|
+| 1, imagens em dobro de resolução | claro, escuro, deuteranopia, celular | 120 de 120 | 120 de 120 |
+| 2, no tamanho real da tela | celular, deuteranopia, escuro | 86 de 90 | 90 de 90 |
+| Total | 14 leitores | 206 de 210 | 210 de 210 |
+
+Os quatro erros da cor sozinha foram no tema escuro, no tamanho real, no quadro
+de adoção: Forte e Firme trocados em duas linhas. Nenhum leitor respondeu "não
+sei". Nos comentários, quem leu só a cor disse que Forte contra Firme e Firme
+contra Básica só se separam com um vizinho para comparar; quem leu o
+preenchimento disse que Forte, Não lida e Frágil são imediatos e que a dúvida
+que sobra é Firme contra Básica quando uma linha cruza o ponto.
+
+![Só cor, tema escuro](experimentos/marca/cor-escuro-adocao.png)
+![Cor mais preenchimento, tema escuro](experimentos/marca/cheio-escuro-adocao.png)
+
+**Recomendação, já aplicada.** A marca com preenchimento acertou tudo onde a
+cor sozinha errou, não foi pior em nenhuma condição e tira a dependência da cor
+como único sinal. A linha do zero e a faixa do pior ao melhor resultado
+passaram para trás do ponto no quadro de ganho, que era a queixa que sobrou.
+
+D4 diz que os pontos têm uma codificação só, a solidez, sem formas nem
+preenchimentos para entrega, abertura ou esforço. O preenchimento repete a
+solidez num segundo canal e não codifica outra variável. Mesmo assim D4 é
+decisão deliberada, então a troca entra na lista do Samuel (décima escolha),
+com as duas formas lado a lado. Voltar à cor sozinha é trocar o padrão de
+`pontoProva` em `lib/tema.js` e tirar quatro linhas de `app.css`.
+
+**Limites.** Um leitor por célula: a diferença é de 4 respostas em 210, toda
+numa célula. Vale como desempate entre duas formas que passam nas outras
+medidas, não como tamanho de efeito. Leitores simulados leem a imagem melhor
+que um olho apressado no celular; por isso a segunda passada foi no tamanho
+real.
+
+Respostas brutas: `experimentos/marca.json`. As duas variantes existem lado a
+lado no commit `d3e21a3` (`?marca=cor` e `?marca=cheio`).
+
 ## Decisões que ficam com o Samuel
 
 Apresentadas lado a lado, com capturas, em
@@ -152,6 +206,17 @@ https://claude.ai/artifact/MoUz7mno5DbwCoBaSdmm79 (2026-11-16):
 8. Frase do problema escrita pelo modelo (D2): em 17 de 28 papers ela só repete palavras do título.
 9. Filtros combinados (D8): um por vez ou somados. No celular a T11 custou 13 passos com um filtro por vez.
 
+Acrescentadas depois da primeira rodada de crítica (`06-rodadas.md`):
+
+10. Marca de prova (D4): cor mais preenchimento, como o E4 recomenda, ou só cor.
+11. Escala da amplitude no radar (D6 e D12): a conta do Python é `20 × benchmarks`
+    com teto em 100, então 5 e 9 benchmarks caem no mesmo vértice. Opções: manter,
+    escala logarítmica fixa (1, 3, 5, 9 e 16 benchmarks viram 24, 49, 63, 81 e 100)
+    ou escala pelo maior do período.
+12. Miniatura do radar na lista (D6): três críticos não conseguiram ler a forma em
+    32 px. Hoje ela aparece só onde há largura (some no celular). Opções: manter
+    assim, tirar, ou trocar pela marca de prova.
+
 ## Como refazer
 
 ```bash
@@ -162,6 +227,9 @@ node medir/leitura/capturar.mjs --proto /tmp/proto --base ../relatorios/painel-v
 python3 medir/leitura/pontuar.py medir/saida/leitura
 node medir/contraste.mjs --dir /tmp/proto --id periodico
 node medir/daltonismo.mjs --dir /tmp/proto --paletas medir/paletas-v1.json --id oficina
+# E4, a partir do commit d3e21a3 (que tem as duas marcas):
+node medir/marca/estimulos.mjs /tmp/proto /tmp/marca 1
+node medir/marca/pontuar.mjs /tmp/marca-respostas celular,deuteranopia,escuro
 ```
 
 Resultados brutos: `docs/painel-v2-redesenho/experimentos/`.

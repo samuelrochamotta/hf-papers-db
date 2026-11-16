@@ -26,8 +26,12 @@ const CONFERE = () => {
     const temTexto = [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
     if (temTexto && e.scrollWidth > e.clientWidth + 1 && (c.overflowX === 'hidden' || c.overflowX === 'clip') && c.textOverflow !== 'ellipsis' && !c.webkitLineClamp) cortado.push(id);
     if (temTexto && parseFloat(c.fontSize) < 11) minusculo.push(id);
-    // texto que vaza da propria caixa (palavra inquebravel, por exemplo)
-    if (temTexto && c.display !== 'inline' && e.scrollWidth > e.clientWidth + 1 && c.overflowX === 'visible') vaza.push(id);
+    // texto que vaza da propria caixa (palavra inquebravel, por exemplo). O conteudo e medido por um
+    // Range: o alvo de toque estendido (pseudo-elemento que passa do desenho de proposito) nao conta.
+    if (temTexto && c.display !== 'inline' && e.scrollWidth > e.clientWidth + 1 && c.overflowX === 'visible') {
+      const rg = document.createRange(); rg.selectNodeContents(e); const rr = rg.getBoundingClientRect();
+      if (rr.right > r.right + 1 || rr.left < r.left - 1) vaza.push(id);
+    }
   }
   return { estouro: document.documentElement.scrollWidth > vw + 1, fora: [...new Set(fora)].slice(0, 6), cortado: [...new Set([...cortado, ...vaza.map((v) => 'vaza ' + v)])].slice(0, 6), minusculo: [...new Set(minusculo)].length };
 };
