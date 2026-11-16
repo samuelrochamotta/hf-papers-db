@@ -72,7 +72,7 @@
   // a fila nao tem leitura: com filtro ligado ela sai do recorte; a busca olha o titulo
   const fila = $derived(estado.lentes.length ? [] : buscarFila(faltam, estado.busca));
   const dias = $derived.by(() => { const ds = todos.map((p) => p.d).filter(Boolean).sort(); return ds.length ? [ds[0], ds[ds.length - 1]] : []; });
-  const cob = $derived(estado.dados ? cobertura(estado.dados.papers, estado.dados.faltam) : null);
+  const cob = $derived(estado.dados ? cobertura(todos, faltam) : null);   // o rodape conta o periodo escolhido, como a Barra
   // "claude-haiku-5-5" -> "Claude Haiku 5.5"
   const nomeModelo = (m) => String(m).split('/').pop().replace(/-(\d+)-(\d+)$/, ' $1.$2').split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
   const geradoEm = $derived(estado.dados?.gerado_em ? new Date(estado.dados.gerado_em).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' }) : '');
@@ -112,7 +112,7 @@
 
       <div class="mola"></div>
       <footer class="rodape">
-        <span>{plural(estado.dados.papers.length, 'paper', 'papers')} no período{#if estado.dados.modelo}, lidos por {nomeModelo(estado.dados.modelo)}{/if}</span>
+        <span>{plural(todos.length, 'paper', 'papers')} no período{#if estado.dados.modelo}, lidos por {nomeModelo(estado.dados.modelo)}{/if}</span>
         {#if cob}<span>Leitura: {cob.inteira} {cob.inteira === 1 ? 'inteira' : 'inteiras'}, {cob.parcial} {cob.parcial === 1 ? 'parcial' : 'parciais'}{#if cob.resumo}, {cob.resumo} só do resumo{/if}{#if cob.fila}; mais {cob.fila} na fila{/if}</span>{/if}
         {#if geradoEm}<span>Atualizado em {geradoEm}</span>{/if}
         <span>Fonte: Hugging Face Daily Papers e arXiv</span>

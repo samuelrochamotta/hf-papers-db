@@ -32,7 +32,7 @@ import {
   aplicaLentes, lenteValida, rotuloLente, ordenar, comDado, ORDENS, buscar, periodos, noPeriodo,
   radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ, realcar, ondeAchou,
   buscarFila, SEM_FATO, FATO, EIXOS, ESFORCO, TETO_AMPLITUDE, passaDoEixo, tetoDoEixo, naoLidosDe, nBench, nome, nomeMenor,
-  aberturaFrase, faltaLer, faltaLerNomes, LIMITE_TIPO, LIMITE_GRAVE,
+  aberturaFrase, faltaLer, faltaLerNomes, LIMITE_TIPO, LIMITE_GRAVE, corteDoPeriodo, familia,
 } from '../../painel-v2/src/lib/dados.js';
 import { enxame, rotular, toca, dominio, pontoProva, marcasRadar } from '../../painel-v2/src/lib/tema.js';
 
@@ -270,7 +270,7 @@ test('fato que falta diz por que falta, sem traco', () => {
 });
 
 test('no radar, quem passa do teto da amplitude ganha corte e a abertura lida em parte ganha faixa', () => {
-  const res = (n) => Array.from({ length: n }, (_, i) => ({ b: `B${i}`, rext: 1 }));
+  const res = (n) => Array.from({ length: n }, (_, i) => ({ b: `B${i}`, rext: 1, nos: 1 }));
   const teto = paper('a', { res: res(TETO_AMPLITUDE), radar: { amplitude: 100 } }), mais = paper('b', { res: res(20), radar: { amplitude: 100 } });
   assert.equal(nBench(teto), TETO_AMPLITUDE);
   assert.equal(passaDoEixo('amplitude', teto), false);
@@ -361,4 +361,23 @@ test('os limites dos autores tem um nome so, com o tipo por extenso', () => {
   // todo tipo que a leitura publica tem nome em portugues; grave e um subconjunto com nome
   for (const p of REAL.papers) for (const r of p.ress) assert.ok(LIMITE_TIPO[r[0]], `tipo sem nome: ${r[0]}`);
   for (const k of LIMITE_GRAVE) assert.ok(LIMITE_TIPO[k], k);
+});
+
+test('o corte do periodo e contado em UTC, igual na lista de opcoes e no filtro', () => {
+  assert.equal(corteDoPeriodo('2026-03-01', 7), '2026-02-23');
+  assert.equal(corteDoPeriodo('2026-01-03', 7), '2025-12-28');
+  assert.equal(corteDoPeriodo('2026-11-16', 1), '2026-11-16');
+});
+
+test('a amplitude conta so benchmarks com o nosso numero, como o derivar.py', () => {
+  const p = paper('a', { res: [{ b: 'X', nos: 1 }, { b: 'X', nos: 2 }, { b: 'Y', nos: null }, { b: 'Z', nos: 3 }], radar: { amplitude: 40 } });
+  assert.equal(nBench(p), 2);
+  assert.equal(nBench(paper('b', { radar: { amplitude: null } })), null);
+});
+
+test('o filtro de familia so casa entidades do tipo modelo', () => {
+  const p = paper('a', { ents: [['Llama-3 8B', 'dataset']] });
+  const q = paper('b', { ents: [['Llama-3 8B', 'modelo']] });
+  const v = familia('Llama-3 8B');
+  assert.deepEqual(aplicaLentes([p, q], [{ k: 'fam', v }]).map((x) => x.id), ['b']);
 });

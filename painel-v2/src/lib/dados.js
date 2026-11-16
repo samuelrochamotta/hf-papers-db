@@ -154,15 +154,18 @@ export function ordenar(papers, ordem) {
 // quantos papers tem o dado da ordem escolhida (os demais ficam sob "nao lido")
 export const comDado = (papers, ordem) => papers.filter((p) => (CHAVE[ordem] || CHAVE.votos)(p) != null).length;
 
+// Primeiro dia de um periodo de n dias que termina em `ult` ("AAAA-MM-DD"). A data
+// e lida em UTC e a conta tambem: com getDate/setDate locais, o corte andava um dia
+// conforme o fuso do navegador (revisao do PR #14).
+export const corteDoPeriodo = (ult, n) => { const d = new Date(ult); d.setUTCDate(d.getUTCDate() - (n - 1)); return d.toISOString().slice(0, 10); };
 // Periodos tirados dos dados: so entra a opcao que muda o recorte. Se "14 dias"
 // mostra o mesmo que "Tudo", ela nao aparece.
 export function periodos(dados) {
   if (!dados || !dados.dias.length) return [['tudo', 'Tudo', dados ? dados.papers.length : 0]];
   const ult = dados.dias[dados.dias.length - 1], total = dados.papers.length;
-  const corte = (n) => { const d = new Date(ult); d.setDate(d.getDate() - (n - 1)); return d.toISOString().slice(0, 10); };
   const out = []; let antes = 0;
   for (const [n, rot] of [[1, 'Último dia'], [7, '7 dias'], [14, '14 dias'], [30, '30 dias']]) {
-    const q = dados.papers.filter((p) => (p.d || '') >= corte(n)).length;
+    const q = dados.papers.filter((p) => (p.d || '') >= corteDoPeriodo(ult, n)).length;
     if (q > antes && q < total) { out.push([String(n), rot, q]); antes = q; }
   }
   out.push(['tudo', 'Tudo', total]);
@@ -170,8 +173,7 @@ export function periodos(dados) {
 }
 export function noPeriodo(lista, dias, periodo) {
   if (periodo === 'tudo' || !dias.length) return lista;
-  const lim = new Date(dias[dias.length - 1]); lim.setDate(lim.getDate() - (+periodo - 1));
-  const corte = lim.toISOString().slice(0, 10);
+  const corte = corteDoPeriodo(dias[dias.length - 1], +periodo);
   return lista.filter((p) => (p.d || '') >= corte);
 }
 
@@ -249,7 +251,8 @@ const PASSA = {
   ar: (p, v) => p.ar.includes(v),
   sol: (p, v) => p.sol === v,
   esf: (p, v) => p.esf === v,
-  fam: (p, v) => p.ents.some((e) => familia(e[0]) === v),
+  // so modelos, como a contagem do menu Familia: um benchmark com nome de familia nao entra
+  fam: (p, v) => p.ents.some((e) => e[1] === 'modelo' && familia(e[0]) === v),
 };
 export function aplicaLentes(papers, lentes) {
   if (!lentes.length) return papers;
@@ -286,7 +289,8 @@ export const plural = (n, um, varios) => `${n.toLocaleString('pt-BR')} ${n === 1
 
 // O valor de cada eixo na unidade dele (o radar usa a nota de 0 a 100; a
 // tabela e a comparacao mostram o fato). null quando a leitura nao alcancou.
-export const nBench = (p) => (p.radar.amplitude == null ? null : new Set(p.res.map((r) => r.b)).size);
+// so benchmarks com linha do paper (`nos`), como a nota de amplitude no Python
+export const nBench = (p) => (p.radar.amplitude == null ? null : new Set(p.res.filter((r) => r.nos).map((r) => r.b)).size);
 export const FATO = {
   ganho: (p) => (ganhoDe(p) == null ? null : `${sgn(ganhoDe(p))}%`),
   solidez: (p) => (p.sol === 'sem_leitura' ? null : SOL_ROT[p.sol]),
