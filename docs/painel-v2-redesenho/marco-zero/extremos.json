@@ -1,0 +1,182 @@
+[
+ {
+  "caso": "dia-unico",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "dia-unico",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "muitos",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "muitos",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "nada-lido",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "nada-lido",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "numeros-extremos",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "numeros-extremos",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "paper-denso",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "paper-denso",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "textos-longos",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "textos-longos",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "tudo-igual",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "tudo-igual",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "um-paper",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "um-paper",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "ok",
+  "det": ""
+ },
+ {
+  "caso": "vazio",
+  "largura": 360,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "nao abriu",
+  "det": ""
+ },
+ {
+  "caso": "vazio",
+  "largura": 1280,
+  "erros": 0,
+  "estouro": false,
+  "fora": 0,
+  "cortado": 0,
+  "paper": "nao abriu",
+  "det": ""
+ }
+]

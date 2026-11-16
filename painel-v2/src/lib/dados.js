@@ -25,11 +25,13 @@ export const CAMADA = {
   agente_harness: 'Agentes e harness', avaliacao: 'Avaliação', seguranca_controle: 'Segurança',
 };
 export const SOLIDEZ = ['forte', 'firme', 'basico', 'fragil', 'sem_leitura'];
-export const SOL_ROT = { forte: 'Forte', firme: 'Firme', basico: 'Básica', fragil: 'Frágil', sem_leitura: 'Não lido' };
+export const SOL_ROT = { forte: 'Forte', firme: 'Firme', basico: 'Básica', fragil: 'Frágil', sem_leitura: 'Não avaliada' };   // poucos sinais lidos para avaliar: nao quer dizer que o paper nao foi lido
 export const ESFORCO = ['Só informa', 'Configurar', 'Integrar', 'Reimplementar', 'Treinar grande', 'Fora de alcance'];
+// Um nome por conceito: o eixo do radar, a coluna do indice e a linha da
+// comparacao usam a mesma palavra.
 export const EIXOS = [
-  ['ganho', 'Ganho'], ['solidez', 'Solidez'], ['abertura', 'Abertura'],
-  ['facilidade', 'Facilidade'], ['amplitude', 'Amplitude'], ['atencao', 'Atenção'],
+  ['ganho', 'Ganho'], ['solidez', 'Prova'], ['abertura', 'Abertura'],
+  ['facilidade', 'Adoção'], ['amplitude', 'Amplitude'], ['atencao', 'Votos'],
 ];
 export const EIXO_DICA = {
   ganho: 'mediana do ganho contra o melhor rival externo',
@@ -44,8 +46,13 @@ export const SIG = [
   ['vit', 'Vence em 70% ou mais'], ['evid', 'Evidência humana ou real'], ['man', 'Manchete confere'],
   ['ress', 'Admite limites'],
 ];
+// Limites que os autores admitem: um nome so em todas as telas ("Limite admitido"), com o tipo ao lado.
+// Os tipos graves (o que enfraquece o proprio resultado) viram "Limite grave", na cor de alerta.
+export const LIMITE_TIPO = { escopo: 'escopo', medicao: 'medição', confusao: 'fator de confusão', amostra_pequena: 'amostra pequena', dado_fechado: 'dado fechado', preliminar: 'resultado preliminar', pesos_ficticios: 'pesos fictícios' };
+export const LIMITE_GRAVE = ['preliminar', 'amostra_pequena', 'pesos_ficticios'];
 export const ART = { codigo: 'Código', pesos: 'Pesos', dados: 'Dados', demo: 'Demo' };
-export const ART_EST = { liberado: 'liberado', prometido: 'prometido', so_pagina: 'só página', ausente: 'ausente', nao_lido: 'não lido' };
+export const ART_EST = { liberado: 'liberado', prometido: 'prometido', so_pagina: 'só página', ausente: 'ausente', nao_lido: 'não verificado' };
+export const SOL_FRASE = { forte: 'Prova forte', firme: 'Prova firme', basico: 'Prova básica', fragil: 'Prova frágil', sem_leitura: 'Prova não avaliada' };
 
 export const FAMILIAS = [
   [/qwen/i, 'Qwen'], [/deepseek/i, 'DeepSeek'], [/glm/i, 'GLM'], [/gpt|o3|o4/i, 'GPT'],
@@ -94,24 +101,141 @@ export const fmt = (n, d = 1) => n == null ? '–'
 export const sgn = (n, d = 1) => n == null ? '–' : (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n), d);
 // Nome curto do paper: o que vem antes de ":" ou travessao, cortado em
 // palavra inteira, com reticencias quando corta.
+const LIGACAO = 'the|a|an|of|for|in|on|to|and|or|via|with|from|by|at|as|is|de|da|do|das|dos|e|em|para|com|o|os|as';
 export const curto = (t, max = 22) => {
   const s = String(t || '').split(/[:—–]| - /)[0].trim();
   if (s.length <= max) return s;
   let out = '';
   for (const w of s.split(/\s+/)) { if ((out + ' ' + w).trim().length > max) break; out = (out + ' ' + w).trim(); }
-  return (out || s.slice(0, max)).replace(/[,;.]$/, '') + '…';
+  // o corte nao termina em palavra de ligacao ("SO-Arena Benchmarking the…"): ela sai junto, se sobrarem duas palavras
+  const semLigacao = out.replace(new RegExp(`(\\s+(${LIGACAO}))+$`, 'i'), '');
+  return ((/\s/.test(semLigacao) ? semLigacao : out) || s.slice(0, max)).replace(/[,;.]$/, '') + '…';
 };
+// O nome curto de um paper e um so em todo o painel: o titulo ate os dois-pontos,
+// cortado em palavra inteira. Onde nao couber, o desenho usa `nomeMenor`.
+export const nome = (p) => curto(p.t, 28);
+export const nomeMenor = (p) => curto(p.t, 18);
 export const dataCurta = (d) => d ? `${+d.slice(8, 10)}/${+d.slice(5, 7)}` : '';
 
-// Ordem do indice (e do anterior/proximo do painel): votos, ganho ou solidez.
+// Ordens do indice (e do anterior/proximo do paper). Em toda ordem, paper sem
+// o dado vai para o fim: "nao lido" nunca disputa posicao com valor medido.
+export const ORDENS = [
+  ['votos', 'Votos'], ['recentes', 'Data'], ['solidez', 'Prova'], ['ganho', 'Ganho'],
+  ['facilidade', 'Adoção'], ['abertura', 'Abertura'], ['amplitude', 'Amplitude'],
+];
 const RANK_SOL = { forte: 0, firme: 1, basico: 2, fragil: 3, sem_leitura: 4 };
-export function ordenar(papers, ordem) {
-  const a = [...papers];
-  if (ordem === 'ganho') a.sort((x, y) => (y.radar.ganho ?? -1) - (x.radar.ganho ?? -1) || y.u - x.u);
-  else if (ordem === 'solidez') a.sort((x, y) => RANK_SOL[x.sol] - RANK_SOL[y.sol] || y.u - x.u);
-  else a.sort((x, y) => y.u - x.u);
-  return a;
+// Ganho do paper: mediana do ganho relativo contra o melhor rival externo, a
+// mesma conta do eixo "ganho" do radar. E o numero que aparece em toda parte.
+const _ganho = new WeakMap();
+export function ganhoDe(p) {
+  if (_ganho.has(p)) return _ganho.get(p);
+  const rx = p.res.map((r) => r.rext).filter((v) => v != null);
+  const g = rx.length ? median(rx) : null;
+  _ganho.set(p, g);
+  return g;
 }
+const CHAVE = {
+  votos: (p) => p.u,
+  recentes: (p) => Date.parse(p.d || '1970-01-01'),
+  solidez: (p) => (p.sol === 'sem_leitura' ? null : 100 - RANK_SOL[p.sol] * 25 + (p.radar.solidez ?? 0) / 100),
+  ganho: ganhoDe,
+  facilidade: (p) => p.radar.facilidade,
+  abertura: (p) => p.radar.abertura,
+  amplitude: (p) => p.radar.amplitude,
+};
+export function ordenar(papers, ordem) {
+  const k = CHAVE[ordem] || CHAVE.votos;
+  return [...papers].sort((x, y) => {
+    const a = k(x), b = k(y);
+    if (a == null || b == null) return (a == null) - (b == null) || y.u - x.u;
+    return b - a || y.u - x.u;
+  });
+}
+// quantos papers tem o dado da ordem escolhida (os demais ficam sob "nao lido")
+export const comDado = (papers, ordem) => papers.filter((p) => (CHAVE[ordem] || CHAVE.votos)(p) != null).length;
+
+// Primeiro dia de um periodo de n dias que termina em `ult` ("AAAA-MM-DD"). A data
+// e lida em UTC e a conta tambem: com getDate/setDate locais, o corte andava um dia
+// conforme o fuso do navegador (revisao do PR #14).
+export const corteDoPeriodo = (ult, n) => { const d = new Date(ult); d.setUTCDate(d.getUTCDate() - (n - 1)); return d.toISOString().slice(0, 10); };
+// Periodos tirados dos dados: so entra a opcao que muda o recorte. Se "14 dias"
+// mostra o mesmo que "Tudo", ela nao aparece.
+export function periodos(dados) {
+  if (!dados || !dados.dias.length) return [['tudo', 'Tudo', dados ? dados.papers.length : 0]];
+  const ult = dados.dias[dados.dias.length - 1], total = dados.papers.length;
+  const out = []; let antes = 0;
+  for (const [n, rot] of [[1, 'Último dia'], [7, '7 dias'], [14, '14 dias'], [30, '30 dias']]) {
+    const q = dados.papers.filter((p) => (p.d || '') >= corteDoPeriodo(ult, n)).length;
+    if (q > antes && q < total) { out.push([String(n), rot, q]); antes = q; }
+  }
+  out.push(['tudo', 'Tudo', total]);
+  return out;
+}
+export function noPeriodo(lista, dias, periodo) {
+  if (periodo === 'tudo' || !dias.length) return lista;
+  const corte = corteDoPeriodo(dias[dias.length - 1], +periodo);
+  return lista.filter((p) => (p.d || '') >= corte);
+}
+
+// Busca simples: titulo, organizacao, arena, entrega, camada e entidades.
+const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+export function buscar(papers, q) {
+  const termos = norm(q).split(/\s+/).filter(Boolean);
+  if (!termos.length) return papers;
+  return papers.filter((p) => {
+    const alvo = norm([p.t, p.org, p.id, ENTREGA[p.ent], CAMADA[p.cam], ...p.ar.map((a) => ARENA[a]), ...p.ents.map((e) => e[0])].join(' '));
+    return termos.every((t) => alvo.includes(t));
+  });
+}
+
+// A fila so tem titulo e numero do arXiv: a busca olha os dois.
+export function buscarFila(faltam, q) {
+  const termos = norm(q).split(/\s+/).filter(Boolean);
+  return termos.length ? faltam.filter((f) => { const alvo = norm(`${f.t} ${f.id}`); return termos.every((t) => alvo.includes(t)); }) : faltam;
+}
+
+// Onde a busca casou. `realcar` devolve o texto em pedacos [texto, casou] para
+// marcar o termo no titulo e na linha de tipo e camada; `ondeAchou` diz em
+// que campo esta o termo que nao aparece ali, para o resultado nao parecer engano.
+const norm1 = (s) => { let o = ''; for (const c of String(s || '')) o += c.length > 1 ? c : (c.normalize('NFD')[0].toLowerCase()[0] || c); return o; };
+export function realcar(texto, q) {
+  const termos = norm(q).split(/\s+/).filter(Boolean), tx = String(texto || '');
+  if (!termos.length) return [[tx, false]];
+  const n = norm1(tx), marca = new Array(tx.length).fill(false);
+  for (const t of termos) { let i = -1; while ((i = n.indexOf(t, i + 1)) >= 0) for (let j = i; j < i + t.length; j++) marca[j] = true; }
+  const out = []; let ini = 0;
+  for (let i = 1; i <= tx.length; i++) if (i === tx.length || marca[i] !== marca[ini]) { out.push([tx.slice(ini, i), marca[ini]]); ini = i; }
+  return out;
+}
+export function ondeAchou(p, q) {
+  // titulo, tipo e camada ja estao na linha, com o termo marcado
+  const visto = norm([p.t, ENTREGA[p.ent], CAMADA[p.cam]].join(' ')), fora = norm(q).split(/\s+/).filter(Boolean).filter((t) => !visto.includes(t));
+  if (!fora.length) return '';
+  const campos = [['Organização', [p.org]], ['Arena', p.ar.map((a) => ARENA[a])], ['Cita', p.ents.map((e) => e[0])], ['arXiv', [p.id]]];
+  const achados = [];
+  for (const t of fora) for (const [rot, vals] of campos) { const v = vals.find((x) => x && norm(x).includes(t)); if (v) { achados.push(`${rot}: ${v}`); break; } }
+  return [...new Set(achados)].join(' · ');
+}
+
+// Quanto do texto do paper foi lido, em duas palavras, para a linha da lista
+export const leituraCurta = (p) => (!p.L ? '' : p.L.c === 'completa' ? 'leitura inteira' : p.L.f === 'abstract' ? 'só o resumo lido' : 'leitura parcial');
+// Cobertura da leitura do recorte: e o denominador de tudo o que o painel afirma.
+// So conta quanto do texto foi lido (inteira ou parcial, somando o recorte). A
+// prova "Não avaliada" e outra pergunta, e somada aqui se lia como um terceiro
+// estado de leitura (rodada 9): ela fica no filtro Prova.
+// Tres estados, com as mesmas palavras da linha de cada paper (`leituraCurta`): "só o
+// resumo" contado como parcial escondia dois papers lidos so pelo resumo (rodada 11).
+export function cobertura(papers, faltam) {
+  const inteira = papers.filter((p) => leituraCurta(p) === 'leitura inteira').length;
+  const resumo = papers.filter((p) => leituraCurta(p) === 'só o resumo lido').length;
+  return { inteira, parcial: papers.length - inteira - resumo, resumo, fila: faltam.length, total: papers.length + faltam.length };
+}
+// Artefatos liberados, em palavras: "código e pesos"
+export function liberados(p) {
+  const ks = Object.entries(p.ab).filter(([, v]) => v === 'liberado').map(([k]) => ART[k].toLowerCase());
+  return ks.length ? ks.join(ks.length === 2 ? ' e ' : ', ') : '';
+}
+export const HW = { nao_reportado: 'não reportado', '1_gpu': '1 GPU', '1_no': '1 nó', cluster: 'Cluster' };
 
 // Lente vinda do endereco: so chaves e valores conhecidos.
 export function lenteValida(k, v) {
@@ -122,21 +246,25 @@ export function lenteValida(k, v) {
   return null;
 }
 
-// Lentes: uma de cada vez, como no prototipo aprovado.
-export function aplicaLente(papers, lente) {
-  if (!lente) return papers;
-  const { k, v } = lente;
-  if (k === 'ar') return papers.filter((p) => p.ar.includes(v));
-  if (k === 'sol') return papers.filter((p) => p.sol === v);
-  if (k === 'esf') return papers.filter((p) => p.esf === v);
-  if (k === 'fam') return papers.filter((p) => p.ents.some((e) => familia(e[0]) === v));
-  return papers;
+// Lentes do mesmo menu se alternam (ou); menus diferentes se somam (e).
+const PASSA = {
+  ar: (p, v) => p.ar.includes(v),
+  sol: (p, v) => p.sol === v,
+  esf: (p, v) => p.esf === v,
+  // so modelos, como a contagem do menu Familia: um benchmark com nome de familia nao entra
+  fam: (p, v) => p.ents.some((e) => e[1] === 'modelo' && familia(e[0]) === v),
+};
+export function aplicaLentes(papers, lentes) {
+  if (!lentes.length) return papers;
+  const porMenu = new Map();
+  for (const { k, v } of lentes) if (PASSA[k]) porMenu.set(k, [...(porMenu.get(k) || []), v]);
+  return papers.filter((p) => [...porMenu].every(([k, vs]) => vs.some((v) => PASSA[k](p, v))));
 }
 export function rotuloLente(l) {
   if (!l) return '';
   if (l.k === 'ar') return `Arena: ${ARENA[l.v] || l.v}`;
-  if (l.k === 'sol') return `Solidez: ${SOL_ROT[l.v]}`;
-  if (l.k === 'esf') return `Esforço: ${ESFORCO[l.v]}`;
+  if (l.k === 'sol') return `Prova: ${SOL_ROT[l.v]}`;
+  if (l.k === 'esf') return `Adoção: ${ESFORCO[l.v]}`;
   if (l.k === 'fam') return `Família: ${l.v}`;
   return '';
 }
@@ -158,3 +286,55 @@ export function intervalo(a, b) {
   return ma === mb ? `${da} a ${db} de ${MESES[mb]}` : `${da} de ${MESES[ma]} a ${db} de ${MESES[mb]}`;
 }
 export const plural = (n, um, varios) => `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}`;
+
+// O valor de cada eixo na unidade dele (o radar usa a nota de 0 a 100; a
+// tabela e a comparacao mostram o fato). null quando a leitura nao alcancou.
+// so benchmarks com linha do paper (`nos`), como a nota de amplitude no Python
+export const nBench = (p) => (p.radar.amplitude == null ? null : new Set(p.res.filter((r) => r.nos).map((r) => r.b)).size);
+export const FATO = {
+  ganho: (p) => (ganhoDe(p) == null ? null : `${sgn(ganhoDe(p))}%`),
+  solidez: (p) => (p.sol === 'sem_leitura' ? null : SOL_ROT[p.sol]),
+  abertura: (p) => liberados(p) || (p.prom ? 'só prometido' : p.radar.abertura == null ? null : Object.values(p.ab).includes('so_pagina') ? 'só a página' : 'nada liberado'),
+  facilidade: (p) => (p.radar.facilidade == null ? null : ESFORCO[p.esf]),
+  amplitude: (p) => (nBench(p) == null ? null : plural(nBench(p), 'benchmark', 'benchmarks')),
+  atencao: (p) => `${p.u.toLocaleString('pt-BR')} votos`,
+};
+// Por que o fato falta, em palavras: "nao lido" nao e "nao ha". Nenhuma tela
+// poe um traco no lugar de um fato do paper.
+// O fato que a leitura parcial nao alcancou e "não achado": "não lido" num paper
+// lido se confundia com a fila (rodadas 9 e 10)
+export const semGanho = (p) => (p.res.length ? 'sem rival externo' : 'não achado');
+export const SEM_FATO = {
+  ganho: semGanho, solidez: () => 'não avaliada', abertura: () => 'não achada',
+  facilidade: (p) => ESFORCO[p.esf], amplitude: () => 'não achada', atencao: () => '',
+};
+// O radar desenha a nota de 0 a 100 que vem do Python. A amplitude e uma
+// escala logaritmica fixa que toca a borda em 16 benchmarks; quem passa disso
+// ganha a marca de corte. A abertura e uma faixa: o vertice fica no que foi
+// confirmado e um traco vai ate o maximo possivel (`abTeto`), se tudo o que
+// nao foi verificado estiver liberado.
+export const TETO_AMPLITUDE = 16;
+export const passaDoEixo = (k, p) => k === 'amplitude' && (nBench(p) ?? 0) > TETO_AMPLITUDE;
+export const naoLidosDe = (p) => Object.values(p.ab).filter((e) => e === 'nao_lido').length;
+export const tetoDoEixo = (k, p) => (k === 'abertura' && p.radar.abertura != null && p.abTeto != null && p.abTeto > p.radar.abertura ? p.abTeto : null);
+// O que o paper liberou, com as mesmas palavras em todas as telas. Sob o rotulo
+// "Abertura" vai o fato ("código e pesos", "só a página", "nada liberado");
+// onde nao ha rotulo, a frase ("liberou código e pesos"). faltaLer diz quantos
+// artefatos a leitura nao alcancou: "nada liberado" com parte nao lida nao e
+// a mesma coisa que nada.
+export const aberturaFrase = (p) => { const f = FATO.abertura(p); return f == null ? 'abertura não achada' : liberados(p) ? `liberou ${f}` : f; };
+// O que a leitura nao verificou entre os quatro artefatos (codigo, pesos, dados,
+// demo). Uma conta ("3 de 4 não lidos") se lia como partes do paper (rodada 8);
+// os nomes por extenso quebravam em quatro linhas nas colunas estreitas (rodada 9).
+// Onde ha pouco espaco vai "resto não verificado", ao lado do que foi liberado;
+// o paper aberto, a dica e o leitor de tela dizem quais (`faltaLerNomes`).
+const ART_MIN = { codigo: 'código', pesos: 'pesos', dados: 'dados', demo: 'demo' };
+const naoVerificados = (p) => (p.radar.abertura == null ? [] : Object.keys(ART_MIN).filter((k) => p.ab[k] === 'nao_lido'));
+export const faltaLer = (p) => (naoVerificados(p).length ? 'resto não verificado' : '');
+export const faltaLerNomes = (p) => {
+  const ks = naoVerificados(p);
+  if (!ks.length) return '';
+  const nomes = ks.map((k) => ART_MIN[k]), lista = nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes.at(-1)}` : nomes[0];
+  const fim = ks.length > 1 || ks[0] === 'pesos' || ks[0] === 'dados' ? 'não verificados' : ks[0] === 'demo' ? 'não verificada' : 'não verificado';
+  return `${lista} ${fim}`;
+};

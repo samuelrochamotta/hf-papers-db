@@ -9,6 +9,10 @@ nao o comportamento.
 Os casos ficam em `tests/js/` porque sao JavaScript de verdade, exercitando o
 proprio arquivo que vai para o navegador (ver `tests/js/dom_painel.mjs`). Este
 modulo so os traz para dentro da porta unica do projeto, que e o `pytest`.
+
+O painel v2 entra pela mesma porta: `tests/js/painel_v2_recorte.test.mjs`
+exercita as funcoes puras de `painel-v2/src/lib/` (filtros, ordens, busca,
+periodo, radar e enxame).
 """
 
 from __future__ import annotations

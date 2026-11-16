@@ -1,0 +1,26 @@
+{"t":1794845881895,"porta":4941,"largura":1280,"tarefa":"T1","tipo":"iniciar"}
+{"t":1794845889236,"porta":4941,"largura":1280,"tarefa":"T1","tipo":"clicar","x":1075,"y":28,"alvo":{"tag":"button","nome":"7 dias 10","canvas":false,"regiao":"header"},"url":"http://127.0.0.1:45197/?periodo=7"}
+{"t":1794845893567,"porta":4941,"largura":1280,"tarefa":"T1","tipo":"responder","resposta":"Confucius4-R2T2 (93 votos, Firme), Few-Step Streaming Video Generation via Condition Shifting (88, Forte) e P2-MOPD (70, Firme)","url":"http://127.0.0.1:45197/?periodo=7"}
+{"t":1794845895404,"porta":4941,"largura":1280,"tarefa":"T2","tipo":"iniciar"}
+{"t":1794845899415,"porta":4941,"largura":1280,"tarefa":"T2","tipo":"clicar","x":978,"y":28,"alvo":{"tag":"button","nome":"Último dia 1","canvas":false,"regiao":"header"},"url":"http://127.0.0.1:45197/?periodo=1"}
+{"t":1794845903268,"porta":4941,"largura":1280,"tarefa":"T2","tipo":"responder","resposta":"SO-Arena Benchmarking the Capability Spectrum and Reliability of System One Models (13 de nov.)","url":"http://127.0.0.1:45197/?periodo=1"}
+{"t":1794845905022,"porta":4941,"largura":1280,"tarefa":"T3","tipo":"iniciar"}
+{"t":1794845909266,"porta":4941,"largura":1280,"tarefa":"T3","tipo":"clicar","x":220,"y":145,"alvo":{"tag":"input","nome":"Buscar paper","canvas":false,"regiao":""},"url":"http://127.0.0.1:45197/"}
+{"t":1794845910004,"porta":4941,"largura":1280,"tarefa":"T3","tipo":"digitar","texto":"Sage","url":"http://127.0.0.1:45197/?q=Sage"}
+{"t":1794845914519,"porta":4941,"largura":1280,"tarefa":"T3","tipo":"clicar","x":300,"y":188,"alvo":{"tag":"button","nome":"Sage-Taiyi: A Metacognitive Architecture for Scientific Discovery. 57 votos. prova forte. ganho +12,","canvas":false,"regiao":""},"url":"http://127.0.0.1:45197/?q=Sage&paper=2611.12762"}
+{"t":1794845918557,"porta":4941,"largura":1280,"tarefa":"T3","tipo":"responder","resposta":"Trata de descoberta científica (Scientific Discovery: arquitetura metacognitiva que usa entendimento científico acumulado); a entrega é um Sistema.","url":"http://127.0.0.1:45197/?q=Sage&paper=2611.12762"}
+{"t":1794845920332,"porta":4941,"largura":1280,"tarefa":"T4","tipo":"iniciar"}
+{"t":1794845924497,"porta":4941,"largura":1280,"tarefa":"T4","tipo":"responder","resposta":"9 papers com prova não avaliada (leitura insuficiente) e 2 na fila sem leitura nenhuma (período todo, 2 a 13 de nov.)","url":"http://127.0.0.1:45197/"}
+{"t":1794845926224,"porta":4941,"largura":1280,"tarefa":"T5","tipo":"iniciar"}
+{"t":1794845930774,"porta":4941,"largura":1280,"tarefa":"T5","tipo":"clicar","x":209,"y":188,"alvo":{"tag":"button","nome":"Advances in Agentic Computer Graphics. 150 votos. prova não avaliada. abertura não lida","canvas":false,"regiao":""},"url":"http://127.0.0.1:45197/?paper=2611.01860"}
+{"t":1794845935077,"porta":4941,"largura":1280,"tarefa":"T5","tipo":"responder","resposta":"Não dá para afirmar: o mais votado (Advances in Agentic Computer Graphics, 150 votos) está com prova Não avaliada — nenhum sinal de prova lido (leitura parcial; é um panorama/taxonomia).","url":"http://127.0.0.1:45197/?paper=2611.01860"}
+{"t":1794845936828,"porta":4941,"largura":1280,"tarefa":"T6","tipo":"iniciar"}
+{"t":1794845941207,"porta":4941,"largura":1280,"tarefa":"T6","tipo":"clicar","x":435,"y":74,"alvo":{"tag":"button","nome":"Filtrar por prova","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:45197/"}
+{"t":1794845945335,"porta":4941,"largura":1280,"tarefa":"T6","tipo":"clicar","x":460,"y":209,"alvo":{"tag":"div","nome":"Básica3","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:45197/?lente=sol%3Abasico"}
+{"t":1794845949394,"porta":4941,"largura":1280,"tarefa":"T6","tipo":"clicar","x":457,"y":241,"alvo":{"tag":"div","nome":"Frágil2","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:45197/?lente=sol%3Abasico&lente=sol%3Afragil"}
+{"t":1794845953637,"porta":4941,"largura":1280,"tarefa":"T6","tipo":"responder","resposta":"Acima da mediana do período (70 votos): CoworkOS (100 votos, Frágil), Route Anything: A Study of Model and Policy Routing... (83, Básica) e SO-Arena Benchmarking... (83, Básica).","url":"http://127.0.0.1:45197/?lente=sol%3Abasico&lente=sol%3Afragil"}
+{"t":1794845955375,"porta":4941,"largura":1280,"tarefa":"T20","tipo":"iniciar"}
+{"t":1794845959235,"porta":4941,"largura":1280,"tarefa":"T20","tipo":"clicar","x":359,"y":74,"alvo":{"tag":"button","nome":"Filtrar por arena","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:45197/"}
+{"t":1794845963374,"porta":4941,"largura":1280,"tarefa":"T20","tipo":"clicar","x":390,"y":145,"alvo":{"tag":"div","nome":"Robótica7","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:45197/?lente=ar%3Arobotica_acao"}
+{"t":1794845967479,"porta":4941,"largura":1280,"tarefa":"T20","tipo":"clicar","x":707,"y":74,"alvo":{"tag":"button","nome":"Limpar o filtro Arena: Robótica","canvas":false,"regiao":"recorte"},"url":"http://127.0.0.1:45197/"}
+{"t":1794845971282,"porta":4941,"largura":1280,"tarefa":"T20","tipo":"responder","resposta":"7 papers de Robótica (Arena: Robótica). Depois cliquei em Limpar e o painel voltou a mostrar os 28 papers.","url":"http://127.0.0.1:45197/"}

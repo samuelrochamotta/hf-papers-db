@@ -3,12 +3,14 @@ export const estado = $state({
   dados: null,
   erro: null,
   periodo: 'tudo',   // '7' | '14' | 'tudo' (dias de HF Daily, contados do mais recente)
-  lente: null,       // {k, v}
+  lentes: [],        // [{k, v}] por faceta: arena, prova, adocao, familia
   sel: null,         // id do paper aberto no painel
   prof: 1,           // profundidade do painel: 1 resumo, 2 trechos, 3 ficha
   comparar: [],      // ate 3 ids no radar
   hover: null,       // id sob o ponteiro, em qualquer grafico
-  ordem: 'votos',    // ordem do indice: votos | ganho | solidez
+  ordem: 'votos',    // ordem do indice (dados.js ORDENS)
+  busca: '',         // texto da busca no indice
+  vista: 'papers',   // vista aberta: 'papers' | 'panorama' | 'comparar'
   tema: {},          // cores lidas dos tokens CSS
   modoTema: null,    // null segue o sistema; 'light' | 'dark' escolhido
 });
@@ -30,9 +32,16 @@ export function alternaComparar(id) {
 
 export function abrir(id, prof = 1) { estado.sel = id; estado.prof = prof; }
 export function fechar() { estado.sel = null; }
+// Lentes. Ligar de novo a mesma lente desliga. As lentes se somam (decisao 9
+// do redesenho, que substitui a D8 do prototipo v3): valores do mesmo menu se
+// alternam (Firme ou Forte) e menus diferentes se exigem juntos (Robotica e Firme).
+export const lentesDe = (k) => estado.lentes.filter((l) => l.k === k).map((l) => l.v);
+export const temLente = (k, v) => estado.lentes.some((l) => l.k === k && l.v === v);
 export function lente(k, v) {
-  estado.lente = estado.lente && estado.lente.k === k && estado.lente.v === v ? null : { k, v };
+  if (temLente(k, v)) estado.lentes = estado.lentes.filter((l) => !(l.k === k && l.v === v));
+  else estado.lentes = [...estado.lentes, { k, v }];
 }
+export function semLente(k) { estado.lentes = k ? estado.lentes.filter((l) => l.k !== k) : []; }
 
 // Tema escolhido pela pessoa: fica no navegador, e o painel funciona sem isso.
 // Escolher o mesmo tema do sistema volta a seguir o sistema.

@@ -1,146 +1,211 @@
 /* ==========================================================================
-   Sistema de design do painel v2
-   Primitivos -> tokens semanticos -> componentes. Tudo que tem cor passa por
-   aqui, inclusive os graficos: tema.js le estas variaveis e monta o tema do
-   ECharts, entao trocar um token troca a tela inteira.
+   Sistema do painel v2
+   1. primitivos (tipo, espaco, raio, movimento): iguais em toda identidade
+   2. cor: papeis semanticos, um bloco por tema (identidade "Periodico")
+   3. base e controles: uma matriz de estados para tudo que se clica
+   Os graficos leem estes tokens (lib/tema.js): trocar um token troca a tela.
+   Conferido por medir/axe.mjs (contraste de texto >= 4,5:1) e
+   medir/daltonismo.mjs (marcas >= 3:1 e distinguiveis com daltonismo).
    ========================================================================== */
 :root{
-  /* superficies: papel quente, tinta quase preta */
-  --bg:#f6f5f1; --surface:#ffffff; --sunk:#efede8; --hover:#f3f2ed; --raise:#ffffff;
-  --ink:#15181d; --ink2:#454b55; --muted:#60666f; --faint:#80868f;
-  --line:#e5e2db; --line-strong:#d2cec5; --ring:rgba(21,24,29,.08);
-  --accent:#2b4fd6; --accent-ink:#1f3ba8; --accent-soft:rgba(43,79,214,.09); --on-accent:#ffffff;
-  /* estados de resultado */
-  --win:#2b4fd6; --noise:#a3a9b1; --norival:#d9d6ce; --lose:#d4552a; --warn:#c2471f; --warn-soft:rgba(212,85,42,.10);
-  /* solidez: uma rampa so, do mais forte ao mais fragil */
-  --s-forte:#172c86; --s-firme:#3456d8; --s-basico:#8ea3ec; --s-fragil:#d0d8f6; --s-nada:#8a909a;
-  /* comparacao: tres cores fora da rampa de solidez */
-  --compare-1:#0d8f84; --compare-2:#d4552a; --compare-3:#a33a8f;
-  --shade:rgba(212,85,42,.07);
-  --shadow-1:0 1px 2px rgba(21,24,29,.04),0 0 0 1px var(--ring);
-  --shadow-2:0 2px 6px rgba(21,24,29,.05),0 12px 32px rgba(21,24,29,.08),0 0 0 1px var(--ring);
-  --shadow-3:0 24px 64px rgba(21,24,29,.18),0 0 0 1px var(--ring);
-  --scrim:rgba(14,16,19,.36);
+  /* --- tipo: escala modular 1,2 sobre 14 px, alturas de linha na grade de 4 px --- */
+  /* identidade "Periodico": a serifa (Newsreader) nos titulos, que sao palavras dos autores;
+     IBM Plex no que o painel mediu. Fontes hospedadas no proprio painel (public/fontes) */
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --display-peso:500; --display-esp:-.01em;
+  --fs-12:12px; --lh-12:16px;
+  --fs-14:14px; --lh-14:20px;
+  --fs-17:17px; --lh-17:24px;
+  --fs-20:20px; --lh-20:28px;
+  --fs-24:24px; --lh-24:32px;
+  --fs-29:29px; --lh-29:36px;
+  --fs-35:35px; --lh-35:40px;
+  --fs-42:42px; --lh-42:48px;
 
-  /* tipografia: serifa editorial para titulos e numeros grandes, sans para
-     interface, mono para dados. Escala 1,25 sobre 14 px. */
-  --display:"Newsreader",Georgia,"Times New Roman",serif;
-  --body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --t-11:11px; --t-12:12px; --t-13:13px; --t-14:14px; --t-16:16px; --t-20:20px; --t-25:25px; --t-32:32px; --t-40:40px;
+  /* --- espaco: grade de 4 px --- */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px; --sp-16:64px;
+  /* pagina: 4 colunas ate 767, 8 ate 1023, 12 dali em diante */
+  --margem:16px; --calha:16px; --largura:1440px;
+  --r-1:2px; --r-2:3px; --r-3:4px;
+  --ctl:32px;            /* altura dos controles */
+  --alvo:24px;           /* menor alvo de toque (WCAG 2.2) */
+  --barra:56px;          /* barra fixa do topo */
+  --gaveta:480px;        /* paper aberto, em tela larga */
 
-  /* grade de 4 px */
-  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-8:32px; --s-10:40px; --s-12:48px; --s-16:64px;
-  --r-sm:6px; --r:10px; --r-lg:14px; --r-xl:18px;
-  --ctl:32px; --ctl-sm:28px;
+  /* --- movimento: tres duracoes, duas curvas --- */
+  --dur-1:120ms;         /* resposta a ponteiro e foco */
+  --dur-2:200ms;         /* entra e sai de elemento pequeno */
+  --dur-3:320ms;         /* gaveta, folha, reordenacao */
+  --sai:cubic-bezier(.2,.8,.2,1); --vai-vem:cubic-bezier(.65,0,.35,1);
 
-  /* movimento */
-  --ease:cubic-bezier(.2,.8,.2,1); --ease-io:cubic-bezier(.65,0,.35,1);
-  --dur-1:120ms; --dur-2:200ms; --dur-3:320ms;
-
-  --gutter:max(16px,env(safe-area-inset-left,0px));
-  --gutter-r:max(16px,env(safe-area-inset-right,0px));
   color-scheme:light;
 }
-@media (min-width:720px){:root{--gutter:max(28px,env(safe-area-inset-left,0px));--gutter-r:max(28px,env(safe-area-inset-right,0px))}}
-@media (min-width:1200px){:root{--gutter:max(40px,env(safe-area-inset-left,0px));--gutter-r:max(40px,env(safe-area-inset-right,0px))}}
+@media (min-width:768px){:root{--margem:24px;--calha:24px}}
+@media (min-width:1280px){:root{--margem:40px}}
+/* No toque o controle desenhado tem 40 px (36 nos chips) e o alvo tem 44: a area que responde ao dedo passa do desenho.
+   medir/alvos.mjs confere o alvo de cada controle com o dedo na tela. */
+@media (pointer:coarse){:root{--ctl:40px}
+  .btn,.ico,.sel,.chip,.seg>button{position:relative}
+  .btn::after,.ico::after{content:'';position:absolute;inset:-2px}
+  .sel::after,.chip::after,.seg>button::after{content:'';position:absolute;inset:-4px 0}}
+@media (prefers-reduced-motion:reduce){:root{--dur-1:0ms;--dur-2:0ms;--dur-3:0ms}}
 
+/* --- fontes: so os alfabetos latinos, hospedados com o painel (sem chamar servico de fora) --- */
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('./fontes/ibm-plex-mono-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('./fontes/ibm-plex-mono-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('./fontes/ibm-plex-mono-500-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('./fontes/ibm-plex-mono-500-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;src:url('./fontes/ibm-plex-sans-400-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;src:url('./fontes/ibm-plex-sans-400-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:400 600;font-display:swap;src:url('./fontes/newsreader-400-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:400 600;font-display:swap;src:url('./fontes/newsreader-400-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+
+/* --- cor: claro. Identidade "Periodico": papel de tom esverdeado, prova em verde --- */
+:root{
+  --bg:#f3f5f1; --surface:#fdfefc; --sunk:#e8ebe5; --hover:#f0f2ed; --raise:#fdfefc; --seg-on:#fdfefc;
+  --ink:#151a16; --ink2:#3e4640; --muted:#57605a;
+  --line:#dce1d9; --line-strong:#808981;
+  --accent:#151a16; --on-accent:#fdfefc; --focus:#0b6e45;
+  --alert:#a8380f; --alert-soft:#f9ece3;
+  /* solidez: uma rampa, do mais forte (mais tinta) ao mais fragil */
+  --sol-forte:#002619; --sol-firme:#004e26; --sol-basico:#28761f; --sol-fragil:#689b1a; --sol-nada:#57605a;
+  /* resultado contra o rival: tinta, cinza e alerta (nao usa a rampa de solidez) */
+  --res-ganha:#151a16; --res-ruido:#808981; --res-perde:#a8380f; --res-semrival:#cbd1c8;
+  /* comparacao: tres identidades fora da rampa e longe do alerta. Cada uma fica na mesma familia de cor
+     nos dois temas (azul, petroleo, violeta), longe da rampa de prova e do alerta; entre claro e escuro muda so a luminosidade */
+  --cmp-1:#2430b2; --cmp-2:#198080; --cmp-3:#e650e6;
+  --sombra-1:0 1px 2px rgba(21,26,22,.06);
+  --sombra-2:0 8px 24px rgba(21,26,22,.10),0 1px 2px rgba(21,26,22,.06);
+  --sombra-3:0 24px 64px rgba(21,26,22,.20);
+  --veu:rgba(21,26,22,.40);
+}
+/* --- cor: escuro (pelo sistema ou escolhido) --- */
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e1013; --surface:#15181d; --sunk:#1c2026; --hover:#1a1e23; --raise:#1b1f25;
-  --ink:#eceef1; --ink2:#b7bdc6; --muted:#8f96a1; --faint:#6e7580;
-  --line:#252a31; --line-strong:#333941; --ring:rgba(255,255,255,.07);
-  --accent:#7d97ff; --accent-ink:#a5b6ff; --accent-soft:rgba(125,151,255,.13); --on-accent:#0e1013;
-  --win:#6f8cff; --noise:#5f6670; --norival:#3a3f47; --lose:#f0794a; --warn:#f0855a; --warn-soft:rgba(240,121,74,.13);
-  --s-forte:#b8c7ff; --s-firme:#7591ff; --s-basico:#4561c4; --s-fragil:#33478c; --s-nada:#727985;
-  --compare-1:#3cc4b7; --compare-2:#f0794a; --compare-3:#e07ac8;
-  --shade:rgba(240,121,74,.10);
-  --shadow-1:0 0 0 1px var(--ring);
-  --shadow-2:0 12px 32px rgba(0,0,0,.35),0 0 0 1px var(--ring);
-  --shadow-3:0 24px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.09);
-  --scrim:rgba(0,0,0,.55); color-scheme:dark}}
+  --bg:#111411; --surface:#191d19; --sunk:#222722; --hover:#1e221e; --raise:#1e221e; --seg-on:#3a413a; --seg-off:#99a39a; --seg-borda:rgba(255,255,255,.14);
+  --ink:#eaefe9; --ink2:#bec6be; --muted:#99a39a;
+  --line:#2a2f2a; --line-strong:#6e786f;
+  --accent:#d3dad2; --on-accent:#111411; --focus:#7fd4a3;
+  --alert:#f0855a; --alert-soft:#2b1d16;
+  --sol-forte:#94fdd9; --sol-firme:#89cd9e; --sol-basico:#7a9e6b; --sol-fragil:#a8b048; --sol-nada:#99a39a;
+  --res-ganha:#eaefe9; --res-ruido:#6e786f; --res-perde:#f0855a; --res-semrival:#39403a;
+  --cmp-1:#8095ff; --cmp-2:#59e3ff; --cmp-3:#8a47cc;
+  --sombra-1:0 0 0 1px rgba(255,255,255,.04);
+  --sombra-2:0 12px 32px rgba(0,0,0,.45);
+  --sombra-3:0 24px 64px rgba(0,0,0,.65);
+  --veu:rgba(0,0,0,.6); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0e1013; --surface:#15181d; --sunk:#1c2026; --hover:#1a1e23; --raise:#1b1f25;
-  --ink:#eceef1; --ink2:#b7bdc6; --muted:#8f96a1; --faint:#6e7580;
-  --line:#252a31; --line-strong:#333941; --ring:rgba(255,255,255,.07);
-  --accent:#7d97ff; --accent-ink:#a5b6ff; --accent-soft:rgba(125,151,255,.13); --on-accent:#0e1013;
-  --win:#6f8cff; --noise:#5f6670; --norival:#3a3f47; --lose:#f0794a; --warn:#f0855a; --warn-soft:rgba(240,121,74,.13);
-  --s-forte:#b8c7ff; --s-firme:#7591ff; --s-basico:#4561c4; --s-fragil:#33478c; --s-nada:#727985;
-  --compare-1:#3cc4b7; --compare-2:#f0794a; --compare-3:#e07ac8;
-  --shade:rgba(240,121,74,.10);
-  --shadow-1:0 0 0 1px var(--ring);
-  --shadow-2:0 12px 32px rgba(0,0,0,.35),0 0 0 1px var(--ring);
-  --shadow-3:0 24px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.09);
-  --scrim:rgba(0,0,0,.55); color-scheme:dark}
+  --bg:#111411; --surface:#191d19; --sunk:#222722; --hover:#1e221e; --raise:#1e221e; --seg-on:#3a413a; --seg-off:#99a39a; --seg-borda:rgba(255,255,255,.14);
+  --ink:#eaefe9; --ink2:#bec6be; --muted:#99a39a;
+  --line:#2a2f2a; --line-strong:#6e786f;
+  --accent:#d3dad2; --on-accent:#111411; --focus:#7fd4a3;
+  --alert:#f0855a; --alert-soft:#2b1d16;
+  --sol-forte:#94fdd9; --sol-firme:#89cd9e; --sol-basico:#7a9e6b; --sol-fragil:#a8b048; --sol-nada:#99a39a;
+  --res-ganha:#eaefe9; --res-ruido:#6e786f; --res-perde:#f0855a; --res-semrival:#39403a;
+  --cmp-1:#8095ff; --cmp-2:#59e3ff; --cmp-3:#8a47cc;
+  --sombra-1:0 0 0 1px rgba(255,255,255,.04);
+  --sombra-2:0 12px 32px rgba(0,0,0,.45);
+  --sombra-3:0 24px 64px rgba(0,0,0,.65);
+  --veu:rgba(0,0,0,.6); color-scheme:dark}
 
 /* ---------- base ---------- */
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:var(--t-14);line-height:1.5;
-  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden;font-feature-settings:"ss01","cv11"}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:calc(var(--barra) + 56px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:var(--fs-14);line-height:var(--lh-14);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden;overflow-wrap:anywhere}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
-button:disabled{cursor:default}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button:focus-visible,a:focus-visible,select:focus-visible{border-radius:var(--r-sm)}
-a{color:inherit}
-::selection{background:var(--accent-soft)}
-.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.num{font-variant-numeric:tabular-nums lining-nums}
-.wrap{max-width:1360px;margin:0 auto;padding-left:var(--gutter);padding-right:var(--gutter-r)}
-svg{display:block}
-.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.eyebrow{font-size:var(--t-11);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4,p,dl,dd,ul,ol,figure,blockquote{margin:0;padding:0}
+ul,ol{list-style:none}
+table{border-collapse:collapse}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-1)}
+::selection{background:color-mix(in srgb,var(--focus) 24%,transparent)}
+[hidden]{display:none!important}
 
-/* ---------- cartao ---------- */
-.card{background:var(--surface);border-radius:var(--r-xl);box-shadow:var(--shadow-1);padding:var(--s-5) var(--s-5) var(--s-4);
-  display:flex;flex-direction:column;min-width:0;position:relative}
-.chart{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;justify-content:center}
-.vazio{display:grid;place-items:center;gap:var(--s-2);color:var(--muted);font-size:var(--t-13);padding:var(--s-8) var(--s-4);text-align:center;
-  border-radius:var(--r);background:repeating-linear-gradient(135deg,transparent 0 6px,var(--sunk) 6px 7px);min-height:140px}
-.vazio button{color:var(--accent);font-weight:500}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.pagina{max-width:var(--largura);margin-inline:auto;padding-inline:max(var(--margem),env(safe-area-inset-left,0px)) max(var(--margem),env(safe-area-inset-right,0px))}
 
-/* ---------- controles: uma familia so ---------- */
-/* controle segmentado: periodo, abas, modo */
-.seg{display:inline-flex;align-items:center;background:var(--sunk);border-radius:var(--r);padding:3px;gap:2px;flex:none}
-.seg button{height:var(--ctl-sm);padding:0 var(--s-3);border-radius:calc(var(--r) - 3px);font-size:var(--t-13);font-weight:500;color:var(--muted);
-  transition:background var(--dur-2) var(--ease),color var(--dur-2) var(--ease),box-shadow var(--dur-2) var(--ease);white-space:nowrap}
-.seg button:hover{color:var(--ink)}
-.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--raise);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--ring)}
-.seg.sm button{height:24px;padding:0 var(--s-2);font-size:var(--t-12)}
+/* texto */
+.t-12{font-size:var(--fs-12);line-height:var(--lh-12)}
+.t-14{font-size:var(--fs-14);line-height:var(--lh-14)}
+.t-17{font-size:var(--fs-17);line-height:var(--lh-17)}
+.t-20{font-size:var(--fs-20);line-height:var(--lh-20)}
+.rot{font-size:var(--fs-12);line-height:var(--lh-12);font-weight:500;color:var(--muted)}   /* rotulo de campo */
+.titulo{font-family:var(--f-display);font-weight:var(--display-peso);letter-spacing:var(--display-esp)}
+.sec{color:var(--ink2)} .mut{color:var(--muted)}
+.um{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+/* itens em linha separados por ponto medio: o separador nao depende de espaco no HTML */
+.pts>*+*::before{content:'·';margin:0 .45em;color:var(--muted);font-family:var(--f-ui);font-weight:400}
 
-/* botoes */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);height:var(--ctl);padding:0 var(--s-3);border-radius:var(--r);
-  font-size:var(--t-13);font-weight:500;white-space:nowrap;transition:background var(--dur-1) var(--ease),color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease),transform var(--dur-1) var(--ease)}
-.btn:active:not(:disabled){transform:translateY(1px)}
-.btn.prim{background:var(--ink);color:var(--surface)}
-.btn.prim:hover{background:color-mix(in srgb,var(--ink) 86%,var(--accent))}
-.btn.sec{background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-strong);color:var(--ink)}
-.btn.sec:hover{background:var(--hover)}
-.btn.sec[aria-pressed="true"]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent-ink)}
-.btn.ghost{color:var(--ink2)}
-.btn.ghost:hover{background:var(--sunk);color:var(--ink)}
-.btn:disabled{opacity:.45}
-.btn.full{width:100%}
-.icon-btn{width:var(--ctl);height:var(--ctl);border-radius:var(--r);display:inline-grid;place-items:center;color:var(--ink2);flex:none;
-  transition:background var(--dur-1) var(--ease),color var(--dur-1) var(--ease)}
-.icon-btn:hover:not(:disabled){background:var(--sunk);color:var(--ink)}
-.icon-btn:disabled{opacity:.35}
-.icon-btn svg{width:16px;height:16px}
+/* ---------- controles: uma matriz de estados ----------
+   repouso -> hover (fundo) -> foco (anel) -> pressionado (afunda) -> ligado
+   (aria-pressed / aria-selected / aria-current: tinta cheia) -> desabilitado */
+.btn,.seg>button,.chip,.ico{
+  min-height:var(--ctl);display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  font-size:var(--fs-14);line-height:var(--lh-14);font-weight:500;white-space:nowrap;border-radius:var(--r-2);
+  transition:background var(--dur-1),color var(--dur-1),box-shadow var(--dur-1),transform var(--dur-1);
+  -webkit-tap-highlight-color:transparent;user-select:none}
+.btn{padding:0 var(--sp-3)}
+.btn.pri{background:var(--accent);color:var(--on-accent)}
+.btn.pri:hover{background:color-mix(in srgb,var(--accent) 86%,var(--surface))}
+.btn.sec{box-shadow:inset 0 0 0 1px var(--line-strong);background:var(--surface)}
+.btn.sec:hover,.btn.fan:hover,.ico:hover{background:var(--hover)}
+.btn.fan{color:var(--ink2)}
+.btn:active,.ico:active,.seg>button:active,.chip:active{transform:translateY(1px)}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);box-shadow:none}
+.btn:disabled,.ico:disabled,.seg>button:disabled{opacity:.45;cursor:default;pointer-events:none}
+.ico{width:var(--ctl);padding:0;color:var(--ink2);flex:none}
+.ico:hover{color:var(--ink)}
 
-/* chips: filtro ativo, paper em comparacao */
-.chip{display:inline-flex;align-items:center;gap:6px;height:var(--ctl-sm);padding:0 4px 0 10px;border-radius:999px;background:var(--surface);
-  box-shadow:inset 0 0 0 1px var(--line-strong);font-size:var(--t-13);white-space:nowrap;max-width:100%}
-.chip .x{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none;transition:background var(--dur-1),color var(--dur-1)}
-.chip .x:hover{background:var(--sunk);color:var(--ink)}
-.chip .x svg{width:12px;height:12px}
-.chip.ativo{background:var(--ink);color:var(--surface);box-shadow:none}
-.chip.ativo .x{color:color-mix(in srgb,var(--surface) 70%,transparent)}
-.chip.ativo .x:hover{background:color-mix(in srgb,var(--surface) 18%,transparent);color:var(--surface)}
+/* segmentado: periodo, ordem, abas */
+.seg{display:inline-flex;gap:2px;padding:2px;border-radius:var(--r-2);background:var(--sunk);max-width:100%}
+.seg>button{min-height:calc(var(--ctl) - 4px);padding:0 var(--sp-3);border-radius:calc(var(--r-2) - 2px);color:var(--seg-off,var(--ink2));flex:1 1 auto}
+.seg>button:hover{color:var(--ink);background:color-mix(in srgb,var(--surface) 60%,transparent)}
+/* no escuro o ligado se separa do trilho pelo fundo, pela borda e pelo texto: o desligado recua para o cinza */
+.seg>button[aria-pressed="true"],.seg>button[aria-selected="true"]{background:var(--seg-on);color:var(--ink);box-shadow:var(--sombra-1),inset 0 0 0 1px var(--seg-borda,var(--line))}
+.seg .n{font-family:var(--f-num);font-size:var(--fs-12);color:var(--muted);font-weight:400}
+.seg>button[aria-pressed="true"] .n,.seg>button[aria-selected="true"] .n{color:var(--ink2)}
 
-/* ponto de solidez */
-.dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
-.dot.nada{background:transparent!important;box-shadow:inset 0 0 0 1.5px var(--s-nada)}
-.dot.fragil{box-shadow:inset 0 0 0 1px var(--s-basico)}
+/* chip: categoria que filtra (lente) */
+.chip{padding:0 var(--sp-3);border-radius:999px;box-shadow:inset 0 0 0 1px var(--line-strong);background:var(--surface);color:var(--ink2);min-height:calc(var(--ctl) - 4px);font-size:var(--fs-12)}
+.chip:hover{background:var(--hover);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);box-shadow:none}
+.chip .n{font-family:var(--f-num);opacity:.7}
 
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important;scroll-behavior:auto!important}
-}
+/* chip que abre menu (pecas/Menu.svelte): filtro, periodo, ordem */
+.sel{display:inline-flex;align-items:center;gap:var(--sp-1);min-height:calc(var(--ctl) - 4px);padding:0 var(--sp-2) 0 var(--sp-3);border-radius:999px;
+  box-shadow:inset 0 0 0 1px var(--line-strong);background:var(--surface);color:var(--ink2);font-size:var(--fs-12);line-height:var(--lh-12);font-weight:500;white-space:nowrap;
+  transition:background var(--dur-1),color var(--dur-1),transform var(--dur-1)}
+.sel:hover,.sel[aria-expanded="true"]{background:var(--hover);color:var(--ink)}
+.sel:active{transform:translateY(1px)}
+.sel:focus-visible{border-radius:999px}
+.sel.on{background:var(--accent);color:var(--on-accent);box-shadow:none}
+.sel.on:hover,.sel.on[aria-expanded="true"]{background:color-mix(in srgb,var(--accent) 86%,var(--surface));color:var(--on-accent)}
+
+/* links */
+.lk{text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px;text-decoration-thickness:1px;transition:text-decoration-color var(--dur-1)}
+.lk:hover{text-decoration-color:currentColor}
+.lk:visited{color:inherit}
+
+/* marcas de solidez: a mesma em indice, legendas e paper */
+.sol{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none;background:var(--c,var(--sol-nada))}
+.sol.forte{--c:var(--sol-forte)} .sol.firme{--c:var(--sol-firme)} .sol.basico{--c:var(--sol-basico)} .sol.fragil{--c:var(--sol-fragil)}
+.sol.sem_leitura{background:transparent;box-shadow:inset 0 0 0 1.5px var(--sol-nada);background-image:none;border-radius:50%;outline:0;
+  -webkit-mask:repeating-conic-gradient(#000 0 30deg,transparent 30deg 45deg);mask:repeating-conic-gradient(#000 0 30deg,transparent 30deg 45deg)}
+
+/* alem da cor, o disco enche conforme a prova (forte inteiro, firme 3/4, basica 1/2, fragil 1/4): medido no experimento E4 */
+.sol:is(.firme,.basico,.fragil){box-shadow:inset 0 0 0 1.5px var(--c)}
+.sol.firme{background:conic-gradient(var(--c) 0 75%,transparent 0)}
+.sol.basico{background:conic-gradient(var(--c) 0 50%,transparent 0)}
+.sol.fragil{background:conic-gradient(var(--c) 0 25%,transparent 0)}
+
+.vazio{padding:var(--sp-8) var(--sp-4);text-align:center;color:var(--muted);display:grid;gap:var(--sp-3);justify-items:center}
+/* o botao de saida de um estado vazio nunca passa da caixa: se o rotulo nao cabe, quebra */
+.vazio .btn{max-width:100%;white-space:normal;padding-block:6px;text-wrap:balance}
+/* moldura de um grafico dentro de um quadro: fica com a altura que sobra, e o desenho cresce com ela (lib/Grafico.svelte) */
+.cresce{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important;scroll-behavior:auto!important}}

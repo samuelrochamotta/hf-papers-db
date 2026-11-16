@@ -1,0 +1,8 @@
+{
+  "superficie": "surface",
+  "paletas": {
+    "solidez": ["sol-forte", "sol-firme", "sol-basico", "sol-fragil"],
+    "resultado": ["res-ganha", "res-ruido", "res-perde"],
+    "comparacao": ["cmp-1", "cmp-2", "cmp-3"]
+  }
+}

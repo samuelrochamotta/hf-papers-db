@@ -1,0 +1,8 @@
+{
+  "superficie": "surface",
+  "paletas": {
+    "solidez": ["s-forte", "s-firme", "s-basico", "s-fragil"],
+    "resultado": ["win", "noise", "lose", "norival"],
+    "comparacao": ["compare-1", "compare-2", "compare-3"]
+  }
+}
