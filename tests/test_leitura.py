@@ -194,6 +194,27 @@ def test_radar_fica_entre_0_e_100_ou_nao_lido():
     assert topo["radar"]["atencao"] >= 95
 
 
+def test_amplitude_em_escala_logaritmica_fixa():
+    assert [derivar.amplitude(n) for n in (0, 1, 3, 5, 9, 16, 30)] == [0, 24, 49, 63, 81, 100, 100]
+
+
+def test_abertura_e_faixa_do_confirmado_ao_maximo():
+    tudo_nl = {"codigo": "nao_lido", "pesos": "nao_lido", "dados": "nao_lido", "demo": "nao_lido"}
+    assert derivar.faixa_abertura(tudo_nl) == (None, None)  # nao lido nao vira zero
+    so_codigo = {**tudo_nl, "codigo": "liberado"}
+    assert derivar.faixa_abertura(so_codigo) == (40, 100)  # nao vira 100: so o codigo foi confirmado
+    lido = {"codigo": "liberado", "pesos": "prometido", "dados": "ausente", "demo": "ausente"}
+    assert derivar.faixa_abertura(lido) == (52, 52)  # tudo lido: a faixa e um ponto
+
+
+def test_radar_traz_a_faixa_da_abertura():
+    d = _amostra()
+    for p in d["papers"]:
+        ab = p["radar"]["abertura"]
+        assert (ab is None) == (p["abTeto"] is None)
+        assert ab is None or ab <= p["abTeto"] <= 100
+
+
 def test_esforco_zero_nao_vira_facilidade_maxima():
     p = derivar.derivar({"entrega": {"primaria": "panorama_posicao"}, "leitura": {"cobertura": "completa"}}, {})
     assert p["esf"] == 0 and p["radar"]["facilidade"] is None

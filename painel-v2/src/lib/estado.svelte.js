@@ -11,8 +11,6 @@ export const estado = $state({
   ordem: 'votos',    // ordem do indice (dados.js ORDENS)
   busca: '',         // texto da busca no indice
   vista: 'papers',   // vista aberta: 'papers' | 'panorama' | 'comparar'
-  // escolhas ainda em aberto, pelo endereco: ?lentes=uma|varias e ?id=periodico|oficina
-  v: { lentes: 'uma', id: '' },
   tema: {},          // cores lidas dos tokens CSS
   modoTema: null,    // null segue o sistema; 'light' | 'dark' escolhido
 });
@@ -34,15 +32,14 @@ export function alternaComparar(id) {
 
 export function abrir(id, prof = 1) { estado.sel = id; estado.prof = prof; }
 export function fechar() { estado.sel = null; }
-// Lentes. Ligar de novo a mesma lente desliga. Com ?lentes=uma (decisao D8 do
-// prototipo v3) ligar uma tira a anterior. Com ?lentes=varias elas se somam:
-// valores do mesmo menu se alternam (Firme ou Forte) e menus diferentes se
-// exigem juntos (Robotica e Firme).
+// Lentes. Ligar de novo a mesma lente desliga. As lentes se somam (decisao 9
+// do redesenho, que substitui a D8 do prototipo v3): valores do mesmo menu se
+// alternam (Firme ou Forte) e menus diferentes se exigem juntos (Robotica e Firme).
 export const lentesDe = (k) => estado.lentes.filter((l) => l.k === k).map((l) => l.v);
 export const temLente = (k, v) => estado.lentes.some((l) => l.k === k && l.v === v);
 export function lente(k, v) {
   if (temLente(k, v)) estado.lentes = estado.lentes.filter((l) => !(l.k === k && l.v === v));
-  else estado.lentes = estado.v.lentes === 'varias' ? [...estado.lentes, { k, v }] : [{ k, v }];
+  else estado.lentes = [...estado.lentes, { k, v }];
 }
 export function semLente(k) { estado.lentes = k ? estado.lentes.filter((l) => l.k !== k) : []; }
 

@@ -23,7 +23,7 @@
   // Cada menu conta os papers que sobram com as lentes dos outros menus: o
   // numero ao lado da opcao diz quantos papers ela traz para o recorte.
   const facetas = $derived.by(() => {
-    const base = (k) => (estado.v.lentes === 'varias' ? buscar(aplicaLentes(todos, estado.lentes.filter((l) => l.k !== k)), estado.busca) : todos);
+    const base = (k) => buscar(aplicaLentes(todos, estado.lentes.filter((l) => l.k !== k)), estado.busca);
     const [bAr, bSol, bEsf, bFam] = ['ar', 'sol', 'esf', 'fam'].map(base);
     const ar = conta(bAr, (p) => p.ar), sol = conta(bSol, (p) => [p.sol]), esf = conta(bEsf, (p) => [p.esf]);
     const fam = conta(bFam, (p) => new Set(p.ents.filter((e) => e[1] === 'modelo').map((e) => familia(e[0]))));
@@ -38,7 +38,6 @@
     ];
   });
   const TODAS = { ar: 'Todas as arenas', sol: 'Qualquer prova', esf: 'Qualquer esforço', fam: 'Todas as famílias' };
-  const varias = $derived(estado.v.lentes === 'varias');
   const valores = (k) => lentesDe(k).map(String);
   function escolher(k, v) { const ok = v === '' ? null : lenteValida(k, v); if (ok) lente(ok.k, ok.v); else semLente(k); }
   const nomes = (k, itens) => valores(k).map((v) => itens.find((i) => String(i[0]) === v)?.[1] ?? v);
@@ -79,7 +78,7 @@
       {#each facetas as [k, nome, itens, total]}
         {#if itens.length > 1 || valores(k).length}
           {@const vs = valores(k)}
-          <Menu {nome} {varias} prefixo={vs.length === 1 ? `${nome}: ` : ''} rotulo={rotulo(k, nome, itens)} descricao={vs.length ? `${nome}: ${nomes(k, itens).join(', ')}` : `Filtrar por ${nome.toLowerCase()}`} valor={varias ? vs : vs[0] ?? ''} ligado={vs.length > 0}
+          <Menu {nome} varias prefixo={vs.length === 1 ? `${nome}: ` : ''} rotulo={rotulo(k, nome, itens)} descricao={vs.length ? `${nome}: ${nomes(k, itens).join(', ')}` : `Filtrar por ${nome.toLowerCase()}`} valor={vs} ligado={vs.length > 0}
             itens={[['', TODAS[k], total], ...itens]} aoEscolher={(v) => escolher(k, v)} aoTirar={() => semLente(k)} />
         {/if}
       {/each}
@@ -149,7 +148,8 @@
        cabe ao lado dos outros, a linha rola de lado, com os ligados na frente e a
        borda esmaecida do lado em que ha mais. A folga de 4 px em cima e embaixo
        guarda o alvo de toque de 44 px dentro da area que rola */
-    .filtros { flex: 1 0 100%; order: 3; flex-wrap: nowrap; gap: 6px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+    .filtros { flex: 1 0 calc(100% + 2 * var(--margem)); order: 3; flex-wrap: nowrap;      /* a base conta as margens negativas: a linha dos filtros nunca divide a linha com a contagem */
+      gap: 6px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
       margin: -4px calc(-1 * var(--margem)); padding: 4px var(--margem);
       mask-image: linear-gradient(90deg, transparent, #000 var(--margem), #000 calc(100% - var(--margem)), transparent); }
     .filtros::-webkit-scrollbar { display: none; }

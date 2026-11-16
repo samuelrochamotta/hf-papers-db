@@ -34,7 +34,8 @@
     : `papers disputam ${nome(topo.k)}, a arena mais cheia`);
   const ativas = $derived(lentesDe('ar'));
   // "E quem vence nela?": na arena em foco (a do filtro, ou a mais cheia), os
-  // papers com mais resultados vencidos contra o melhor rival.
+  // papers que mais vencem o melhor rival, pela proporcao das disputas que
+  // vencem ("3 de 3" antes de "5 de 15"); no empate, quem vence mais vezes.
   const foco = $derived(ativas.length === 1 && linhas.some((l) => l.k === ativas[0]) ? ativas[0] : topo && topo.k !== 'outra' ? topo.k : null);
   const placar = $derived.by(() => {
     const m = new Map();
@@ -44,7 +45,8 @@
     }
     return m;
   });
-  const vencem = $derived([...placar.values()].sort((a, b) => b.v - a.v || b.v / b.n - a.v / a.n || b.p.u - a.p.u).map((o) => o.p));
+  const taxa = (o) => o.v / Math.max(1, o.c);
+  const vencem = $derived([...placar.values()].sort((a, b) => taxa(b) - taxa(a) || b.v - a.v || b.p.u - a.p.u).map((o) => o.p));
 
   // a barra conta resultados; a coluna da esquerda conta papers e a da direita diz o placar. So vence
   // quem tem rival: o resultado sem rival externo nao entra na conta

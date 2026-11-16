@@ -1,5 +1,5 @@
 // Le os tokens de cor do CSS para os graficos e avisa quando o tema muda
-// (preferencia do sistema, data-theme ou data-id na raiz).
+// (preferencia do sistema ou data-theme na raiz).
 const NOMES = ['bg', 'surface', 'sunk', 'hover', 'raise', 'ink', 'ink2', 'muted', 'line', 'line-strong', 'accent', 'on-accent', 'focus',
   'alert', 'alert-soft', 'sol-forte', 'sol-firme', 'sol-basico', 'sol-fragil', 'sol-nada',
   'res-ganha', 'res-ruido', 'res-perde', 'res-semrival', 'cmp-1', 'cmp-2', 'cmp-3', 'f-ui', 'f-num', 'f-display'];
@@ -17,7 +17,7 @@ export function observarTema(cb) {
   const f = () => cb(lerTema());
   mq.addEventListener('change', f);
   const mo = new MutationObserver(f);
-  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-id'] });
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   f();
   // as fontes chegam depois: os graficos medem texto, entao redesenham
   document.fonts?.ready.then(f);
@@ -176,9 +176,10 @@ export const pct = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLo
 // marca de corte: duas cunhas na borda do eixo
 export const corte = (x, y, dir, cor) => [0, 5].map((d) => ({ type: 'polyline', silent: true,
   shape: { points: [[x - dir * (4 + d), y - 4], [x - dir * d, y], [x - dir * (4 + d), y + 4]] }, style: { stroke: cor, lineWidth: 1.5, fill: 'none' } }));
-// Radar: o que a serie do ECharts nao desenha. A escala nos aneis (50 e 100), o
-// vertice vazado onde parte do eixo nao foi lida e a marca de corte onde o
-// valor passa do teto do eixo. `itens`: [{ valores, cor, simbolo, vazados, cortes }],
+// Radar: o que a serie do ECharts nao desenha. A escala nos aneis (50 e 100), a
+// faixa tracejada do vertice ate o maximo possivel onde parte do eixo nao foi
+// lida e a marca de corte onde o valor passa do teto do eixo.
+// `itens`: [{ valores, cor, simbolo, faixas, cortes }],
 // com um valor e um aviso por eixo; os eixos giram a partir do topo, no sentido
 // anti-horario, como no radar do ECharts.
 export function marcasRadar(t, { cx, cy, r, itens }) {
@@ -191,15 +192,20 @@ export function marcasRadar(t, { cx, cy, r, itens }) {
     style: { text: String(v), fill: t.muted, font: `11px ${t.fNum}`, align: 'center', verticalAlign: 'middle', backgroundColor: t.surface, padding: [1, 3] } }));
   const total = new Map(), fila = new Map();   // marcas de corte por eixo: ficam lado a lado, atravessadas no eixo
   for (const it of itens) it.cortes?.forEach((c, i) => { if (c) total.set(i, (total.get(i) || 0) + 1); });
+  // faixas no mesmo eixo ficam lado a lado (4 px entre elas), para uma nao esconder a outra
+  const totalF = new Map(), filaF = new Map();
+  for (const it of itens) it.faixas?.forEach((f, i) => { if (f != null) totalF.set(i, (totalF.get(i) || 0) + 1); });
   for (const it of itens) {
     const n = it.valores.length;
     it.valores.forEach((v, i) => {
       const [ux, uy] = dir(i, n);
-      if (it.vazados?.[i] && v != null) {
-        const x = cx + (ux * r * v) / 100, y = cy + (uy * r * v) / 100, st = { fill: t.surface, stroke: it.cor, lineWidth: 1.5 };
-        out.push(it.simbolo === 'rect' ? { type: 'rect', silent: true, z: 20, shape: { x: x - 4, y: y - 4, width: 8, height: 8 }, style: st }
-          : it.simbolo === 'triangle' ? { type: 'polygon', silent: true, z: 20, shape: { points: [[x, y - 5], [x + 5, y + 4], [x - 5, y + 4]] }, style: st }
-          : { type: 'circle', silent: true, z: 20, shape: { cx: x, cy: y, r: 4 }, style: st });
+      // faixa: do vertice (o confirmado) ate o maximo possivel, tracejada, com um traco de fim
+      if (it.faixas?.[i] != null && v != null && it.faixas[i] > v) {
+        const j = filaF.get(i) || 0; filaF.set(i, j + 1);
+        const lado = (j - (totalF.get(i) - 1) / 2) * 4, ox = -uy * lado, oy = ux * lado;
+        const hi = it.faixas[i], x0 = cx + (ux * r * v) / 100 + ox, y0 = cy + (uy * r * v) / 100 + oy, x1 = cx + (ux * r * hi) / 100 + ox, y1 = cy + (uy * r * hi) / 100 + oy, wx = -uy * 4, wy = ux * 4;
+        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x0, y1: y0, x2: x1, y2: y1 }, style: { stroke: it.cor, lineWidth: 2, lineDash: [3, 3] } });
+        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x1 - wx, y1: y1 - wy, x2: x1 + wx, y2: y1 + wy }, style: { stroke: it.cor, lineWidth: 2 } });
       }
       if (it.cortes?.[i]) {
         const j = fila.get(i) || 0; fila.set(i, j + 1);

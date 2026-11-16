@@ -213,6 +213,28 @@ def classe_hardware(hw: list[dict]) -> str:
 # ── radar ───────────────────────────────────────────────────────────────────
 
 
+TETO_BENCH = 16  # amplitude: 16 benchmarks ou mais tocam a borda
+
+
+def amplitude(n: int) -> int:
+    """Escala logaritmica fixa: 1, 3, 5, 9 e 16 benchmarks dao 24, 49, 63, 81
+    e 100. Separa 5 de 9 e nao muda quando o periodo muda."""
+    return round(min(100.0, 100 * math.log1p(n) / math.log1p(TETO_BENCH)))
+
+
+def faixa_abertura(ab: dict) -> tuple[Optional[int], Optional[int]]:
+    """Abertura como faixa: (confirmado, maximo possivel), de 0 a 100.
+    O confirmado soma o que foi lido (artefato nao lido nao soma nada); o
+    maximo soma o que foi lido e trata todo artefato nao lido como liberado.
+    Com tudo lido os dois coincidem; sem nada lido a faixa e (None, None),
+    que o painel desenha como "nao lido", nunca como zero."""
+    if all(e == "nao_lido" for e in ab.values()):
+        return None, None
+    conf = sum(PESO_ARTEFATO[t] * FATOR_ARTEFATO.get(e, 0) for t, e in ab.items() if e != "nao_lido")
+    falta = sum(PESO_ARTEFATO[t] for t, e in ab.items() if e == "nao_lido")
+    return round(100 * conf), round(100 * (conf + falta))
+
+
 def radar(p: dict) -> dict[str, Optional[float]]:
     """Seis eixos de 0 a 100. `None` quando o texto lido nao permite medir,
     o que o painel desenha como "nao lido", nunca como zero."""
@@ -220,14 +242,10 @@ def radar(p: dict) -> dict[str, Optional[float]]:
     # tanh: +3% ja aparece (65), +10% fica perto do topo (88), perda cai abaixo de 50.
     ganho = None if not rx else 50 + 50 * math.tanh(st.median(rx) / 10)
     sol = None if p["nl"] < 3 else round(100 * p["T"] / p["nl"])
-    conhecidos = {t: e for t, e in p["ab"].items() if e != "nao_lido"}
-    ab = None
-    if conhecidos:
-        peso = sum(PESO_ARTEFATO[t] for t in conhecidos)
-        ab = round(100 * sum(PESO_ARTEFATO[t] * FATOR_ARTEFATO.get(e, 0) for t, e in conhecidos.items()) / peso)
+    ab, _ = faixa_abertura(p["ab"])
     fac = None if p["esf"] == 0 else (5 - p["esf"]) * 20
     benchs = {r["b"] for r in p["res"] if r["nos"]}
-    amp = min(100, 20 * len(benchs)) if (benchs or not p["parcial"]) else None
+    amp = amplitude(len(benchs)) if (benchs or not p["parcial"]) else None
     return {"ganho": None if ganho is None else round(ganho), "solidez": sol, "abertura": ab,
             "facilidade": fac, "amplitude": amp, "atencao": None}
 
@@ -288,6 +306,7 @@ def derivar(o: dict, meta: dict) -> dict:
         "url": f"https://arxiv.org/abs/{pid}",
     }
     p["radar"] = radar(p)
+    p["abTeto"] = faixa_abertura(ab)[1]  # o maximo que a abertura pode chegar quando o resto for lido
     return p
 
 

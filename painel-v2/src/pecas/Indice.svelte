@@ -8,12 +8,10 @@
   // seta para o lado alcanca o botao de comparar.
   import { tick } from 'svelte';
   import { flip } from 'svelte/animate';
-  import MiniRadar from '../lib/MiniRadar.svelte';
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
   import Degraus from '../lib/Degraus.svelte';
   import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, FATO, aberturaFrase, faltaLer, intervalo, dataCurta, nBench } from '../lib/dados.js';
-  import { corSolidez } from '../lib/tema.js';
   import { estado, abrir, alternaComparar, mov } from '../lib/estado.svelte.js';
 
   // `periodo`: todos os papers do periodo, sem filtro. A mediana e sempre a do periodo, em todas as telas
@@ -151,7 +149,7 @@
               <a class="abre" href="https://arxiv.org/abs/{p.id}" target="_blank" rel="noopener" data-i={i} data-c="0" tabindex={tab(i, 0)}
                 aria-label="{p.t}. {p.u} votos. Na fila, ainda sem leitura. Abre o arXiv em outra aba"
                 onkeydown={(e) => mover(e, i, 0)} onfocus={() => (foco = { i, c: 0 })}>
-                <span class="glifo"><MiniRadar radar={null} cor="var(--sol-nada)" tam={32} tracejado /></span>
+                <span class="glifo"><i class="sol sem_leitura g" aria-hidden="true"></i></span>
                 <span class="c-t">
                   <span class="t">{#each realcar(p.t, estado.busca) as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
                   <span class="s um">arXiv <span class="num">{p.id}</span></span>
@@ -171,9 +169,11 @@
             <button class="abre" data-i={i} data-c="0" tabindex={tab(i, 0)} aria-label={nomeLongo(p)} aria-current={estado.sel === p.id ? 'true' : undefined}
               onclick={() => abrir(p.id)} onkeydown={(e) => mover(e, i, 0)} onfocus={() => (foco = { i, c: 0 })}
               onmouseenter={() => (estado.hover = p.id)} onmouseleave={() => (estado.hover = null)}>
-              <span class="glifo"><MiniRadar radar={p.radar} cor={corSolidez(estado.tema, p.sol)} tam={32} tracejado={p.sol === 'sem_leitura'} /></span>
+              <span class="glifo"><i class="sol {p.sol} g" aria-hidden="true"></i></span>
               <span class="c-t">
                 <span class="t">{#each realcar(p.t, estado.busca) as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
+                <!-- a frase do modelo sobre o problema (decisao 8), em italico: nao e palavra dos autores nem medida do painel -->
+                {#if p.prob}<span class="pr um" title="O problema do paper, segundo o modelo">{p.prob}</span>{/if}
                 <span class="s um" class:tem={st.some((x) => x[1])}>{#each st as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
                 {#if estado.busca && ondeAchou(p, estado.busca)}<span class="acha um">{ondeAchou(p, estado.busca)}</span>{/if}
               </span>
@@ -242,7 +242,7 @@
   .cab button[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
 
   /* a adocao comeca 12 px depois da sua coluna: o numero do ganho, alinhado a direita, nao encosta nela */
-  .indice { --colunas: 32px minmax(0, 1fr) 44px 48px 76px 64px 132px 100px 72px; }
+  .indice { --colunas: 16px minmax(0, 1fr) 44px 48px 76px 64px 132px 100px 72px; }
   .lista { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); overflow: clip; }
   .linha { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; border-top: 1px solid var(--line); position: relative; background: var(--surface); }
   .grupo:first-child > :first-child { border-top: 0; }
@@ -258,8 +258,10 @@
   .abre { display: grid; width: 100%; min-height: 52px; text-align: left; border-radius: 0; align-items: center;
     grid-template-columns: minmax(0, 1fr); row-gap: var(--sp-1); padding: var(--sp-3) 0 var(--sp-3) var(--sp-3); }
   .glifo { display: none; place-items: center; }
+  .sol.g { width: 16px; height: 16px; }
   .c-t { display: grid; min-width: 0; }
   .t { font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .pr { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); font-style: italic; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .s { display: none; font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
   .s.tem { display: block; }                       /* a busca casou no tipo ou na camada: a linha aparece */
   .acha { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
@@ -300,10 +302,13 @@
 
   @container (max-width: 319px) { .f-g small { display: none; } }             /* celular muito estreito: o ganho fica so com o numero */
 
-  /* medio: os cinco fatos numa linha so, em colunas alinhadas, com a miniatura do radar */
+  /* medio: os cinco fatos numa linha so, em colunas alinhadas. A marca de prova
+     abre a linha (decisao 12): a prova se varre pela margem esquerda, e a coluna
+     Prova fica so com a palavra */
   @container (min-width: 560px) {
-    .abre { grid-template-columns: 32px minmax(0, 1fr); column-gap: var(--sp-3); }
+    .abre { grid-template-columns: 16px minmax(0, 1fr); column-gap: var(--sp-3); }
     .glifo { display: grid; grid-row: 1 / 3; align-self: start; padding-top: 2px; }
+    .f-s .sol { display: none; }
     .fatos { grid-column: 2; grid-template-columns: 72px 96px 104px 140px minmax(0, 1fr); column-gap: var(--sp-4); }
     .f-v, .f-s, .f-g, .f-a, .f-l { grid-column: auto; grid-row: 1; }
     .f-l .oq { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -320,6 +325,11 @@
     .fatos > * { line-height: var(--lh-14); align-self: start; }
     .glifo { grid-row: auto; align-self: start; padding: 2px 0 0; }
     .s { display: block; }
+    /* a frase do modelo e o tipo dividem a segunda linha: a linha da tabela nao cresce */
+    .c-t { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); }
+    .t, .acha { grid-column: 1 / -1; }
+    .pr + .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .pr + .s::before { content: '\00a0·\00a0'; }
     .fatos { display: contents; }
     .f-d, .f-b { display: block; }
     .f-v, .f-s, .f-g, .f-a, .f-l { grid-row: auto; }
@@ -334,7 +344,7 @@
   }
   /* tabela com pouco lugar (paper aberto ao lado, em tela larga): saem a data e a amplitude, ficam as colunas da decisao */
   @container (min-width: 980px) and (max-width: 1119.98px) {
-    .cab-g, .abre { --colunas: 32px minmax(0, 1fr) 48px 76px 64px 132px 100px; }
+    .cab-g, .abre { --colunas: 16px minmax(0, 1fr) 48px 76px 64px 132px 100px; }
     .f-d, .f-b, .cab [data-h="recentes"], .cab [data-h="amplitude"] { display: none; }
     .f-fila { grid-column: 4 / -1; }
   }

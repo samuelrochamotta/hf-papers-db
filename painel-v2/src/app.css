@@ -1,8 +1,7 @@
 /* ==========================================================================
    Sistema do painel v2
    1. primitivos (tipo, espaco, raio, movimento): iguais em toda identidade
-   2. cor: papeis semanticos, um bloco por tema; a identidade troca so este
-      bloco e as familias de fonte
+   2. cor: papeis semanticos, um bloco por tema (identidade "Periodico")
    3. base e controles: uma matriz de estados para tudo que se clica
    Os graficos leem estes tokens (lib/tema.js): trocar um token troca a tela.
    Conferido por medir/axe.mjs (contraste de texto >= 4,5:1) e
@@ -10,10 +9,12 @@
    ========================================================================== */
 :root{
   /* --- tipo: escala modular 1,2 sobre 14 px, alturas de linha na grade de 4 px --- */
-  --f-ui:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-num:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --f-display:var(--f-ui);
-  --display-peso:600; --display-esp:-.02em;
+  /* identidade "Periodico": a serifa (Newsreader) nos titulos, que sao palavras dos autores;
+     IBM Plex no que o painel mediu. Fontes hospedadas no proprio painel (public/fontes) */
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --display-peso:500; --display-esp:-.01em;
   --fs-12:12px; --lh-12:16px;
   --fs-14:14px; --lh-14:20px;
   --fs-17:17px; --lh-17:24px;
@@ -27,7 +28,7 @@
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px; --sp-16:64px;
   /* pagina: 4 colunas ate 767, 8 ate 1023, 12 dali em diante */
   --margem:16px; --calha:16px; --largura:1440px;
-  --r-1:4px; --r-2:8px; --r-3:12px;
+  --r-1:2px; --r-2:3px; --r-3:4px;
   --ctl:32px;            /* altura dos controles */
   --alvo:24px;           /* menor alvo de toque (WCAG 2.2) */
   --barra:56px;          /* barra fixa do topo */
@@ -51,136 +52,58 @@
   .sel::after,.chip::after,.seg>button::after{content:'';position:absolute;inset:-4px 0}}
 @media (prefers-reduced-motion:reduce){:root{--dur-1:0ms;--dur-2:0ms;--dur-3:0ms}}
 
-/* --- cor: claro --- */
-:root{
-  --bg:#f6f7f8; --surface:#ffffff; --sunk:#eef0f2; --hover:#f0f2f4; --raise:#ffffff; --seg-on:#ffffff;
-  --ink:#14171a; --ink2:#3d444b; --muted:#5a626a;
-  --line:#e3e6e9; --line-strong:#868e96;
-  --accent:#14171a; --on-accent:#ffffff; --focus:#2f52cf;
-  --alert:#b03a0e; --alert-soft:#fbeee8;
-  /* solidez: uma rampa, do mais forte (mais tinta) ao mais fragil */
-  --sol-forte:#0f076f; --sol-firme:#00438a; --sol-basico:#1e70a0; --sol-fragil:#559ab4; --sol-nada:#5a626a;
-  /* resultado contra o rival: tinta, cinza e alerta (nao usa a rampa de solidez) */
-  --res-ganha:#14171a; --res-ruido:#868e96; --res-perde:#b03a0e; --res-semrival:#c9ced3;
-  /* comparacao: tres identidades fora da rampa e longe do alerta. Cada uma fica na mesma familia de cor
-     nos dois temas (vinho, verde, violeta); entre claro e escuro muda so a luminosidade */
-  --cmp-1:#8e3f5d; --cmp-2:#4f9118; --cmp-3:#8a5fd6;
-  --sombra-1:0 1px 2px rgba(20,23,26,.06);
-  --sombra-2:0 8px 24px rgba(20,23,26,.10),0 1px 2px rgba(20,23,26,.06);
-  --sombra-3:0 24px 64px rgba(20,23,26,.20);
-  --veu:rgba(20,23,26,.40);
-}
-/* --- cor: escuro (pelo sistema ou escolhido) --- */
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f1113; --surface:#16191c; --sunk:#1e2226; --hover:#1c2024; --raise:#1c2024; --seg-on:#3a4148; --seg-off:#98a0a9; --seg-borda:rgba(255,255,255,.14);
-  --ink:#eceef0; --ink2:#bcc3ca; --muted:#98a0a9;
-  --line:#272c31; --line-strong:#6d757e;
-  --accent:#d0d5da; --on-accent:#0f1113; --focus:#8eb4fd;
-  --alert:#f0855a; --alert-soft:#2a1b15;
-  --sol-forte:#d6ddf9; --sol-firme:#a4bbff; --sol-basico:#6293db; --sol-fragil:#4f7b92; --sol-nada:#98a0a9;
-  --res-ganha:#eceef0; --res-ruido:#6d757e; --res-perde:#f0855a; --res-semrival:#3a4047;
-  --cmp-1:#d85b81; --cmp-2:#a3e06c; --cmp-3:#b08cfc;
-  --sombra-1:0 0 0 1px rgba(255,255,255,.04);
-  --sombra-2:0 12px 32px rgba(0,0,0,.45);
-  --sombra-3:0 24px 64px rgba(0,0,0,.65);
-  --veu:rgba(0,0,0,.6); color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0f1113; --surface:#16191c; --sunk:#1e2226; --hover:#1c2024; --raise:#1c2024; --seg-on:#3a4148; --seg-off:#98a0a9; --seg-borda:rgba(255,255,255,.14);
-  --ink:#eceef0; --ink2:#bcc3ca; --muted:#98a0a9;
-  --line:#272c31; --line-strong:#6d757e;
-  --accent:#d0d5da; --on-accent:#0f1113; --focus:#8eb4fd;
-  --alert:#f0855a; --alert-soft:#2a1b15;
-  --sol-forte:#d6ddf9; --sol-firme:#a4bbff; --sol-basico:#6293db; --sol-fragil:#4f7b92; --sol-nada:#98a0a9;
-  --res-ganha:#eceef0; --res-ruido:#6d757e; --res-perde:#f0855a; --res-semrival:#3a4047;
-  --cmp-1:#d85b81; --cmp-2:#a3e06c; --cmp-3:#b08cfc;
-  --sombra-1:0 0 0 1px rgba(255,255,255,.04);
-  --sombra-2:0 12px 32px rgba(0,0,0,.45);
-  --sombra-3:0 24px 64px rgba(0,0,0,.65);
-  --veu:rgba(0,0,0,.6); color-scheme:dark}
+/* --- fontes: so os alfabetos latinos, hospedados com o painel (sem chamar servico de fora) --- */
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('./fontes/ibm-plex-mono-400-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('./fontes/ibm-plex-mono-400-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('./fontes/ibm-plex-mono-500-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('./fontes/ibm-plex-mono-500-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;src:url('./fontes/ibm-plex-sans-400-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;src:url('./fontes/ibm-plex-sans-400-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:400 600;font-display:swap;src:url('./fontes/newsreader-400-600-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:400 600;font-display:swap;src:url('./fontes/newsreader-400-600-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 
-/* ---------- identidades em estudo (?id=periodico|oficina): trocam familias de fonte, raios e o bloco de cor ---------- */
-:root[data-id="periodico"]{
-  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --f-num:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --f-display:"Newsreader",Georgia,"Times New Roman",serif; --display-peso:500; --display-esp:-.01em;
-  --r-1:2px; --r-2:3px; --r-3:4px;
-  --bg:#f3f5f1; --surface:#fdfefc; --sunk:#e8ebe5; --hover:#f0f2ed; --raise:#fdfefc;
+/* --- cor: claro. Identidade "Periodico": papel de tom esverdeado, prova em verde --- */
+:root{
+  --bg:#f3f5f1; --surface:#fdfefc; --sunk:#e8ebe5; --hover:#f0f2ed; --raise:#fdfefc; --seg-on:#fdfefc;
   --ink:#151a16; --ink2:#3e4640; --muted:#57605a;
   --line:#dce1d9; --line-strong:#808981;
   --accent:#151a16; --on-accent:#fdfefc; --focus:#0b6e45;
   --alert:#a8380f; --alert-soft:#f9ece3;
+  /* solidez: uma rampa, do mais forte (mais tinta) ao mais fragil */
   --sol-forte:#002619; --sol-firme:#004e26; --sol-basico:#28761f; --sol-fragil:#689b1a; --sol-nada:#57605a;
+  /* resultado contra o rival: tinta, cinza e alerta (nao usa a rampa de solidez) */
   --res-ganha:#151a16; --res-ruido:#808981; --res-perde:#a8380f; --res-semrival:#cbd1c8;
+  /* comparacao: tres identidades fora da rampa e longe do alerta. Cada uma fica na mesma familia de cor
+     nos dois temas (vinho, oliva, azul); entre claro e escuro muda so a luminosidade */
   --cmp-1:#8d3d67; --cmp-2:#85861f; --cmp-3:#5874ea;
   --sombra-1:0 1px 2px rgba(21,26,22,.06);
   --sombra-2:0 8px 24px rgba(21,26,22,.10),0 1px 2px rgba(21,26,22,.06);
   --sombra-3:0 24px 64px rgba(21,26,22,.20);
   --veu:rgba(21,26,22,.40);
 }
-@media (prefers-color-scheme:dark){:root[data-id="periodico"]:not([data-theme="light"]){
-  --bg:#111411; --surface:#191d19; --sunk:#222722; --hover:#1e221e; --raise:#1e221e;
+/* --- cor: escuro (pelo sistema ou escolhido) --- */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111411; --surface:#191d19; --sunk:#222722; --hover:#1e221e; --raise:#1e221e; --seg-on:#3a413a; --seg-off:#99a39a; --seg-borda:rgba(255,255,255,.14);
   --ink:#eaefe9; --ink2:#bec6be; --muted:#99a39a;
   --line:#2a2f2a; --line-strong:#6e786f;
-  --accent:#eaefe9; --on-accent:#111411; --focus:#7fd4a3;
+  --accent:#d3dad2; --on-accent:#111411; --focus:#7fd4a3;
   --alert:#f0855a; --alert-soft:#2b1d16;
   --sol-forte:#94fdd9; --sol-firme:#89cd9e; --sol-basico:#7a9e6b; --sol-fragil:#667243; --sol-nada:#99a39a;
   --res-ganha:#eaefe9; --res-ruido:#6e786f; --res-perde:#f0855a; --res-semrival:#39403a;
-  --cmp-1:#b46de3; --cmp-2:#d3d316; --cmp-3:#53a48a;
+  --cmp-1:#c37894; --cmp-2:#d2ca34; --cmp-3:#84a8fd;
   --sombra-1:0 0 0 1px rgba(255,255,255,.04);
   --sombra-2:0 12px 32px rgba(0,0,0,.45);
   --sombra-3:0 24px 64px rgba(0,0,0,.65);
   --veu:rgba(0,0,0,.6); color-scheme:dark}}
-:root[data-id="periodico"][data-theme="dark"]{
-  --bg:#111411; --surface:#191d19; --sunk:#222722; --hover:#1e221e; --raise:#1e221e;
+:root[data-theme="dark"]{
+  --bg:#111411; --surface:#191d19; --sunk:#222722; --hover:#1e221e; --raise:#1e221e; --seg-on:#3a413a; --seg-off:#99a39a; --seg-borda:rgba(255,255,255,.14);
   --ink:#eaefe9; --ink2:#bec6be; --muted:#99a39a;
   --line:#2a2f2a; --line-strong:#6e786f;
-  --accent:#eaefe9; --on-accent:#111411; --focus:#7fd4a3;
+  --accent:#d3dad2; --on-accent:#111411; --focus:#7fd4a3;
   --alert:#f0855a; --alert-soft:#2b1d16;
   --sol-forte:#94fdd9; --sol-firme:#89cd9e; --sol-basico:#7a9e6b; --sol-fragil:#667243; --sol-nada:#99a39a;
   --res-ganha:#eaefe9; --res-ruido:#6e786f; --res-perde:#f0855a; --res-semrival:#39403a;
-  --cmp-1:#b46de3; --cmp-2:#d3d316; --cmp-3:#53a48a;
-  --sombra-1:0 0 0 1px rgba(255,255,255,.04);
-  --sombra-2:0 12px 32px rgba(0,0,0,.45);
-  --sombra-3:0 24px 64px rgba(0,0,0,.65);
-  --veu:rgba(0,0,0,.6); color-scheme:dark}
-:root[data-id="oficina"]{
-  --f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif; --f-num:"DM Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --f-display:"Bricolage Grotesque","Figtree",system-ui,sans-serif; --display-peso:600; --display-esp:-.025em;
-  --r-1:6px; --r-2:10px; --r-3:16px;
-  --bg:#f5f4fa; --surface:#ffffff; --sunk:#eceaf4; --hover:#f1eff8; --raise:#ffffff;
-  --ink:#17142a; --ink2:#423e57; --muted:#5f5a75;
-  --line:#e3e0ee; --line-strong:#8a85a0;
-  --accent:#4a2bd0; --on-accent:#ffffff; --focus:#4a2bd0;
-  --alert:#b03a0e; --alert-soft:#fbeee8;
-  --sol-forte:#191844; --sol-firme:#433576; --sol-basico:#7654a9; --sol-fragil:#b073da; --sol-nada:#5f5a75;
-  --res-ganha:#17142a; --res-ruido:#8a85a0; --res-perde:#b03a0e; --res-semrival:#cdc9dc;
-  --cmp-1:#86465b; --cmp-2:#838542; --cmp-3:#2d8f9e;
-  --sombra-1:0 1px 2px rgba(23,20,42,.06);
-  --sombra-2:0 8px 24px rgba(23,20,42,.10),0 1px 2px rgba(23,20,42,.06);
-  --sombra-3:0 24px 64px rgba(23,20,42,.20);
-  --veu:rgba(23,20,42,.40);
-}
-@media (prefers-color-scheme:dark){:root[data-id="oficina"]:not([data-theme="light"]){
-  --bg:#100f16; --surface:#19181f; --sunk:#23212c; --hover:#1f1d27; --raise:#1f1d27;
-  --ink:#eeecf5; --ink2:#c2bed1; --muted:#9d98b0;
-  --line:#2b2936; --line-strong:#747088;
-  --accent:#b5a4ff; --on-accent:#17122e; --focus:#b5a4ff;
-  --alert:#f0855a; --alert-soft:#2a1b15;
-  --sol-forte:#dde4f9; --sol-firme:#adb3fe; --sol-basico:#9282de; --sol-fragil:#7b50b9; --sol-nada:#9d98b0;
-  --res-ganha:#eeecf5; --res-ruido:#747088; --res-perde:#f0855a; --res-semrival:#3b3848;
-  --cmp-1:#bb76b5; --cmp-2:#8cdec2; --cmp-3:#d3d316;
-  --sombra-1:0 0 0 1px rgba(255,255,255,.04);
-  --sombra-2:0 12px 32px rgba(0,0,0,.45);
-  --sombra-3:0 24px 64px rgba(0,0,0,.65);
-  --veu:rgba(0,0,0,.6); color-scheme:dark}}
-:root[data-id="oficina"][data-theme="dark"]{
-  --bg:#100f16; --surface:#19181f; --sunk:#23212c; --hover:#1f1d27; --raise:#1f1d27;
-  --ink:#eeecf5; --ink2:#c2bed1; --muted:#9d98b0;
-  --line:#2b2936; --line-strong:#747088;
-  --accent:#b5a4ff; --on-accent:#17122e; --focus:#b5a4ff;
-  --alert:#f0855a; --alert-soft:#2a1b15;
-  --sol-forte:#dde4f9; --sol-firme:#adb3fe; --sol-basico:#9282de; --sol-fragil:#7b50b9; --sol-nada:#9d98b0;
-  --res-ganha:#eeecf5; --res-ruido:#747088; --res-perde:#f0855a; --res-semrival:#3b3848;
-  --cmp-1:#bb76b5; --cmp-2:#8cdec2; --cmp-3:#d3d316;
+  --cmp-1:#c37894; --cmp-2:#d2ca34; --cmp-3:#84a8fd;
   --sombra-1:0 0 0 1px rgba(255,255,255,.04);
   --sombra-2:0 12px 32px rgba(0,0,0,.45);
   --sombra-3:0 24px 64px rgba(0,0,0,.65);

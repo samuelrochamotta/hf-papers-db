@@ -295,14 +295,15 @@ export const SEM_FATO = {
   ganho: semGanho, solidez: () => 'não lida', abertura: () => 'não lida',
   facilidade: (p) => ESFORCO[p.esf], amplitude: () => 'não lida', atencao: () => '',
 };
-// O radar desenha a nota de 0 a 100 que vem do Python. Dois avisos ficam no
-// proprio desenho: a amplitude tem teto (20 pontos por benchmark, entao acima
-// de 5 a nota e a mesma) e a abertura so conta os artefatos que a leitura
-// alcancou.
-export const TETO_AMPLITUDE = 5;
+// O radar desenha a nota de 0 a 100 que vem do Python. A amplitude e uma
+// escala logaritmica fixa que toca a borda em 16 benchmarks; quem passa disso
+// ganha a marca de corte. A abertura e uma faixa: o vertice fica no que foi
+// confirmado e um traco vai ate o maximo possivel (`abTeto`), se tudo o que
+// nao foi lido estiver liberado.
+export const TETO_AMPLITUDE = 16;
 export const passaDoEixo = (k, p) => k === 'amplitude' && (nBench(p) ?? 0) > TETO_AMPLITUDE;
 export const naoLidosDe = (p) => Object.values(p.ab).filter((e) => e === 'nao_lido').length;
-export const parteNaoLida = (k, p) => k === 'abertura' && p.radar.abertura != null && naoLidosDe(p) > 0;
+export const tetoDoEixo = (k, p) => (k === 'abertura' && p.radar.abertura != null && p.abTeto != null && p.abTeto > p.radar.abertura ? p.abTeto : null);
 // O que o paper liberou, com as mesmas palavras em todas as telas. Sob o rotulo
 // "Abertura" vai o fato ("código e pesos", "só a página", "nada liberado");
 // onde nao ha rotulo, a frase ("liberou código e pesos"). faltaLer diz quantos

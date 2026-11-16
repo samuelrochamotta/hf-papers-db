@@ -8,7 +8,7 @@
   import Grafico from '../lib/Grafico.svelte';
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
-  import { EIXOS, EIXO_DICA, FATO, SEM_FATO, ART, ART_EST, nBench, ganhoDe, median, nome, esc, radarValores, passaDoEixo, parteNaoLida, faltaLer } from '../lib/dados.js';
+  import { EIXOS, EIXO_DICA, FATO, SEM_FATO, ART, ART_EST, nBench, ganhoDe, median, nome, esc, radarValores, passaDoEixo, tetoDoEixo, faltaLer } from '../lib/dados.js';
   import { base, dica, corCmp, marcasRadar } from '../lib/tema.js';
   import { estado, alternaComparar, abrir, MAX_COMPARAR } from '../lib/estado.svelte.js';
 
@@ -28,13 +28,11 @@
     const vs = sel.map((p) => medida(k, p)).filter((x) => x != null), m = Math.max(...vs);
     return vs.length > 1 && vs.some((x) => x < m) ? m : null;
   }));
-  // Posicao na barra, de 0 a 100. Onde ha numero escrito, a barra e proporcional
-  // a ele: a amplitude vai ate o paper com mais benchmarks do periodo e os votos
-  // ate o mais votado. O ganho usa a nota do radar, em que 50 e o zero; prova e
-  // adocao usam a nota do radar (sinais cumpridos e degrau de esforco).
-  const maxBench = $derived(Math.max(1, ...todos.map((p) => nBench(p) ?? 0)));
+  // Posicao na barra, de 0 a 100: a mesma nota do radar ao lado, para a barra e
+  // o vertice dizerem a mesma coisa (o ganho tem 50 no zero; a amplitude e a
+  // escala logaritmica fixa). Os votos vao ate o mais votado do periodo.
   const maxVotos = $derived(Math.max(1, ...todos.map((p) => p.u)));
-  const pos = (k, p) => (k === 'amplitude' ? (nBench(p) == null ? null : (100 * nBench(p)) / maxBench) : k === 'atencao' ? (100 * p.u) / maxVotos : p.radar[k]);
+  const pos = (k, p) => (k === 'atencao' ? (100 * p.u) / maxVotos : p.radar[k]);
   const medPos = $derived(EIXOS.map(([k]) => median(periodo.map((p) => pos(k, p)))));
   const artefatos = (p) => Object.keys(ART).map((a) => `${ART[a]} ${ART_EST[p.ab[a]] ?? 'não lido'}`).join(' · ');
   const TRACO = ['solid', [6, 3], [2, 3]], MARCA = ['circle', 'rect', 'triangle'];
@@ -43,10 +41,10 @@
   // o radar ocupa o que a largura deixa (os nomes dos eixos pedem uns 75 px de cada lado) e a altura acompanha: sem vao em cima nem embaixo
   const raio = $derived(Math.round(Math.max(60, Math.min((larg - 150) / 2, 165))));
 
-  // avisos que ficam no proprio desenho: quem passa do teto da amplitude e onde a abertura so conta parte dos artefatos
+  // avisos que ficam no proprio desenho: quem passa do teto da amplitude e a faixa da abertura, do confirmado ao maximo possivel
   const cortes = $derived(sel.map((p) => EIXOS.map(([k]) => passaDoEixo(k, p))));
-  const vazados = $derived(sel.map((p) => EIXOS.map(([k]) => parteNaoLida(k, p))));
-  const temCorte = $derived(cortes.some((c) => c.some(Boolean))), temVazado = $derived(vazados.some((c) => c.some(Boolean)));
+  const faixas = $derived(sel.map((p) => EIXOS.map(([k]) => tetoDoEixo(k, p))));
+  const temCorte = $derived(cortes.some((c) => c.some(Boolean))), temFaixa = $derived(faixas.some((c) => c.some((x) => x != null)));
 
   const opcao = $derived(!t.ink || !sel.length ? null : {
     ...base(t),
@@ -60,7 +58,7 @@
       axisName: { color: t.ink2, fontSize: 12, fontWeight: 500, fontFamily: t.fUi },
       splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } },
     },
-    graphic: marcasRadar(t, { cx: larg / 2, cy: raio + 36, r: raio, itens: sel.map((p, i) => ({ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor: corCmp(t, i), simbolo: MARCA[i], vazados: vazados[i], cortes: cortes[i] })) }),
+    graphic: marcasRadar(t, { cx: larg / 2, cy: raio + 36, r: raio, itens: sel.map((p, i) => ({ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor: corCmp(t, i), simbolo: MARCA[i], faixas: faixas[i], cortes: cortes[i] })) }),
     series: [{ type: 'radar', data: [
       { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { color: t.muted, type: [4, 4], width: 1 }, areaStyle: { color: t.lineStrong, opacity: .1 } },
       ...sel.map((p, i) => { const c = corCmp(t, i);
@@ -127,7 +125,7 @@
                   {@const x = v(pos(k, p))}
                   {@const f = FATO[k](p)}
                   <td style:--c="var(--cmp-{i + 1})" class:top={melhor[ei] != null && medida(k, p) === melhor[ei]} class:neg={k === 'ganho' && ganhoDe(p) < 0}>
-                    <span class="fato" class:mut={f == null}>{#if k === 'amplitude' && f != null}{nBench(p)} <span class="un-l">{nBench(p) === 1 ? 'benchmark' : 'benchmarks'}</span><span class="un-c">bench.</span>{:else}{f ?? SEM_FATO[k](p)}{/if}{#if parteNaoLida(k, p)}<span class="nl"><span class="sep">{' · '}</span>{faltaLer(p)}</span>{/if}{#if k === 'solidez' && f != null && p.nl}<span class="nl"><span class="sep">{' · '}</span>{p.T} de {p.nl} sinais</span>{/if}</span>
+                    <span class="fato" class:mut={f == null}>{#if k === 'amplitude' && f != null}{nBench(p)} <span class="un-l">{nBench(p) === 1 ? 'benchmark' : 'benchmarks'}</span><span class="un-c">bench.</span>{:else}{f ?? SEM_FATO[k](p)}{/if}{#if k === 'abertura' && faltaLer(p)}<span class="nl"><span class="sep">{' · '}</span>{faltaLer(p)}</span>{/if}{#if k === 'solidez' && f != null && p.nl}<span class="nl"><span class="sep">{' · '}</span>{p.T} de {p.nl} sinais</span>{/if}</span>
                     {#if k === 'abertura'}
                       <span class="pecas" title={artefatos(p)}>{#each Object.keys(ART) as a}<i class={p.ab[a] ?? 'nao_lido'}></i>{/each}<span class="vh">{artefatos(p)}</span></span>
                     {:else}
@@ -161,7 +159,7 @@
           {#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg><b>{'ABC'[i]}</b>{nome(p)}</span>{/each}
           <span><i class="med"></i>mediana do período</span>
           <span>anéis em 50 e 100, a nota de cada eixo</span>
-          {#if temVazado}<span><i class="oco"></i>parte não lida</span>{/if}
+          {#if temFaixa}<span><i class="fx"></i>até onde a parte não lida pode levar</span>{/if}
           {#if temCorte}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}
         </p>
       </div>
@@ -190,7 +188,7 @@
   .chave .med { width: 16px; height: 10px; border-radius: 2px; border: 1px dashed var(--muted); background: color-mix(in srgb, var(--line-strong) 12%, var(--surface)); }
   .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
   .chave .zero { width: 0; height: 12px; border-left: 1px dotted var(--ink2); }
-  .chave .oco { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink2); }
+  .chave .fx { display: inline-block; width: 14px; height: 0; border-top: 2px dashed var(--ink2); }
   .nl { color: var(--muted); font-weight: 400; }
   td.neg .fato { color: var(--alert); }
 

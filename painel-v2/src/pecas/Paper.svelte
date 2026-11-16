@@ -9,7 +9,7 @@
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { tick } from 'svelte';
-  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, median, urlSegura, radarValores, intervalo, ganhoDe, FATO, SEM_FATO, nBench, passaDoEixo, parteNaoLida, aberturaFrase, faltaLer, LIMITE_TIPO, LIMITE_GRAVE } from '../lib/dados.js';
+  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, median, urlSegura, radarValores, intervalo, ganhoDe, FATO, SEM_FATO, nBench, passaDoEixo, tetoDoEixo, aberturaFrase, faltaLer, LIMITE_TIPO, LIMITE_GRAVE } from '../lib/dados.js';
   import { base, corSolidez, dica, marcasRadar } from '../lib/tema.js';
   import { estado, fechar, alternaComparar, abrir, mov } from '../lib/estado.svelte.js';
 
@@ -50,13 +50,13 @@
   const cor = $derived(p ? (p.sol === 'sem_leitura' ? t.solNada : corSolidez(t, p.sol)) : '');
   const naoLidos = $derived(p ? EIXOS.filter(([k]) => p.radar[k] == null).map(([, r]) => r) : []);
   // O radar desenha a nota de 0 a 100; ao lado do nome de cada eixo vai o fato,
-  // na unidade dele. Os avisos ficam no desenho: vertice vazado onde a abertura
-  // so conta parte dos artefatos, marca de corte onde a amplitude passa do teto.
+  // na unidade dele. Os avisos ficam no desenho: a faixa da abertura, do
+  // confirmado ao maximo possivel, e a marca de corte onde a amplitude passa do teto.
   let largR = $state(360);
   // o radar usa a largura que os nomes dos eixos deixam (uns 95 px de cada lado), ate um teto: no tablet ele nao fica miudo no meio da folha
   const raioR = $derived(Math.round(Math.max(54, Math.min(96, (largR - 190) / 2))));
   const cyR = $derived(raioR + 52);
-  const cortesR = $derived(p ? EIXOS.map(([k]) => passaDoEixo(k, p)) : []), vazadosR = $derived(p ? EIXOS.map(([k]) => parteNaoLida(k, p)) : []);
+  const cortesR = $derived(p ? EIXOS.map(([k]) => passaDoEixo(k, p)) : []), faixasR = $derived(p ? EIXOS.map(([k]) => tetoDoEixo(k, p)) : []);
   const fatoR = (k) => (k === 'amplitude' && nBench(p) != null ? `${nBench(p)} bench.` : FATO[k](p));
   const opRadar = $derived.by(() => {
     if (!p || !t.ink) return null;
@@ -69,7 +69,7 @@
         radius: raioR, center: ['50%', cyR], splitNumber: 4,
         axisName: { color: t.ink2, fontSize: 12, fontFamily: t.fUi, lineHeight: 16, rich: { v: { fontFamily: t.fUi, fontSize: 12, color: t.ink, fontWeight: 600 } } },
         splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } } },
-      graphic: marcasRadar(t, { cx: largR / 2, cy: cyR, r: raioR, itens: [{ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor, simbolo: 'circle', vazados: vazadosR, cortes: cortesR }] }),
+      graphic: marcasRadar(t, { cx: largR / 2, cy: cyR, r: raioR, itens: [{ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor, simbolo: 'circle', faixas: faixasR, cortes: cortesR }] }),
       series: [{ type: 'radar', data: [
         { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { color: t.muted, type: [4, 4], width: 1 } },
         { name: p.t, value: radarValores(EIXOS.map(([k]) => p.radar[k])), symbol: naoLidos.length ? 'none' : 'circle', symbolSize: 5,
@@ -173,6 +173,8 @@
       <div in:fade={{ duration: mov(200) }}>
         <p class="tipo"><i class="sol {p.sol}"></i><span class="pts"><b>{SOL_FRASE[p.sol]}</b>{#if leitura.curta}<span>{leitura.curta}</span>{/if}<span class="mut">{ENTREGA[p.ent] || p.ent}</span>{#if p.cam}<span class="mut">{CAMADA[p.cam] || p.cam}</span>{/if}</span></p>
         <h2 id="paper-titulo" class="titulo" tabindex="-1">{p.t}</h2>
+        <!-- a frase e do modelo, nao dos autores (decisao 8): vai marcada e sem a serifa das palavras do paper -->
+        {#if p.prob}<p class="prob"><span class="rot">Problema, segundo o modelo</span><span class="fr">{p.prob}</span></p>{/if}
         <p class="meta t-12 mut"><span class="pts"><span><span class="num">{p.u}</span> votos</span><span>{intervalo(p.d, p.d)}</span>{#if p.org}<span>{p.org}</span>{/if}</span><span class="pts"><span><a class="lk" href={p.url} target="_blank" rel="noopener">arXiv <span class="num">{p.id}</span></a></span><span><a class="lk" href="https://huggingface.co/papers/{p.id}" target="_blank" rel="noopener">Hugging Face</a></span></span></p>
 
         <div class="sentinela" use:olhaFaixa></div>
@@ -248,7 +250,7 @@
             <header><h3>Os seis eixos</h3></header>
             <div bind:clientWidth={largR}>{#if opRadar}<Grafico opcao={opRadar} altura={2 * raioR + 100} rotulo="Radar do paper nos seis eixos, contra a mediana do período" />{/if}</div>
             <!-- a chave fica embaixo do desenho, como na comparacao -->
-            <p class="t-12 mut chv"><span><i class="tr"></i>mediana do período</span><span>anéis em 50 e 100, a nota de cada eixo</span>{#if vazadosR.some(Boolean)}<span><i class="oco"></i>parte não lida</span>{/if}{#if cortesR.some(Boolean)}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}</p>
+            <p class="t-12 mut chv"><span><i class="tr"></i>mediana do período</span><span>anéis em 50 e 100, a nota de cada eixo</span>{#if faixasR.some((x) => x != null)}<span><i class="fx"></i>até onde a parte não lida pode levar</span>{/if}{#if cortesR.some(Boolean)}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}</p>
           </section>
           <p class="nota t-12 mut">{leitura.frase}</p>
 
@@ -404,7 +406,7 @@
   .tr { width: 16px; border-top: 1.5px dashed var(--muted); display: inline-block; vertical-align: middle; margin-right: 6px; }
   .chv { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: center; margin-top: var(--sp-1); }
   .chv > span { display: inline-flex; align-items: center; white-space: nowrap; }
-  .chv .oco { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink2); margin-right: 6px; }
+  .chv .fx { display: inline-block; width: 14px; height: 0; border-top: 2px dashed var(--ink2); margin-right: 6px; vertical-align: middle; }
   .chv b { font-weight: 600; color: var(--ink2); margin-right: 6px; }
   .nota { margin-top: var(--sp-5); }
 
@@ -426,4 +428,6 @@
   thead th + th { padding-left: var(--sp-3); }
   thead th.num { text-align: right; white-space: nowrap; }
   .links { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-5); }
+  .prob { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--sp-2); margin: 0 0 var(--sp-2); }
+  .prob .fr { font-size: var(--fs-14); line-height: var(--lh-14); color: var(--ink2); font-style: italic; }
 </style>

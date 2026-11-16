@@ -31,7 +31,7 @@ import { readFileSync } from 'node:fs';
 import {
   aplicaLentes, lenteValida, rotuloLente, ordenar, comDado, ORDENS, buscar, periodos, noPeriodo,
   radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ, realcar, ondeAchou,
-  buscarFila, SEM_FATO, FATO, EIXOS, ESFORCO, TETO_AMPLITUDE, passaDoEixo, parteNaoLida, naoLidosDe, nBench, nome, nomeMenor,
+  buscarFila, SEM_FATO, FATO, EIXOS, ESFORCO, TETO_AMPLITUDE, passaDoEixo, tetoDoEixo, naoLidosDe, nBench, nome, nomeMenor,
   aberturaFrase, faltaLer, LIMITE_TIPO, LIMITE_GRAVE,
 } from '../../painel-v2/src/lib/dados.js';
 import { enxame, rotular, toca, dominio, pontoProva, marcasRadar } from '../../painel-v2/src/lib/tema.js';
@@ -269,35 +269,39 @@ test('fato que falta diz por que falta, sem traco', () => {
   }
 });
 
-test('no radar, quem passa do teto da amplitude e a abertura lida em parte ganham aviso', () => {
+test('no radar, quem passa do teto da amplitude ganha corte e a abertura lida em parte ganha faixa', () => {
   const res = (n) => Array.from({ length: n }, (_, i) => ({ b: `B${i}`, rext: 1 }));
-  const cinco = paper('a', { res: res(TETO_AMPLITUDE), radar: { amplitude: 100 } }), nove = paper('b', { res: res(9), radar: { amplitude: 100 } });
-  assert.equal(nBench(cinco), TETO_AMPLITUDE);
-  assert.equal(passaDoEixo('amplitude', cinco), false);
-  assert.equal(passaDoEixo('amplitude', nove), true);
-  assert.equal(passaDoEixo('ganho', nove), false);
-  const parte = paper('c', { ab: { codigo: 'liberado', pesos: 'nao_lido', dados: 'nao_lido', demo: 'nao_lido' }, radar: { abertura: 100 } });
-  const tudo = paper('d', { ab: { codigo: 'liberado', pesos: 'ausente', dados: 'ausente', demo: 'ausente' }, radar: { abertura: 40 } });
-  const nada = paper('e', { ab: { codigo: 'nao_lido', pesos: 'nao_lido', dados: 'nao_lido', demo: 'nao_lido' }, radar: { abertura: null } });
+  const teto = paper('a', { res: res(TETO_AMPLITUDE), radar: { amplitude: 100 } }), mais = paper('b', { res: res(20), radar: { amplitude: 100 } });
+  assert.equal(nBench(teto), TETO_AMPLITUDE);
+  assert.equal(passaDoEixo('amplitude', teto), false);
+  assert.equal(passaDoEixo('amplitude', mais), true);
+  assert.equal(passaDoEixo('ganho', mais), false);
+  const parte = paper('c', { ab: { codigo: 'liberado', pesos: 'nao_lido', dados: 'nao_lido', demo: 'nao_lido' }, radar: { abertura: 40 }, abTeto: 100 });
+  const tudo = paper('d', { ab: { codigo: 'liberado', pesos: 'ausente', dados: 'ausente', demo: 'ausente' }, radar: { abertura: 40 }, abTeto: 40 });
+  const nada = paper('e', { ab: { codigo: 'nao_lido', pesos: 'nao_lido', dados: 'nao_lido', demo: 'nao_lido' }, radar: { abertura: null }, abTeto: null });
   assert.equal(naoLidosDe(parte), 3);
-  assert.equal(parteNaoLida('abertura', parte), true);
-  assert.equal(parteNaoLida('abertura', tudo), false);
-  assert.equal(parteNaoLida('abertura', nada), false, 'eixo todo nao lido nao tem vertice');
-  assert.equal(parteNaoLida('amplitude', parte), false);
+  assert.equal(tetoDoEixo('abertura', parte), 100);
+  assert.equal(tetoDoEixo('abertura', tudo), null, 'tudo lido: a faixa e um ponto');
+  assert.equal(tetoDoEixo('abertura', nada), null, 'eixo todo nao lido nao tem vertice nem faixa');
+  assert.equal(tetoDoEixo('amplitude', parte), null);
+  // nos dados publicados, a faixa nunca fica abaixo do vertice e nunca passa de 100
+  for (const p of REAL.papers) { const h = tetoDoEixo('abertura', p); assert.ok(h == null || (h > p.radar.abertura && h <= 100), p.id); }
 });
 
-test('as marcas do radar: escala nos aneis, vertice vazado e corte fora do anel', () => {
+test('as marcas do radar: escala nos aneis, faixa no eixo e corte fora do anel', () => {
   const t = { muted: '#666', surface: '#fff', fNum: 'mono' }, r = 100, cx = 200, cy = 200;
-  const itens = [{ valores: [50, 100, null, 100, 20, 30], cor: '#a00', simbolo: 'circle', vazados: [false, true, false, false, false, false], cortes: [false, false, false, true, false, false] }];
+  const itens = [{ valores: [50, 40, null, 100, 20, 30], cor: '#a00', simbolo: 'circle', faixas: [null, 100, null, null, null, null], cortes: [false, false, false, true, false, false] }];
   const els = marcasRadar(t, { cx, cy, r, itens });
   const textos = els.filter((e) => e.type === 'text').map((e) => e.style.text);
   assert.deepEqual(textos, ['50', '100']);
   // a escala fica na aresta entre o primeiro e o ultimo eixo: nunca em cima de um raio, onde caem os vertices
   for (const e of els.filter((x) => x.type === 'text')) assert.ok(Math.abs(e.x - cx) > 10, 'rotulo fora do raio do topo');
-  const oco = els.find((e) => e.type === 'circle');
-  assert.ok(oco && oco.style.fill === t.surface && oco.style.stroke === '#a00');
-  // o vertice vazado fica no anel de 100 do segundo eixo (60 graus a esquerda do topo)
-  assert.ok(Math.abs(Math.hypot(oco.shape.cx - cx, oco.shape.cy - cy) - r) < 0.01);
+  const [faixa, fim] = els.filter((e) => e.type === 'line');
+  assert.ok(faixa && faixa.style.lineDash && faixa.style.stroke === '#a00', 'a faixa e tracejada, na cor do paper');
+  // a faixa sai do vertice (40) e vai ate o anel de 100 do segundo eixo; o traco de fim fica no 100
+  assert.ok(Math.abs(Math.hypot(faixa.shape.x1 - cx, faixa.shape.y1 - cy) - 0.4 * r) < 0.01);
+  assert.ok(Math.abs(Math.hypot(faixa.shape.x2 - cx, faixa.shape.y2 - cy) - r) < 0.01);
+  assert.ok(fim && !fim.style.lineDash);
   const cortes = els.filter((e) => e.type === 'polyline');
   assert.equal(cortes.length, 2);
   for (const c of cortes) assert.ok(Math.hypot(c.shape.points[1][0] - cx, c.shape.points[1][1] - cy) > r, 'a marca de corte fica fora do anel');

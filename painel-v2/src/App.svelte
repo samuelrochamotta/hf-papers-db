@@ -18,15 +18,11 @@
   import { estado, temaSalvo, lente, temLente } from './lib/estado.svelte.js';
 
   const VISTAS = [['papers', 'Papers', 'lista'], ['panorama', 'Panorama', 'graficos'], ['comparar', 'Comparar', 'radar']];
-  const VARIANTES = { lentes: ['uma', 'varias'] };
-  const IDENTIDADES = ['', 'periodico', 'oficina'];
   const vistas = $derived(VISTAS.map(([k, r, ic]) => [k, r, k === 'comparar' && estado.comparar.length ? estado.comparar.length : '', ic]));
 
   // O recorte vai para o endereco: um link copiado abre o mesmo painel.
   function lerEndereco() {
     const q = new URLSearchParams(location.search);
-    for (const [k, vs] of Object.entries(VARIANTES)) if (vs.includes(q.get(k))) estado.v[k] = q.get(k);
-    if (IDENTIDADES.includes(q.get('id'))) { estado.v.id = q.get('id'); if (estado.v.id) document.documentElement.dataset.id = estado.v.id; }
     if (q.get('periodo')) estado.periodo = q.get('periodo');
     for (const l of q.getAll('lente')) {
       const [k, ...v] = l.split(':'), ok = lenteValida(k, v.join(':'));
@@ -43,8 +39,6 @@
   $effect(() => {
     if (!pronto) return;
     const q = new URLSearchParams();
-    for (const [k, vs] of Object.entries(VARIANTES)) if (estado.v[k] !== vs[0]) q.set(k, estado.v[k]);
-    if (estado.v.id) q.set('id', estado.v.id);
     if (estado.vista !== 'papers') q.set('vista', estado.vista);
     if (estado.periodo !== 'tudo') q.set('periodo', estado.periodo);
     for (const l of estado.lentes) q.append('lente', `${l.k}:${l.v}`);
