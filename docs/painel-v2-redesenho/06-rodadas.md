@@ -429,3 +429,14 @@ Acabamento, gráficos e uso sem achado alto.
 | Achado alto | Crítico | O que foi feito |
 |---|---|---|
 | Com o filtro Frágil, "Onde está a disputa?" mostra "1" ao lado de "nenhuma arena tem disputa", e as arenas somam 3 papers num recorte de 2 | celular (médio para os outros três) | Sem disputa, o número grande é 0 ("arenas com disputa neste recorte: cada arena tem um paper só"), e a frase avisa quando um paper conta em mais de uma arena |
+
+## Rodada 13 (2026-11-16)
+
+Notas: acabamento 8, gráficos 7, celular e tablet 7, uso e texto 8.
+Acabamento, celular e uso sem achado alto.
+
+| Achado alto | Crítico | O que foi feito |
+|---|---|---|
+| Com o filtro Frágil, o "0" de "Onde está a disputa?" conta arenas, enquanto no resto o número conta papers | gráficos | Sem disputa, a resposta é uma palavra: "Nenhuma arena com disputa neste recorte: cada uma tem um paper só". O número volta a contar sempre papers |
+
+Médio tratado junto: no tablet, "ganho não achado" volta a caber numa linha.

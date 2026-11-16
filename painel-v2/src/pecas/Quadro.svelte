@@ -6,7 +6,7 @@
   import { Tween } from 'svelte/motion';
   import { cubicOut } from 'svelte/easing';
   import { mov } from '../lib/estado.svelte.js';
-  let { pergunta, valor = undefined, casas = 0, prefixo = '', sufixo = '', resposta = '', extra = null, children, legenda = null, id = '', vazio = false } = $props();
+  let { pergunta, valor = undefined, casas = 0, prefixo = '', sufixo = '', resposta = '', palavra = '', extra = null, children, legenda = null, id = '', vazio = false } = $props();
   const t = new Tween(0, { duration: mov(320), easing: cubicOut });
   $effect(() => { t.target = valor ?? 0; });
   const mostra = $derived((prefixo && t.current >= 0.05 ? prefixo : t.current <= -0.05 ? '−' : '')
@@ -17,7 +17,10 @@
   <header>
     <h3 id="q-{id}">{pergunta}</h3>
   </header>
-  {#if valor !== undefined && !vazio}
+  <!-- `palavra` responde com uma palavra quando um numero mudaria de unidade (rodada 13: "Nenhuma" arena com disputa) -->
+  {#if palavra && !vazio}
+    <p class="resp"><b class="titulo">{palavra}</b><span>{resposta}</span></p>
+  {:else if valor !== undefined && !vazio}
     <p class="resp"><b class="titulo">{valor == null ? '–' : mostra}{#if sufixo && valor != null}<small>{sufixo}</small>{/if}</b><span>{resposta}</span></p>
   {/if}
   <!-- o controle do desenho fica junto do desenho: o numero de cada quadro da fileira comeca na mesma altura -->

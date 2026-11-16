@@ -27,12 +27,13 @@
   });
   const topo = $derived(linhas[0] || null);
   const empate = $derived(topo ? linhas.filter((l) => l.k !== 'outra' && l.ps.size === topo.ps.size).length : 0);
-  // com um paper por arena nao ha disputa: o numero e zero arenas com disputa, e nao "1" (rodada 12).
+  // com um paper por arena nao ha disputa: a resposta e a palavra "Nenhuma", e nao um numero. "1" contradizia
+  // a frase (rodada 12) e "0" mudava a unidade do numero, que no resto conta papers (rodada 13).
   // Um paper que compete em duas arenas conta nas duas, e a frase avisa quando isso faz a soma passar do recorte
   const semDisputa = $derived(!!topo && topo.ps.size === 1 && linhas.length > 1);
   const repete = $derived(linhas.reduce((n, l) => n + l.ps.size, 0) > new Set(linhas.flatMap((l) => [...l.ps])).size);
   const resposta = $derived(!topo ? 'nenhum resultado em tabela'
-    : semDisputa ? `arenas com disputa neste recorte: cada arena tem um paper só${repete ? ', e um paper pode estar em mais de uma' : ''}`
+    : semDisputa ? `arena com disputa neste recorte: cada uma tem um paper só${repete ? ', e um paper pode estar em mais de uma' : ''}`
     : topo.ps.size === 1 ? `paper em ${nome(topo.k)}, sem disputa neste recorte`
     : empate > 1 ? `papers em cada uma das ${empate} arenas mais cheias`
     : `papers disputam ${nome(topo.k)}, a arena mais cheia`);
@@ -107,7 +108,7 @@
   };
 </script>
 
-<Quadro id="arenas" pergunta="Onde está a disputa?" valor={topo && !semDisputa ? topo.ps.size : 0} {resposta} vazio={!linhas.length}>
+<Quadro id="arenas" pergunta="Onde está a disputa?" valor={topo ? topo.ps.size : 0} palavra={semDisputa ? 'Nenhuma' : ''} {resposta} vazio={!linhas.length}>
   {#if opcao && linhas.length}
     <div class="cresce" bind:clientWidth={larg}><Grafico {opcao} altura={Math.max(176, linhas.length * 28 + 78)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" /></div>
   {:else}<div class="vazio">Nenhum resultado com benchmark neste recorte.</div>{/if}

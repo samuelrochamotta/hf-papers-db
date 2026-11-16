@@ -316,6 +316,7 @@
     .fatos { grid-column: 2; grid-template-columns: 72px 96px 104px 140px minmax(0, 1fr); column-gap: var(--sp-4); }
     .f-v, .f-s, .f-g, .f-a, .f-l { grid-column: auto; grid-row: 1; }
     .f-l { display: grid; }
+    .f-g.sem { white-space: nowrap; }             /* no tablet ha espaco: "ganho não achado" fica numa linha */
     .f-l .oq { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-l .nl { white-space: normal; } .f-l .nl::before { content: none; }
     .f-fila { grid-column: 2 / -1; }
