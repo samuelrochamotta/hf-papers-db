@@ -51,7 +51,7 @@ export const SIG = [
 export const LIMITE_TIPO = { escopo: 'escopo', medicao: 'medição', confusao: 'fator de confusão', amostra_pequena: 'amostra pequena', dado_fechado: 'dado fechado', preliminar: 'resultado preliminar', pesos_ficticios: 'pesos fictícios' };
 export const LIMITE_GRAVE = ['preliminar', 'amostra_pequena', 'pesos_ficticios'];
 export const ART = { codigo: 'Código', pesos: 'Pesos', dados: 'Dados', demo: 'Demo' };
-export const ART_EST = { liberado: 'liberado', prometido: 'prometido', so_pagina: 'só página', ausente: 'ausente', nao_lido: 'não lido' };
+export const ART_EST = { liberado: 'liberado', prometido: 'prometido', so_pagina: 'só página', ausente: 'ausente', nao_lido: 'não verificado' };
 export const SOL_FRASE = { forte: 'Prova forte', firme: 'Prova firme', basico: 'Prova básica', fragil: 'Prova frágil', sem_leitura: 'Prova não avaliada' };
 
 export const FAMILIAS = [
@@ -299,7 +299,7 @@ export const SEM_FATO = {
 // escala logaritmica fixa que toca a borda em 16 benchmarks; quem passa disso
 // ganha a marca de corte. A abertura e uma faixa: o vertice fica no que foi
 // confirmado e um traco vai ate o maximo possivel (`abTeto`), se tudo o que
-// nao foi lido estiver liberado.
+// nao foi verificado estiver liberado.
 export const TETO_AMPLITUDE = 16;
 export const passaDoEixo = (k, p) => k === 'amplitude' && (nBench(p) ?? 0) > TETO_AMPLITUDE;
 export const naoLidosDe = (p) => Object.values(p.ab).filter((e) => e === 'nao_lido').length;
@@ -310,5 +310,15 @@ export const tetoDoEixo = (k, p) => (k === 'abertura' && p.radar.abertura != nul
 // artefatos a leitura nao alcancou: "nada liberado" com parte nao lida nao e
 // a mesma coisa que nada.
 export const aberturaFrase = (p) => { const f = FATO.abertura(p); return f == null ? 'abertura não lida' : liberados(p) ? `liberou ${f}` : f; };
-// "3 de 4 não lidos": a conta e dos quatro artefatos da abertura (codigo, pesos, dados e demo)
-export const faltaLer = (p) => { const n = naoLidosDe(p); return p.radar.abertura != null && n ? `${n} de 4 ${n === 1 ? 'não lido' : 'não lidos'}` : ''; };
+// O que a leitura nao verificou entre os quatro artefatos, pelo nome
+// ("pesos, dados e demo não verificados"): uma conta ("3 de 4") se lia como
+// partes do paper (rodada 8), e "não lido" ja diz outra coisa (ganho, eixo)
+const ART_MIN = { codigo: 'código', pesos: 'pesos', dados: 'dados', demo: 'demo' };
+export const faltaLer = (p) => {
+  if (p.radar.abertura == null) return '';
+  const ks = Object.keys(ART_MIN).filter((k) => p.ab[k] === 'nao_lido');
+  if (!ks.length) return '';
+  const nomes = ks.map((k) => ART_MIN[k]), lista = nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes.at(-1)}` : nomes[0];
+  const fim = ks.length > 1 || ks[0] === 'pesos' || ks[0] === 'dados' ? 'não verificados' : ks[0] === 'demo' ? 'não verificada' : 'não verificado';
+  return `${lista} ${fim}`;
+};

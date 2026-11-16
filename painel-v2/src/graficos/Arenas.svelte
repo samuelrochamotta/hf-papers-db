@@ -47,7 +47,8 @@
     return m;
   });
   const taxa = (o) => o.v / Math.max(1, o.c);
-  const vencem = $derived([...placar.values()].sort((a, b) => taxa(b) - taxa(a) || b.v - a.v || b.p.u - a.p.u).map((o) => o.p));
+  // so entra quem vence a maioria das disputas: "5 de 15" com ganho negativo nao e quem vence (rodada 8)
+  const vencem = $derived([...placar.values()].filter((o) => o.v * 2 > o.c).sort((a, b) => taxa(b) - taxa(a) || b.v - a.v || b.p.u - a.p.u).map((o) => o.p));
 
   // a barra conta resultados; a coluna da esquerda conta papers e a da direita diz o placar. So vence
   // quem tem rival: o resultado sem rival externo nao entra na conta
@@ -106,7 +107,7 @@
   {#if opcao && linhas.length}
     <div class="cresce" bind:clientWidth={larg}><Grafico {opcao} altura={Math.max(176, linhas.length * 28 + 78)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" /></div>
   {:else}<div class="vazio">Nenhum resultado com benchmark neste recorte.</div>{/if}
-  <Nomes papers={vencem} max={4} titulo="Mais vencem em {nome(foco)}" rotulo="Papers que mais vencem em {nome(foco)}" valor={(p) => `${placar.get(p.id).v} de ${placar.get(p.id).c}`} />
+  <Nomes papers={vencem} max={4} titulo="Vencem a maioria em {nome(foco)}" rotulo="Papers que vencem a maioria das disputas em {nome(foco)}" valor={(p) => `${placar.get(p.id).v} de ${placar.get(p.id).c}`} />
   {#snippet legenda()}
     <ul class="leg" aria-label="Desfecho contra o melhor rival">
       {#each ESTADOS as [e, rot]}<li><i class="sw {e}"></i>{rot}</li>{/each}

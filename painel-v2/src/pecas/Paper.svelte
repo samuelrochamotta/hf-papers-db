@@ -250,7 +250,7 @@
             <header><h3>Os seis eixos</h3></header>
             <div bind:clientWidth={largR}>{#if opRadar}<Grafico opcao={opRadar} altura={2 * raioR + 116} rotulo="Radar do paper nos seis eixos, contra a mediana do período" />{/if}</div>
             <!-- a chave fica embaixo do desenho, como na comparacao -->
-            <p class="t-12 mut chv"><span><i class="tr"></i>mediana do período</span><span>anéis em 50 e 100, a nota de cada eixo</span>{#if faixasR.some((x) => x != null)}<span><i class="fx"></i>até onde a parte não lida pode levar</span>{/if}{#if cortesR.some(Boolean)}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}</p>
+            <p class="t-12 mut chv"><span><i class="tr"></i>mediana do período</span><span>anéis em 50 e 100, a nota de cada eixo</span>{#if faixasR.some((x) => x != null)}<span><i class="fx"></i>até o máximo possível</span>{/if}{#if cortesR.some(Boolean)}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}</p>
           </section>
           <p class="nota t-12 mut">{leitura.frase}</p>
 

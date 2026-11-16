@@ -107,7 +107,7 @@ entre as opções apresentadas a ele.
 10. Rótulo não leva ponto final; frase completa leva.
 11. Um paper tem um nome curto só (`nome()` em `dados.js`: o título até os dois-pontos, até 28 letras, cortado em palavra inteira). Gráficos, nomes, legendas e a comparação usam o mesmo; só onde ele não cabe o desenho usa o menor (`nomeMenor()`).
 12. A conferência da manchete diz o que a leitura fez: "fora das tabelas lidas", não "não confere".
-13. A abertura tem as mesmas palavras em toda tela (`aberturaFrase()` e `faltaLer()` em `dados.js`): o que foi liberado ("código", "código e pesos", "só a página", "nada liberado") e, ao lado ou embaixo, quanto ficou sem ler ("3 de 4 não lidos", contados entre os quatro artefatos). "Nada liberado" com parte não lida nunca aparece sozinho.
+13. A abertura tem as mesmas palavras em toda tela (`aberturaFrase()` e `faltaLer()` em `dados.js`): o que foi liberado ("código", "código e pesos", "só a página", "nada liberado") e, ao lado ou embaixo, os artefatos que a leitura não verificou, pelo nome ("pesos, dados e demo não verificados"). "Nada liberado" com artefato não verificado nunca aparece sozinho. Até a rodada 8 era uma conta ("3 de 4 não lidos"), que os críticos liam como partes do paper.
 14. "Mediana" é sempre a do período escolhido, com ou sem filtro, e sempre escrita "mediana do período".
 15. Limite que os autores admitem tem dois nomes, "Limite admitido" e "Limite grave", seguidos do tipo por extenso (`LIMITE_TIPO` em `dados.js`).
 16. Nível com nome leva maiúscula (Forte, Firme, Integrar, Não avaliada); fato leva minúscula (código, sem rival, ganho não lido).
@@ -131,7 +131,7 @@ aparece no desenho (`marcasRadar()` em `tema.js`):
 | Marca | Quando | Onde |
 |---|---|---|
 | "50" e "100" | sempre | nos anéis, na aresta entre o primeiro e o último eixo, onde nenhum vértice cai |
-| Fio fino na cor apagada, com anel vazado na cor do paper no fim | a abertura tem artefato não lido: o vértice é o confirmado e a faixa vai até o máximo possível (`abTeto`, decisão 13) | ao longo do eixo, na cor do paper; com dois ou três papers os fios ficam lado a lado, 6 px entre eles |
+| Fio fino com anel vazado na cor do paper no fim | a abertura tem artefato não verificado: o vértice é o confirmado e o fio vai até o máximo possível (`abTeto`, decisão 13) | ao longo do eixo; com um paper o fio é cinza, com dois ou três ele leva a cor do paper, e os fios ficam lado a lado, 8 px entre eles |
 | Marca de corte "»" | o fato passa do teto do eixo (amplitude acima de 16 benchmarks) | fora do anel, na cor do paper |
 | Fato com unidade | radar de um paper só | ao lado do nome de cada eixo ("9 bench.", "código", "+10,2%") |
 
@@ -142,11 +142,11 @@ cair no mesmo vértice e a escala não muda com o período.
 Na tabela da comparação, a barra da amplitude segue a mesma escala do radar e
 a de votos é proporcional aos votos, até o maior do período; o ganho sai do zero para
 os dois lados; a prova escreve os sinais cumpridos; a abertura mostra os quatro
-artefatos, com os não lidos tracejados.
+artefatos, com os não verificados tracejados.
 
 ## Lista de papers
 
 1. A marca de prova abre cada linha (decisão 12, no lugar da miniatura do radar): cor mais preenchimento, anel tracejado para "Não avaliada" (o paper foi lido, mas com poucos sinais de prova para avaliar). A fila não leva marca: a linha diz "Na fila, ainda sem leitura".
 2. Abaixo do título, a frase do problema escrita pelo modelo, em itálico (decisão 8). No paper aberto ela vem com o rótulo "Problema, segundo o modelo"; na lista, o itálico e a dica ao passar o ponteiro dizem de quem é a frase.
 3. Filtros sempre se somam (decisão 9): cada um vira um chip removível, e "Limpar" tira todos.
-4. "Não avaliada" é o nível de prova de um paper lido com menos de três sinais de prova legíveis; "não lido" fica para o que a leitura não alcançou (ganho, abertura, amplitude) e para a fila. Até a rodada 6 o nível se chamava "Não lida", e os críticos o liam como "paper não lido".
+4. "Não avaliada" é o nível de prova de um paper lido com menos de três sinais de prova legíveis; "não lido" fica para o que a leitura não alcançou (ganho, abertura, amplitude) e para a fila; "não verificado" fica para um artefato (código, pesos, dados, demo) que a leitura não confirmou se foi liberado. Até a rodada 6 o nível se chamava "Não lida", e os críticos o liam como "paper não lido".

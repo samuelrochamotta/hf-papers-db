@@ -34,7 +34,7 @@
   const maxVotos = $derived(Math.max(1, ...todos.map((p) => p.u)));
   const pos = (k, p) => (k === 'atencao' ? (100 * p.u) / maxVotos : p.radar[k]);
   const medPos = $derived(EIXOS.map(([k]) => median(periodo.map((p) => pos(k, p)))));
-  const artefatos = (p) => Object.keys(ART).map((a) => `${ART[a]} ${ART_EST[p.ab[a]] ?? 'não lido'}`).join(' · ');
+  const artefatos = (p) => Object.keys(ART).map((a) => `${ART[a]} ${ART_EST[p.ab[a]] ?? 'não verificado'}`).join(' · ');
   const TRACO = ['solid', [6, 3], [2, 3]], MARCA = ['circle', 'rect', 'triangle'];
   // as linhas da tabela seguem a ordem das colunas da lista de papers: votos, prova, ganho, adocao, abertura, amplitude
   const LINHAS = ['atencao', 'solidez', 'ganho', 'facilidade', 'abertura', 'amplitude'].map((k) => EIXOS.findIndex(([e]) => e === k));
@@ -149,7 +149,7 @@
           {#if estadosAb.has('liberado')}<span><span class="pecas ex um" aria-hidden="true"><i class="liberado"></i></span>liberado</span>{/if}
           {#if estadosAb.has('prometido') || estadosAb.has('so_pagina')}<span><span class="pecas ex um" aria-hidden="true"><i class="prometido"></i></span>prometido ou só a página</span>{/if}
           {#if estadosAb.has('ausente')}<span><span class="pecas ex um" aria-hidden="true"><i class="ausente"></i></span>não liberado</span>{/if}
-          {#if estadosAb.has('nao_lido')}<span><span class="pecas ex um" aria-hidden="true"><i class="nao_lido"></i></span>não lido</span>{/if}
+          {#if estadosAb.has('nao_lido')}<span><span class="pecas ex um" aria-hidden="true"><i class="nao_lido"></i></span>não verificado</span>{/if}
         </p>
       </div>
 
@@ -159,7 +159,7 @@
           {#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg><b>{'ABC'[i]}</b>{nome(p)}</span>{/each}
           <span><i class="med"></i>mediana do período</span>
           <span>anéis em 50 e 100, a nota de cada eixo</span>
-          {#if temFaixa}<span><i class="fx"></i>até onde a parte não lida pode levar</span>{/if}
+          {#if temFaixa}<span><i class="fx"></i>até o máximo possível</span>{/if}
           {#if temCorte}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}
         </p>
       </div>
@@ -189,7 +189,7 @@
   .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
   .chave .zero { width: 0; height: 12px; border-left: 1px dotted var(--ink2); }
   .chave .fx { display: inline-block; width: 18px; height: 7px; background: linear-gradient(var(--muted), var(--muted)) left center / 12px 1px no-repeat, radial-gradient(circle at calc(100% - 3.5px) 50%, var(--surface) 2px, var(--ink2) 2.2px, var(--ink2) 3.2px, transparent 3.4px); }
-  .nl { color: var(--muted); font-weight: 400; white-space: nowrap; display: inline-block; }   /* "3 de 4 não lidos" desce inteiro para a linha de baixo, nunca quebra no meio */
+  .nl { color: var(--muted); font-weight: 400; }
   td.neg .fato { color: var(--alert); }
 
   .letra { width: 20px; height: 20px; border-radius: 50%; background: var(--c); color: var(--surface); display: inline-grid; place-items: center; font-size: var(--fs-12); line-height: 1; font-weight: 600; font-style: normal; flex: none; }

@@ -192,7 +192,7 @@ export function marcasRadar(t, { cx, cy, r, itens }) {
     style: { text: String(v), fill: t.muted, font: `11px ${t.fNum}`, align: 'center', verticalAlign: 'middle', backgroundColor: t.surface, padding: [1, 3] } }));
   const total = new Map(), fila = new Map();   // marcas de corte por eixo: ficam lado a lado, atravessadas no eixo
   for (const it of itens) it.cortes?.forEach((c, i) => { if (c) total.set(i, (total.get(i) || 0) + 1); });
-  // faixas no mesmo eixo ficam lado a lado (6 px entre os centros), para uma nao esconder a outra
+  // faixas no mesmo eixo ficam lado a lado (8 px entre os centros), para uma nao esconder a outra
   const totalF = new Map(), filaF = new Map();
   for (const it of itens) it.faixas?.forEach((f, i) => { if (f != null) totalF.set(i, (totalF.get(i) || 0) + 1); });
   for (const it of itens) {
@@ -201,12 +201,13 @@ export function marcasRadar(t, { cx, cy, r, itens }) {
       const [ux, uy] = dir(i, n);
       // faixa: do vertice (o confirmado) ate o maximo possivel. Fio fino na cor apagada, para ficar
       // abaixo das series (banda grossa ou tracejado na cor do paper se liam como "abertura maxima",
-      // rodadas 5 a 7); um anel vazado na cor do paper marca o maximo e diz de quem e
+      // rodadas 5 a 7); um anel vazado na cor do paper marca o maximo e diz de quem e. Com dois ou
+      // tres papers o fio cinza nao dizia de quem era (rodada 8): ai o fio leva a cor do paper
       if (it.faixas?.[i] != null && v != null && it.faixas[i] > v) {
         const j = filaF.get(i) || 0; filaF.set(i, j + 1);
-        const lado = (j - (totalF.get(i) - 1) / 2) * 6, ox = -uy * lado, oy = ux * lado;
+        const lado = (j - (totalF.get(i) - 1) / 2) * 8, ox = -uy * lado, oy = ux * lado;
         const hi = it.faixas[i], x0 = cx + (ux * r * v) / 100 + ox, y0 = cy + (uy * r * v) / 100 + oy, x1 = cx + (ux * r * hi) / 100 + ox, y1 = cy + (uy * r * hi) / 100 + oy;
-        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x0, y1: y0, x2: x1, y2: y1 }, style: { stroke: t.muted, lineWidth: 1 } });
+        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x0, y1: y0, x2: x1, y2: y1 }, style: { stroke: itens.length > 1 ? it.cor : t.muted, lineWidth: 1 } });
         out.push({ type: 'circle', silent: true, z: 19, shape: { cx: x1, cy: y1, r: 3 }, style: { stroke: it.cor, lineWidth: 1.5, fill: t.surface } });
       }
       if (it.cortes?.[i]) {

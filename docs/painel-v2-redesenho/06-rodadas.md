@@ -376,3 +376,15 @@ sem achado alto; cada um dos outros três com um.
 Médios tratados junto: "3 de 4 não lidos" desce inteiro para a linha de
 baixo na comparação; a linha "Facilidade" da adoção no paper passou a
 "Esforço", como o resto do painel.
+
+## Rodada 8 (2026-11-16)
+
+Notas: acabamento 7, gráficos 7, celular e tablet 7, uso e texto 7. Quatro
+achados altos depois de juntar repetidos.
+
+| Achado alto | Críticos | O que foi feito |
+|---|---|---|
+| Na comparação a 360 px, "3 de 4 não lidos" das três colunas se sobrepõe | celular, gráficos, uso | O texto quebra dentro da coluna. A regra da rodada 7, de não quebrar no meio, causava o transbordo e também comia o espaço antes do "·" |
+| "3 de 4 não lidos" se lê como partes do paper, e "não lido" num artefato não diz se o paper não liberou ou se a leitura não verificou | celular, uso | Os artefatos vêm pelo nome e com outra palavra: "pesos, dados e demo não verificados". Na lista a coluna Abertura alargou para o texto caber inteiro |
+| No radar da comparação, os fios da abertura são cinza, não têm dono e as pontas se encostam | acabamento (médio para gráficos) | Com dois ou três papers o fio leva a cor do paper; fios lado a lado a 8 px. A legenda diz "até o máximo possível" |
+| "Mais vencem em Robótica" lista quem vence 5 de 15 com ganho negativo, e a ordem não segue as vitórias | uso (médio para gráficos) | O quadro lista só quem vence a maioria das disputas na arena ("Vencem a maioria em Robótica") |

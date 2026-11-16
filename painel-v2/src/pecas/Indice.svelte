@@ -51,9 +51,9 @@
   const sub = (p) => [ENTREGA[p.ent] || p.ent, p.cam ? CAMADA[p.cam] || p.cam : null].filter(Boolean).join(' · ');
   // a abertura usa as mesmas palavras em todas as telas (FATO.abertura): na
   // tabela, o fato sob o cabecalho; fora dela, a frase ("liberou código"). O
-  // que a leitura nao alcancou vem logo abaixo ("3 de 4 não lidos")
+  // que a leitura nao alcancou vem logo abaixo ("pesos, dados e demo não verificados")
   const nomeLongo = (p) => [p.t, `${p.u} votos`, SOL_FRASE[p.sol].toLowerCase(), ganhoDe(p) != null ? `ganho ${sgn(ganhoDe(p))}%` : null,
-    p.radar.facilidade != null ? `esforço: ${ESFORCO[p.esf].toLowerCase()}` : null, [aberturaFrase(p), faltaLer(p) && `${faltaLer(p)} entre os artefatos`].filter(Boolean).join(', ')].filter(Boolean).join('. ');
+    p.radar.facilidade != null ? `esforço: ${ESFORCO[p.esf].toLowerCase()}` : null, [aberturaFrase(p), faltaLer(p)].filter(Boolean).join(', ')].filter(Boolean).join('. ');
 
   // colunas da tabela: [chave de ordem, rotulo, classe]
   const COLS = [['recentes', 'Data', 'c-d'], ['votos', 'Votos', 'c-n'], ['solidez', 'Prova', 'c-s'], ['ganho', 'Ganho', 'c-n'],
@@ -242,7 +242,7 @@
   .cab button[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
 
   /* a adocao comeca 12 px depois da sua coluna: o numero do ganho, alinhado a direita, nao encosta nela */
-  .indice { --colunas: 16px minmax(0, 1fr) 44px 48px 76px 64px 132px 100px 72px; }
+  .indice { --colunas: 16px minmax(0, 1fr) 44px 48px 76px 64px 132px 136px 72px; }
   .lista { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); overflow: clip; }
   .linha { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; border-top: 1px solid var(--line); position: relative; background: var(--surface); }
   .grupo:first-child > :first-child { border-top: 0; }
@@ -284,7 +284,7 @@
   .f-l { display: grid; }
   .f-l .cur { display: none; }
   .f-l .oq { white-space: normal; overflow-wrap: anywhere; }
-  .f-l .nl { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .f-l .nl { color: var(--muted); white-space: normal; }      /* os artefatos nao verificados vao inteiros, pelo nome: cortados, "d..." nao diz qual falta */
   .f-s, .f-a { display: inline-flex; align-items: center; gap: 6px; }
   /* sem degraus (so informa), o nome comeca onde comecam os outros: a coluna tem uma margem so */
   .sem-deg { width: 18px; flex: none; }
@@ -355,7 +355,7 @@
   }
   /* tabela com pouco lugar (paper aberto ao lado, em tela larga): saem a data e a amplitude, ficam as colunas da decisao */
   @container (min-width: 980px) and (max-width: 1119.98px) {
-    .cab-g, .abre { --colunas: 16px minmax(0, 1fr) 48px 76px 64px 132px 100px; }
+    .cab-g, .abre { --colunas: 16px minmax(0, 1fr) 48px 76px 64px 132px 136px; }
     .f-d, .f-b, .cab [data-h="recentes"], .cab [data-h="amplitude"] { display: none; }
     .f-fila { grid-column: 4 / -1; }
   }
