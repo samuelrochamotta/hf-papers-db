@@ -197,15 +197,18 @@ export function lenteValida(k, v) {
   return null;
 }
 
-// Lentes: uma de cada vez, como no prototipo aprovado.
-export function aplicaLente(papers, lente) {
-  if (!lente) return papers;
-  const { k, v } = lente;
-  if (k === 'ar') return papers.filter((p) => p.ar.includes(v));
-  if (k === 'sol') return papers.filter((p) => p.sol === v);
-  if (k === 'esf') return papers.filter((p) => p.esf === v);
-  if (k === 'fam') return papers.filter((p) => p.ents.some((e) => familia(e[0]) === v));
-  return papers;
+// Lentes do mesmo menu se alternam (ou); menus diferentes se somam (e).
+const PASSA = {
+  ar: (p, v) => p.ar.includes(v),
+  sol: (p, v) => p.sol === v,
+  esf: (p, v) => p.esf === v,
+  fam: (p, v) => p.ents.some((e) => familia(e[0]) === v),
+};
+export function aplicaLentes(papers, lentes) {
+  if (!lentes.length) return papers;
+  const porMenu = new Map();
+  for (const { k, v } of lentes) if (PASSA[k]) porMenu.set(k, [...(porMenu.get(k) || []), v]);
+  return papers.filter((p) => [...porMenu].every(([k, vs]) => vs.some((v) => PASSA[k](p, v))));
 }
 export function rotuloLente(l) {
   if (!l) return '';

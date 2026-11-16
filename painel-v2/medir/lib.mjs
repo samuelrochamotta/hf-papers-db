@@ -52,7 +52,9 @@ export async function abrir(browser, { url, largura = 1280, altura, tema = 'ligh
     const corpo = readFileSync(join(CASOS, `${caso}.json`), 'utf8');
     await page.route('**/dados.json', (r) => r.fulfill({ contentType: 'application/json', body: corpo }));
   }
-  await page.goto(url + (ESTADOS[estado] ?? estado), { waitUntil: 'networkidle' });
+  // --id periodico|oficina mede uma identidade em estudo
+  const id = arg('id', ''), destino = url + (ESTADOS[estado] ?? estado);
+  await page.goto(id ? `${destino}${destino.includes('?') ? '&' : '?'}id=${id}` : destino, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(900);
   return { page, ctx, erros };

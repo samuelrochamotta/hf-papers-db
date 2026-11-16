@@ -5,7 +5,7 @@
   import Grafico from '../lib/Grafico.svelte';
   import { familia, esc } from '../lib/dados.js';
   import { base, rotNum, rotCat } from '../lib/tema.js';
-  import { estado, lente } from '../lib/estado.svelte.js';
+  import { estado, lente, lentesDe } from '../lib/estado.svelte.js';
 
   let { papers } = $props();
   const t = $derived(estado.tema);
@@ -28,14 +28,14 @@
       .map((f) => ({ f, l: L.get(f) || 0, r: R.get(f) || 0 }))
       .sort((a, b) => (b.l + b.r) - (a.l + a.r) || b.l - a.l).slice(0, 9);
   });
-  const ativa = $derived(estado.lente?.k === 'fam' ? estado.lente.v : null);
+  const ativas = $derived(lentesDe('fam'));
   const topoBase = $derived([...linhas].sort((a, b) => b.l - a.l)[0]);
   const ROT = { modelo: ['construído sobre', 'medido contra'], bench: ['criado ou usado no treino', 'usado para avaliar'] };
 
   const opcao = $derived.by(() => {
     if (!t.ink || !linhas.length) return null;
     const mx = Math.max(1, ...linhas.map((l) => Math.max(l.l, l.r)));
-    const apaga = (f) => (ativa && ativa !== f ? 0.3 : 1);
+    const apaga = (f) => (ativas.length && !ativas.includes(f) ? 0.3 : 1);
     return {
       ...base(t),
       grid: { left: 0, right: 8, top: 28, bottom: 4, containLabel: true },
@@ -45,7 +45,7 @@
       xAxis: { type: 'value', min: -mx * 1.25, max: mx * 1.25, show: false },
       yAxis: { type: 'category', inverse: true, data: linhas.map((l) => l.f), triggerEvent: true,
         axisTick: { show: false }, axisLine: { show: false },
-        axisLabel: { ...rotCat(t), margin: 12, formatter: (v) => (ativa && ativa !== v ? `{off|${v}}` : v), rich: { off: { color: t.muted, fontSize: 12, fontFamily: t.fUi } } } },
+        axisLabel: { ...rotCat(t), margin: 12, formatter: (v) => (ativas.length && !ativas.includes(v) ? `{off|${v}}` : v), rich: { off: { color: t.muted, fontSize: 12, fontFamily: t.fUi } } } },
       graphic: [
         { type: 'text', right: '52%', top: 4, style: { text: ROT[modo][0], fill: t.muted, font: `500 12px ${t.fUi}`, align: 'right' } },
         { type: 'text', left: '56%', top: 4, style: { text: ROT[modo][1], fill: t.muted, font: `500 12px ${t.fUi}` } },

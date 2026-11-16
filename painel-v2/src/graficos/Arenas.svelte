@@ -5,7 +5,7 @@
   import Grafico from '../lib/Grafico.svelte';
   import { ARENA, plural, esc } from '../lib/dados.js';
   import { base, rotNum, grade } from '../lib/tema.js';
-  import { estado, lente } from '../lib/estado.svelte.js';
+  import { estado, lente, lentesDe } from '../lib/estado.svelte.js';
 
   let { papers } = $props();
   const t = $derived(estado.tema);
@@ -24,12 +24,12 @@
   });
   const topo = $derived(linhas[0] || null);
   const nome = (k) => ARENA[k] || k;
-  const ativa = $derived(estado.lente?.k === 'ar' ? estado.lente.v : null);
+  const ativas = $derived(lentesDe('ar'));
 
   const opcao = $derived.by(() => {
     if (!t.ink) return null;
     const cor = { ganha: t.resGanha, ruido: t.resRuido, perde: t.resPerde, sem_rival: t.surface };
-    const apaga = (k) => (ativa && ativa !== k ? 0.3 : 1);
+    const apaga = (k) => (ativas.length && !ativas.includes(k) ? 0.3 : 1);
     return {
       ...base(t),
       grid: { left: 0, right: 12, top: 4, bottom: 36, containLabel: true },
@@ -45,7 +45,7 @@
         type: 'category', inverse: true, data: linhas.map((l) => nome(l.k)), triggerEvent: true,
         axisTick: { show: false }, axisLine: { show: false },
         axisLabel: { fontSize: 12, margin: 12,
-          formatter: (v, i) => `{${ativa && ativa !== linhas[i].k ? 'off' : 'a'}|${v}}  {n|${linhas[i].ps.size}}`,
+          formatter: (v, i) => `{${ativas.length && !ativas.includes(linhas[i].k) ? 'off' : 'a'}|${v}}  {n|${linhas[i].ps.size}}`,
           rich: { a: { color: t.ink, fontWeight: 500, fontFamily: t.fUi, fontSize: 12 }, off: { color: t.muted, fontFamily: t.fUi, fontSize: 12 },
             n: { color: t.muted, fontFamily: t.fNum, fontSize: 12, width: 16, align: 'right' } } },
       },

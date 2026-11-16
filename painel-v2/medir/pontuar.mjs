@@ -19,7 +19,8 @@ for (const f of readdirSync(saida).filter((x) => /^uso-.*\.jsonl$/.test(x))) {
   const ev = readFileSync(join(saida, f), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
   const porT = {};
   const resps = {};
-  for (const e of ev) { if (!e.tarefa) continue; if (e.tipo === 'responder') { resps[e.tarefa] = e; continue; } if (e.tipo === 'iniciar') porT[e.tarefa] = []; (porT[e.tarefa] ||= []).push(e); }
+  // resposta sem "iniciar" (a pessoa respondeu com o que ja tinha visto): conta como tarefa de zero passos
+  for (const e of ev) { if (!e.tarefa) continue; if (e.tipo === 'responder') { resps[e.tarefa] = e; porT[e.tarefa] ||= [{ ...e, tipo: 'iniciar' }]; continue; } if (e.tipo === 'iniciar') porT[e.tarefa] = []; (porT[e.tarefa] ||= []).push(e); }
   for (const [id, es] of Object.entries(porT)) {
     const t = T[id]; if (!t) continue;
     const resp = resps[id];
@@ -30,7 +31,8 @@ for (const f of readdirSync(saida).filter((x) => /^uso-.*\.jsonl$/.test(x))) {
     let certo = !desistiu && t.acerto.every((r) => new RegExp(r, 'i').test(texto));
     if (certo && t.fim) certo = new RegExp(t.fim).test(resp.url || '');
     const c1 = acoes.find((e) => e.tipo === 'clicar');
-    const alvo = c1 ? `${c1.alvo?.regiao || ''} | ${c1.alvo?.nome || ''} | ${c1.alvo?.canvas ? 'canvas' : ''}` : '';
+    // campo de texto nao tem nome no registro antigo: vale como "campo de busca"
+    const alvo = c1 ? `${c1.alvo?.regiao || ''} | ${c1.alvo?.nome || (c1.alvo?.tag === 'input' ? 'campo de busca' : '')} | ${c1.alvo?.canvas ? 'canvas' : ''}` : '';
     const p1 = c1 ? new RegExp(prim[id] || '$^', 'i').test(alvo) : certo;
     linhas.push({ tarefa: id, prio: t.prio, largura: es[0].largura, certo, desistiu, passos: acoes.length,
       cliques: acoes.filter((e) => e.tipo === 'clicar').length, rolagens: acoes.filter((e) => e.tipo === 'rolar').length,

@@ -15,12 +15,13 @@
   let { papers, todos } = $props();
   const p = $derived(estado.sel ? todos.find((x) => x.id === estado.sel) : null);
   const t = $derived(estado.tema);
-  let celula = $state(0);
+  let todosRes = $state(false);
+  const LIM_RES = 5;
   let largo = $state(false);
   let painel = $state(null);
   let origem = null;
   $effect(() => { const mq = matchMedia('(min-width: 1024px)'); largo = mq.matches; const f = () => (largo = mq.matches); mq.addEventListener('change', f); return () => mq.removeEventListener('change', f); });
-  $effect(() => { estado.sel; celula = 0; });
+  $effect(() => { estado.sel; todosRes = false; });
   $effect(() => { document.body.classList.toggle('paper-aberto', !!p); });
   // no celular a folha e modal: o resto da pagina sai do alcance do Tab
   $effect(() => {
@@ -41,6 +42,9 @@
   const vai = (d) => { const n = lista[pos + d]; if (n) abrir(n.id, estado.prof); };
 
   const medBruta = $derived(EIXOS.map(([k]) => median(papers.map((x) => x.radar[k]))));
+  // onde o paper fica frente a mediana do recorte, em cada eixo (mesma conta do radar)
+  const IDX = Object.fromEntries(EIXOS.map(([k], i) => [k, i]));
+  const frente = (k) => { const v = p.radar[k], m = medBruta[IDX[k]]; return v == null || m == null ? null : { v, m, rot: v > m ? 'acima da mediana do recorte' : v < m ? 'abaixo da mediana do recorte' : 'na mediana do recorte' }; };
   const cor = $derived(p ? (p.sol === 'sem_leitura' ? t.solNada : corSolidez(t, p.sol)) : '');
   const naoLidos = $derived(p ? EIXOS.filter(([k]) => p.radar[k] == null).map(([, r]) => r) : []);
   const opRadar = $derived.by(() => {
@@ -92,6 +96,11 @@
 
 <svelte:window onkeydown={tecla} />
 
+{#snippet frenteMed(k)}
+  {@const f = frente(k)}
+  {#if f}<dd class="pos"><span class="trilho" aria-hidden="true"><i style:width="{f.v}%"></i><b style:left="{f.m}%"></b></span>{f.rot}</dd>{/if}
+{/snippet}
+
 {#if p}
   {#if !largo}<button class="veu" aria-label="Fechar o paper" tabindex="-1" onclick={fechar} transition:fade={{ duration: mov(200) }}></button>{/if}
   <div class="paper" bind:this={painel} aria-labelledby="paper-titulo" role="dialog" aria-modal={!largo} data-regiao="paper"
@@ -129,13 +138,13 @@
           <dl class="fatos">
             <div><dt class="rot">Ganho</dt>
               {#if ganhoDe(p) != null}<dd class="v titulo">{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `mediana de ${comRival} resultados` : 'em 1 resultado'}{#if p.best && comRival > 1}; melhor, {sgn(p.best.r)}% contra {p.best.x}{:else if p.best} contra {p.best.x}{/if}</dd>
-              {:else}<dd class="v titulo nd">–</dd><dd class="d">{p.res.length ? 'sem rival externo' : 'não lido'}</dd>{/if}</div>
+              {:else}<dd class="v titulo nd">–</dd><dd class="d">{p.res.length ? 'sem rival externo' : 'não lido'}</dd>{/if}{@render frenteMed('ganho')}</div>
             <div><dt class="rot">Prova</dt>
               <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? '–' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
-              <dd class="d">{p.nl ? `${sinaisSim} de ${p.nl} sinais lidos` : 'nenhum sinal lido'}</dd></div>
+              <dd class="d">{p.nl ? `${sinaisSim} de ${p.nl} sinais lidos` : 'nenhum sinal lido'}</dd>{@render frenteMed('solidez')}</div>
             <div><dt class="rot">Adoção</dt>
               <dd class="v titulo" class:nd={p.radar.facilidade == null}>{ESFORCO[p.esf]}</dd>
-              <dd class="d">{liberados(p) ? `${liberados(p)} ${liberados(p).includes(' ') ? 'liberados' : 'liberado'}` : p.prom ? 'só prometido' : p.radar.abertura == null ? 'abertura não lida' : 'nada liberado'}</dd></div>
+              <dd class="d">{liberados(p) ? `${liberados(p)} ${liberados(p).includes(' ') ? 'liberados' : 'liberado'}` : p.prom ? 'só prometido' : p.radar.abertura == null ? 'abertura não lida' : 'nada liberado'}</dd>{@render frenteMed('facilidade')}</div>
           </dl>
 
           <section class="bloco">
@@ -143,7 +152,7 @@
             <ul class="sinais">
               {#each SIG as [k, rot]}
                 {@const v = p.sig[k]}
-                <li class:nl={v == null}><i class="s" class:sim={v === true} class:nao={v === false} class:nl={v == null} aria-hidden="true">{#if v === true}<Icone nome="check" tam={10} />{:else if v === false}<Icone nome="x" tam={10} />{:else}–{/if}</i>{rot}<span class="vh">: {v == null ? 'não lido' : v ? 'cumpre' : 'não cumpre'}</span></li>
+                <li class:nl={v == null}><i class="s" class:sim={v === true} class:nao={v === false} class:nl={v == null} aria-hidden="true">{#if v === true}<Icone nome="check" tam={10} />{:else if v === false}<Icone nome="x" tam={10} />{:else}–{/if}</i><span>{rot}<span class="vh">: {v == null ? 'não lido' : v ? 'cumpre' : 'não cumpre'}</span></span>{#if (k === 'man' && p.man) || (k === 'ress' && p.ress.length)}<button class="lk ver" aria-label="Ver o trecho de: {rot}" onclick={() => (estado.prof = 2)}>trecho</button>{/if}</li>
               {/each}
             </ul>
           </section>
@@ -162,24 +171,17 @@
           {#if p.res.length}
             <section class="bloco">
               <header><h3>Resultados</h3><span class="t-12 mut">{vence} de {p.res.length} {vence === 1 ? 'vence' : 'vencem'} o rival</span></header>
-              {#if p.res.length > 1}<div class="cels" role="group" aria-label="Resultados do paper">
-                {#each p.res as r, i}
-                  <button class="cel {CL_ESTADO[r.e] || 'semrival'}" aria-pressed={celula === i} aria-label="{r.b}: {ROT_ESTADO[r.e]}" title="{r.b}: {ROT_ESTADO[r.e]}" onclick={() => (celula = i)}></button>
+              <ul class="ress">
+                {#each todosRes ? p.res : p.res.slice(0, LIM_RES) as r}
+                  <li>
+                    <i class="cel {CL_ESTADO[r.e] || 'semrival'}" aria-hidden="true"></i>
+                    <span class="b pts"><b>{r.b}</b>{#if r.m && r.m !== r.b}<span class="mut">{r.m}</span>{/if}</span>
+                    <span class="dif num {CL_ESTADO[r.e] || ''}" class:mut={r.rext == null}>{r.rext != null ? `${sgn(r.rext)}%` : '–'}</span>
+                    <span class="det mut">{#if r.nos && r.ext}<span class="num">{fmt(r.nos[1], 2)}</span> contra <span class="num">{fmt(r.ext[1], 2)}</span> de {r.ext[0]}{:else}{ROT_ESTADO[r.e]}{/if}</span>
+                  </li>
                 {/each}
-              </div>{/if}
-              {#if p.res[celula]}
-                {@const r = p.res[celula]}
-                <div class="res">
-                  <p class="pts"><b>{r.b}</b>{#if r.m && r.m !== r.b}<span class="mut">{r.m}</span>{/if}</p>
-                  {#if r.nos && r.ext}
-                    <dl class="trio">
-                      <div><dt>Este paper</dt><dd class="num">{fmt(r.nos[1], 2)}</dd></div>
-                      <div><dt>{r.ext[0]}</dt><dd class="num">{fmt(r.ext[1], 2)}</dd></div>
-                      <div><dt>Diferença</dt><dd class="num {CL_ESTADO[r.e] || ''}">{sgn(r.rext)}%</dd></div>
-                    </dl>
-                  {:else}<p class="mut">{ROT_ESTADO[r.e]}</p>{/if}
-                </div>
-              {/if}
+              </ul>
+              {#if p.res.length > LIM_RES}<button class="btn sec mais" aria-expanded={todosRes} onclick={() => (todosRes = !todosRes)}>{todosRes ? 'Mostrar menos' : `Ver os ${p.res.length} resultados`}</button>{/if}
             </section>
           {/if}
 
@@ -261,6 +263,7 @@
   .entrega { margin-bottom: var(--sp-5); }
 
   .fatos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); padding-block: var(--sp-4); border-block: 1px solid var(--line); }
+  .fatos > div { display: grid; grid-template-rows: auto auto 1fr auto; }   /* as reguas da mediana alinham na base */
   .fatos .v { font-size: var(--fs-24); line-height: var(--lh-24); margin-top: 2px; }
   .fatos .v.nd { color: var(--muted); }
   .fatos .d { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); margin-top: 2px; }
@@ -277,6 +280,7 @@
   .sinais { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--sp-2) var(--sp-4); }
   .sinais li { display: flex; align-items: center; gap: var(--sp-2); }
   .sinais li.nl { color: var(--muted); }
+  .ver { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); min-height: var(--alvo); border-radius: var(--r-1); }
 
   .pares > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--sp-3); padding: var(--sp-2) 0; border-top: 1px solid var(--line); align-items: baseline; }
   .pares > div:first-child { border-top: 0; }
@@ -287,16 +291,21 @@
   .degraus i:nth-child(1) { height: 5px; } .degraus i:nth-child(2) { height: 7px; } .degraus i:nth-child(3) { height: 9px; } .degraus i:nth-child(4) { height: 11px; } .degraus i:nth-child(5) { height: 13px; }
   .degraus i.on { background: var(--ink); opacity: 1; }
 
-  .cels { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: var(--sp-3); }
-  .cel { width: 24px; height: 24px; border-radius: var(--r-1); background: var(--res-semrival); position: relative; transition: transform var(--dur-1); }
-  .cel.ganha { background: var(--res-ganha); } .cel.ruido { background: var(--res-ruido); } .cel.perde { background: var(--res-perde); }
-  .cel[aria-pressed="true"] { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .cel:hover { transform: scale(1.1); }
-  .res { background: var(--sunk); border-radius: var(--r-2); padding: var(--sp-3) var(--sp-4); display: grid; gap: var(--sp-2); }
-  .trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
-  .trio dt { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
-  .trio dd { font-size: var(--fs-17); line-height: var(--lh-17); font-weight: 500; }
-  .trio dd.perde { color: var(--alert); }
+  .ress { display: grid; }
+  .ress li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; column-gap: var(--sp-2); row-gap: 2px; align-items: baseline; padding: var(--sp-2) 0; border-top: 1px solid var(--line); }
+  .ress li:first-child { border-top: 0; }
+  .cel { width: 10px; height: 10px; border-radius: 2px; background: none; box-shadow: inset 0 0 0 1.5px var(--line-strong); align-self: center; }
+  .cel.ganha { background: var(--res-ganha); box-shadow: none; } .cel.ruido { background: var(--res-ruido); box-shadow: none; } .cel.perde { background: var(--res-perde); box-shadow: none; }
+  .ress .b { min-width: 0; }
+  .ress .b b { font-weight: 500; }
+  .ress .dif { font-weight: 500; white-space: nowrap; }
+  .ress .dif.perde { color: var(--alert); }
+  .ress .det { grid-column: 2 / -1; font-size: var(--fs-12); line-height: var(--lh-12); }
+  .mais { width: 100%; margin-top: var(--sp-2); }
+  .pos { display: grid; gap: var(--sp-1); margin-top: var(--sp-2); font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); }
+  .trilho { display: block; position: relative; height: 4px; border-radius: 2px; background: var(--sunk); max-width: 96px; }
+  .trilho i { display: block; height: 100%; border-radius: 2px; background: var(--line-strong); }
+  .trilho b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); }
   .tr { width: 16px; border-top: 1.5px dashed var(--muted); display: inline-block; vertical-align: middle; margin-right: 6px; }
   .nota { margin-top: var(--sp-5); }
 

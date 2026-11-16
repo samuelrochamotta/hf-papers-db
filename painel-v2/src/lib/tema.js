@@ -33,6 +33,34 @@ export function estiloPonto(t, p) {
   if (p.sol === 'sem_leitura') return { color: t.surface, borderColor: t.solNada, borderWidth: 1.5, borderType: [3, 2] };
   return { color: corSolidez(t, p.sol), borderColor: t.surface, borderWidth: 1 };
 }
+// o mesmo ponto para quem desenha a propria forma (serie custom)
+export const marca = (t, p) => (p.sol === 'sem_leitura'
+  ? { fill: t.surface, stroke: t.solNada, lineWidth: 1.5, lineDash: [3, 2] }
+  : { fill: corSolidez(t, p.sol), stroke: t.surface, lineWidth: 1 });
+// Enxame: os pontos de uma mesma linha ficam no centro da faixa enquanto ha
+// lugar; quem tocaria um vizinho sobe ou desce o minimo necessario. Se a
+// linha lota, os desvios encolhem para caber na faixa. Recebe [{x, y}] em
+// pixels e devolve o desvio vertical de cada ponto. Sem sorteio: a mesma
+// entrada da sempre o mesmo desenho.
+export function enxame(pts, faixa, raio = 6.5, folga = 2) {
+  const d = 2 * raio + folga, dy = pts.map(() => 0), linhas = new Map();
+  pts.forEach((p, i) => { if (!linhas.has(p.y)) linhas.set(p.y, []); linhas.get(p.y).push(i); });
+  for (const idx of linhas.values()) {
+    idx.sort((a, b) => pts[a].x - pts[b].x || a - b);
+    const postos = [];
+    for (const i of idx) {
+      const viz = postos.filter((j) => pts[i].x - pts[j].x < d);
+      const livre = (c) => viz.every((j) => Math.hypot(pts[i].x - pts[j].x, c - dy[j]) >= d - 0.01);
+      const cands = [0];
+      for (const j of viz) { const h = Math.sqrt(Math.max(0, d * d - (pts[i].x - pts[j].x) ** 2)); cands.push(dy[j] + h, dy[j] - h); }
+      dy[i] = cands.sort((a, b) => Math.abs(a) - Math.abs(b) || a - b).find(livre) ?? 0;
+      postos.push(i);
+    }
+    const max = Math.max(...idx.map((i) => Math.abs(dy[i]))), lim = Math.max(0, faixa / 2 - raio - 1);
+    if (max > lim) for (const i of idx) dy[i] *= lim / max;
+  }
+  return dy;
+}
 
 const reduz = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 export function base(t) {

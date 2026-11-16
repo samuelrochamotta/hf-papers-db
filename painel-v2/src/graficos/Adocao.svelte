@@ -6,13 +6,13 @@
   import Chave from '../pecas/Chave.svelte';
   import { ESFORCO, SOLIDEZ, SOL_ROT, SOL_FRASE, ART, ART_EST, esc, plural } from '../lib/dados.js';
   import { base, estiloPonto, corSolidez, rotNum, rotCat, dica } from '../lib/tema.js';
-  import { estado, lente } from '../lib/estado.svelte.js';
+  import { estado, lente, lentesDe } from '../lib/estado.svelte.js';
 
   let { papers } = $props();
   const t = $derived(estado.tema);
   const NIVEIS = [1, 2, 3, 4, 5, 0];
   const RANK = Object.fromEntries(SOLIDEZ.map((s, i) => [s, i]));
-  const ativa = $derived(estado.lente?.k === 'esf' ? estado.lente.v : null);
+  const ativas = $derived(lentesDe('esf'));
   const prontos = $derived(papers.filter((p) => p.esf >= 1 && p.esf <= 2).length);
   const conta = $derived(NIVEIS.map((n) => papers.filter((p) => p.esf === n).length));
   // sem espaco para um ponto por paper, a fila vira barra empilhada
@@ -24,7 +24,7 @@
     const eixo = { type: 'category', inverse: true, axisTick: { show: false }, axisLine: { show: false } };
     const yAxis = [
       { ...eixo, data: NIVEIS.map((n) => ESFORCO[n]), triggerEvent: true, splitLine: { show: !barras, lineStyle: { color: t.line } },
-        axisLabel: { ...rotCat(t), margin: 12, formatter: (v) => (ativa != null && ESFORCO[ativa] !== v ? `{off|${v}}` : v), rich: { off: { color: t.muted, fontSize: 12, fontFamily: t.fUi } } } },
+        axisLabel: { ...rotCat(t), margin: 12, formatter: (v) => (ativas.length && !ativas.some((n) => ESFORCO[n] === v) ? `{off|${v}}` : v), rich: { off: { color: t.muted, fontSize: 12, fontFamily: t.fUi } } } },
       { ...eixo, position: 'right', data: conta.map(String), axisLabel: { ...rotNum(t), margin: 8 } },
     ];
     if (barras) return {

@@ -56,12 +56,13 @@
   <header class="topo">
     <h2 id="h-comparar" class="titulo">Comparar</h2>
     <div class="acoes">
-      {#if opcoes.length}
-        <span class="add"><Menu nome="Papers para comparar" icone="mais" rotulo={sel.length >= MAX_COMPARAR ? 'Trocar paper' : 'Adicionar paper'} descricao={sel.length >= MAX_COMPARAR ? 'Trocar um paper da comparação' : 'Adicionar paper à comparação'} valor="-"
-          itens={opcoes.map((p) => [p.id, curto(p.t, 40), p.u])} aoEscolher={alternaComparar} /></span>
-      {/if}
-      <span class="t-12 mut num">{sel.length} de {MAX_COMPARAR}</span>
+      <!-- o botao de adicionar fica sempre na ponta: nao muda de lugar quando entra o primeiro paper -->
       {#if sel.length}<button class="btn fan limpa" onclick={() => (estado.comparar = [])}>Limpar</button>{/if}
+      <span class="t-12 mut num">{sel.length} de {MAX_COMPARAR}</span>
+      {#if opcoes.length}
+        <span class="add"><Menu nome="Papers para comparar" icone="mais" busca rotulo={sel.length >= MAX_COMPARAR ? 'Trocar paper' : 'Adicionar paper'} descricao={sel.length >= MAX_COMPARAR ? 'Trocar um paper da comparação' : 'Adicionar paper à comparação'} valor="-"
+          itens={opcoes.map((p) => [p.id, p.t, p.u])} aoEscolher={alternaComparar} /></span>
+      {/if}
     </div>
   </header>
 
@@ -84,7 +85,7 @@
         {/if}
         <p class="chave t-12 mut">
           {#if forma !== 'lado'}{#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg>{'ABC'[i]}</span>{/each}{/if}
-          <span><i class="med"></i>mediana do recorte</span>
+          <span><i class="med"></i><i class="tique"></i>mediana do recorte</span>
         </p>
       </div>
 
@@ -154,6 +155,7 @@
   .chave { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: center; margin-top: var(--sp-2); }
   .chave span { display: inline-flex; align-items: center; gap: 6px; }
   .chave .med { width: 12px; height: 12px; border-radius: 2px; background: color-mix(in srgb, var(--line-strong) 26%, var(--surface)); }
+  .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
 
   .letra { width: 20px; height: 20px; border-radius: 50%; background: var(--c); color: var(--surface); display: inline-grid; place-items: center; font-size: var(--fs-12); line-height: 1; font-weight: 600; font-style: normal; flex: none; }
 

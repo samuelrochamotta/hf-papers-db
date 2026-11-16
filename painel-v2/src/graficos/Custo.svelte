@@ -26,10 +26,13 @@
 
   const opcao = $derived.by(() => {
     if (!t.ink || !pontos.length) return null;
-    const fs = pontos.map((o) => o.f);
-    const x0 = Math.min(0.1, ...fs.map((f) => 10 ** Math.floor(Math.log10(f)))), x1 = Math.max(2, ...fs.map((f) => (f > 1 ? 10 ** Math.ceil(Math.log10(f * 1.01)) : 2)));
+    // eixo em dobras (metade, igual, dobro): 1x fica no meio e quem custa 1,2x nao encosta na linha
+    const lx = (f) => Math.log2(f), ls = pontos.map((o) => lx(o.f));
+    const lo = Math.min(-1, Math.floor(Math.min(...ls))), hi = Math.max(1, Math.ceil(Math.max(...ls)));
+    const px = Math.max(1, Math.ceil((hi - lo) / 4)), x0 = -Math.ceil(-lo / px) * px, x1 = Math.ceil(hi / px) * px;
     const [y0, y1, passo] = dominio(pontos.map((o) => o.g), { inclui: [-10, 10] });
-    const vezes = (v) => `${v >= 1 ? v.toLocaleString('pt-BR') : v.toLocaleString('pt-BR', { maximumSignificantDigits: 1 })}×`;
+    const vezes = (v) => { const f = 2 ** v; return `${f >= 1 ? f.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : f.toLocaleString('pt-BR', { maximumSignificantDigits: f < 0.1 ? 1 : 2 })}×`; };
+    const bom = (o) => o.f < 1 && o.g >= 0;
     return {
       ...base(t),
       grid: { left: 0, right: 16, top: 28, bottom: 32, containLabel: true },
@@ -38,23 +41,25 @@
         const o = pontos.find((x) => x.p.id === q.data.pid); if (!o) return '';
         return dica(esc(o.p.t), `Custo <b>${fmt(o.f, 2)}×</b> o do rival`, `Ganho <b>${sgn(o.g)}%</b>`);
       } },
-      xAxis: { type: 'log', min: x0, max: x1, logBase: 10,
+      xAxis: { type: 'value', min: x0, max: x1, interval: px,
         name: 'custo em relação ao rival', nameLocation: 'middle', nameGap: 28, nameTextStyle: rotNum(t),
-        axisLabel: { ...rotNum(t), formatter: vezes, hideOverlap: true }, splitLine: grade(t) },
+        axisLabel: { ...rotNum(t), formatter: vezes, hideOverlap: true }, splitLine: grade(t), axisLine: { show: false }, axisTick: { show: false } },
       yAxis: { type: 'value', min: y0, max: y1, interval: passo,
         axisLabel: { ...rotNum(t), formatter: pct }, splitLine: grade(t) },
       series: [{
-        type: 'scatter', symbolSize: 14, cursor: 'pointer', emphasis: realce(t),
+        type: 'scatter', cursor: 'pointer', emphasis: realce(t),
+        // quem esta na zona boa tem marca maior: ganha a disputa de rotulo quando dois se sobrepoem
+        symbolSize: (v, q) => (q.data.bom ? 16 : 12),
         labelLayout: { hideOverlap: true, moveOverlap: 'shiftY' },
         label: { show: true, distance: 7, color: t.ink2, fontSize: 12, fontFamily: t.fUi,
           formatter: (q) => curto(q.data.t, 18) + (q.data.fora ? ` ${sgn(q.data.g)}%` : '') },
-        data: pontos.map((o) => ({ pid: o.p.id, t: o.p.t, g: o.g, fora: o.g > y1 || o.g < y0, value: [o.f, Math.max(y0, Math.min(y1, o.g))], itemStyle: estiloPonto(t, o.p),
-          label: { position: Math.log10(o.f / x0) > Math.log10(x1 / x0) / 2 ? 'left' : 'right' } })),
+        data: pontos.map((o) => ({ pid: o.p.id, t: o.p.t, g: o.g, bom: bom(o), fora: o.g > y1 || o.g < y0, value: [lx(o.f), Math.max(y0, Math.min(y1, o.g))], itemStyle: estiloPonto(t, o.p),
+          label: { position: lx(o.f) > (x0 + x1) / 2 ? 'left' : 'right', ...(bom(o) ? { color: t.ink, fontWeight: 600 } : {}) } })),
         markArea: { silent: true, itemStyle: { color: t.sunk },
           label: { show: true, position: 'insideTopLeft', distance: 8, color: t.ink2, fontWeight: 500, fontSize: 12, fontFamily: t.fUi, formatter: 'mais barato e melhor' },
-          data: [[{ xAxis: x0, yAxis: 0 }, { xAxis: 1, yAxis: y1 }]] },
+          data: [[{ xAxis: x0, yAxis: 0 }, { xAxis: 0, yAxis: y1 }]] },
         markLine: { silent: true, symbol: 'none', label: { show: false }, lineStyle: { color: t.ink, type: 'solid', width: 1, opacity: .5 },
-          data: [{ xAxis: 1 }, { yAxis: 0 }] },
+          data: [{ xAxis: 0 }, { yAxis: 0 }] },
       }],
     };
   });

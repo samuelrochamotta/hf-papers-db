@@ -23,7 +23,7 @@ let page = null, ctx = null, tarefa = null, n = 0, mouse = [largura / 2, (ALTURA
 const ALVO = ([x, y]) => {
   const e = document.elementFromPoint(x, y); if (!e) return null;
   const a = e.closest('button, a, [role="button"], [role="tab"], [role="option"], select, input, summary, [tabindex]') || e;
-  const nome = (a.getAttribute('aria-label') || a.textContent || a.getAttribute('title') || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+  const nome = (a.getAttribute('aria-label') || a.textContent || a.getAttribute('title') || a.getAttribute('placeholder') || '').replace(/\s+/g, ' ').trim().slice(0, 100);
   const regiao = e.closest('[data-regiao], section[id], [role="dialog"], header, nav, aside, footer');
   return { tag: a.tagName.toLowerCase(), nome, canvas: e.tagName === 'CANVAS', regiao: regiao ? (regiao.dataset.regiao || regiao.id || regiao.getAttribute('aria-label') || regiao.tagName.toLowerCase()) : '' };
 };

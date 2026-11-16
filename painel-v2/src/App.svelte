@@ -16,16 +16,16 @@
   import Custo from './graficos/Custo.svelte';
   import Regua from './graficos/Regua.svelte';
   import LetraMiuda from './graficos/LetraMiuda.svelte';
-  import { carregar, aplicaLente, plural, lenteValida, periodos, noPeriodo, cobertura, ORDENS } from './lib/dados.js';
+  import { carregar, aplicaLentes, plural, lenteValida, periodos, noPeriodo, cobertura, ORDENS } from './lib/dados.js';
   import { observarTema } from './lib/tema.js';
-  import { estado, temaSalvo } from './lib/estado.svelte.js';
+  import { estado, temaSalvo, lente, temLente } from './lib/estado.svelte.js';
 
   const ARQ = {
     a: { ancoras: true, vistas: [['papers', 'Papers'], ['comparar', 'Comparar'], ['resultados', 'Resultados'], ['prova', 'Prova'], ['adocao', 'Adoção']] },
     b: { vistas: [['papers', 'Papers', 'lista'], ['panorama', 'Panorama', 'graficos'], ['comparar', 'Comparar', 'radar']] },
     c: { vistas: [['ler', 'Ler', 'lista'], ['confiar', 'Confiar', 'escudo'], ['adotar', 'Adotar', 'caixa'], ['comparar', 'Comparar', 'radar']] },
   };
-  const VARIANTES = { arq: ['b', 'a', 'c'], indice: ['tabela', 'linhas', 'grade'], dens: ['m', 'c', 'g'], radar: ['sobre', 'lado', 'pontos'], g: ['a', 'b'] };
+  const VARIANTES = { arq: ['b', 'a', 'c'], indice: ['tabela', 'linhas', 'grade'], dens: ['m', 'c', 'g'], radar: ['sobre', 'lado', 'pontos'], g: ['a', 'b'], lentes: ['uma', 'varias'] };
   const IDENTIDADES = ['', 'periodico', 'oficina'];
   const arq = $derived(ARQ[estado.v.arq]);
   const vistas = $derived(arq.vistas.map(([k, r, ic]) => [k, r, k === 'comparar' && estado.comparar.length ? estado.comparar.length : '', ic]));
@@ -36,8 +36,10 @@
     for (const [k, vs] of Object.entries(VARIANTES)) if (vs.includes(q.get(k))) estado.v[k] = q.get(k);
     if (IDENTIDADES.includes(q.get('id'))) { estado.v.id = q.get('id'); if (estado.v.id) document.documentElement.dataset.id = estado.v.id; }
     if (q.get('periodo')) estado.periodo = q.get('periodo');
-    const l = q.get('lente');
-    if (l && l.includes(':')) { const [k, ...v] = l.split(':'); estado.lente = lenteValida(k, v.join(':')); }
+    for (const l of q.getAll('lente')) {
+      const [k, ...v] = l.split(':'), ok = lenteValida(k, v.join(':'));
+      if (ok && !temLente(ok.k, ok.v)) lente(ok.k, ok.v);
+    }
     if (q.get('paper')) estado.sel = q.get('paper');
     if (['2', '3'].includes(q.get('prof'))) estado.prof = +q.get('prof');
     if (q.get('comparar')) estado.comparar = q.get('comparar').split(',').filter(Boolean).slice(0, 3);
@@ -53,7 +55,7 @@
     if (estado.v.id) q.set('id', estado.v.id);
     if (!arq.ancoras && estado.vista !== arq.vistas[0][0]) q.set('vista', estado.vista);
     if (estado.periodo !== 'tudo') q.set('periodo', estado.periodo);
-    if (estado.lente) q.set('lente', `${estado.lente.k}:${estado.lente.v}`);
+    for (const l of estado.lentes) q.append('lente', `${l.k}:${l.v}`);
     if (estado.ordem !== 'votos') q.set('ordem', estado.ordem);
     if (estado.busca) q.set('q', estado.busca);
     if (estado.sel) { q.set('paper', estado.sel); if (estado.prof > 1) q.set('prof', estado.prof); }
@@ -80,7 +82,7 @@
 
   const todos = $derived(estado.dados ? noPeriodo(estado.dados.papers, estado.dados.dias, estado.periodo) : []);
   const faltam = $derived(estado.dados ? noPeriodo(estado.dados.faltam, estado.dados.dias, estado.periodo) : []);
-  const papers = $derived(aplicaLente(todos, estado.lente));
+  const papers = $derived(aplicaLentes(todos, estado.lentes));
   const dias = $derived.by(() => { const ds = todos.map((p) => p.d).filter(Boolean).sort(); return ds.length ? [ds[0], ds[ds.length - 1]] : []; });
   const cob = $derived(estado.dados ? cobertura(estado.dados.papers, estado.dados.faltam) : null);
   // "claude-haiku-5-5" -> "Claude Haiku 5.5"
@@ -111,7 +113,7 @@
     {:else if !todos.length && !faltam.length}
       <div class="vazio">Nenhum paper neste período.{#if estado.periodo !== 'tudo'}<button class="btn sec" onclick={() => (estado.periodo = 'tudo')}>Ver todos os períodos</button>{/if}</div>
     {:else}
-      {#snippet indice(limite)}<Indice {papers} faltam={estado.lente ? [] : faltam} forma={estado.v.indice} dens={estado.v.dens} {limite} />{/snippet}
+      {#snippet indice(limite)}<Indice {papers} faltam={estado.lentes.length ? [] : faltam} forma={estado.v.indice} dens={estado.v.dens} {limite} />{/snippet}
       {#snippet resultados()}<div class="g2"><Arenas {papers} /><Ganho {papers} /></div>{/snippet}
       {#snippet prova()}<div class="g2 gp"><Prova {papers} /><LetraMiuda {papers} /></div>{/snippet}
       {#snippet adocao()}<div class="g3"><Adocao {papers} /><Custo {papers} /><Regua {papers} /></div>{/snippet}

@@ -11,7 +11,7 @@
   import MiniRadar from '../lib/MiniRadar.svelte';
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
-  import { ordenar, buscar, ORDENS, comDado, ganhoDe, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, liberados, intervalo, curto, plural, dataCurta, nBench } from '../lib/dados.js';
+  import { ordenar, buscar, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, liberados, intervalo, curto, plural, dataCurta, nBench } from '../lib/dados.js';
   import { corSolidez } from '../lib/tema.js';
   import { estado, abrir, alternaComparar, mov } from '../lib/estado.svelte.js';
 
@@ -25,6 +25,15 @@
   const ord = $derived(ordenar(achados, estado.ordem));
   const nCom = $derived(comDado(achados, estado.ordem));
   const visiveis = $derived(limite && !tudo && !estado.busca ? ord.slice(0, limite) : ord.slice(0, PAGINA * paginas));
+  // Marca da mediana: nas ordens em que "acima da mediana" e uma pergunta
+  // (votos e ganho), uma regua separa as linhas de cima das de baixo.
+  const MED = { votos: [(p) => p.u, (v) => `${Math.round(v).toLocaleString('pt-BR')} votos`], ganho: [ganhoDe, (v) => `${sgn(v)}%`] };
+  const mediana = $derived.by(() => {
+    const m = MED[estado.ordem]; if (!m || estado.busca) return null;
+    const vs = achados.map(m[0]).filter((v) => v != null); if (vs.length < 4) return null;
+    const med = median(vs), i = ord.findIndex((p) => { const v = m[0](p); return v == null || v <= med; });
+    return i > 0 ? { i, rot: m[1](med) } : null;
+  });
   const letra = (id) => 'ABC'[estado.comparar.indexOf(id)] || '';
   const bench = nBench;
   const sub = (p) => [ENTREGA[p.ent] || p.ent, p.cam ? CAMADA[p.cam] || p.cam : null].filter(Boolean).join(' · ');
@@ -113,6 +122,8 @@
           <div class="div" role="row"><span role="gridcell">{intervalo(p.d, p.d)}</span></div>
         {:else if i === nCom && nCom > 0 && SEM[estado.ordem]}
           <div class="div" role="row"><span role="gridcell">{SEM[estado.ordem]} · {visiveis.length - nCom}</span></div>
+        {:else if mediana && i === mediana.i}
+          <div class="div med" role="row"><span role="gridcell">Mediana do recorte · {mediana.rot}</span></div>
         {/if}
         <div class="linha" role="row" class:ativa={estado.sel === p.id} class:aceso={estado.hover === p.id}>
           <div role="gridcell" class="g-abre">
@@ -215,6 +226,9 @@
   .g-cmp { display: grid; place-items: center; }
 
   .div { padding: var(--sp-4) var(--sp-3) var(--sp-1); font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; color: var(--muted); border-top: 1px solid var(--line); background: var(--bg); }
+
+  .div.med { display: flex; align-items: center; gap: var(--sp-3); padding-block: var(--sp-2); }
+  .div.med::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
 
   /* estreito: os fatos descem para a segunda linha */
   .abre { grid-template-columns: 32px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; }

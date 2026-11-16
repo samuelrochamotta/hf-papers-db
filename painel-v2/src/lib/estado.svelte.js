@@ -3,7 +3,7 @@ export const estado = $state({
   dados: null,
   erro: null,
   periodo: 'tudo',   // '7' | '14' | 'tudo' (dias de HF Daily, contados do mais recente)
-  lente: null,       // {k, v}
+  lentes: [],        // [{k, v}] por faceta: arena, prova, adocao, familia
   sel: null,         // id do paper aberto no painel
   prof: 1,           // profundidade do painel: 1 resumo, 2 trechos, 3 ficha
   comparar: [],      // ate 3 ids no radar
@@ -12,7 +12,7 @@ export const estado = $state({
   busca: '',         // texto da busca no indice
   vista: '',         // vista aberta, nas arquiteturas com mais de uma
   // variantes dos experimentos (endereco: ?arq=b&indice=tabela&radar=sobre&g=a)
-  v: { arq: 'b', indice: 'tabela', dens: 'm', radar: 'sobre', g: 'a', id: '' },
+  v: { arq: 'b', indice: 'tabela', dens: 'm', radar: 'sobre', g: 'a', lentes: 'uma', id: '' },
   tema: {},          // cores lidas dos tokens CSS
   modoTema: null,    // null segue o sistema; 'light' | 'dark' escolhido
 });
@@ -34,9 +34,17 @@ export function alternaComparar(id) {
 
 export function abrir(id, prof = 1) { estado.sel = id; estado.prof = prof; }
 export function fechar() { estado.sel = null; }
+// Lentes. Ligar de novo a mesma lente desliga. Com ?lentes=uma (decisao D8 do
+// prototipo v3) ligar uma tira a anterior. Com ?lentes=varias elas se somam:
+// valores do mesmo menu se alternam (Firme ou Forte) e menus diferentes se
+// exigem juntos (Robotica e Firme).
+export const lentesDe = (k) => estado.lentes.filter((l) => l.k === k).map((l) => l.v);
+export const temLente = (k, v) => estado.lentes.some((l) => l.k === k && l.v === v);
 export function lente(k, v) {
-  estado.lente = estado.lente && estado.lente.k === k && estado.lente.v === v ? null : { k, v };
+  if (temLente(k, v)) estado.lentes = estado.lentes.filter((l) => !(l.k === k && l.v === v));
+  else estado.lentes = estado.v.lentes === 'varias' ? [...estado.lentes, { k, v }] : [{ k, v }];
 }
+export function semLente(k) { estado.lentes = k ? estado.lentes.filter((l) => l.k !== k) : []; }
 
 // Tema escolhido pela pessoa: fica no navegador, e o painel funciona sem isso.
 // Escolher o mesmo tema do sistema volta a seguir o sistema.

@@ -5,8 +5,8 @@
   // linha do recorte acompanha a rolagem; a marca sobe com a pagina.
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
-  import { ARENA, SOLIDEZ, SOL_ROT, ESFORCO, familia, intervalo, plural, periodos, cobertura, lenteValida, rotuloLente } from '../lib/dados.js';
-  import { estado, aplicarTema } from '../lib/estado.svelte.js';
+  import { ARENA, SOLIDEZ, SOL_ROT, ESFORCO, familia, intervalo, plural, periodos, cobertura, lenteValida, rotuloLente, aplicaLentes } from '../lib/dados.js';
+  import { estado, aplicarTema, lente, lentesDe, semLente } from '../lib/estado.svelte.js';
 
   let { vistas = [], ancoras = false, papers, todos, faltam, dias } = $props();
   const escuro = $derived(estado.tema.escuro);
@@ -14,21 +14,30 @@
   const cob = $derived(cobertura(todos, faltam));
 
   const conta = (lista, f) => { const m = new Map(); for (const p of lista) for (const k of f(p)) m.set(k, (m.get(k) || 0) + 1); return m; };
+  // Cada menu conta os papers que sobram com as lentes dos outros menus: o
+  // numero ao lado da opcao diz quantos papers ela traz para o recorte.
   const facetas = $derived.by(() => {
-    const ar = conta(todos, (p) => p.ar), sol = conta(todos, (p) => [p.sol]), esf = conta(todos, (p) => [p.esf]);
-    const fam = conta(todos, (p) => new Set(p.ents.filter((e) => e[1] === 'modelo').map((e) => familia(e[0]))));
+    const base = (k) => (estado.v.lentes === 'varias' ? aplicaLentes(todos, estado.lentes.filter((l) => l.k !== k)) : todos);
+    const [bAr, bSol, bEsf, bFam] = ['ar', 'sol', 'esf', 'fam'].map(base);
+    const ar = conta(bAr, (p) => p.ar), sol = conta(bSol, (p) => [p.sol]), esf = conta(bEsf, (p) => [p.esf]);
+    const fam = conta(bFam, (p) => new Set(p.ents.filter((e) => e[1] === 'modelo').map((e) => familia(e[0]))));
     const ord = (m) => [...m.entries()].sort((a, b) => b[1] - a[1]);
+    // a opcao ligada continua na lista mesmo se o resto do recorte a esvaziou
+    const ligada = (k, itens, rot) => [...itens, ...lentesDe(k).filter((v) => !itens.some((i) => String(i[0]) === String(v))).map((v) => [String(v), rot(v), 0])];
     return [
-      ['ar', 'Arena', ord(ar).map(([k, n]) => [k, ARENA[k] || k, n])],
-      ['sol', 'Prova', SOLIDEZ.filter((s) => sol.has(s)).map((s) => [s, s === 'sem_leitura' ? 'Não lida' : SOL_ROT[s], sol.get(s)])],
-      ['esf', 'Adoção', [1, 2, 3, 4, 5, 0].filter((n) => esf.has(n)).map((n) => [String(n), ESFORCO[n], esf.get(n)])],
-      ['fam', 'Família', ord(fam).slice(0, 12).map(([k, n]) => [k, k, n])],
+      ['ar', 'Arena', ligada('ar', ord(ar).map(([k, n]) => [k, ARENA[k] || k, n]), (v) => ARENA[v] || v), bAr.length],
+      ['sol', 'Prova', ligada('sol', SOLIDEZ.filter((s) => sol.has(s)).map((s) => [s, s === 'sem_leitura' ? 'Não lida' : SOL_ROT[s], sol.get(s)]), (v) => SOL_ROT[v]), bSol.length],
+      ['esf', 'Adoção', ligada('esf', [1, 2, 3, 4, 5, 0].filter((n) => esf.has(n)).map((n) => [String(n), ESFORCO[n], esf.get(n)]), (v) => ESFORCO[v]), bEsf.length],
+      ['fam', 'Família', ligada('fam', ord(fam).slice(0, 12).map(([k, n]) => [k, k, n]), (v) => v), bFam.length],
     ];
   });
   const TODAS = { ar: 'Todas as arenas', sol: 'Qualquer prova', esf: 'Qualquer esforço', fam: 'Todas as famílias' };
-  const valor = (k) => (estado.lente?.k === k ? String(estado.lente.v) : '');
-  function escolher(k, v) { estado.lente = v === '' ? null : lenteValida(k, v); }
-  const rotulo = (k, nome, itens) => { const v = valor(k); return v === '' ? nome : itens.find((i) => String(i[0]) === v)?.[1] ?? nome; };
+  const varias = $derived(estado.v.lentes === 'varias');
+  const valores = (k) => lentesDe(k).map(String);
+  function escolher(k, v) { const ok = v === '' ? null : lenteValida(k, v); if (ok) lente(ok.k, ok.v); else semLente(k); }
+  const nomes = (k, itens) => valores(k).map((v) => itens.find((i) => String(i[0]) === v)?.[1] ?? v);
+  // no botao: o nome do menu, o valor ligado ou, com mais de um, quantos sao
+  const rotulo = (k, nome, itens) => { const ns = nomes(k, itens); return ns.length === 0 ? nome : ns.length === 1 ? ns[0] : `${nome} · ${ns.length}`; };
   function ir(v) { estado.vista = v; scrollTo({ top: 0 }); }
 </script>
 
@@ -61,14 +70,15 @@
   <div class="pagina l2" data-regiao="recorte">
     <p class="rec pts" aria-live="polite"><b>{papers.length === todos.length ? plural(todos.length, 'paper', 'papers') : `${papers.length} de ${plural(todos.length, 'paper', 'papers')}`}</b>{#if dias.length}<span class="mut">{intervalo(dias[0], dias[1])}</span>{/if}</p>
     <div class="filtros" role="group" aria-label="Filtrar por">
-      {#each facetas as [k, nome, itens]}
-        {#if itens.length > 1}
-          <Menu {nome} rotulo={valor(k) !== '' ? `${nome}: ${rotulo(k, nome, itens)}` : nome} descricao={valor(k) !== '' ? `${nome}: ${rotulo(k, nome, itens)}` : `Filtrar por ${nome.toLowerCase()}`} valor={valor(k)} ligado={valor(k) !== ''}
-            itens={[['', TODAS[k], todos.length], ...itens]} aoEscolher={(v) => escolher(k, v)} />
+      {#each facetas as [k, nome, itens, total]}
+        {#if itens.length > 1 || valores(k).length}
+          {@const vs = valores(k)}
+          <Menu {nome} {varias} prefixo={vs.length === 1 ? `${nome}: ` : ''} rotulo={rotulo(k, nome, itens)} descricao={vs.length ? `${nome}: ${nomes(k, itens).join(', ')}` : `Filtrar por ${nome.toLowerCase()}`} valor={varias ? vs : vs[0] ?? ''} ligado={vs.length > 0}
+            itens={[['', TODAS[k], total], ...itens]} aoEscolher={(v) => escolher(k, v)} />
         {/if}
       {/each}
-      {#if estado.lente}<button class="btn fan limpa" onclick={() => (estado.lente = null)} aria-label="Limpar o filtro {rotuloLente(estado.lente)}"><Icone nome="x" tam={12} />Limpar</button>{/if}
     </div>
+    {#if estado.lentes.length}<button class="btn fan limpa" onclick={() => semLente()} aria-label="Limpar o filtro {estado.lentes.map(rotuloLente).join(', ')}"><Icone nome="x" tam={12} />Limpar</button>{/if}
     <p class="cob mut" title="Quanto do texto de cada paper foi lido">
       <span class="med" aria-hidden="true"><i style:flex={cob.inteira} class="a"></i><i style:flex={cob.parcial} class="b"></i><i style:flex={cob.insuf} class="c"></i><i style:flex={cob.fila} class="d"></i></span>
       <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span><span><b>{cob.insuf}</b> {cob.insuf === 1 ? 'insuficiente' : 'insuficientes'}</span>{#if cob.fila}<span><b>{cob.fila}</b> na fila</span>{/if}</span>
@@ -102,11 +112,21 @@
   .perm { display: inline-flex; }
   .perm :global(.sel) { min-height: var(--ctl); }
 
-  .l2 { display: flex; align-items: center; gap: var(--sp-2) var(--sp-4); min-height: 44px; padding-bottom: var(--sp-2); overflow-x: auto; scrollbar-width: none; }
-  .l2::-webkit-scrollbar { display: none; }
+  .l2 { display: flex; align-items: center; gap: var(--sp-2) var(--sp-4); min-height: 44px; padding-bottom: var(--sp-2); }
   .rec { white-space: nowrap; }
   .rec b { font-weight: 600; }
-  .filtros { display: flex; align-items: center; gap: var(--sp-2); padding: 2px; }
+  .filtros { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+  /* estreito: a contagem ocupa a primeira linha e sobe com a pagina (top negativo);
+     presa no topo fica so a linha dos filtros, todos a vista, sem rolagem lateral */
+  @media (max-width: 639px) {
+    .recorte { top: calc(-1 * var(--lh-14) - var(--sp-2)); }
+    .l2 { flex-wrap: wrap; row-gap: var(--sp-2); padding-top: var(--sp-2); }
+    .rec { flex: 1 1 0; order: 1; }
+    .limpa { order: 2; min-height: var(--alvo); margin-block: -2px; }
+    .filtros { flex: 1 0 100%; order: 3; gap: 6px; }
+    .filtros :global(.pre) { display: none; }      /* preso no topo, o filtro ligado mostra so o valor */
+    .filtros :global(.sel) { padding: 0 6px 0 10px; }
+  }
   .limpa { min-height: calc(var(--ctl) - 4px); padding: 0 var(--sp-2); font-size: var(--fs-12); }
   .cob { display: none; align-items: center; gap: var(--sp-2); margin-left: auto; font-size: var(--fs-12); line-height: var(--lh-12); white-space: nowrap; }
   .cob b { font-weight: 500; color: var(--ink2); }
