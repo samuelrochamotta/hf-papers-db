@@ -1,19 +1,26 @@
 <script>
   // O que da para adotar ja: os papers por degrau de esforco. Cada ponto e um
-  // paper, na cor da prova; com papers demais, viram barras empilhadas.
+  // paper, na cor da prova; com papers demais, viram barras empilhadas. A
+  // resposta conta so quem cumpre as tres condicoes da pergunta (dispensa
+  // treino, liberou algo e tem prova firme ou forte) e aparece pelo nome.
   import Quadro from '../pecas/Quadro.svelte';
   import Grafico from '../lib/Grafico.svelte';
+  import Nomes from '../pecas/Nomes.svelte';
   import Chave from '../pecas/Chave.svelte';
-  import { ESFORCO, SOLIDEZ, SOL_ROT, SOL_FRASE, ART, ART_EST, esc, plural } from '../lib/dados.js';
-  import { base, estiloPonto, corSolidez, rotNum, rotCat, dica } from '../lib/tema.js';
+  import { ESFORCO, SOLIDEZ, SOL_ROT, SOL_FRASE, ART, ART_EST, esc, plural, liberados } from '../lib/dados.js';
+  import { base, pontoProva, corSolidez, rotNum, rotCat, dica } from '../lib/tema.js';
   import { estado, lente, lentesDe } from '../lib/estado.svelte.js';
 
   let { papers } = $props();
   const t = $derived(estado.tema);
+  const cheio = $derived(estado.v.marca === 'cheio');
   const NIVEIS = [1, 2, 3, 4, 5, 0];
   const RANK = Object.fromEntries(SOLIDEZ.map((s, i) => [s, i]));
   const ativas = $derived(lentesDe('esf'));
-  const prontos = $derived(papers.filter((p) => p.esf >= 1 && p.esf <= 2).length);
+  const semTreino = $derived(papers.filter((p) => p.esf >= 1 && p.esf <= 2));
+  const ja = $derived(semTreino.filter((p) => liberados(p) && (p.sol === 'forte' || p.sol === 'firme')).sort((a, b) => a.esf - b.esf || b.u - a.u));
+  const resposta = $derived(!semTreino.length ? 'nenhum paper deste recorte dispensa treino'
+    : `de ${plural(semTreino.length, 'paper que dispensa', 'papers que dispensam')} treino ${ja.length === 1 ? 'tem' : 'têm'} algo liberado e prova firme ou forte`);
   const conta = $derived(NIVEIS.map((n) => papers.filter((p) => p.esf === n).length));
   // sem espaco para um ponto por paper, a fila vira barra empilhada
   let larg = $state(480);
@@ -64,10 +71,9 @@
           const o = fila[pa.dataIndex]; if (!o) return null;
           const y = api.coord([0, api.value(1)])[1], larg = pa.coordSys.width - 16;
           const passo = Math.min(18, larg / maior), r = Math.max(2.5, Math.min(7, passo / 2 - 1));
-          const s = estiloPonto(t, o.p);
-          return { type: 'circle', shape: { cx: pa.coordSys.x + 8 + o.n * passo, cy: y, r },
-            style: { fill: s.color, stroke: s.borderColor, lineWidth: r < 5 ? 0.75 : s.borderWidth, lineDash: s.borderType },
-            emphasis: { style: { stroke: t.ink, lineWidth: 2 }, shape: { r: r + 2 } } };
+          const els = pontoProva(t, o.p, pa.coordSys.x + 8 + o.n * passo, y, r, { cheio: cheio && r >= 5, extra: { emphasis: { style: { stroke: t.ink, lineWidth: 2 } } } });
+          if (r < 5) els[0].style = { ...els[0].style, lineWidth: 0.75 };
+          return { type: 'group', children: els };
         },
         data: fila.map((o) => ({ pid: o.p.id, value: [0, NIVEIS.indexOf(o.p.esf)] })),
       }],
@@ -79,8 +85,9 @@
   };
 </script>
 
-<Quadro id="adocao" pergunta="O que dá para adotar já?" valor={prontos} resposta={`${prontos === 1 ? 'paper dispensa' : 'papers dispensam'} treino: basta configurar ou integrar`}>
+<Quadro id="adocao" pergunta="O que dá para adotar já?" valor={ja.length} {resposta} vazio={!papers.length}>
   {#if opcao && papers.length}<div bind:clientWidth={larg}><Grafico {opcao} altura={228} aoClicar={clicar} rotulo="Papers por esforço de adoção, do menor ao maior, na cor da prova" /></div>
+    <Nomes papers={ja} rotulo="Papers que dá para adotar já" valor={(p) => liberados(p)} />
   {:else}<div class="vazio">Nenhum paper neste recorte.</div>{/if}
   {#snippet legenda()}<Chave />{/snippet}
 </Quadro>

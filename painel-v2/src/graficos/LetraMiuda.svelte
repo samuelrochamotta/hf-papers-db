@@ -24,7 +24,7 @@
   const visiveis = $derived(todos ? itens : itens.slice(0, LIM));
 </script>
 
-<Quadro id="letra" pergunta="O que a letra miúda admite?" valor={itens.length} resposta={contagem.map(([k, n]) => `${n} ${TIPOS[k][n === 1 ? 0 : 1]}`.replace(/ /g, '\u00a0')).join(' · ')}>
+<Quadro id="letra" pergunta="O que a letra miúda admite?" valor={itens.length} vazio={!itens.length} resposta={contagem.map(([k, n]) => `${n} ${TIPOS[k][n === 1 ? 0 : 1]}`.replace(/ /g, '\u00a0')).join(' · ')}>
   {#if itens.length}
     <ul>
       {#each visiveis as it, i (it.p.id + it.tipo + i)}

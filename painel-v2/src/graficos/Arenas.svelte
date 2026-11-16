@@ -10,6 +10,7 @@
   let { papers } = $props();
   const t = $derived(estado.tema);
   const ESTADOS = [['ganha', 'Vence o rival'], ['ruido', 'Dentro do ruído'], ['perde', 'Perde'], ['sem_rival', 'Sem rival externo']];
+  const nome = (k) => ARENA[k] || k;
 
   const linhas = $derived.by(() => {
     const m = new Map();
@@ -20,10 +21,14 @@
       const e = r.e === 'empata' ? 'ruido' : r.e === 'sem_nosso' ? 'sem_rival' : r.e;
       o.c[e] = (o.c[e] || 0) + 1;
     }
-    return [...m.values()].sort((a, b) => b.ps.size - a.ps.size || b.n - a.n);
+    // a arena residual vai sempre por ultimo: "Outras" nao e uma disputa
+    return [...m.values()].sort((a, b) => (a.k === 'outra') - (b.k === 'outra') || b.ps.size - a.ps.size || b.n - a.n);
   });
   const topo = $derived(linhas[0] || null);
-  const nome = (k) => ARENA[k] || k;
+  const empate = $derived(topo ? linhas.filter((l) => l.k !== 'outra' && l.ps.size === topo.ps.size).length : 0);
+  const resposta = $derived(!topo ? 'nenhum resultado em tabela'
+    : empate > 1 ? `${topo.ps.size === 1 ? 'paper' : 'papers'} em cada uma das ${empate} arenas mais cheias`
+    : `${topo.ps.size === 1 ? 'paper disputa' : 'papers disputam'} ${nome(topo.k)}, a arena mais cheia`);
   const ativas = $derived(lentesDe('ar'));
 
   const opcao = $derived.by(() => {
@@ -32,7 +37,7 @@
     const apaga = (k) => (ativas.length && !ativas.includes(k) ? 0.3 : 1);
     return {
       ...base(t),
-      grid: { left: 0, right: 12, top: 4, bottom: 36, containLabel: true },
+      grid: { left: 0, right: 12, top: 22, bottom: 36, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: t.sunk, opacity: .6 } },
         formatter: (qs) => {
           const l = linhas[qs[0].dataIndex];
@@ -44,6 +49,8 @@
       yAxis: {
         type: 'category', inverse: true, data: linhas.map((l) => nome(l.k)), triggerEvent: true,
         axisTick: { show: false }, axisLine: { show: false },
+        // cabecalho da coluna de numeros: sao papers; a barra conta resultados
+        name: 'papers', nameLocation: 'start', nameGap: 8, nameTextStyle: { ...rotNum(t), align: 'right', padding: [0, 12, 0, 0] },
         axisLabel: { fontSize: 12, margin: 12,
           formatter: (v, i) => `{${ativas.length && !ativas.includes(linhas[i].k) ? 'off' : 'a'}|${v}}  {n|${linhas[i].ps.size}}`,
           rich: { a: { color: t.ink, fontWeight: 500, fontFamily: t.fUi, fontSize: 12 }, off: { color: t.muted, fontFamily: t.fUi, fontSize: 12 },
@@ -63,9 +70,9 @@
   };
 </script>
 
-<Quadro id="arenas" pergunta="Onde está a disputa?" valor={topo ? topo.ps.size : 0} resposta={topo ? `${topo.ps.size === 1 ? 'paper disputa' : 'papers disputam'} ${nome(topo.k)}, a arena mais cheia` : 'nenhum resultado em tabela'}>
+<Quadro id="arenas" pergunta="Onde está a disputa?" valor={topo ? topo.ps.size : 0} {resposta} vazio={!linhas.length}>
   {#if opcao && linhas.length}
-    <Grafico {opcao} altura={Math.max(160, linhas.length * 28 + 60)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" />
+    <Grafico {opcao} altura={Math.max(176, linhas.length * 28 + 78)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" />
   {:else}<div class="vazio">Nenhum resultado com benchmark neste recorte.</div>{/if}
   {#snippet legenda()}
     <ul class="leg" aria-label="Desfecho contra o melhor rival">

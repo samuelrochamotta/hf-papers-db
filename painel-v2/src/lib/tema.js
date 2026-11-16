@@ -37,6 +37,20 @@ export function estiloPonto(t, p) {
 export const marca = (t, p) => (p.sol === 'sem_leitura'
   ? { fill: t.surface, stroke: t.solNada, lineWidth: 1.5, lineDash: [3, 2] }
   : { fill: corSolidez(t, p.sol), stroke: t.surface, lineWidth: 1 });
+// A marca de prova de quem desenha a propria forma, como lista de elementos.
+// Na variante "cheio", alem da cor, o disco enche conforme a prova: forte
+// inteiro, firme 3/4, basica 1/2, fragil 1/4. Sem leitura continua anel
+// tracejado. `extra` (realce, cursor, nome) vai no primeiro elemento.
+const FRACAO = { forte: 1, firme: 0.75, basico: 0.5, fragil: 0.25 };
+export function pontoProva(t, p, cx, cy, r, { cheio = false, extra = {}, borda = null } = {}) {
+  const f = FRACAO[p.sol], m = marca(t, p);
+  if (!cheio || f == null || f === 1) return [{ type: 'circle', shape: { cx, cy, r }, style: borda ? { ...m, stroke: borda } : m, ...extra }];
+  const cor = corSolidez(t, p.sol);
+  return [
+    { type: 'circle', shape: { cx, cy, r: r - 0.75 }, style: { fill: t.surface, stroke: borda || cor, lineWidth: 1.5 }, ...extra },
+    { type: 'sector', silent: true, shape: { cx, cy, r0: 0, r: r - 0.75, startAngle: -Math.PI / 2, endAngle: -Math.PI / 2 + 2 * Math.PI * f }, style: { fill: cor } },
+  ];
+}
 // Enxame: os pontos de uma mesma linha ficam no centro da faixa enquanto ha
 // lugar; quem tocaria um vizinho sobe ou desce o minimo necessario. Se a
 // linha lota, os desvios encolhem para caber na faixa. Recebe [{x, y}] em
@@ -82,7 +96,6 @@ export function base(t) {
 export const rotNum = (t) => ({ color: t.muted, fontFamily: t.fNum, fontSize: 12 });
 export const rotCat = (t, forte = true) => ({ color: forte ? t.ink : t.muted, fontFamily: t.fUi, fontSize: 12, fontWeight: forte ? 500 : 400 });
 export const grade = (t) => ({ lineStyle: { color: t.line } });
-export const realce = (t) => ({ scale: 1.3, itemStyle: { borderColor: t.ink, borderWidth: 2, shadowBlur: 0 } });
 
 export const dica = (titulo, ...linhas) =>
   `<div style="font-weight:600;margin-bottom:2px">${titulo}</div>` + linhas.filter(Boolean).map((l) => `<div style="opacity:.8">${l}</div>`).join('');
@@ -101,8 +114,55 @@ export function dominio(vals, { inclui = [0] } = {}) {
   // passo redondo que da de 3 a 7 intervalos: os rotulos do eixo caem nas marcas
   const passo = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000].find((s) => (hi - lo) / s <= 6) || 10000;
   let d0 = Math.floor(lo / passo) * passo, d1 = Math.ceil(hi / passo) * passo;
+  // quem fica a menos de um passo da borda entra no eixo: o corte e so para o que foge muito
+  if (a.length && a[0] < d0 && a[0] >= d0 - passo) d0 -= passo;
+  if (a.length && a[a.length - 1] > d1 && a[a.length - 1] <= d1 + passo) d1 += passo;
   if (d0 === d1) d1 = d0 + passo;
   return [d0, d1, passo];
+}
+
+// largura de um texto em pixels, para reservar o lugar do nome antes de desenhar
+let tela;
+export const larguraTexto = (txt, fonte) => { tela ||= document.createElement('canvas').getContext('2d'); tela.font = fonte; return tela.measureText(txt).width; };
+
+// Nomes de pontos sem sobreposicao. Recebe os pontos em pixels, na ordem de
+// prioridade ({x, y, r, w, h, dentro, obrigatorio}), e devolve a caixa
+// [x, y, w, h] do nome de cada um, ou null quando nao ha lugar limpo. Lugar
+// limpo: dentro da area, sem encobrir ponto nem outro nome, sem cruzar linha
+// de referencia e do mesmo lado da zona que o ponto. Ponto obrigatorio ganha
+// nome sempre, no lugar menos ruim. Sem sorteio: a mesma entrada da o mesmo
+// desenho.
+export const toca = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
+export function rotular(itens, { area, zona = null, linhas = [], ocupado = [], folga = 5 } = {}) {
+  const bolas = itens.map((o) => [o.x - o.r, o.y - o.r, 2 * o.r, 2 * o.r]);
+  const postos = [...ocupado], saida = itens.map(() => null);
+  const cabe = (c) => c[0] >= area[0] && c[1] >= area[1] && c[0] + c[2] <= area[0] + area[2] && c[1] + c[3] <= area[1] + area[3];
+  const contem = (z, c) => c[0] >= z[0] && c[1] >= z[1] && c[0] + c[2] <= z[0] + z[2] && c[1] + c[3] <= z[1] + z[3];
+  itens.forEach((o, i) => {
+    if (!o.w) return;
+    const h = o.h ?? 14, g = o.r + folga, { x, y, r, w } = o;
+    const cands = [
+      [x + g, y - h / 2], [x - g - w, y - h / 2],
+      [x - r, y - g - h], [x + r - w, y - g - h], [x - r, y + g], [x + r - w, y + g],
+      [x - w / 2, y - g - h], [x - w / 2, y + g],
+    ].map(([cx, cy], ordem) => {
+      let c = [cx, cy, w, h], custo = ordem;
+      if (!cabe(c)) {
+        // nome obrigatorio que nao cabe e empurrado para dentro da area, em vez de sumir
+        if (!o.obrigatorio) return null;
+        c = [Math.max(area[0], Math.min(area[0] + area[2] - w, cx)), Math.max(area[1], Math.min(area[1] + area[3] - h, cy)), w, h];
+        custo += 500 + (toca(c, bolas[i]) ? 1000 : 0);
+      }
+      custo += 1000 * (bolas.filter((b, j) => j !== i && toca(c, b)).length + postos.filter((b) => toca(c, b)).length);
+      if (zona && (o.dentro ? !contem(zona, c) : toca(c, zona))) custo += 100;
+      custo += 100 * linhas.filter((l) => toca(c, l)).length;
+      return { c, custo };
+    }).filter(Boolean).sort((a, b) => a.custo - b.custo);
+    const m = cands[0];
+    if (!m || (m.custo >= 100 && !o.obrigatorio)) return;
+    saida[i] = m.c; postos.push(m.c);
+  });
+  return saida;
 }
 // numero inteiro curto para eixo: 1.200 vira 1,2 mil
 export const curtoNum = (v) => (v >= 1e6 ? `${(v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi` : v >= 1e4 ? `${(v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} mil` : v.toLocaleString('pt-BR'));

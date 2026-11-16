@@ -67,7 +67,9 @@
 </script>
 
 <Quadro id="regua" pergunta={modo === 'modelo' ? 'Sobre quem se constrói, contra quem se mede?' : 'Que benchmarks se criam, quais se usam?'}
-  valor={topoBase ? topoBase.l : 0} resposta={topoBase && topoBase.l ? `${topoBase.l === 1 ? 'paper' : 'papers'} ${modo === 'modelo' ? (topoBase.l === 1 ? 'parte de' : 'partem de') : (topoBase.l === 1 ? 'cria ou treina com' : 'criam ou treinam com')} ${topoBase.f}` : 'nenhuma entidade lida'}>
+  valor={topoBase ? topoBase.l : 0} vazio={!linhas.length}
+  resposta={topoBase && topoBase.l ? `${topoBase.l === 1 ? 'paper' : 'papers'} ${modo === 'modelo' ? (topoBase.l === 1 ? 'parte de' : 'partem de') : (topoBase.l === 1 ? 'cria ou treina com' : 'criam ou treinam com')} ${topoBase.f}`
+    : modo === 'modelo' ? 'papers dizem de que modelo partem' : 'papers criam benchmark ou treinam com um'}>
   {#snippet extra()}
     <div class="seg" role="group" aria-label="Tipo de entidade">
       <button aria-pressed={modo === 'modelo'} onclick={() => (modo = 'modelo')}>Modelos</button>
