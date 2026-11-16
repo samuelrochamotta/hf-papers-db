@@ -11,7 +11,7 @@
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
   import Degraus from '../lib/Degraus.svelte';
-  import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, FATO, aberturaFrase, faltaLer, intervalo, dataCurta, nBench } from '../lib/dados.js';
+  import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, FATO, aberturaFrase, faltaLer, faltaLerNomes, intervalo, dataCurta, nBench } from '../lib/dados.js';
   import { estado, abrir, alternaComparar, mov } from '../lib/estado.svelte.js';
 
   // `periodo`: todos os papers do periodo, sem filtro. A mediana e sempre a do periodo, em todas as telas
@@ -51,9 +51,9 @@
   const sub = (p) => [ENTREGA[p.ent] || p.ent, p.cam ? CAMADA[p.cam] || p.cam : null].filter(Boolean).join(' · ');
   // a abertura usa as mesmas palavras em todas as telas (FATO.abertura): na
   // tabela, o fato sob o cabecalho; fora dela, a frase ("liberou código"). O
-  // que a leitura nao alcancou vem logo abaixo ("pesos, dados e demo não verificados")
+  // que a leitura nao alcancou vem logo abaixo ("resto não verificado")
   const nomeLongo = (p) => [p.t, `${p.u} votos`, SOL_FRASE[p.sol].toLowerCase(), ganhoDe(p) != null ? `ganho ${sgn(ganhoDe(p))}%` : null,
-    p.radar.facilidade != null ? `esforço: ${ESFORCO[p.esf].toLowerCase()}` : null, [aberturaFrase(p), faltaLer(p)].filter(Boolean).join(', ')].filter(Boolean).join('. ');
+    p.radar.facilidade != null ? `esforço: ${ESFORCO[p.esf].toLowerCase()}` : null, [aberturaFrase(p), faltaLerNomes(p)].filter(Boolean).join(', ')].filter(Boolean).join('. ');
 
   // colunas da tabela: [chave de ordem, rotulo, classe]
   const COLS = [['recentes', 'Data', 'c-d'], ['votos', 'Votos', 'c-n'], ['solidez', 'Prova', 'c-s'], ['ganho', 'Ganho', 'c-n'],
@@ -186,7 +186,7 @@
                 {:else if p.res.length}<span class="f-g sem">sem rival</span>
                 {:else}<span class="f-g sem"><small>ganho</small>não lido</span>{/if}
                 <span class="f-a" class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{:else}<i class="sem-deg" aria-hidden="true"></i>{/if}<span class="um">{ESFORCO[p.esf]}</span></span>
-                <span class="f-l" class:mut={FATO.abertura(p) == null}><span class="oq"><span class="cur">{FATO.abertura(p) ?? 'não lida'}</span><span class="lon">{aberturaFrase(p)}</span></span>{#if faltaLer(p)}<span class="nl">{faltaLer(p)}</span>{/if}</span>
+                <span class="f-l" class:mut={FATO.abertura(p) == null}><span class="oq"><span class="cur">{FATO.abertura(p) ?? 'não lida'}</span><span class="lon">{aberturaFrase(p)}</span></span>{#if faltaLer(p)}<span class="nl" title={faltaLerNomes(p)}>{faltaLer(p)}</span>{/if}</span>
                 {#if bench(p) != null}<span class="f-b num">{bench(p)}</span>{:else}<span class="f-b sem">não lida</span>{/if}
               </span>
             </button>
@@ -242,7 +242,7 @@
   .cab button[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
 
   /* a adocao comeca 12 px depois da sua coluna: o numero do ganho, alinhado a direita, nao encosta nela */
-  .indice { --colunas: 16px minmax(0, 1fr) 44px 48px 76px 64px 132px 136px 72px; }
+  .indice { --colunas: 16px minmax(0, 1fr) 44px 48px 76px 64px 132px 116px 72px; }
   .lista { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); overflow: clip; }
   .linha { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; border-top: 1px solid var(--line); position: relative; background: var(--surface); }
   .grupo:first-child > :first-child { border-top: 0; }
@@ -265,13 +265,14 @@
   .s { display: none; font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
   .s.tem { display: block; }                       /* a busca casou no tipo ou na camada: a linha aparece */
   .acha { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
-  /* tres colunas: a abertura cai embaixo do ganho, e a adocao ocupa as duas primeiras */
+  /* tres colunas: votos, prova e ganho; embaixo a adocao; e a abertura numa linha inteira, que cabe
+     "liberou código · resto não verificado" sem quebrar (numa coluna curta ia a quatro linhas, rodada 9) */
   .fatos { display: grid; grid-template-columns: minmax(58px, max-content) 88px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; align-items: start;
     font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); }
   .fatos > * { min-width: 0; white-space: nowrap; }
   .f-d, .f-b { display: none; }
   .f-v { grid-column: 1; } .f-s { grid-column: 2; } .f-g { grid-column: 3; }
-  .f-a { grid-column: 1 / 3; grid-row: 2; } .f-l { grid-column: 3; grid-row: 2; }
+  .f-a { grid-column: 1 / 3; grid-row: 2; } .f-l { grid-column: 1 / -1; grid-row: 3; }
   /* o fato que falta e uma palavra, na fonte do texto: nao disputa com os numeros */
   .sem { color: var(--muted); }
   .f-g.neg { color: var(--alert); }
@@ -281,10 +282,11 @@
   .f-g small { font-family: var(--f-ui); letter-spacing: 0; font-size: inherit; margin-right: .4em; color: var(--muted); }
   /* abertura: o fato e, embaixo, quantos artefatos a leitura nao alcancou. No
      celular a coluna e curta e a frase pode quebrar ("liberou código e pesos") */
-  .f-l { display: grid; }
+  .f-l { white-space: normal; }
   .f-l .cur { display: none; }
-  .f-l .oq { white-space: normal; overflow-wrap: anywhere; }
-  .f-l .nl { color: var(--muted); white-space: normal; }      /* os artefatos nao verificados vao inteiros, pelo nome: cortados, "d..." nao diz qual falta */
+  .f-l .oq { overflow-wrap: anywhere; }
+  .f-l .nl { color: var(--muted); white-space: nowrap; }      /* "resto não verificado" vai inteiro: cortado, nao diz o que falta */
+  .f-l .nl::before { content: ' · '; white-space: pre; }
   .f-s, .f-a { display: inline-flex; align-items: center; gap: 6px; }
   /* sem degraus (so informa), o nome comeca onde comecam os outros: a coluna tem uma margem so */
   .sem-deg { width: 18px; flex: none; }
@@ -311,7 +313,9 @@
     .f-s .sol { display: none; }
     .fatos { grid-column: 2; grid-template-columns: 72px 96px 104px 140px minmax(0, 1fr); column-gap: var(--sp-4); }
     .f-v, .f-s, .f-g, .f-a, .f-l { grid-column: auto; grid-row: 1; }
+    .f-l { display: grid; }
     .f-l .oq { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .f-l .nl { white-space: normal; } .f-l .nl::before { content: none; }
     .f-fila { grid-column: 2 / -1; }
   }
 
@@ -355,7 +359,7 @@
   }
   /* tabela com pouco lugar (paper aberto ao lado, em tela larga): saem a data e a amplitude, ficam as colunas da decisao */
   @container (min-width: 980px) and (max-width: 1119.98px) {
-    .cab-g, .abre { --colunas: 16px minmax(0, 1fr) 48px 76px 64px 132px 136px; }
+    .cab-g, .abre { --colunas: 16px minmax(0, 1fr) 48px 76px 64px 132px 116px; }
     .f-d, .f-b, .cab [data-h="recentes"], .cab [data-h="amplitude"] { display: none; }
     .f-fila { grid-column: 4 / -1; }
   }

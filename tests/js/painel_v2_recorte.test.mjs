@@ -32,7 +32,7 @@ import {
   aplicaLentes, lenteValida, rotuloLente, ordenar, comDado, ORDENS, buscar, periodos, noPeriodo,
   radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ, realcar, ondeAchou,
   buscarFila, SEM_FATO, FATO, EIXOS, ESFORCO, TETO_AMPLITUDE, passaDoEixo, tetoDoEixo, naoLidosDe, nBench, nome, nomeMenor,
-  aberturaFrase, faltaLer, LIMITE_TIPO, LIMITE_GRAVE,
+  aberturaFrase, faltaLer, faltaLerNomes, LIMITE_TIPO, LIMITE_GRAVE,
 } from '../../painel-v2/src/lib/dados.js';
 import { enxame, rotular, toca, dominio, pontoProva, marcasRadar } from '../../painel-v2/src/lib/tema.js';
 
@@ -248,7 +248,7 @@ test('nos dados publicados, toda ordem e uma permutacao e todo filtro existente 
   for (const s of SOLIDEZ) assert.equal(aplicaLentes(ps, [{ k: 'sol', v: s }]).length, ps.filter((p) => p.sol === s).length, s);
   for (const a of new Set(ps.flatMap((p) => p.ar))) assert.ok(aplicaLentes(ps, [{ k: 'ar', v: a }]).length > 0, a);
   const c = cobertura(ps, REAL.faltam);
-  assert.equal(c.inteira + c.parcial + c.insuf, ps.length);
+  assert.equal(c.inteira + c.parcial, ps.length);
   assert.equal(c.total, ps.length + REAL.faltam.length);
 });
 
@@ -296,17 +296,16 @@ test('as marcas do radar: escala nos aneis, faixa no eixo e corte fora do anel',
   assert.deepEqual(textos, ['50', '100']);
   // a escala fica na aresta entre o primeiro e o ultimo eixo: nunca em cima de um raio, onde caem os vertices
   for (const e of els.filter((x) => x.type === 'text')) assert.ok(Math.abs(e.x - cx) > 10, 'rotulo fora do raio do topo');
-  const [faixa] = els.filter((e) => e.type === 'line'), [fim] = els.filter((e) => e.type === 'circle');
-  assert.ok(faixa && !faixa.style.lineDash && faixa.style.lineWidth <= 1 && faixa.style.stroke === t.muted, 'a faixa e um fio fino na cor apagada, abaixo das series');
-  // a faixa sai do vertice (40) e vai ate o anel de 100 do segundo eixo; o anel vazado do fim fica no 100, na cor do paper
+  // a faixa e um intervalo, nao um dado: fio fino e tique de fecho atravessado, os dois na cor apagada, sem anel nem cor do paper
+  const [faixa, fecho] = els.filter((e) => e.type === 'line');
+  assert.ok(faixa && !faixa.style.lineDash && faixa.style.lineWidth <= 1 && faixa.style.stroke === t.muted, 'fio fino na cor apagada');
+  assert.ok(fecho && fecho.style.stroke === t.muted, 'o fecho tambem e apagado');
+  assert.equal(els.filter((e) => e.type === 'circle').length, 0, 'nenhum anel: um anel se lia como valor medido');
+  // a faixa sai do vertice (40) e vai ate o anel de 100 do segundo eixo; o fecho atravessa o eixo no 100
   assert.ok(Math.abs(Math.hypot(faixa.shape.x1 - cx, faixa.shape.y1 - cy) - 0.4 * r) < 0.01);
   assert.ok(Math.abs(Math.hypot(faixa.shape.x2 - cx, faixa.shape.y2 - cy) - r) < 0.01);
-  assert.ok(fim && fim.style.stroke === '#a00' && fim.style.fill === t.surface);
-  assert.ok(Math.abs(Math.hypot(fim.shape.cx - cx, fim.shape.cy - cy) - r) < 0.01);
-  // com dois papers, cada fio leva a cor do seu paper e os dois ficam lado a lado, sem se tocar
-  const dois = marcasRadar(t, { cx, cy, r, itens: [itens[0], { ...itens[0], cor: '#00a' }] }).filter((e) => e.type === 'line');
-  assert.deepEqual(dois.map((e) => e.style.stroke), ['#a00', '#00a']);
-  assert.ok(Math.hypot(dois[0].shape.x2 - dois[1].shape.x2, dois[0].shape.y2 - dois[1].shape.y2) >= 7, 'os aneis do fim nao se encostam');
+  const mx = (fecho.shape.x1 + fecho.shape.x2) / 2, my = (fecho.shape.y1 + fecho.shape.y2) / 2;
+  assert.ok(Math.abs(mx - faixa.shape.x2) < 0.01 && Math.abs(my - faixa.shape.y2) < 0.01, 'o fecho fica no fim da faixa');
   const cortes = els.filter((e) => e.type === 'polyline');
   assert.equal(cortes.length, 2);
   for (const c of cortes) assert.ok(Math.hypot(c.shape.points[1][0] - cx, c.shape.points[1][1] - cy) > r, 'a marca de corte fica fora do anel');
@@ -345,11 +344,14 @@ test('a abertura tem as mesmas palavras em toda tela e nao esconde a parte nao l
   assert.equal(FATO.abertura(dois), 'código e pesos'); assert.equal(aberturaFrase(dois), 'liberou código e pesos');
   assert.equal(aberturaFrase(pagina), 'só a página'); assert.equal(aberturaFrase(nada), 'nada liberado');
   assert.equal(aberturaFrase(semLer), 'abertura não lida');
-  // "nada" ou "só a página" com parte nao verificada nao e ausencia: os artefatos vem junto, pelo nome
-  assert.equal(faltaLer(codigo), 'pesos, dados e demo não verificados'); assert.equal(faltaLer(pagina), 'pesos, dados e demo não verificados');
+  // "nada" ou "só a página" com parte nao verificada nao e ausencia: o resto vem junto, e o paper aberto diz quais
+  assert.equal(faltaLer(codigo), 'resto não verificado'); assert.equal(faltaLer(pagina), 'resto não verificado');
+  assert.equal(faltaLerNomes(codigo), 'pesos, dados e demo não verificados'); assert.equal(faltaLerNomes(dois), '');
   assert.equal(faltaLer(dois), ''); assert.equal(faltaLer(nada), '');
-  assert.equal(faltaLer(paper('f', { ab: { codigo: 'liberado', pesos: 'liberado', dados: 'liberado', demo: 'nao_lido' }, radar: { abertura: 100 } })), 'demo não verificada');
-  assert.equal(faltaLer(paper('g', { ab: { codigo: 'liberado', pesos: 'nao_lido', dados: 'liberado', demo: 'liberado' }, radar: { abertura: 90 } })), 'pesos não verificados');
+  assert.equal(faltaLer(paper('f', { ab: { codigo: 'liberado', pesos: 'liberado', dados: 'liberado', demo: 'nao_lido' }, radar: { abertura: 100 } })), 'resto não verificado');
+  assert.equal(faltaLerNomes(paper('f2', { ab: { codigo: 'liberado', pesos: 'liberado', dados: 'liberado', demo: 'nao_lido' }, radar: { abertura: 100 } })), 'demo não verificada');
+  assert.equal(faltaLer(paper('g', { ab: { codigo: 'liberado', pesos: 'nao_lido', dados: 'liberado', demo: 'liberado' }, radar: { abertura: 90 } })), 'resto não verificado');
+  assert.equal(faltaLerNomes(paper('g2', { ab: { codigo: 'liberado', pesos: 'nao_lido', dados: 'liberado', demo: 'liberado' }, radar: { abertura: 90 } })), 'pesos não verificados');
   assert.equal(faltaLer(semLer), '', 'eixo todo nao lido ja diz "abertura não lida"');
   // nos dados publicados, todo paper tem frase, e nenhuma diz "nada" sozinha
   for (const p of REAL.papers) { assert.ok(aberturaFrase(p).length > 3, p.id); assert.notEqual(aberturaFrase(p), 'nada'); }

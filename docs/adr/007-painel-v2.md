@@ -64,8 +64,9 @@ muda três coisas, por decisão do Samuel:
 - O radar continua com seis eixos, agora com um nome por conceito (Ganho,
   Prova, Abertura, Adoção, Amplitude, Votos). A amplitude passa a uma escala
   logarítmica fixa com teto em 16 benchmarks, e a abertura guarda também o
-  máximo possível (`abTeto`), que o radar desenha como faixa a partir do
-  confirmado. As contas seguem no Python (`leitura/derivar.py`).
+  máximo possível (`abTeto`), que o radar do paper aberto desenha como faixa
+  apagada a partir do confirmado (na comparação de três papers a faixa se lia
+  como abertura medida, e a tabela ao lado já mostra o que não foi verificado). As contas seguem no Python (`leitura/derivar.py`).
 - A lista troca a miniatura do radar pela marca de prova, que repete o nível
   no preenchimento além da cor.
 - A frase do problema escrita pelo modelo volta à tela, marcada como do modelo.

@@ -199,16 +199,16 @@ export function marcasRadar(t, { cx, cy, r, itens }) {
     const n = it.valores.length;
     it.valores.forEach((v, i) => {
       const [ux, uy] = dir(i, n);
-      // faixa: do vertice (o confirmado) ate o maximo possivel. Fio fino na cor apagada, para ficar
-      // abaixo das series (banda grossa ou tracejado na cor do paper se liam como "abertura maxima",
-      // rodadas 5 a 7); um anel vazado na cor do paper marca o maximo e diz de quem e. Com dois ou
-      // tres papers o fio cinza nao dizia de quem era (rodada 8): ai o fio leva a cor do paper
+      // faixa: do vertice (o confirmado) ate o maximo possivel, um intervalo e nao um dado: fio fino e
+      // tique de fecho atravessado no eixo, ambos na cor apagada. Banda, tracejado, cor do paper ou anel
+      // no fim se liam como "abertura alta" ou como ponto medido (rodadas 5 a 9). So o radar de um
+      // paper desenha a faixa; na comparacao, a tabela ao lado ja mostra o que nao foi verificado
       if (it.faixas?.[i] != null && v != null && it.faixas[i] > v) {
         const j = filaF.get(i) || 0; filaF.set(i, j + 1);
-        const lado = (j - (totalF.get(i) - 1) / 2) * 8, ox = -uy * lado, oy = ux * lado;
+        const lado = (j - (totalF.get(i) - 1) / 2) * 8, wx = -uy, wy = ux, ox = wx * lado, oy = wy * lado;
         const hi = it.faixas[i], x0 = cx + (ux * r * v) / 100 + ox, y0 = cy + (uy * r * v) / 100 + oy, x1 = cx + (ux * r * hi) / 100 + ox, y1 = cy + (uy * r * hi) / 100 + oy;
-        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x0, y1: y0, x2: x1, y2: y1 }, style: { stroke: itens.length > 1 ? it.cor : t.muted, lineWidth: 1 } });
-        out.push({ type: 'circle', silent: true, z: 19, shape: { cx: x1, cy: y1, r: 3 }, style: { stroke: it.cor, lineWidth: 1.5, fill: t.surface } });
+        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x0, y1: y0, x2: x1, y2: y1 }, style: { stroke: t.muted, lineWidth: 1 } });
+        out.push({ type: 'line', silent: true, z: 19, shape: { x1: x1 - wx * 4, y1: y1 - wy * 4, x2: x1 + wx * 4, y2: y1 + wy * 4 }, style: { stroke: t.muted, lineWidth: 1.5 } });
       }
       if (it.cortes?.[i]) {
         const j = fila.get(i) || 0; fila.set(i, j + 1);

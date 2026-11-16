@@ -86,8 +86,8 @@
     </div>
     {#if ativo}<button class="btn fan limpa" onclick={limpar} aria-label="Limpar {[estado.lentes.length ? `o filtro ${estado.lentes.map(rotuloLente).join(', ')}` : '', estado.busca.trim() ? `a busca por ${estado.busca.trim()}` : ''].filter(Boolean).join(' e ')}"><Icone nome="x" tam={12} />Limpar</button>{/if}
     <p class="cob mut" title="Quanto do texto de cada paper foi lido">
-      <span class="med" aria-hidden="true"><i style:flex={cob.inteira} class="a"></i><i style:flex={cob.parcial} class="b"></i><i style:flex={cob.insuf} class="c"></i></span>
-      <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span><span><b>{cob.insuf}</b> com prova não avaliada</span></span>
+      <span class="med" aria-hidden="true"><i style:flex={cob.inteira} class="a"></i><i style:flex={cob.parcial} class="b"></i></span>
+      <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span></span>
     </p>
   </div>
 </div>
@@ -161,7 +161,7 @@
   .cob { display: none; align-items: center; gap: var(--sp-2); margin-left: auto; font-size: var(--fs-12); line-height: var(--lh-12); white-space: nowrap; }
   .cob b { font-weight: 500; color: var(--ink2); }
   .med { display: inline-flex; width: 56px; height: 6px; border-radius: 3px; overflow: hidden; gap: 1px; }
-  .med i { min-width: 0; } .med .a { background: var(--ink); } .med .b { background: var(--muted); } .med .c { background: var(--line-strong); opacity: .6; }
+  .med i { min-width: 0; } .med .a { background: var(--ink); } .med .b { background: var(--muted); }
 
   .abas { position: fixed; z-index: 12; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .abas button { flex: 1; min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 2px; font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; color: var(--muted); border-radius: 0; }

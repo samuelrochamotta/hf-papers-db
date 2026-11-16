@@ -107,7 +107,7 @@ entre as opções apresentadas a ele.
 10. Rótulo não leva ponto final; frase completa leva.
 11. Um paper tem um nome curto só (`nome()` em `dados.js`: o título até os dois-pontos, até 28 letras, cortado em palavra inteira). Gráficos, nomes, legendas e a comparação usam o mesmo; só onde ele não cabe o desenho usa o menor (`nomeMenor()`).
 12. A conferência da manchete diz o que a leitura fez: "fora das tabelas lidas", não "não confere".
-13. A abertura tem as mesmas palavras em toda tela (`aberturaFrase()` e `faltaLer()` em `dados.js`): o que foi liberado ("código", "código e pesos", "só a página", "nada liberado") e, ao lado ou embaixo, os artefatos que a leitura não verificou, pelo nome ("pesos, dados e demo não verificados"). "Nada liberado" com artefato não verificado nunca aparece sozinho. Até a rodada 8 era uma conta ("3 de 4 não lidos"), que os críticos liam como partes do paper.
+13. A abertura tem as mesmas palavras em toda tela (`aberturaFrase()` e `faltaLer()` em `dados.js`): o que foi liberado ("código", "código e pesos", "só a página", "nada liberado") e, ao lado, "resto não verificado" quando a leitura não confirmou algum artefato (`faltaLer()`). O paper aberto, a dica e o leitor de tela dizem quais ("pesos, dados e demo não verificados", `faltaLerNomes()`). "Nada liberado" com artefato não verificado nunca aparece sozinho. Até a rodada 8 era uma conta ("3 de 4 não lidos"), que os críticos liam como partes do paper; na rodada 8 eram os nomes por extenso, que quebravam em quatro linhas nas colunas estreitas.
 14. "Mediana" é sempre a do período escolhido, com ou sem filtro, e sempre escrita "mediana do período".
 15. Limite que os autores admitem tem dois nomes, "Limite admitido" e "Limite grave", seguidos do tipo por extenso (`LIMITE_TIPO` em `dados.js`).
 16. Nível com nome leva maiúscula (Forte, Firme, Integrar, Não avaliada); fato leva minúscula (código, sem rival, ganho não lido).
@@ -131,7 +131,7 @@ aparece no desenho (`marcasRadar()` em `tema.js`):
 | Marca | Quando | Onde |
 |---|---|---|
 | "50" e "100" | sempre | nos anéis, na aresta entre o primeiro e o último eixo, onde nenhum vértice cai |
-| Fio fino com anel vazado na cor do paper no fim | a abertura tem artefato não verificado: o vértice é o confirmado e o fio vai até o máximo possível (`abTeto`, decisão 13) | ao longo do eixo; com um paper o fio é cinza, com dois ou três ele leva a cor do paper, e os fios ficam lado a lado, 8 px entre eles |
+| Fio fino e tique de fecho atravessado, ambos na cor apagada | a abertura tem artefato não verificado: o vértice é o confirmado e o fio vai até o máximo possível (`abTeto`, decisão 13). É um intervalo, não um dado: sem anel e sem a cor do paper, que se liam como abertura medida | ao longo do eixo, só no radar do paper aberto. Na comparação a faixa não aparece: com três papers os fios se liam como abertura alta, e a tabela ao lado já mostra os artefatos não verificados tracejados |
 | Marca de corte "»" | o fato passa do teto do eixo (amplitude acima de 16 benchmarks) | fora do anel, na cor do paper |
 | Fato com unidade | radar de um paper só | ao lado do nome de cada eixo ("9 bench.", "código", "+10,2%") |
 
@@ -145,6 +145,8 @@ os dois lados; a prova escreve os sinais cumpridos; a abertura mostra os quatro
 artefatos, com os não verificados tracejados.
 
 ## Lista de papers
+
+0. A barra de cima conta só a leitura: "Leitura: 2 inteiras · 26 parciais", somando o recorte. A prova "Não avaliada" não entra nessa conta (somada, parecia um terceiro estado de leitura, rodada 9); ela fica no filtro Prova.
 
 1. A marca de prova abre cada linha (decisão 12, no lugar da miniatura do radar): cor mais preenchimento, anel tracejado para "Não avaliada" (o paper foi lido, mas com poucos sinais de prova para avaliar). A fila não leva marca: a linha diz "Na fila, ainda sem leitura".
 2. Abaixo do título, a frase do problema escrita pelo modelo, em itálico (decisão 8). No paper aberto ela vem com o rótulo "Problema, segundo o modelo"; na lista, o itálico e a dica ao passar o ponteiro dizem de quem é a frase.

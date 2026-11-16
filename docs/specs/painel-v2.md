@@ -76,7 +76,7 @@ dos gráficos.
 |---|---|
 | Ganho | 50 + 50·tanh(mediana do ganho relativo contra o melhor rival ÷ 10) |
 | Prova | sinais verdadeiros ÷ sinais lidos (mínimo 3 lidos) |
-| Abertura | código 40%, pesos 30%, dados 20%, demo 10% × (liberado 1, prometido 0,4, só página 0,15); o vértice é o confirmado, e `abTeto` soma os artefatos não lidos como se liberados. O radar desenha a faixa do vértice até `abTeto` (decisão 13) |
+| Abertura | código 40%, pesos 30%, dados 20%, demo 10% × (liberado 1, prometido 0,4, só página 0,15); o vértice é o confirmado, e `abTeto` soma os artefatos não lidos como se liberados. O radar do paper aberto desenha a faixa do vértice até `abTeto` como intervalo apagado (decisão 13); a comparação não a desenha |
 | Adoção | (5 − esforço) × 20; nulo para panorama e estudo |
 | Amplitude | escala logarítmica fixa: 100·ln(1+n) ÷ ln(17), com teto em 16 benchmarks com linha própria (decisão 11) |
 | Votos | percentil de votos no conjunto exportado |

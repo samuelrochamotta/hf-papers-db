@@ -216,10 +216,12 @@ export function ondeAchou(p, q) {
 }
 
 // Cobertura da leitura do recorte: e o denominador de tudo o que o painel afirma.
+// So conta quanto do texto foi lido (inteira ou parcial, somando o recorte). A
+// prova "Não avaliada" e outra pergunta, e somada aqui se lia como um terceiro
+// estado de leitura (rodada 9): ela fica no filtro Prova.
 export function cobertura(papers, faltam) {
   const inteira = papers.filter((p) => p.L?.c === 'completa').length;
-  const insuf = papers.filter((p) => p.sol === 'sem_leitura').length;
-  return { inteira, parcial: papers.length - inteira - insuf, insuf, fila: faltam.length, total: papers.length + faltam.length };
+  return { inteira, parcial: papers.length - inteira, fila: faltam.length, total: papers.length + faltam.length };
 }
 // Artefatos liberados, em palavras: "código e pesos"
 export function liberados(p) {
@@ -310,13 +312,16 @@ export const tetoDoEixo = (k, p) => (k === 'abertura' && p.radar.abertura != nul
 // artefatos a leitura nao alcancou: "nada liberado" com parte nao lida nao e
 // a mesma coisa que nada.
 export const aberturaFrase = (p) => { const f = FATO.abertura(p); return f == null ? 'abertura não lida' : liberados(p) ? `liberou ${f}` : f; };
-// O que a leitura nao verificou entre os quatro artefatos, pelo nome
-// ("pesos, dados e demo não verificados"): uma conta ("3 de 4") se lia como
-// partes do paper (rodada 8), e "não lido" ja diz outra coisa (ganho, eixo)
+// O que a leitura nao verificou entre os quatro artefatos (codigo, pesos, dados,
+// demo). Uma conta ("3 de 4 não lidos") se lia como partes do paper (rodada 8);
+// os nomes por extenso quebravam em quatro linhas nas colunas estreitas (rodada 9).
+// Onde ha pouco espaco vai "resto não verificado", ao lado do que foi liberado;
+// o paper aberto, a dica e o leitor de tela dizem quais (`faltaLerNomes`).
 const ART_MIN = { codigo: 'código', pesos: 'pesos', dados: 'dados', demo: 'demo' };
-export const faltaLer = (p) => {
-  if (p.radar.abertura == null) return '';
-  const ks = Object.keys(ART_MIN).filter((k) => p.ab[k] === 'nao_lido');
+const naoVerificados = (p) => (p.radar.abertura == null ? [] : Object.keys(ART_MIN).filter((k) => p.ab[k] === 'nao_lido'));
+export const faltaLer = (p) => (naoVerificados(p).length ? 'resto não verificado' : '');
+export const faltaLerNomes = (p) => {
+  const ks = naoVerificados(p);
   if (!ks.length) return '';
   const nomes = ks.map((k) => ART_MIN[k]), lista = nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes.at(-1)}` : nomes[0];
   const fim = ks.length > 1 || ks[0] === 'pesos' || ks[0] === 'dados' ? 'não verificados' : ks[0] === 'demo' ? 'não verificada' : 'não verificado';

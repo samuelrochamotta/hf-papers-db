@@ -9,7 +9,7 @@
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { tick } from 'svelte';
-  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, median, urlSegura, radarValores, intervalo, ganhoDe, FATO, SEM_FATO, nBench, passaDoEixo, tetoDoEixo, aberturaFrase, faltaLer, LIMITE_TIPO, LIMITE_GRAVE } from '../lib/dados.js';
+  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, median, urlSegura, radarValores, intervalo, ganhoDe, FATO, SEM_FATO, nBench, passaDoEixo, tetoDoEixo, aberturaFrase, faltaLerNomes, LIMITE_TIPO, LIMITE_GRAVE } from '../lib/dados.js';
   import { base, corSolidez, dica, marcasRadar } from '../lib/tema.js';
   import { estado, fechar, alternaComparar, abrir, mov } from '../lib/estado.svelte.js';
 
@@ -201,7 +201,7 @@
               <dd class="d">{sinais}</dd>{@render frenteMed('solidez')}</div>
             <div><dt class="rot">Adoção</dt>
               <dd class="v titulo" class:nd={p.radar.facilidade == null}>{ESFORCO[p.esf]}</dd>
-              <dd class="d">{[aberturaFrase(p), faltaLer(p)].filter(Boolean).join(' · ')}</dd>{@render frenteMed('facilidade')}</div>
+              <dd class="d">{[aberturaFrase(p), faltaLerNomes(p)].filter(Boolean).join(' · ')}</dd>{@render frenteMed('facilidade')}</div>
           </dl>
           <!-- a base da comparacao, uma vez so, para as tres reguas -->
           {#if ['ganho', 'solidez', 'facilidade'].some((k) => frente(k))}<p class="chv-k t-12 mut"><i aria-hidden="true"></i>mediana do período</p>{/if}
@@ -407,7 +407,7 @@
   .tr { width: 16px; border-top: 1.5px dashed var(--muted); display: inline-block; vertical-align: middle; margin-right: 6px; }
   .chv { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: center; margin-top: var(--sp-1); }
   .chv > span { display: inline-flex; align-items: center; white-space: nowrap; }
-  .chv .fx { display: inline-block; width: 18px; height: 7px; background: linear-gradient(var(--muted), var(--muted)) left center / 12px 1px no-repeat, radial-gradient(circle at calc(100% - 3.5px) 50%, var(--surface) 2px, var(--ink2) 2.2px, var(--ink2) 3.2px, transparent 3.4px); margin-right: 6px; vertical-align: middle; }
+  .chv .fx { display: inline-block; width: 16px; height: 9px; background: linear-gradient(var(--muted), var(--muted)) left center / 14px 1px no-repeat, linear-gradient(var(--muted), var(--muted)) right center / 1.5px 9px no-repeat; margin-right: 6px; vertical-align: middle; }
   .chv b { font-weight: 600; color: var(--ink2); margin-right: 6px; }
   .nota { margin-top: var(--sp-5); }
 

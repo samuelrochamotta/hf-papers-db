@@ -8,7 +8,7 @@
   import Grafico from '../lib/Grafico.svelte';
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
-  import { EIXOS, EIXO_DICA, FATO, SEM_FATO, ART, ART_EST, nBench, ganhoDe, median, nome, esc, radarValores, passaDoEixo, tetoDoEixo, faltaLer } from '../lib/dados.js';
+  import { EIXOS, EIXO_DICA, FATO, SEM_FATO, ART, ART_EST, nBench, ganhoDe, median, nome, esc, radarValores, passaDoEixo, faltaLer } from '../lib/dados.js';
   import { base, dica, corCmp, marcasRadar } from '../lib/tema.js';
   import { estado, alternaComparar, abrir, MAX_COMPARAR } from '../lib/estado.svelte.js';
 
@@ -41,10 +41,10 @@
   // o radar ocupa o que a largura deixa (os nomes dos eixos pedem uns 75 px de cada lado) e a altura acompanha: sem vao em cima nem embaixo
   const raio = $derived(Math.round(Math.max(60, Math.min((larg - 150) / 2, 165))));
 
-  // avisos que ficam no proprio desenho: quem passa do teto da amplitude e a faixa da abertura, do confirmado ao maximo possivel
+  // aviso que fica no proprio desenho: quem passa do teto da amplitude. A faixa da abertura fica so no radar
+  // de um paper: com tres, os fios do maximo possivel se liam como abertura medida (rodada 9), e a tabela ao lado ja tem os tracejados
   const cortes = $derived(sel.map((p) => EIXOS.map(([k]) => passaDoEixo(k, p))));
-  const faixas = $derived(sel.map((p) => EIXOS.map(([k]) => tetoDoEixo(k, p))));
-  const temCorte = $derived(cortes.some((c) => c.some(Boolean))), temFaixa = $derived(faixas.some((c) => c.some((x) => x != null)));
+  const temCorte = $derived(cortes.some((c) => c.some(Boolean)));
 
   const opcao = $derived(!t.ink || !sel.length ? null : {
     ...base(t),
@@ -58,7 +58,7 @@
       axisName: { color: t.ink2, fontSize: 12, fontWeight: 500, fontFamily: t.fUi },
       splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } },
     },
-    graphic: marcasRadar(t, { cx: larg / 2, cy: raio + 36, r: raio, itens: sel.map((p, i) => ({ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor: corCmp(t, i), simbolo: MARCA[i], faixas: faixas[i], cortes: cortes[i] })) }),
+    graphic: marcasRadar(t, { cx: larg / 2, cy: raio + 36, r: raio, itens: sel.map((p, i) => ({ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor: corCmp(t, i), simbolo: MARCA[i], cortes: cortes[i] })) }),
     series: [{ type: 'radar', data: [
       { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { color: t.muted, type: [4, 4], width: 1 }, areaStyle: { color: t.lineStrong, opacity: .1 } },
       ...sel.map((p, i) => { const c = corCmp(t, i);
@@ -124,7 +124,7 @@
                 {#each sel as p, i (p.id)}
                   {@const x = v(pos(k, p))}
                   {@const f = FATO[k](p)}
-                  <td style:--c="var(--cmp-{i + 1})" class:top={melhor[ei] != null && medida(k, p) === melhor[ei]} class:neg={k === 'ganho' && ganhoDe(p) < 0}>
+                  <td style:--c="var(--cmp-{i + 1})" class:top={melhor[ei] != null && medida(k, p) === melhor[ei]} class:neg={k === 'ganho' && ganhoDe(p) < 0}><div class="cel">
                     <span class="fato" class:mut={f == null}>{#if k === 'amplitude' && f != null}{nBench(p)} <span class="un-l">{nBench(p) === 1 ? 'benchmark' : 'benchmarks'}</span><span class="un-c">bench.</span>{:else}{f ?? SEM_FATO[k](p)}{/if}{#if k === 'abertura' && faltaLer(p)}<span class="nl"><span class="sep">{' · '}</span>{faltaLer(p)}</span>{/if}{#if k === 'solidez' && f != null && p.nl}<span class="nl"><span class="sep">{' · '}</span>{p.T} de {p.nl} sinais</span>{/if}</span>
                     {#if k === 'abertura'}
                       <span class="pecas" title={artefatos(p)}>{#each Object.keys(ART) as a}<i class={p.ab[a] ?? 'nao_lido'}></i>{/each}<span class="vh">{artefatos(p)}</span></span>
@@ -135,7 +135,7 @@
                         {#if med != null}<b style:left="{med}%"></b>{/if}
                       </span>
                     {/if}
-                  </td>
+                  </div></td>
                 {/each}
               </tr>
             {/each}
@@ -159,7 +159,6 @@
           {#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg><b>{'ABC'[i]}</b>{nome(p)}</span>{/each}
           <span><i class="med"></i>mediana do período</span>
           <span>anéis em 50 e 100, a nota de cada eixo</span>
-          {#if temFaixa}<span><i class="fx"></i>até o máximo possível</span>{/if}
           {#if temCorte}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}
         </p>
       </div>
@@ -188,7 +187,6 @@
   .chave .med { width: 16px; height: 10px; border-radius: 2px; border: 1px dashed var(--muted); background: color-mix(in srgb, var(--line-strong) 12%, var(--surface)); }
   .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
   .chave .zero { width: 0; height: 12px; border-left: 1px dotted var(--ink2); }
-  .chave .fx { display: inline-block; width: 18px; height: 7px; background: linear-gradient(var(--muted), var(--muted)) left center / 12px 1px no-repeat, radial-gradient(circle at calc(100% - 3.5px) 50%, var(--surface) 2px, var(--ink2) 2.2px, var(--ink2) 3.2px, transparent 3.4px); }
   .nl { color: var(--muted); font-weight: 400; }
   td.neg .fato { color: var(--alert); }
 
@@ -197,7 +195,7 @@
   .t { min-width: 0; }
   table { width: 100%; table-layout: fixed; }
   /* o valor que quebra em duas linhas nao tira a barra do lugar: as barras de uma linha ficam alinhadas pelo pe */
-  th, td { text-align: left; vertical-align: bottom; padding: var(--sp-3) var(--sp-2); border-top: 1px solid var(--line); font-weight: 400; min-width: 0; }
+  th, td { text-align: left; vertical-align: top; padding: var(--sp-3) var(--sp-2); border-top: 1px solid var(--line); font-weight: 400; min-width: 0; }
   tbody th { vertical-align: top; }
   thead th { border-top: 0; padding-top: 0; padding-bottom: var(--sp-3); border-bottom: 1px solid var(--line-strong); vertical-align: top; }
   tbody tr:first-child th, tbody tr:first-child td { border-top: 0; }
@@ -213,6 +211,8 @@
   .tira::after { content: ''; position: absolute; inset: -8px; }                 /* alvo de 44 px */
   .tira:hover { background: var(--hover); color: var(--ink); }
   .fato { display: block; overflow-wrap: break-word; }
+  /* o valor fica no topo da celula e a barra no pe: lado a lado, os tres valores comecam na mesma linha e as tres barras tambem (rodada 9) */
+  tbody td { height: 1px; } .cel { display: flex; flex-direction: column; height: 100%; } .cel > .trilho, .cel > .pecas { margin-top: auto; } .cel > .fato { margin-bottom: var(--sp-2); }
   .un-c { display: none; }
   .fato.mut { color: var(--muted); }
   td.top .fato { font-weight: 600; }

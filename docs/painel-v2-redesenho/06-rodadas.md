@@ -388,3 +388,15 @@ achados altos depois de juntar repetidos.
 | "3 de 4 não lidos" se lê como partes do paper, e "não lido" num artefato não diz se o paper não liberou ou se a leitura não verificou | celular, uso | Os artefatos vêm pelo nome e com outra palavra: "pesos, dados e demo não verificados". Na lista a coluna Abertura alargou para o texto caber inteiro |
 | No radar da comparação, os fios da abertura são cinza, não têm dono e as pontas se encostam | acabamento (médio para gráficos) | Com dois ou três papers o fio leva a cor do paper; fios lado a lado a 8 px. A legenda diz "até o máximo possível" |
 | "Mais vencem em Robótica" lista quem vence 5 de 15 com ganho negativo, e a ordem não segue as vitórias | uso (médio para gráficos) | O quadro lista só quem vence a maioria das disputas na arena ("Vencem a maioria em Robótica") |
+
+## Rodada 9 (2026-11-16)
+
+Notas: acabamento 7, gráficos 7, celular e tablet 7, uso e texto 7. Um achado
+alto por crítico; acabamento e gráficos acharam o mesmo.
+
+| Achado alto | Críticos | O que foi feito |
+|---|---|---|
+| No radar da comparação, os fios "até o máximo possível" e os anéis do fim são as marcas mais fortes do eixo e se leem como abertura alta medida | acabamento, gráficos | A faixa virou um intervalo: fio fino e tique de fecho, ambos na cor apagada, sem anel. Ela fica só no radar do paper aberto; na comparação a tabela ao lado já mostra os artefatos não verificados |
+| A barra "Leitura: 2 inteiras · 17 parciais · 9 com prova não avaliada" soma 28 e mistura leitura com prova; com isso, "não lido" nas linhas parece contradizer a barra | uso | A barra conta só a leitura ("2 inteiras · 26 parciais"); a prova não avaliada fica no filtro Prova |
+| Na lista a 360 px, "pesos, dados e demo não verificados" quebra em quatro linhas numa coluna de 90 px | celular | O texto curto passou a "resto não verificado" (o paper aberto e a dica dizem quais); no celular a abertura ganhou uma linha inteira, "liberou código · resto não verificado" |
+| Na tabela da comparação a 360 px, os valores de A, B e C não começam na mesma altura | celular | O valor fica no topo da célula e a barra no pé: os três valores e as três barras se alinham |
