@@ -101,7 +101,7 @@ entre as opções apresentadas a ele.
 4. O rótulo de um controle diz o que acontece: Limpar, Comparar, Ver os 12 trechos.
 5. Nenhuma frase de instrução. O que é clicável se mostra no desenho.
 6. Palavra do paper só entre aspas e no idioma original. O painel não parafraseia.
-7. Ausência de dado tem nome próprio (Não avaliada, sem rival externo, ganho não lido, Só informa) e nunca vira zero. Nenhuma tela põe um traço no lugar de um fato do paper.
+7. Ausência de dado tem nome próprio (Não avaliada, sem rival externo, ganho não achado, Só informa) e nunca vira zero. Nenhuma tela põe um traço no lugar de um fato do paper.
 8. Números em português: vírgula decimal, sinal explícito no ganho (+3,4%), × para razão.
 9. Estado vazio diz o que não há e oferece a saída quando existe.
 10. Rótulo não leva ponto final; frase completa leva.
@@ -110,7 +110,7 @@ entre as opções apresentadas a ele.
 13. A abertura tem as mesmas palavras em toda tela (`aberturaFrase()` e `faltaLer()` em `dados.js`): o que foi liberado ("código", "código e pesos", "só a página", "nada liberado") e, ao lado, "resto não verificado" quando a leitura não confirmou algum artefato (`faltaLer()`). O paper aberto, a dica e o leitor de tela dizem quais ("pesos, dados e demo não verificados", `faltaLerNomes()`). "Nada liberado" com artefato não verificado nunca aparece sozinho. Até a rodada 8 era uma conta ("3 de 4 não lidos"), que os críticos liam como partes do paper; na rodada 8 eram os nomes por extenso, que quebravam em quatro linhas nas colunas estreitas.
 14. "Mediana" é sempre a do período escolhido, com ou sem filtro, e sempre escrita "mediana do período".
 15. Limite que os autores admitem tem dois nomes, "Limite admitido" e "Limite grave", seguidos do tipo por extenso (`LIMITE_TIPO` em `dados.js`).
-16. Nível com nome leva maiúscula (Forte, Firme, Integrar, Não avaliada); fato leva minúscula (código, sem rival, ganho não lido).
+16. Nível com nome leva maiúscula (Forte, Firme, Integrar, Não avaliada); fato leva minúscula (código, sem rival, ganho não achado).
 17. O nome curto não termina em palavra de ligação ("SO-Arena Benchmarking…", não "SO-Arena Benchmarking the…").
 
 ## Gráficos dentro dos quadros
@@ -151,4 +151,5 @@ artefatos, com os não verificados tracejados.
 1. A marca de prova abre cada linha (decisão 12, no lugar da miniatura do radar): cor mais preenchimento, anel tracejado para "Não avaliada" (o paper foi lido, mas com poucos sinais de prova para avaliar). A fila não leva marca: a linha diz "Na fila, ainda sem leitura".
 2. Abaixo do título, a frase do problema escrita pelo modelo, em itálico (decisão 8). No paper aberto ela vem com o rótulo "Problema, segundo o modelo"; na lista, o itálico e a dica ao passar o ponteiro dizem de quem é a frase.
 3. Filtros sempre se somam (decisão 9): cada um vira um chip removível, e "Limpar" tira todos.
-4. "Não avaliada" é o nível de prova de um paper lido com menos de três sinais de prova legíveis; "não lido" fica para o que a leitura não alcançou (ganho, abertura, amplitude) e para a fila; "não verificado" fica para um artefato (código, pesos, dados, demo) que a leitura não confirmou se foi liberado. Até a rodada 6 o nível se chamava "Não lida", e os críticos o liam como "paper não lido".
+4. "Não avaliada" é o nível de prova de um paper lido com menos de três sinais de prova legíveis; "não achado" fica para o fato que a leitura parcial não alcançou (ganho, abertura, amplitude); "sem leitura" fica para a fila; "não verificado" fica para um artefato (código, pesos, dados, demo) que a leitura não confirmou se foi liberado. Até a rodada 6 o nível se chamava "Não lida", e os críticos o liam como "paper não lido"; até a rodada 10 o fato era "não lido", que num paper lido se confundia com a fila.
+5. Cada linha diz quanto do texto foi lido, antes do tipo e da camada: "leitura parcial", "leitura inteira" ou "só o resumo lido" (`leituraCurta()`), em toda largura.

@@ -255,7 +255,7 @@ test('nos dados publicados, toda ordem e uma permutacao e todo filtro existente 
 test('fato que falta diz por que falta, sem traco', () => {
   const semRes = paper('a', { sol: 'sem_leitura', esf: 0, radar: { ganho: null, solidez: null, abertura: null, facilidade: null, amplitude: null } });
   const semRival = paper('b', { res: [{ b: 'X', rext: null }], radar: { ganho: null } });
-  assert.equal(SEM_FATO.ganho(semRes), 'não lido');
+  assert.equal(SEM_FATO.ganho(semRes), 'não achado');
   assert.equal(SEM_FATO.ganho(semRival), 'sem rival externo');
   assert.equal(SEM_FATO.facilidade(semRes), ESFORCO[0]);
   for (const [k] of EIXOS) {
@@ -343,7 +343,7 @@ test('a abertura tem as mesmas palavras em toda tela e nao esconde a parte nao l
   assert.equal(FATO.abertura(codigo), 'código'); assert.equal(aberturaFrase(codigo), 'liberou código');
   assert.equal(FATO.abertura(dois), 'código e pesos'); assert.equal(aberturaFrase(dois), 'liberou código e pesos');
   assert.equal(aberturaFrase(pagina), 'só a página'); assert.equal(aberturaFrase(nada), 'nada liberado');
-  assert.equal(aberturaFrase(semLer), 'abertura não lida');
+  assert.equal(aberturaFrase(semLer), 'abertura não achada');
   // "nada" ou "só a página" com parte nao verificada nao e ausencia: o resto vem junto, e o paper aberto diz quais
   assert.equal(faltaLer(codigo), 'resto não verificado'); assert.equal(faltaLer(pagina), 'resto não verificado');
   assert.equal(faltaLerNomes(codigo), 'pesos, dados e demo não verificados'); assert.equal(faltaLerNomes(dois), '');
@@ -352,7 +352,7 @@ test('a abertura tem as mesmas palavras em toda tela e nao esconde a parte nao l
   assert.equal(faltaLerNomes(paper('f2', { ab: { codigo: 'liberado', pesos: 'liberado', dados: 'liberado', demo: 'nao_lido' }, radar: { abertura: 100 } })), 'demo não verificada');
   assert.equal(faltaLer(paper('g', { ab: { codigo: 'liberado', pesos: 'nao_lido', dados: 'liberado', demo: 'liberado' }, radar: { abertura: 90 } })), 'resto não verificado');
   assert.equal(faltaLerNomes(paper('g2', { ab: { codigo: 'liberado', pesos: 'nao_lido', dados: 'liberado', demo: 'liberado' }, radar: { abertura: 90 } })), 'pesos não verificados');
-  assert.equal(faltaLer(semLer), '', 'eixo todo nao lido ja diz "abertura não lida"');
+  assert.equal(faltaLer(semLer), '', 'eixo todo nao achado ja diz "abertura não achada"');
   // nos dados publicados, todo paper tem frase, e nenhuma diz "nada" sozinha
   for (const p of REAL.papers) { assert.ok(aberturaFrase(p).length > 3, p.id); assert.notEqual(aberturaFrase(p), 'nada'); }
 });

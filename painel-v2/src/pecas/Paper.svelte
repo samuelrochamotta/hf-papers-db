@@ -208,11 +208,11 @@
           </div>
 
           <section class="bloco">
-            <header><h3>Sinais de prova</h3><span class="chave t-12 mut" aria-hidden="true"><i class="s sim"><Icone nome="check" tam={10} /></i>cumpre<i class="s nao"><Icone nome="x" tam={10} /></i>não cumpre<i class="s nl">–</i>não lido</span></header>
+            <header><h3>Sinais de prova</h3><span class="chave t-12 mut" aria-hidden="true"><i class="s sim"><Icone nome="check" tam={10} /></i>cumpre<i class="s nao"><Icone nome="x" tam={10} /></i>não cumpre<i class="s nl">–</i>não achado</span></header>
             <ul class="sinais">
               {#each SIG as [k, rot]}
                 {@const v = p.sig[k]}
-                <li class:nl={v == null}><i class="s" class:sim={v === true} class:nao={v === false} class:nl={v == null} aria-hidden="true">{#if v === true}<Icone nome="check" tam={10} />{:else if v === false}<Icone nome="x" tam={10} />{:else}–{/if}</i><span>{rot}<span class="vh">: {v == null ? 'não lido' : v ? 'cumpre' : 'não cumpre'}</span></span>{#if (k === 'man' && p.man) || (k === 'ress' && p.ress.length)}<button class="lk ver" aria-label="Ver o trecho de: {rot}" onclick={() => (estado.prof = 2)}>trecho</button>{/if}</li>
+                <li class:nl={v == null}><i class="s" class:sim={v === true} class:nao={v === false} class:nl={v == null} aria-hidden="true">{#if v === true}<Icone nome="check" tam={10} />{:else if v === false}<Icone nome="x" tam={10} />{:else}–{/if}</i><span>{rot}<span class="vh">: {v == null ? 'não achado' : v ? 'cumpre' : 'não cumpre'}</span></span>{#if (k === 'man' && p.man) || (k === 'ress' && p.ress.length)}<button class="lk ver" aria-label="Ver o trecho de: {rot}" onclick={() => (estado.prof = 2)}>trecho</button>{/if}</li>
               {/each}
             </ul>
           </section>

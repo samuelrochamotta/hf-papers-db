@@ -215,6 +215,8 @@ export function ondeAchou(p, q) {
   return [...new Set(achados)].join(' · ');
 }
 
+// Quanto do texto do paper foi lido, em duas palavras, para a linha da lista
+export const leituraCurta = (p) => (!p.L ? '' : p.L.c === 'completa' ? 'leitura inteira' : p.L.f === 'abstract' ? 'só o resumo lido' : 'leitura parcial');
 // Cobertura da leitura do recorte: e o denominador de tudo o que o painel afirma.
 // So conta quanto do texto foi lido (inteira ou parcial, somando o recorte). A
 // prova "Não avaliada" e outra pergunta, e somada aqui se lia como um terceiro
@@ -292,10 +294,12 @@ export const FATO = {
 };
 // Por que o fato falta, em palavras: "nao lido" nao e "nao ha". Nenhuma tela
 // poe um traco no lugar de um fato do paper.
-export const semGanho = (p) => (p.res.length ? 'sem rival externo' : 'não lido');
+// O fato que a leitura parcial nao alcancou e "não achado": "não lido" num paper
+// lido se confundia com a fila (rodadas 9 e 10)
+export const semGanho = (p) => (p.res.length ? 'sem rival externo' : 'não achado');
 export const SEM_FATO = {
-  ganho: semGanho, solidez: () => 'não avaliada', abertura: () => 'não lida',
-  facilidade: (p) => ESFORCO[p.esf], amplitude: () => 'não lida', atencao: () => '',
+  ganho: semGanho, solidez: () => 'não avaliada', abertura: () => 'não achada',
+  facilidade: (p) => ESFORCO[p.esf], amplitude: () => 'não achada', atencao: () => '',
 };
 // O radar desenha a nota de 0 a 100 que vem do Python. A amplitude e uma
 // escala logaritmica fixa que toca a borda em 16 benchmarks; quem passa disso
@@ -311,7 +315,7 @@ export const tetoDoEixo = (k, p) => (k === 'abertura' && p.radar.abertura != nul
 // onde nao ha rotulo, a frase ("liberou código e pesos"). faltaLer diz quantos
 // artefatos a leitura nao alcancou: "nada liberado" com parte nao lida nao e
 // a mesma coisa que nada.
-export const aberturaFrase = (p) => { const f = FATO.abertura(p); return f == null ? 'abertura não lida' : liberados(p) ? `liberou ${f}` : f; };
+export const aberturaFrase = (p) => { const f = FATO.abertura(p); return f == null ? 'abertura não achada' : liberados(p) ? `liberou ${f}` : f; };
 // O que a leitura nao verificou entre os quatro artefatos (codigo, pesos, dados,
 // demo). Uma conta ("3 de 4 não lidos") se lia como partes do paper (rodada 8);
 // os nomes por extenso quebravam em quatro linhas nas colunas estreitas (rodada 9).

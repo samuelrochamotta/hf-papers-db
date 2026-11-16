@@ -400,3 +400,12 @@ alto por crítico; acabamento e gráficos acharam o mesmo.
 | A barra "Leitura: 2 inteiras · 17 parciais · 9 com prova não avaliada" soma 28 e mistura leitura com prova; com isso, "não lido" nas linhas parece contradizer a barra | uso | A barra conta só a leitura ("2 inteiras · 26 parciais"); a prova não avaliada fica no filtro Prova |
 | Na lista a 360 px, "pesos, dados e demo não verificados" quebra em quatro linhas numa coluna de 90 px | celular | O texto curto passou a "resto não verificado" (o paper aberto e a dica dizem quais); no celular a abertura ganhou uma linha inteira, "liberou código · resto não verificado" |
 | Na tabela da comparação a 360 px, os valores de A, B e C não começam na mesma altura | celular | O valor fica no topo da célula e a barra no pé: os três valores e as três barras se alinham |
+
+## Rodada 10 (2026-11-16)
+
+Notas: acabamento 7, gráficos 8, celular e tablet 7, uso e texto 8. Acabamento,
+gráficos e celular não acharam nada de prioridade alta.
+
+| Achado alto | Crítico | O que foi feito |
+|---|---|---|
+| "não lido" e "não lida" aparecem em papers lidos e se confundem com a fila ("Na fila, ainda sem leitura"); nenhuma linha diz se a leitura foi inteira ou parcial | uso (médio para celular) | O fato que a leitura parcial não alcançou passa a "não achado" ("ganho não achado", "abertura não achada"); cada linha da lista abre a linha de tipo com "leitura parcial", "leitura inteira" ou "só o resumo lido", também no celular |

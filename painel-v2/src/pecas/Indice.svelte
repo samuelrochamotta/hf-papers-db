@@ -11,7 +11,7 @@
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
   import Degraus from '../lib/Degraus.svelte';
-  import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, FATO, aberturaFrase, faltaLer, faltaLerNomes, intervalo, dataCurta, nBench } from '../lib/dados.js';
+  import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, FATO, aberturaFrase, faltaLer, faltaLerNomes, leituraCurta, intervalo, dataCurta, nBench } from '../lib/dados.js';
   import { estado, abrir, alternaComparar, mov } from '../lib/estado.svelte.js';
 
   // `periodo`: todos os papers do periodo, sem filtro. A mediana e sempre a do periodo, em todas as telas
@@ -48,7 +48,9 @@
   $effect(() => { if (estado.sel) tick().then(() => el?.querySelector('.linha.ativa')?.scrollIntoView({ block: 'nearest' })); });
   const letra = (id) => 'ABC'[estado.comparar.indexOf(id)] || '';
   const bench = nBench;
-  const sub = (p) => [ENTREGA[p.ent] || p.ent, p.cam ? CAMADA[p.cam] || p.cam : null].filter(Boolean).join(' · ');
+  // quanto do texto foi lido, tipo e camada: a linha diz se a leitura foi inteira ou parcial (rodada 10),
+  // na frente, para nao ser a parte cortada quando a linha nao cabe
+  const sub = (p) => [leituraCurta(p), ENTREGA[p.ent] || p.ent, p.cam ? CAMADA[p.cam] || p.cam : null].filter(Boolean).join(' · ');
   // a abertura usa as mesmas palavras em todas as telas (FATO.abertura): na
   // tabela, o fato sob o cabecalho; fora dela, a frase ("liberou código"). O
   // que a leitura nao alcancou vem logo abaixo ("resto não verificado")
@@ -59,7 +61,7 @@
   const COLS = [['recentes', 'Data', 'c-d'], ['votos', 'Votos', 'c-n'], ['solidez', 'Prova', 'c-s'], ['ganho', 'Ganho', 'c-n'],
     ['facilidade', 'Adoção', 'c-a'], ['abertura', 'Abertura', 'c-l'], ['amplitude', 'Amplitude', 'c-n']];
   const ROT_ORDEM = { recentes: 'data', votos: 'votos', solidez: 'prova', ganho: 'ganho', facilidade: 'adoção, da mais fácil à mais difícil', abertura: 'abertura', amplitude: 'amplitude, em benchmarks' };
-  const SEM = { solidez: 'Prova não avaliada', ganho: 'Sem rival externo ou ganho não lido', facilidade: 'Só informa: não há o que adotar', abertura: 'Abertura não lida', amplitude: 'Amplitude não lida' };
+  const SEM = { solidez: 'Prova não avaliada', ganho: 'Sem rival externo ou ganho não achado', facilidade: 'Só informa: não há o que adotar', abertura: 'Abertura não achada', amplitude: 'Amplitude não achada' };
 
   // grade navegavel por setas (uma so parada de Tab)
   let foco = $state({ i: 0, c: 0 });
@@ -174,7 +176,7 @@
                 <span class="t">{#each realcar(p.t, estado.busca) as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
                 <!-- a frase do modelo sobre o problema (decisao 8), em italico: nao e palavra dos autores nem medida do painel -->
                 {#if p.prob}<span class="pr um" title="O problema do paper, segundo o modelo">{p.prob}</span>{/if}
-                <span class="s um" class:tem={st.some((x) => x[1])}>{#each st as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
+                <span class="s um">{#each st as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
                 {#if estado.busca && ondeAchou(p, estado.busca)}<span class="acha um">{ondeAchou(p, estado.busca)}</span>{/if}
               </span>
               <!-- nenhum traco no lugar de um fato: o que falta diz por que falta -->
@@ -184,10 +186,10 @@
                 <span class="f-s"><i class="sol {p.sol}"></i><span class="um" class:mut={p.sol === 'sem_leitura'}>{SOL_ROT[p.sol]}</span></span>
                 {#if g != null}<span class="f-g num" class:neg={g < 0}><small>ganho</small>{sgn(g)}%</span>
                 {:else if p.res.length}<span class="f-g sem">sem rival</span>
-                {:else}<span class="f-g sem"><small>ganho</small>não lido</span>{/if}
+                {:else}<span class="f-g sem"><small>ganho</small>não achado</span>{/if}
                 <span class="f-a" class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{:else}<i class="sem-deg" aria-hidden="true"></i>{/if}<span class="um">{ESFORCO[p.esf]}</span></span>
-                <span class="f-l" class:mut={FATO.abertura(p) == null}><span class="oq"><span class="cur">{FATO.abertura(p) ?? 'não lida'}</span><span class="lon">{aberturaFrase(p)}</span></span>{#if faltaLer(p)}<span class="nl" title={faltaLerNomes(p)}>{faltaLer(p)}</span>{/if}</span>
-                {#if bench(p) != null}<span class="f-b num">{bench(p)}</span>{:else}<span class="f-b sem">não lida</span>{/if}
+                <span class="f-l" class:mut={FATO.abertura(p) == null}><span class="oq"><span class="cur">{FATO.abertura(p) ?? 'não achada'}</span><span class="lon">{aberturaFrase(p)}</span></span>{#if faltaLer(p)}<span class="nl" title={faltaLerNomes(p)}>{faltaLer(p)}</span>{/if}</span>
+                {#if bench(p) != null}<span class="f-b num">{bench(p)}</span>{:else}<span class="f-b sem">não achada</span>{/if}
               </span>
             </button>
           </div>
@@ -262,8 +264,7 @@
   .c-t { display: grid; min-width: 0; }
   .t { font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
   .pr { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); font-style: italic; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 3px; }   /* o italico passa da caixa: sem a folga, o ultimo glifo sai cortado */
-  .s { display: none; font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
-  .s.tem { display: block; }                       /* a busca casou no tipo ou na camada: a linha aparece */
+  .s { display: block; font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }   /* tipo, camada e leitura, em toda largura */
   .acha { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
   /* tres colunas: votos, prova e ganho; embaixo a adocao; e a abertura numa linha inteira, que cabe
      "liberou código · resto não verificado" sem quebrar (numa coluna curta ia a quatro linhas, rodada 9) */
@@ -275,6 +276,7 @@
   .f-a { grid-column: 1 / 3; grid-row: 2; } .f-l { grid-column: 1 / -1; grid-row: 3; }
   /* o fato que falta e uma palavra, na fonte do texto: nao disputa com os numeros */
   .sem { color: var(--muted); }
+  .f-g.sem { white-space: normal; }               /* "ganho não achado" quebra antes de vazar quando os votos alargam a primeira coluna */
   .f-g.neg { color: var(--alert); }
   .f-fila { grid-column: 2 / -1; display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--muted); }
   a.abre { color: inherit; text-decoration: none; }
