@@ -5,10 +5,11 @@
   // no celular. Esc fecha e devolve o foco; Alt + setas troca de paper.
   import Grafico from '../lib/Grafico.svelte';
   import Icone from '../lib/Icone.svelte';
+  import Degraus from '../lib/Degraus.svelte';
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { tick } from 'svelte';
-  import { ordenar, buscar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, fmt, median, urlSegura, radarValores, intervalo, ganhoDe, liberados } from '../lib/dados.js';
+  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, fmt, median, urlSegura, radarValores, intervalo, ganhoDe, liberados } from '../lib/dados.js';
   import { base, corSolidez, dica } from '../lib/tema.js';
   import { estado, fechar, alternaComparar, abrir, mov } from '../lib/estado.svelte.js';
 
@@ -37,7 +38,7 @@
     aberto = ok;
   });
 
-  const lista = $derived(ordenar(buscar(papers, estado.busca), estado.ordem));
+  const lista = $derived(ordenar(papers, estado.ordem));
   const pos = $derived(p ? lista.findIndex((x) => x.id === p.id) : -1);
   const vai = (d) => { const n = lista[pos + d]; if (n) abrir(n.id, estado.prof); };
 
@@ -79,6 +80,21 @@
   const sinaisSim = $derived(p ? SIG.filter(([k]) => p.sig[k] === true).length : 0);
   const porPapel = $derived(p ? p.ents.reduce((m, e) => { (m[e[2]] ||= []).push(e); return m; }, {}) : {});
   const linkDe = (k) => urlSegura(p.art.find((a) => a[0] === k)?.[2]);
+  // "cumpre 5 de 7 sinais": cumprir e ler sao coisas diferentes, e o texto diz as duas
+  const sinais = $derived.by(() => {
+    if (!p) return '';
+    if (!p.nl) return 'nenhum sinal lido';
+    const fora = SIG.length - p.nl;
+    return `cumpre ${sinaisSim} de ${p.nl} ${p.nl === 1 ? 'sinal lido' : fora ? 'sinais lidos' : 'sinais'}${fora ? `; ${fora} não ${fora === 1 ? 'lido' : 'lidos'}` : ''}`;
+  });
+  // Ate onde a leitura foi, em palavras de gente: so o nome da secao
+  const leitura = $derived.by(() => {
+    if (!p) return { curta: '', frase: '' };
+    if (p.L.c === 'completa') return { curta: '', frase: 'Texto lido por inteiro.' };
+    if (p.L.f === 'abstract') return { curta: 'só o resumo foi lido', frase: 'Leitura parcial: só o resumo do paper foi lido.' };
+    const ate = String(p.L.fim || '').split(/\s*[(;:]/)[0].trim();
+    return { curta: 'leitura parcial', frase: ate ? `Leitura parcial: o texto foi lido até “${ate}”.` : 'Leitura parcial.' };
+  });
 
   function tecla(e) {
     if (!p) return;
@@ -121,7 +137,7 @@
     <div class="corpo">
       {#key p.id}
       <div in:fade={{ duration: mov(200) }}>
-        <p class="tipo"><i class="sol {p.sol}"></i><span class="pts"><b>{SOL_FRASE[p.sol]}</b><span class="mut">{ENTREGA[p.ent] || p.ent}</span>{#if p.cam}<span class="mut">{CAMADA[p.cam] || p.cam}</span>{/if}</span></p>
+        <p class="tipo"><i class="sol {p.sol}"></i><span class="pts"><b>{SOL_FRASE[p.sol]}</b>{#if leitura.curta}<span>{leitura.curta}</span>{/if}<span class="mut">{ENTREGA[p.ent] || p.ent}</span>{#if p.cam}<span class="mut">{CAMADA[p.cam] || p.cam}</span>{/if}</span></p>
         <h2 id="paper-titulo" class="titulo" tabindex="-1">{p.t}</h2>
         <p class="meta t-12 mut pts"><span><span class="num">{p.u}</span> votos</span><span>{intervalo(p.d, p.d)}</span>{#if p.org}<span>{p.org}</span>{/if}<span><a class="lk" href={p.url} target="_blank" rel="noopener">arXiv <span class="num">{p.id}</span></a></span><span><a class="lk" href="https://huggingface.co/papers/{p.id}" target="_blank" rel="noopener">Hugging Face</a></span></p>
 
@@ -141,7 +157,7 @@
               {:else}<dd class="v titulo nd">–</dd><dd class="d">{p.res.length ? 'sem rival externo' : 'não lido'}</dd>{/if}{@render frenteMed('ganho')}</div>
             <div><dt class="rot">Prova</dt>
               <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? '–' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
-              <dd class="d">{p.nl ? `${sinaisSim} de ${p.nl} sinais lidos` : 'nenhum sinal lido'}</dd>{@render frenteMed('solidez')}</div>
+              <dd class="d">{sinais}</dd>{@render frenteMed('solidez')}</div>
             <div><dt class="rot">Adoção</dt>
               <dd class="v titulo" class:nd={p.radar.facilidade == null}>{ESFORCO[p.esf]}</dd>
               <dd class="d">{liberados(p) ? `${liberados(p)} ${liberados(p).includes(' ') ? 'liberados' : 'liberado'}` : p.prom ? 'só prometido' : p.radar.abertura == null ? 'abertura não lida' : 'nada liberado'}</dd>{@render frenteMed('facilidade')}</div>
@@ -160,7 +176,7 @@
           <section class="bloco">
             <header><h3>Adoção</h3></header>
             <dl class="pares">
-              <div><dt>Esforço</dt><dd><i class="degraus" aria-hidden="true">{#each [1, 2, 3, 4, 5] as n}<i class:on={p.esf >= n}></i>{/each}</i>{ESFORCO[p.esf]}</dd></div>
+              <div><dt>Esforço</dt><dd class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}{ESFORCO[p.esf]}</dd></div>
               <div><dt>Hardware</dt><dd class:mut={p.hw === 'nao_reportado'}>{HW[p.hw] || p.hw}</dd></div>
               {#each Object.entries(p.ab) as [k, v]}
                 <div><dt>{ART[k]}</dt><dd class:mut={v !== 'liberado'}>{#if linkDe(k)}<a class="lk" href={linkDe(k)} target="_blank" rel="noopener">{curtaUrl(linkDe(k))}</a>{:else}{ART_EST[v]}{/if}</dd></div>
@@ -189,7 +205,7 @@
             <header><h3>Os seis eixos</h3><span class="t-12 mut"><i class="tr"></i>mediana do recorte</span></header>
             {#if opRadar}<Grafico opcao={opRadar} altura={248} rotulo="Radar do paper nos seis eixos, contra a mediana do recorte" />{/if}
           </section>
-          <p class="nota t-12 mut">{p.L.c === 'completa' ? 'Texto lido por inteiro.' : `Leitura parcial${p.L.fim ? `: parou em ${p.L.fim}` : ''}.`}</p>
+          <p class="nota t-12 mut">{leitura.frase}</p>
 
         {:else if estado.prof === 2}
           {#if p.entTr}<blockquote><span class="rot">O que entrega</span><q lang="en">{p.entTr}</q></blockquote>{/if}
@@ -201,7 +217,7 @@
           {/each}
           {#each p.ress.filter((r) => r[1] !== p.entTr) as r}<blockquote><span class="rot pts"><span>Ressalva</span>{#if secao(r[2])}<span>{secao(r[2])}</span>{/if}</span><q lang="en">{r[1]}</q></blockquote>{/each}
           {#if !p.entTr && !p.man && !p.aleg.length && !p.ress.length}<div class="vazio">A leitura não trouxe trechos deste paper.</div>{/if}
-          <p class="nota t-12 mut">{p.L.c === 'completa' ? 'Texto lido por inteiro.' : `Leitura parcial${p.L.fim ? `: parou em ${p.L.fim}` : ''}.`}</p>
+          <p class="nota t-12 mut">{leitura.frase}</p>
 
         {:else}
           {#each p.res.slice(0, 12) as r}
@@ -214,7 +230,7 @@
               </tbody>
             </table>
           {/each}
-          {#if p.res.length > 12}<p class="nota t-12 mut">Mais {p.res.length - 12} tabelas no texto original.</p>{/if}
+          {#if p.res.length > 12}<p class="nota t-12 mut">{p.res.length - 12 === 1 ? 'Há mais 1 resultado' : `Há mais ${p.res.length - 12} resultados`} no <a class="lk" href={p.url} target="_blank" rel="noopener">texto original</a>, fora desta ficha.</p>{/if}
           {#if p.ents.length}
             <section class="bloco"><header><h3>Entidades</h3></header>
               <dl class="pares">{#each Object.entries(porPapel) as [papel, es]}<div><dt>{PAPEL[papel] || papel}</dt><dd>{es.map((e) => e[0] + (e[3] ? ` (${e[3]})` : '')).join(', ')}</dd></div>{/each}</dl>
@@ -248,7 +264,9 @@
   .corpo { overflow-y: auto; overscroll-behavior: contain; padding: var(--sp-5) var(--sp-4) var(--sp-12); }
   @media (min-width: 768px) { .corpo { padding-inline: var(--sp-6); } }
 
-  .tipo { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs-12); line-height: var(--lh-12); }
+  .tipo { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-12); line-height: var(--lh-12); }
+  .tipo .sol { flex: none; margin-top: calc((var(--lh-12) - 10px) / 2); }      /* a marca fica na primeira linha, mesmo quando o texto quebra */
+  .tipo .pts { min-width: 0; }
   .tipo b { font-weight: 600; }
   h2 { font-size: var(--fs-20); line-height: var(--lh-20); margin: var(--sp-2) 0; text-wrap: balance; }
   @media (min-width: 768px) { h2 { font-size: var(--fs-24); line-height: var(--lh-24); } }
@@ -286,10 +304,6 @@
   .pares > div:first-child { border-top: 0; }
   .pares dt { font-size: var(--fs-12); line-height: var(--lh-14); color: var(--muted); }
   .pares dd { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; flex-wrap: wrap; }
-  .degraus { display: inline-flex; gap: 2px; align-items: flex-end; }
-  .degraus i { width: 4px; border-radius: 1px; background: var(--line-strong); opacity: .45; }
-  .degraus i:nth-child(1) { height: 5px; } .degraus i:nth-child(2) { height: 7px; } .degraus i:nth-child(3) { height: 9px; } .degraus i:nth-child(4) { height: 11px; } .degraus i:nth-child(5) { height: 13px; }
-  .degraus i.on { background: var(--ink); opacity: 1; }
 
   .ress { display: grid; }
   .ress li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; column-gap: var(--sp-2); row-gap: 2px; align-items: baseline; padding: var(--sp-2) 0; border-top: 1px solid var(--line); }

@@ -5,19 +5,25 @@
   // linha do recorte acompanha a rolagem; a marca sobe com a pagina.
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
-  import { ARENA, SOLIDEZ, SOL_ROT, ESFORCO, familia, intervalo, plural, periodos, cobertura, lenteValida, rotuloLente, aplicaLentes } from '../lib/dados.js';
+  import { ARENA, SOLIDEZ, SOL_ROT, ESFORCO, familia, intervalo, plural, periodos, cobertura, lenteValida, rotuloLente, aplicaLentes, buscar } from '../lib/dados.js';
   import { estado, aplicarTema, lente, lentesDe, semLente } from '../lib/estado.svelte.js';
 
   let { vistas = [], papers, todos, faltam, dias } = $props();
   const escuro = $derived(estado.tema.escuro);
   const pers = $derived(periodos(estado.dados));
-  const cob = $derived(cobertura(todos, faltam));
+  // a leitura e a do recorte: com filtro ou busca, a fila (que nao tem leitura) sai da conta
+  const ativo = $derived(estado.lentes.length > 0 || !!estado.busca.trim());
+  const cob = $derived(cobertura(papers, ativo ? [] : faltam));
+  function limpar() { semLente(); estado.busca = ''; }
+  // altura da faixa presa: o cabecalho da tabela se prende logo abaixo dela
+  let altRecorte = $state(53);
+  $effect(() => { document.documentElement.style.setProperty('--recorte-alt', `${altRecorte}px`); });
 
   const conta = (lista, f) => { const m = new Map(); for (const p of lista) for (const k of f(p)) m.set(k, (m.get(k) || 0) + 1); return m; };
   // Cada menu conta os papers que sobram com as lentes dos outros menus: o
   // numero ao lado da opcao diz quantos papers ela traz para o recorte.
   const facetas = $derived.by(() => {
-    const base = (k) => (estado.v.lentes === 'varias' ? aplicaLentes(todos, estado.lentes.filter((l) => l.k !== k)) : todos);
+    const base = (k) => (estado.v.lentes === 'varias' ? buscar(aplicaLentes(todos, estado.lentes.filter((l) => l.k !== k)), estado.busca) : todos);
     const [bAr, bSol, bEsf, bFam] = ['ar', 'sol', 'esf', 'fam'].map(base);
     const ar = conta(bAr, (p) => p.ar), sol = conta(bSol, (p) => [p.sol]), esf = conta(bEsf, (p) => [p.esf]);
     const fam = conta(bFam, (p) => new Set(p.ents.filter((e) => e[1] === 'modelo').map((e) => familia(e[0]))));
@@ -59,13 +65,13 @@
         <div class="seg per" role="group" aria-label="Período">
           {#each pers as [k, r, n]}<button aria-pressed={estado.periodo === k} onclick={() => (estado.periodo = k)}>{r} <span class="n">{n}</span></button>{/each}
         </div>
-        <span class="perm"><Menu nome="Período" rotulo={pers.find((p) => p[0] === estado.periodo)?.[1] ?? 'Tudo'} valor={estado.periodo} itens={pers} aoEscolher={(v) => (estado.periodo = v)} /></span>
+        <span class="perm"><Menu nome="Período" rotulo={estado.periodo === 'tudo' ? 'Período todo' : pers.find((p) => p[0] === estado.periodo)?.[1] ?? 'Período todo'} valor={estado.periodo} itens={pers} aoEscolher={(v) => (estado.periodo = v)} /></span>
       {/if}
       <button class="ico" onclick={() => aplicarTema(escuro ? 'light' : 'dark')} aria-label={escuro ? 'Usar tema claro' : 'Usar tema escuro'} title={escuro ? 'Tema claro' : 'Tema escuro'}><Icone nome={escuro ? 'sol' : 'lua'} /></button>
     </div>
   </div>
 </header>
-<div class="recorte" role="region" aria-label="Recorte e filtros">
+<div class="recorte" class:ativo role="region" aria-label="Recorte e filtros" bind:offsetHeight={altRecorte}>
   <div class="pagina l2" data-regiao="recorte">
     <p class="rec pts" aria-live="polite"><b>{papers.length === todos.length ? plural(todos.length, 'paper', 'papers') : `${papers.length} de ${plural(todos.length, 'paper', 'papers')}`}</b>{#if dias.length}<span class="mut">{intervalo(dias[0], dias[1])}</span>{/if}</p>
     <div class="filtros" role="group" aria-label="Filtrar por">
@@ -76,11 +82,12 @@
             itens={[['', TODAS[k], total], ...itens]} aoEscolher={(v) => escolher(k, v)} />
         {/if}
       {/each}
+      {#if estado.busca.trim()}<button class="sel on achado" onclick={() => (estado.busca = '')} aria-label="Tirar a busca por {estado.busca.trim()}" title="Tirar a busca"><span class="um">“{estado.busca.trim()}”</span><Icone nome="x" tam={12} /></button>{/if}
     </div>
-    {#if estado.lentes.length}<button class="btn fan limpa" onclick={() => semLente()} aria-label="Limpar o filtro {estado.lentes.map(rotuloLente).join(', ')}"><Icone nome="x" tam={12} />Limpar</button>{/if}
+    {#if ativo}<button class="btn fan limpa" onclick={limpar} aria-label="Limpar {[estado.lentes.length ? `o filtro ${estado.lentes.map(rotuloLente).join(', ')}` : '', estado.busca.trim() ? `a busca por ${estado.busca.trim()}` : ''].filter(Boolean).join(' e ')}"><Icone nome="x" tam={12} />Limpar</button>{/if}
     <p class="cob mut" title="Quanto do texto de cada paper foi lido">
-      <span class="med" aria-hidden="true"><i style:flex={cob.inteira} class="a"></i><i style:flex={cob.parcial} class="b"></i><i style:flex={cob.insuf} class="c"></i><i style:flex={cob.fila} class="d"></i></span>
-      <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span><span><b>{cob.insuf}</b> {cob.insuf === 1 ? 'insuficiente' : 'insuficientes'}</span>{#if cob.fila}<span><b>{cob.fila}</b> na fila</span>{/if}</span>
+      <span class="med" aria-hidden="true"><i style:flex={cob.inteira} class="a"></i><i style:flex={cob.parcial} class="b"></i><i style:flex={cob.insuf} class="c"></i></span>
+      <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span><span><b>{cob.insuf}</b> com prova não lida</span></span>{#if cob.fila}<span class="fila">mais <b>{cob.fila}</b> na fila</span>{/if}
     </p>
   </div>
 </div>
@@ -94,7 +101,8 @@
 {/if}
 
 <style>
-  .topo, .recorte { background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px); }
+  /* fundo opaco: nada do que rola por baixo disputa com o recorte */
+  .topo, .recorte { background: var(--bg); }
   .topo { z-index: 11; padding-top: env(safe-area-inset-top, 0px); container: topo / inline-size; }
   .recorte { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--line); container: recorte / inline-size; }
   .l1 { display: flex; align-items: center; gap: var(--sp-4); height: var(--barra); }
@@ -117,20 +125,25 @@
   .filtros { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
   /* estreito: a contagem ocupa a primeira linha e sobe com a pagina (top negativo);
      presa no topo fica so a linha dos filtros, todos a vista, sem rolagem lateral */
+  .limpa { min-height: calc(var(--ctl) - 4px); padding: 0 var(--sp-2); font-size: var(--fs-12); }
+  .achado { max-width: 180px; }
   @media (max-width: 639px) {
-    .recorte { top: calc(-1 * var(--lh-14) - var(--sp-2)); }
-    .l2 { flex-wrap: wrap; row-gap: var(--sp-2); padding-top: var(--sp-2); }
-    .rec { flex: 1 1 0; order: 1; }
-    .limpa { order: 2; min-height: var(--alvo); margin-block: -2px; }
+    /* a primeira linha tem altura fixa: sem filtro ela sobe com a pagina; com
+       filtro ou busca ela fica presa, com a contagem e o Limpar a mao */
+    .recorte { --l1: 32px; top: calc(-1 * (var(--l1) + var(--sp-1))); }
+    .recorte.ativo { top: 0; }
+    .l2 { flex-wrap: wrap; row-gap: var(--sp-1); padding-top: var(--sp-1); }
+    .rec { flex: 1 1 0; order: 1; height: var(--l1); display: flex; align-items: center; min-width: 0; }
+    .limpa { order: 2; min-height: var(--l1); }
     .filtros { flex: 1 0 100%; order: 3; gap: 6px; }
     .filtros :global(.pre) { display: none; }      /* preso no topo, o filtro ligado mostra so o valor */
     .filtros :global(.sel) { padding: 0 6px 0 10px; }
   }
-  .limpa { min-height: calc(var(--ctl) - 4px); padding: 0 var(--sp-2); font-size: var(--fs-12); }
   .cob { display: none; align-items: center; gap: var(--sp-2); margin-left: auto; font-size: var(--fs-12); line-height: var(--lh-12); white-space: nowrap; }
   .cob b { font-weight: 500; color: var(--ink2); }
+  .cob .fila { padding-left: var(--sp-2); border-left: 1px solid var(--line-strong); }
   .med { display: inline-flex; width: 56px; height: 6px; border-radius: 3px; overflow: hidden; gap: 1px; }
-  .med i { min-width: 0; } .med .a { background: var(--ink); } .med .b { background: var(--muted); } .med .c { background: var(--line-strong); opacity: .6; } .med .d { background: var(--line); }
+  .med i { min-width: 0; } .med .a { background: var(--ink); } .med .b { background: var(--muted); } .med .c { background: var(--line-strong); opacity: .6; }
 
   .abas { position: fixed; z-index: 12; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .abas button { flex: 1; min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 2px; font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; color: var(--muted); border-radius: 0; }

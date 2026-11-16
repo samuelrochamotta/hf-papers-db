@@ -12,7 +12,7 @@ export const estado = $state({
   busca: '',         // texto da busca no indice
   vista: 'papers',   // vista aberta: 'papers' | 'panorama' | 'comparar'
   // escolhas ainda em aberto, pelo endereco: ?lentes=uma|varias e ?id=periodico|oficina
-  v: { lentes: 'uma', id: '' },
+  v: { lentes: 'uma', marca: 'cor', id: '' },
   tema: {},          // cores lidas dos tokens CSS
   modoTema: null,    // null segue o sistema; 'light' | 'dark' escolhido
 });

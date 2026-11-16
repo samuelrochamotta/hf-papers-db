@@ -175,6 +175,29 @@ export function buscar(papers, q) {
   });
 }
 
+// Onde a busca casou. `realcar` devolve o texto em pedacos [texto, casou] para
+// marcar o termo no titulo e na linha de tipo e camada; `ondeAchou` diz em
+// que campo esta o termo que nao aparece ali, para o resultado nao parecer engano.
+const norm1 = (s) => { let o = ''; for (const c of String(s || '')) o += c.length > 1 ? c : (c.normalize('NFD')[0].toLowerCase()[0] || c); return o; };
+export function realcar(texto, q) {
+  const termos = norm(q).split(/\s+/).filter(Boolean), tx = String(texto || '');
+  if (!termos.length) return [[tx, false]];
+  const n = norm1(tx), marca = new Array(tx.length).fill(false);
+  for (const t of termos) { let i = -1; while ((i = n.indexOf(t, i + 1)) >= 0) for (let j = i; j < i + t.length; j++) marca[j] = true; }
+  const out = []; let ini = 0;
+  for (let i = 1; i <= tx.length; i++) if (i === tx.length || marca[i] !== marca[ini]) { out.push([tx.slice(ini, i), marca[ini]]); ini = i; }
+  return out;
+}
+export function ondeAchou(p, q) {
+  // titulo, tipo e camada ja estao na linha, com o termo marcado
+  const visto = norm([p.t, ENTREGA[p.ent], CAMADA[p.cam]].join(' ')), fora = norm(q).split(/\s+/).filter(Boolean).filter((t) => !visto.includes(t));
+  if (!fora.length) return '';
+  const campos = [['Organização', [p.org]], ['Arena', p.ar.map((a) => ARENA[a])], ['Cita', p.ents.map((e) => e[0])], ['arXiv', [p.id]]];
+  const achados = [];
+  for (const t of fora) for (const [rot, vals] of campos) { const v = vals.find((x) => x && norm(x).includes(t)); if (v) { achados.push(`${rot}: ${v}`); break; } }
+  return [...new Set(achados)].join(' · ');
+}
+
 // Cobertura da leitura do recorte: e o denominador de tudo o que o painel afirma.
 export function cobertura(papers, faltam) {
   const inteira = papers.filter((p) => p.L?.c === 'completa').length;
