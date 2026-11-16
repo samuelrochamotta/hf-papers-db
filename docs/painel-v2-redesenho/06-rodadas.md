@@ -285,3 +285,40 @@ Cinco achados de prioridade alta, nenhum repetido entre os críticos.
 | Alvos de toque em 360 px | não medido | 0 de 176 abaixo de 44 px | 0 de 176 |
 | Alvos de toque em 768 px, com toque | não medido | não medido | 0 de 184 |
 | Testes | não havia do painel | 25 do painel; 417 na suíte | 27 do painel; 417 na suíte |
+
+## Rodada 4 (2026-11-16)
+
+Notas: acabamento 7, gráficos 7, celular e tablet 6, uso e texto 7.
+
+| Achado alto | Críticos | O que foi feito |
+|---|---|---|
+| O radar satura em 100 e contradiz a tabela ao lado (abertura com só o código lido, amplitude de 5 e de 9 benchmarks no mesmo vértice) | gráficos, celular | Decisões 11 e 13 do Samuel, aplicadas no Python com teste: amplitude em escala logarítmica fixa e abertura como faixa do confirmado ao máximo possível |
+| O glifo que abre cada linha da lista não tem chave e não se decifra | gráficos | Decisão 12: a miniatura do radar saiu e a marca de prova abre a linha |
+| Em 360 px, a linha do recorte vira um "2" solto | celular, uso | Regressão da rodada 3: margens negativas deixavam a contagem dividir a linha com os filtros. Os filtros voltaram a ocupar a linha inteira |
+| "Mais vencem em Robótica" põe no pódio quem perde do rival na maioria das vezes | uso | A lista ordena pela taxa de vitória, depois pelas vitórias e pelos votos |
+
+### Decisões do Samuel aplicadas (2026-11-16)
+
+1. Identidade Periódico, com o display da própria identidade (Newsreader); fontes servidas pelo painel.
+2. Tom direto e um nome por conceito: Ganho, Prova, Abertura, Adoção, Amplitude, Votos.
+3. O painel abre em Papers, por votos ("o que vale ler hoje"); ficam os sete quadros; o tema segue o sistema.
+4. A frase do problema escrita pelo modelo aparece no paper aberto ("Problema, segundo o modelo") e no índice, em itálico.
+5. Filtros somados.
+6. Marca de prova com cor mais preenchimento, também no lugar da miniatura do radar na lista.
+7. Radar: amplitude em escala logarítmica fixa (teto em 16 benchmarks) e abertura como faixa tracejada do confirmado ao máximo possível.
+
+### Achados médios tratados antes da rodada 5
+
+- As réguas da mediana no topo do paper (Ganho, Prova, Adoção) ficavam em
+  alturas diferentes quando uma frase quebrava em duas linhas. As três colunas
+  agora dividem as mesmas linhas (`subgrid`), e as réguas alinham.
+- A fonte de números (IBM Plex Mono) resolveu o espaço largo depois da vírgula
+  que a rodada 4 apontou.
+
+### Medidas na versão com as decisões
+
+axe 0 nós em violação; teclado 10 de 10 percursos, 186 teclas; contraste com 76
+pares e 0 abaixo do mínimo (pior texto 5,41:1); daltonismo 0 das 24
+combinações abaixo de ΔE 10 com a paleta Periódico; casos extremos 0 de 54;
+alvos de toque 0 de 176 em 360 px e 0 de 184 em 768 px; testes 27 do painel e
+420 na suíte (3 novos para a amplitude e a abertura).

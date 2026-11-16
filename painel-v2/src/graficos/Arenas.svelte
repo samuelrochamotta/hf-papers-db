@@ -36,7 +36,8 @@
   // "E quem vence nela?": na arena em foco (a do filtro, ou a mais cheia), os
   // papers que mais vencem o melhor rival, pela proporcao das disputas que
   // vencem ("3 de 3" antes de "5 de 15"); no empate, quem vence mais vezes.
-  const foco = $derived(ativas.length === 1 && linhas.some((l) => l.k === ativas[0]) ? ativas[0] : topo && topo.k !== 'outra' ? topo.k : null);
+  // Sem filtro de arena, so ha "quem vence" onde ha disputa (dois papers ou mais): com um paper por arena, o quadro nao elege vencedor
+  const foco = $derived(ativas.length === 1 && linhas.some((l) => l.k === ativas[0]) ? ativas[0] : topo && topo.k !== 'outra' && topo.ps.size > 1 ? topo.k : null);
   const placar = $derived.by(() => {
     const m = new Map();
     if (foco) for (const p of papers) {

@@ -297,11 +297,11 @@ test('as marcas do radar: escala nos aneis, faixa no eixo e corte fora do anel',
   // a escala fica na aresta entre o primeiro e o ultimo eixo: nunca em cima de um raio, onde caem os vertices
   for (const e of els.filter((x) => x.type === 'text')) assert.ok(Math.abs(e.x - cx) > 10, 'rotulo fora do raio do topo');
   const [faixa, fim] = els.filter((e) => e.type === 'line');
-  assert.ok(faixa && faixa.style.lineDash && faixa.style.stroke === '#a00', 'a faixa e tracejada, na cor do paper');
+  assert.ok(faixa && !faixa.style.lineDash && faixa.style.lineWidth >= 5 && faixa.style.opacity < 0.5 && faixa.style.stroke === '#a00', 'a faixa e larga e translucida, na cor do paper, sem tracejado de serie');
   // a faixa sai do vertice (40) e vai ate o anel de 100 do segundo eixo; o traco de fim fica no 100
   assert.ok(Math.abs(Math.hypot(faixa.shape.x1 - cx, faixa.shape.y1 - cy) - 0.4 * r) < 0.01);
   assert.ok(Math.abs(Math.hypot(faixa.shape.x2 - cx, faixa.shape.y2 - cy) - r) < 0.01);
-  assert.ok(fim && !fim.style.lineDash);
+  assert.ok(fim && !fim.style.lineDash && !(fim.style.opacity < 1));
   const cortes = els.filter((e) => e.type === 'polyline');
   assert.equal(cortes.length, 2);
   for (const c of cortes) assert.ok(Math.hypot(c.shape.points[1][0] - cx, c.shape.points[1][1] - cy) > r, 'a marca de corte fica fora do anel');
@@ -341,9 +341,9 @@ test('a abertura tem as mesmas palavras em toda tela e nao esconde a parte nao l
   assert.equal(aberturaFrase(pagina), 'só a página'); assert.equal(aberturaFrase(nada), 'nada liberado');
   assert.equal(aberturaFrase(semLer), 'abertura não lida');
   // "nada" ou "só a página" com parte nao lida nao e ausencia: a contagem vem junto
-  assert.equal(faltaLer(codigo), '3 não lidos'); assert.equal(faltaLer(pagina), '3 não lidos');
+  assert.equal(faltaLer(codigo), '3 de 4 não lidos'); assert.equal(faltaLer(pagina), '3 de 4 não lidos');
   assert.equal(faltaLer(dois), ''); assert.equal(faltaLer(nada), '');
-  assert.equal(faltaLer(paper('f', { ab: { codigo: 'liberado', pesos: 'liberado', dados: 'liberado', demo: 'nao_lido' }, radar: { abertura: 100 } })), '1 não lido');
+  assert.equal(faltaLer(paper('f', { ab: { codigo: 'liberado', pesos: 'liberado', dados: 'liberado', demo: 'nao_lido' }, radar: { abertura: 100 } })), '1 de 4 não lido');
   assert.equal(faltaLer(semLer), '', 'eixo todo nao lido ja diz "abertura não lida"');
   // nos dados publicados, todo paper tem frase, e nenhuma diz "nada" sozinha
   for (const p of REAL.papers) { assert.ok(aberturaFrase(p).length > 3, p.id); assert.notEqual(aberturaFrase(p), 'nada'); }

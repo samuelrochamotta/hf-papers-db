@@ -188,7 +188,7 @@
   .chave .med { width: 16px; height: 10px; border-radius: 2px; border: 1px dashed var(--muted); background: color-mix(in srgb, var(--line-strong) 12%, var(--surface)); }
   .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
   .chave .zero { width: 0; height: 12px; border-left: 1px dotted var(--ink2); }
-  .chave .fx { display: inline-block; width: 14px; height: 0; border-top: 2px dashed var(--ink2); }
+  .chave .fx { display: inline-block; width: 14px; height: 6px; background: color-mix(in srgb, var(--ink2) 30%, transparent); border-right: 2px solid var(--ink2); }
   .nl { color: var(--muted); font-weight: 400; }
   td.neg .fato { color: var(--alert); }
 

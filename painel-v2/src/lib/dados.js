@@ -310,4 +310,5 @@ export const tetoDoEixo = (k, p) => (k === 'abertura' && p.radar.abertura != nul
 // artefatos a leitura nao alcancou: "nada liberado" com parte nao lida nao e
 // a mesma coisa que nada.
 export const aberturaFrase = (p) => { const f = FATO.abertura(p); return f == null ? 'abertura não lida' : liberados(p) ? `liberou ${f}` : f; };
-export const faltaLer = (p) => { const n = naoLidosDe(p); return p.radar.abertura != null && n ? `${n} ${n === 1 ? 'não lido' : 'não lidos'}` : ''; };
+// "3 de 4 não lidos": a conta e dos quatro artefatos da abertura (codigo, pesos, dados e demo)
+export const faltaLer = (p) => { const n = naoLidosDe(p); return p.radar.abertura != null && n ? `${n} de 4 ${n === 1 ? 'não lido' : 'não lidos'}` : ''; };

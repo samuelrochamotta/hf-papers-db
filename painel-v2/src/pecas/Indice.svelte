@@ -51,7 +51,7 @@
   const sub = (p) => [ENTREGA[p.ent] || p.ent, p.cam ? CAMADA[p.cam] || p.cam : null].filter(Boolean).join(' · ');
   // a abertura usa as mesmas palavras em todas as telas (FATO.abertura): na
   // tabela, o fato sob o cabecalho; fora dela, a frase ("liberou código"). O
-  // que a leitura nao alcancou vem logo abaixo ("3 não lidos")
+  // que a leitura nao alcancou vem logo abaixo ("3 de 4 não lidos")
   const nomeLongo = (p) => [p.t, `${p.u} votos`, SOL_FRASE[p.sol].toLowerCase(), ganhoDe(p) != null ? `ganho ${sgn(ganhoDe(p))}%` : null,
     p.radar.facilidade != null ? `esforço: ${ESFORCO[p.esf].toLowerCase()}` : null, [aberturaFrase(p), faltaLer(p) && `${faltaLer(p)} entre os artefatos`].filter(Boolean).join(', ')].filter(Boolean).join('. ');
 
@@ -149,7 +149,7 @@
               <a class="abre" href="https://arxiv.org/abs/{p.id}" target="_blank" rel="noopener" data-i={i} data-c="0" tabindex={tab(i, 0)}
                 aria-label="{p.t}. {p.u} votos. Na fila, ainda sem leitura. Abre o arXiv em outra aba"
                 onkeydown={(e) => mover(e, i, 0)} onfocus={() => (foco = { i, c: 0 })}>
-                <span class="glifo"><i class="sol sem_leitura g" aria-hidden="true"></i></span>
+                <span class="glifo" aria-hidden="true"></span>   <!-- sem marca: o anel tracejado e da prova nao lida de um paper lido, e a fila nao foi lida -->
                 <span class="c-t">
                   <span class="t">{#each realcar(p.t, estado.busca) as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
                   <span class="s um">arXiv <span class="num">{p.id}</span></span>
@@ -261,7 +261,7 @@
   .sol.g { width: 16px; height: 16px; }
   .c-t { display: grid; min-width: 0; }
   .t { font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-  .pr { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); font-style: italic; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pr { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); font-style: italic; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 3px; }   /* o italico passa da caixa: sem a folga, o ultimo glifo sai cortado */
   .s { display: none; font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
   .s.tem { display: block; }                       /* a busca casou no tipo ou na camada: a linha aparece */
   .acha { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
@@ -313,6 +313,17 @@
     .f-v, .f-s, .f-g, .f-a, .f-l { grid-column: auto; grid-row: 1; }
     .f-l .oq { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-fila { grid-column: 2 / -1; }
+  }
+
+  /* tablet com toque: a linha tem largura, entao os fatos e a frase do modelo sobem para 14 px, como o texto base,
+     e o + da comparacao cresce para 32 px de desenho */
+  @media (pointer: coarse) {
+    @container (min-width: 560px) {
+      .fatos, .pr, .f-fila { font-size: var(--fs-14); line-height: var(--lh-14); }
+      .fatos { grid-template-columns: 72px 96px 112px 136px minmax(0, 1fr); }
+      .cmp { width: 32px; height: 32px; }
+      .cmp::after { inset: -6px; }
+    }
   }
 
   /* largo: tabela. So entra quando sobra pelo menos 300 px para o titulo */

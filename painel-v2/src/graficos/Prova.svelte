@@ -147,4 +147,6 @@
   {#if opcao}<div class="cresce" bind:clientWidth={larg}><Grafico {opcao} {altura} aoClicar={clicar} rotulo="Votos de cada paper por nível de prova" /></div>
   {:else}<div class="vazio">Nenhum paper neste recorte.</div>{/if}
   <Nomes papers={zona} titulo={semTitulo ? 'Muito voto, pouca prova' : ''} rotulo="Papers com muito voto e pouca prova" valor={(p) => p.u.toLocaleString('pt-BR')} alerta />
+  <!-- o mais votado tem nome proprio embaixo do grafico: e a resposta a "o mais votado tem prova?", e o anel no ponto aponta para ele -->
+  {#if maisVotado && !zona.includes(maisVotado)}<Nomes papers={[maisVotado]} titulo="O mais votado" rotulo="O paper mais votado do recorte" valor={(p) => `${p.u.toLocaleString('pt-BR')} · ${SOL_FRASE[p.sol].toLowerCase()}`} />{/if}
 </Quadro>

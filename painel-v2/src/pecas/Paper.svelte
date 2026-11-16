@@ -194,7 +194,7 @@
           <div class="kpis">
           <dl class="fatos">
             <div><dt class="rot">Ganho</dt>
-              {#if ganhoDe(p) != null}<dd class="v titulo" class:neg={ganhoDe(p) < 0}>{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `ganho relativo em ${comRival} resultados` : p.best ? `ganho relativo em 1 resultado, contra ${p.best.x}` : 'ganho relativo em 1 resultado'}</dd>
+              {#if ganhoDe(p) != null}<dd class="v titulo" class:neg={ganhoDe(p) < 0}>{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `mediana de ${comRival} resultados, contra o melhor rival externo` : p.best ? `ganho relativo em 1 resultado, contra ${p.best.x}` : 'ganho relativo em 1 resultado'}</dd>
               {:else}<dd class="v titulo nd">{p.res.length ? 'Sem rival' : 'Não lido'}</dd><dd class="d">{p.res.length ? 'os resultados não trazem rival externo' : 'nenhum resultado em tabela lido'}</dd>{/if}{@render frenteMed('ganho')}</div>
             <div><dt class="rot">Prova</dt>
               <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? 'Não lida' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
@@ -257,7 +257,7 @@
         {:else if estado.prof === 2}
           {#if p.entTr}<blockquote><span class="rot">O que entrega</span><q lang="en">{p.entTr}</q></blockquote>{/if}
           {#if p.man}
-            <blockquote class:alerta={p.man.conf === false}><span class="rot pts"><span>Manchete</span><span>{p.man.conf ? 'confere com a tabela' : p.man.conf === false ? 'número fora das tabelas lidas' : 'sem tabela para conferir'}</span></span><q lang="en">{p.man.tr}</q></blockquote>
+            <blockquote class:alerta={p.man.conf === false}><span class="rot pts"><span>Manchete</span><span>{p.man.conf ? 'confere com a tabela' : p.man.conf === false ? 'número fora das tabelas lidas' : 'sem tabela para conferir'}</span></span><q lang="en">{p.man.tr}</q>{#if p.man.n != null}<span class="num-man t-12">o número: <b class="num">{p.man.n.toLocaleString('pt-BR')}{p.man.u ? ` ${p.man.u}` : ''}</b>{#if p.man.contra} contra {p.man.contra}{/if} · <button class="lk" onclick={() => (estado.prof = 3)}>ver as tabelas</button></span>{/if}</blockquote>
           {/if}
           {#each p.aleg.filter((a) => a[0] !== 'manchete') as a}
             <blockquote><span class="rot pts"><span>{ALEG[a[0]] || a[0]}</span>{#if secao(a[2])}<span>{secao(a[2])}</span>{/if}</span><q lang="en">{a[1]}</q></blockquote>
@@ -343,15 +343,16 @@
 
   blockquote { padding: var(--sp-3) 0 var(--sp-3) var(--sp-4); border-left: 2px solid var(--line-strong); display: grid; gap: var(--sp-1); margin-bottom: var(--sp-4); }
   blockquote.alerta { border-left-color: var(--alert); }
+  .num-man { color: var(--ink2); }
   blockquote.alerta .rot { color: var(--alert); }
   q { font-family: var(--f-display); font-size: var(--fs-17); line-height: var(--lh-17); quotes: '“' '”'; }
   .entrega { margin-bottom: var(--sp-5); }
 
   .kpis { padding-block: var(--sp-4); border-block: 1px solid var(--line); }
-  .fatos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); }
+  .fatos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--sp-4); }
   .chv-k { display: flex; align-items: center; gap: 6px; margin-top: var(--sp-3); }
   .chv-k i { width: 2px; height: 10px; border-radius: 1px; background: var(--ink); }
-  .fatos > div { display: grid; grid-template-rows: auto auto 1fr auto; }   /* as reguas da mediana alinham na base */
+  .fatos > div { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0; align-content: start; }   /* rotulo, valor, frase e regua em linhas comuns as tres colunas: as reguas alinham entre si */
   .fatos .v { font-size: var(--fs-24); line-height: var(--lh-24); margin-top: 2px; }
   .fatos .v.nd { color: var(--muted); }
   .fatos .v.neg { color: var(--alert); }
@@ -406,7 +407,7 @@
   .tr { width: 16px; border-top: 1.5px dashed var(--muted); display: inline-block; vertical-align: middle; margin-right: 6px; }
   .chv { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: center; margin-top: var(--sp-1); }
   .chv > span { display: inline-flex; align-items: center; white-space: nowrap; }
-  .chv .fx { display: inline-block; width: 14px; height: 0; border-top: 2px dashed var(--ink2); margin-right: 6px; vertical-align: middle; }
+  .chv .fx { display: inline-block; width: 14px; height: 6px; background: color-mix(in srgb, var(--ink2) 30%, transparent); border-right: 2px solid var(--ink2); margin-right: 6px; vertical-align: middle; }
   .chv b { font-weight: 600; color: var(--ink2); margin-right: 6px; }
   .nota { margin-top: var(--sp-5); }
 

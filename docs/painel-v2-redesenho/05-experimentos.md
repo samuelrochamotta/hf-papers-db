@@ -193,6 +193,14 @@ lado no commit `d3e21a3` (`?marca=cor` e `?marca=cheio`).
 
 ## Decisões que ficam com o Samuel
 
+**Tomadas em 2026-11-16**: 1 Periódico; 2 display da identidade; 3 tom direto;
+4 um nome por conceito (Ganho, Prova, Abertura, Adoção, Amplitude, Votos); 5 o
+que vale ler hoje; 6 ficam os sete quadros; 7 tema segue o sistema; 8 frase do
+modelo no paper aberto e no índice; 9 filtros somados; 10 cor mais
+preenchimento; 11 amplitude em escala logarítmica fixa; 12 marca de prova no
+lugar da miniatura; 13 abertura como faixa do confirmado ao máximo possível.
+Como foram aplicadas: `06-rodadas.md`, rodada 4.
+
 Apresentadas lado a lado, com capturas, em
 https://claude.ai/artifact/MoUz7mno5DbwCoBaSdmm79 (2026-11-16):
 

@@ -21,7 +21,10 @@ Escala modular de razão 1,2 sobre 14 px, com alturas de linha na grade de 4 px.
 
 Três papéis de fonte: `--f-ui` (texto e controles), `--f-num` (números, sempre
 tabulares) e `--f-display` (marca, títulos e números grandes, com
-`--display-peso` e `--display-esp`). A identidade troca só essas famílias.
+`--display-peso` e `--display-esp`). A identidade escolhida é a Periódico
+(decisão 1): Newsreader 500 no display, IBM Plex Sans na interface e IBM Plex
+Mono nos números, servidas pelo próprio painel em `src/fontes/` (sem pedido a
+outro domínio na abertura).
 
 ## Grade e espaço
 
@@ -33,7 +36,9 @@ tabulares) e `--f-display` (marca, títulos e números grandes, com
 
 ## Cor
 
-Papéis, e não cores soltas. Um bloco por tema; a identidade troca só este bloco.
+Papéis, e não cores soltas. Um bloco por tema, com a paleta da identidade
+Periódico (fundo papel esverdeado, tinta quase preta, rampa de prova em verdes).
+O tema segue o sistema e pode ser trocado à mão (decisão 7).
 
 | Papel | Tokens |
 |---|---|
@@ -126,11 +131,21 @@ aparece no desenho (`marcasRadar()` em `tema.js`):
 | Marca | Quando | Onde |
 |---|---|---|
 | "50" e "100" | sempre | nos anéis, na aresta entre o primeiro e o último eixo, onde nenhum vértice cai |
-| Vértice vazado | o eixo só conta parte do que existe (abertura com artefato não lido) | no vértice do paper, na cor dele |
-| Marca de corte "»" | o fato passa do teto do eixo (amplitude acima de 5 benchmarks) | fora do anel, na cor do paper |
+| Faixa larga e translúcida, com traço firme no fim | a abertura tem artefato não lido: o vértice é o confirmado e a faixa vai até o máximo possível (`abTeto`, decisão 13) | ao longo do eixo, na cor do paper; com dois ou três papers as faixas ficam lado a lado, 7 px entre elas |
+| Marca de corte "»" | o fato passa do teto do eixo (amplitude acima de 16 benchmarks) | fora do anel, na cor do paper |
 | Fato com unidade | radar de um paper só | ao lado do nome de cada eixo ("9 bench.", "código", "+10,2%") |
 
-Na tabela da comparação, a barra é proporcional ao número escrito onde há
-número (benchmarks e votos, até o maior do período); o ganho sai do zero para
+A amplitude usa escala logarítmica fixa (decisão 11): 1, 3, 5, 9 e 16
+benchmarks caem em 24, 49, 63, 81 e 100, então 5 e 9 benchmarks deixam de
+cair no mesmo vértice e a escala não muda com o período.
+
+Na tabela da comparação, a barra da amplitude segue a mesma escala do radar e
+a de votos é proporcional aos votos, até o maior do período; o ganho sai do zero para
 os dois lados; a prova escreve os sinais cumpridos; a abertura mostra os quatro
 artefatos, com os não lidos tracejados.
+
+## Lista de papers
+
+1. A marca de prova abre cada linha (decisão 12, no lugar da miniatura do radar): cor mais preenchimento, anel tracejado para "Não lida" e para a fila.
+2. Abaixo do título, a frase do problema escrita pelo modelo, em itálico (decisão 8). No paper aberto ela vem com o rótulo "Problema, segundo o modelo"; na lista, o itálico e a dica ao passar o ponteiro dizem de quem é a frase.
+3. Filtros sempre se somam (decisão 9): cada um vira um chip removível, e "Limpar" tira todos.
