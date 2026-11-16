@@ -440,3 +440,17 @@ Acabamento, celular e uso sem achado alto.
 | Com o filtro Frágil, o "0" de "Onde está a disputa?" conta arenas, enquanto no resto o número conta papers | gráficos | Sem disputa, a resposta é uma palavra: "Nenhuma arena com disputa neste recorte: cada uma tem um paper só". O número volta a contar sempre papers |
 
 Médio tratado junto: no tablet, "ganho não achado" volta a caber numa linha.
+
+## Rodada 14 (2026-11-16): critério de parada
+
+Notas: acabamento 7,5, gráficos 8, celular e tablet 7,5, uso e texto 7.
+**Nenhum achado de prioridade alta nos quatro críticos.** É a primeira rodada
+inteira sem achado alto, e com ela o critério de pronto fica cumprido.
+
+Médios que se repetem e ficam para depois: as cores da comparação destoam da
+paleta e mudam de matiz no tema escuro; "5 de 6" ao lado de "5 de 7 sinais"
+sem dizer por que a base muda; o botão "+" da lista centrado na altura da
+linha; "O que dá para adotar já?" inclui um paper que perde do rival; o
+quadro das arenas conta papers no número e resultados nas barras; o radar da
+comparação usa escala diferente da tabela e não marca ganho negativo; a frase
+do problema vem em inglês em 20 de 28 papers.
