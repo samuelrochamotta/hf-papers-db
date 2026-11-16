@@ -7,7 +7,7 @@
   import Quadro from '../pecas/Quadro.svelte';
   import Grafico from '../lib/Grafico.svelte';
   import Nomes from '../pecas/Nomes.svelte';
-  import { SOLIDEZ, SOL_ROT, SOL_FRASE, median, esc, curto } from '../lib/dados.js';
+  import { SOLIDEZ, SOL_ROT, SOL_FRASE, median, esc, nome, nomeMenor, plural } from '../lib/dados.js';
   import { base, pontoProva, enxame, rotNum, rotCat, grade, dica, limitesLog, curtoNum, toca, larguraTexto as largura } from '../lib/tema.js';
   import { estado, lente, lentesDe } from '../lib/estado.svelte.js';
 
@@ -19,6 +19,8 @@
   const maisVotado = $derived(papers.reduce((m, p) => (!m || p.u > m.u ? p : m), null));
   const naZona = (p) => (p.sol === 'fragil' || p.sol === 'basico') && p.u >= med;
   const zona = $derived(papers.filter(naZona).sort((a, b) => b.u - a.u));
+  // prova nao lida nao e pouca prova: fica fora da zona, mas a resposta diz quantos sao
+  const semLer = $derived(papers.filter((p) => p.sol === 'sem_leitura' && p.u >= med).length);
   const conta = $derived(Object.fromEntries(SOLIDEZ.map((s) => [s, papers.filter((p) => p.sol === s).length])));
   const ativas = $derived(lentesDe('sol'));
 
@@ -55,13 +57,19 @@
       // ganham nome os papers da zona e o mais votado do recorte ("o mais votado tem prova?")
       const fila = papers.map((_, i) => i).filter((i) => naZona(papers[i]) || papers[i] === maisVotado).sort((i, j) => papers[j].u - papers[i].u);
       for (const i of fila) {
-        const txt = curto(papers[i].t, 18), w = largura(txt, fonte), [x, y] = pos[i], dentro = naZona(papers[i]);
-        for (const lado of dentro ? ['right', 'left'] : ['left', 'right']) {
-          const c = [lado === 'right' ? x + R + 5 : x - R - 5 - w, y - 7, w, 14];
-          if (dentro && (c[0] < z[0] + 4 || c[0] + w > z[0] + z[2] + 12)) continue;      // o nome fica dentro da zona
-          if (!dentro && (c[0] < area.x + 2 || c[0] + w > area.x + area.width + 12 || toca(c, z))) continue;
-          if (bolas.some((o, j) => j !== i && toca(c, o)) || caixas.some((o) => toca(c, o))) continue;
-          caixas.push(c); rot[i] = { txt, lado }; break;
+        const [x, y] = pos[i], dentro = naZona(papers[i]);
+        // primeiro o nome curto do painel; so onde ele nao cabe, o menor
+        achar: for (const txt of new Set([nome(papers[i]), nomeMenor(papers[i])])) {
+          const w = largura(txt, fonte);
+          // ao lado do ponto; fora da zona, tambem logo abaixo ou acima dele
+          const lados = { right: [x + R + 5, y - 7], left: [x - R - 5 - w, y - 7], below: [x + R - w, y + R + 3], above: [x + R - w, y - R - 17] };
+          for (const lado of dentro ? ['right', 'left'] : ['left', 'right', 'below', 'above']) {
+            const c = [...lados[lado], w, 14];
+            if (dentro && (c[0] < z[0] + 4 || c[0] + w > z[0] + z[2] + 12)) continue;      // o nome fica dentro da zona
+            if (!dentro && (c[0] < area.x + 2 || c[0] + w > area.x + area.width + 12 || c[1] < area.y || c[1] + 14 > area.y + area.height - 2 || toca(c, z))) continue;
+            if (bolas.some((o, j) => j !== i && toca(c, o)) || caixas.some((o) => toca(c, o))) continue;
+            caixas.push(c); rot[i] = { txt, c }; break achar;
+          }
         }
       }
       return { pos, z, tit, rot };
@@ -90,12 +98,12 @@
               ...(tit ? [{ type: 'text', x: tit[0], y: tit[1], style: { text: TITULO, fill: t.alert, font: fonteT } }] : []),
             ] }; },
           markLine: { silent: true, symbol: 'none', data: [{ xAxis: med }], lineStyle: { color: t.muted, type: [2, 3], width: 1 },
-            label: { show: true, position: 'start', formatter: `mediana ${med.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`, color: t.muted, fontSize: 12, fontFamily: t.fUi } } },
+            label: { show: true, position: 'start', formatter: `mediana do período ${med.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`, color: t.muted, fontSize: 12, fontFamily: t.fUi } } },
         { type: 'custom', z: 3, encode: { x: 0, y: 1 }, data: papers.map((p) => ({ pid: p.id, value: [votos(p), linha(p)] })),
           renderItem: (q, api) => {
             const { pos, rot } = pronto(q, api), i = q.dataIndex, r = rot[i];
             const extra = { cursor: 'pointer', emphasis: { style: { stroke: t.ink, lineWidth: 2, lineDash: null } },
-              ...(r ? { textContent: { type: 'text', style: { text: r.txt, fill: t.ink, font: fonte } }, textConfig: { position: r.lado, distance: 5 } } : {}) };
+              ...(r ? { textContent: { type: 'text', style: { text: r.txt, fill: t.ink, font: fonte } }, textConfig: { position: [r.c[0] - (pos[i][0] - R), r.c[1] - (pos[i][1] - R) + 1] } } : {}) };
             return { type: 'group', children: pontoProva(t, papers[i], pos[i][0], pos[i][1], R, { extra }) };
           } },
       ],
@@ -107,7 +115,7 @@
   };
 </script>
 
-<Quadro id="prova" pergunta="Onde há votos sem prova?" valor={zona.length} vazio={!papers.length} resposta={`${zona.length === 1 ? 'paper' : 'papers'} com votos acima da mediana e prova frágil ou básica`}>
+<Quadro id="prova" pergunta="Onde há votos sem prova?" valor={zona.length} vazio={!papers.length} resposta={`${zona.length === 1 ? 'paper' : 'papers'} com votos acima da mediana e prova frágil ou básica${semLer ? `, mais ${semLer} com prova não lida` : ''}`}>
   {#if opcao}<Grafico {opcao} altura={320} aoClicar={clicar} rotulo="Votos de cada paper por nível de prova" />
   {:else}<div class="vazio">Nenhum paper neste recorte.</div>{/if}
   <Nomes papers={zona} rotulo="Papers com muito voto e pouca prova" valor={(p) => p.u.toLocaleString('pt-BR')} alerta />

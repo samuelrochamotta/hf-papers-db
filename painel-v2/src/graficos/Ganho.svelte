@@ -5,7 +5,7 @@
   import Quadro from '../pecas/Quadro.svelte';
   import Grafico from '../lib/Grafico.svelte';
   import Chave from '../pecas/Chave.svelte';
-  import { median, curto, sgn, SOL_FRASE, esc } from '../lib/dados.js';
+  import { median, nome as nomeDe, sgn, SOL_FRASE, esc } from '../lib/dados.js';
   import { base, pontoProva, rotNum, rotCat, grade, dica, dominio, pct, corte } from '../lib/tema.js';
   import { estado, abrir } from '../lib/estado.svelte.js';
 
@@ -22,7 +22,7 @@
   // o eixo cobre medianas e faixas; so o que foge muito do conjunto e cortado
   const dom = $derived(dominio(todas.flatMap((l) => [l.med, l.lo, l.hi])));
   const cortados = $derived(todas.some((l) => l.hi > dom[1] || l.lo < dom[0]));
-  const nome = (l) => curto(l.p.t, 24);
+  const nome = (l) => nomeDe(l.p);
   // estreito: o nome sobe para cima da regua e o grafico usa a largura toda
   let larg = $state(480);
   const estreito = $derived(larg < 420);
@@ -85,7 +85,7 @@
 </script>
 
 <Quadro id="ganho" pergunta="Quanto ganham do melhor rival?" valor={medAll} casas={1} prefixo="+" sufixo="%" vazio={!todas.length}
-  resposta={todas.length ? `ganho mediano · ${ganham} de ${todas.length} ${ganham === 1 ? 'vence' : 'vencem'} o rival` : ''}>
+  resposta={todas.length ? `ganho mediano · ${ganham} de ${todas.length} acima de zero` : ''}>
   {#if opcao}
     <div bind:clientWidth={larg}><Grafico {opcao} altura={linhas.length * passo + 56} aoClicar={clicar} rotulo="Ganho relativo de cada paper contra o melhor rival externo, do maior para o menor" /></div>
     {#if todas.length > limite}<button class="btn sec mais" aria-expanded={tudo} onclick={() => (tudo = !tudo)}>{tudo ? 'Mostrar menos' : `Ver os ${todas.length} papers`}</button>{/if}

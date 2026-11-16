@@ -145,6 +145,8 @@ export function rotular(itens, { area, zona = null, linhas = [], ocupado = [], f
     const h = o.h ?? 14, g = o.r + folga, { x, y, r, w } = o;
     const cands = [
       [x + g, y - h / 2], [x - g - w, y - h / 2],
+      // em diagonal: ainda encostado no proprio ponto, para nao ir parar ao lado do ponto de outro
+      [x - g - w, y - h - 2], [x + g, y - h - 2], [x - g - w, y + 2], [x + g, y + 2],
       [x - r, y - g - h], [x + r - w, y - g - h], [x - r, y + g], [x + r - w, y + g],
       [x - w / 2, y - g - h], [x - w / 2, y + g],
     ].map(([cx, cy], ordem) => {
@@ -172,6 +174,43 @@ export const pct = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLo
 // marca de corte: duas cunhas na borda do eixo
 export const corte = (x, y, dir, cor) => [0, 5].map((d) => ({ type: 'polyline', silent: true,
   shape: { points: [[x - dir * (4 + d), y - 4], [x - dir * d, y], [x - dir * (4 + d), y + 4]] }, style: { stroke: cor, lineWidth: 1.5, fill: 'none' } }));
+// Radar: o que a serie do ECharts nao desenha. A escala nos aneis (50 e 100), o
+// vertice vazado onde parte do eixo nao foi lida e a marca de corte onde o
+// valor passa do teto do eixo. `itens`: [{ valores, cor, simbolo, vazados, cortes }],
+// com um valor e um aviso por eixo; os eixos giram a partir do topo, no sentido
+// anti-horario, como no radar do ECharts.
+export function marcasRadar(t, { cx, cy, r, itens }) {
+  const dir = (i, n) => { const a = Math.PI / 2 + (i * 2 * Math.PI) / n; return [Math.cos(a), -Math.sin(a)]; };
+  // escala nos aneis: no meio da aresta entre o primeiro e o ultimo eixo, onde nenhum vertice de dado cai
+  const n0 = itens[0]?.valores.length || 6, am = Math.PI / 2 - Math.PI / n0, ap = Math.cos(Math.PI / n0);
+  const out = [50, 100].map((v) => ({ type: 'text', silent: true, z: 1,
+    x: cx + (Math.cos(am) * r * ap * v) / 100, y: cy - (Math.sin(am) * r * ap * v) / 100,
+    style: { text: String(v), fill: t.muted, font: `11px ${t.fNum}`, align: 'center', verticalAlign: 'middle', backgroundColor: t.surface, padding: [1, 3] } }));
+  const total = new Map(), fila = new Map();   // marcas de corte por eixo: ficam lado a lado, atravessadas no eixo
+  for (const it of itens) it.cortes?.forEach((c, i) => { if (c) total.set(i, (total.get(i) || 0) + 1); });
+  for (const it of itens) {
+    const n = it.valores.length;
+    it.valores.forEach((v, i) => {
+      const [ux, uy] = dir(i, n);
+      if (it.vazados?.[i] && v != null) {
+        const x = cx + (ux * r * v) / 100, y = cy + (uy * r * v) / 100, st = { fill: t.surface, stroke: it.cor, lineWidth: 1.5 };
+        out.push(it.simbolo === 'rect' ? { type: 'rect', silent: true, z: 20, shape: { x: x - 4, y: y - 4, width: 8, height: 8 }, style: st }
+          : it.simbolo === 'triangle' ? { type: 'polygon', silent: true, z: 20, shape: { points: [[x, y - 5], [x + 5, y + 4], [x - 5, y + 4]] }, style: st }
+          : { type: 'circle', silent: true, z: 20, shape: { cx: x, cy: y, r: 4 }, style: st });
+      }
+      if (it.cortes?.[i]) {
+        const j = fila.get(i) || 0; fila.set(i, j + 1);
+        const wx = -uy, wy = ux, lado = (j - (total.get(i) - 1) / 2) * 9;          // perpendicular ao eixo
+        for (const d of [0, 4]) {
+          const R = r + 7 + d, px = cx + ux * R + wx * lado, py = cy + uy * R + wy * lado;
+          out.push({ type: 'polyline', silent: true, z: 20, shape: { points: [[px - ux * 3 + wx * 3, py - uy * 3 + wy * 3], [px, py], [px - ux * 3 - wx * 3, py - uy * 3 - wy * 3]] },
+            style: { stroke: it.cor, lineWidth: 1.5, fill: 'none' } });
+        }
+      }
+    });
+  }
+  return out;
+}
 // limites redondos para eixo logaritmico de contagem (votos)
 const REDONDOS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
 export function limitesLog(vals) {

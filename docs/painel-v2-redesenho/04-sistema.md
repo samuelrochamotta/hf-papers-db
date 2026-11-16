@@ -60,8 +60,8 @@ Todos os controles passam pelos mesmos estados, na mesma ordem.
 | Botão primário `.btn.pri` | fundo `--accent` | 86% do acento | anel `--focus` de 2 px, afastado 2 px | desce 1 px | não se aplica | 45% de opacidade, sem ponteiro |
 | Botão secundário `.btn.sec` | borda `--line-strong` | fundo `--hover` | anel | desce 1 px | `aria-pressed`: fundo `--accent` | 45% |
 | Botão discreto `.btn.fan`, ícone `.ico` | sem fundo | fundo `--hover` | anel | desce 1 px | não se aplica | 45% |
-| Segmento `.seg > button` (período, abas do paper) | texto `--ink2` sobre `--sunk` | texto `--ink`, véu claro | anel | desce 1 px | `aria-pressed` ou `aria-selected`: superfície com borda | 45% |
-| Filtro com menu `.sel` | borda `--line-strong` | fundo `--hover` | anel redondo | desce 1 px | `.on`: fundo `--accent`, valor escrito no botão | some quando só há uma opção |
+| Segmento `.seg > button` (período, abas do paper) | texto `--ink2` sobre `--sunk` | texto `--ink`, véu claro | anel | desce 1 px | `aria-pressed` ou `aria-selected`: `--seg-on` com borda (branco no claro; no escuro, mais claro que o trilho) | 45% |
+| Filtro com menu `.sel` | borda `--line-strong` | fundo `--hover` | anel redondo | desce 1 px | `.on`: fundo `--accent`, valor escrito no botão e um "×" ao lado que tira só aquele filtro | some quando só há uma opção |
 | Opção de menu `[role=option]` | sem fundo | fundo `--hover` | fundo `--sunk` e anel interno | não se aplica | `aria-selected`: peso 600 e marca de visto | não se aplica |
 | Link `.lk` | sublinhado em `--line-strong` | sublinhado na cor do texto | anel | não se aplica | visitado igual | não se aplica |
 | Linha do índice | sem fundo | fundo `--hover` | anel | não se aplica | paper aberto: fundo `--sunk` | não se aplica |
@@ -96,7 +96,26 @@ entre as opções apresentadas a ele.
 4. O rótulo de um controle diz o que acontece: Limpar, Comparar, Ver os 12 trechos.
 5. Nenhuma frase de instrução. O que é clicável se mostra no desenho.
 6. Palavra do paper só entre aspas e no idioma original. O painel não parafraseia.
-7. Ausência de dado tem nome próprio (Não lida, sem rival externo, –) e nunca vira zero.
+7. Ausência de dado tem nome próprio (Não lida, sem rival externo, ganho não lido, Só informa) e nunca vira zero. Nenhuma tela põe um traço no lugar de um fato do paper.
 8. Números em português: vírgula decimal, sinal explícito no ganho (+3,4%), × para razão.
 9. Estado vazio diz o que não há e oferece a saída quando existe.
 10. Rótulo não leva ponto final; frase completa leva.
+11. Um paper tem um nome curto só (`nome()` em `dados.js`: o título até os dois-pontos, até 28 letras, cortado em palavra inteira). Gráficos, nomes, legendas e a comparação usam o mesmo; só onde ele não cabe o desenho usa o menor (`nomeMenor()`).
+12. A conferência da manchete diz o que a leitura fez: "fora das tabelas lidas", não "não confere".
+
+## Radar
+
+A nota de 0 a 100 vem do Python e não muda no painel (D12). O que ela esconde
+aparece no desenho (`marcasRadar()` em `tema.js`):
+
+| Marca | Quando | Onde |
+|---|---|---|
+| "50" e "100" | sempre | nos anéis, na aresta entre o primeiro e o último eixo, onde nenhum vértice cai |
+| Vértice vazado | o eixo só conta parte do que existe (abertura com artefato não lido) | no vértice do paper, na cor dele |
+| Marca de corte "»" | o fato passa do teto do eixo (amplitude acima de 5 benchmarks) | fora do anel, na cor do paper |
+| Fato com unidade | radar de um paper só | ao lado do nome de cada eixo ("9 bench.", "código", "+10,2%") |
+
+Na tabela da comparação, a barra é proporcional ao número escrito onde há
+número (benchmarks e votos, até o maior do período); o ganho sai do zero para
+os dois lados; a prova escreve os sinais cumpridos; a abertura mostra os quatro
+artefatos, com os não lidos tracejados.

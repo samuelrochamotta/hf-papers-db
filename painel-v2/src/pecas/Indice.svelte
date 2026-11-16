@@ -12,7 +12,7 @@
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
   import Degraus from '../lib/Degraus.svelte';
-  import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, liberados, intervalo, dataCurta, nBench } from '../lib/dados.js';
+  import { ordenar, realcar, ondeAchou, ORDENS, comDado, ganhoDe, median, sgn, SOL_ROT, SOL_FRASE, ESFORCO, ENTREGA, CAMADA, ART, liberados, intervalo, dataCurta, nBench } from '../lib/dados.js';
   import { corSolidez } from '../lib/tema.js';
   import { estado, abrir, alternaComparar, mov } from '../lib/estado.svelte.js';
 
@@ -23,14 +23,23 @@
 
   const ord = $derived(ordenar(papers, estado.ordem));
   const nCom = $derived(comDado(papers, estado.ordem));
-  const visiveis = $derived(ord.slice(0, PAGINA * paginas));
+  // A fila entra na lista: paper coletado que a leitura ainda nao alcancou. Por
+  // votos e por data ele fica na posicao dele; nas outras ordens nao ha dado
+  // para ordenar e ele vai para o fim, num grupo com nome.
+  const POSTO = { votos: (p) => p.u, recentes: (p) => Date.parse(p.d || '1970-01-01') };
+  const linhas = $derived.by(() => {
+    if (!faltam.length) return ord;
+    const fila = faltam.map((f) => ({ ...f, fila: true })), k = POSTO[estado.ordem];
+    return k ? [...ord, ...fila].sort((x, y) => k(y) - k(x) || y.u - x.u) : [...ord, ...fila.sort((x, y) => y.u - x.u)];
+  });
+  const visiveis = $derived(linhas.slice(0, PAGINA * paginas));
   // Marca da mediana: nas ordens em que "acima da mediana" e uma pergunta
   // (votos e ganho), uma regua separa as linhas de cima das de baixo.
   const MED = { votos: [(p) => p.u, (v) => `${Math.round(v).toLocaleString('pt-BR')} votos`], ganho: [ganhoDe, (v) => `${sgn(v)}%`] };
   const mediana = $derived.by(() => {
     const m = MED[estado.ordem]; if (!m || estado.busca) return null;
     const vs = papers.map(m[0]).filter((v) => v != null); if (vs.length < 4) return null;
-    const med = median(vs), i = ord.findIndex((p) => { const v = m[0](p); return v == null || v <= med; });
+    const med = median(vs), i = linhas.findIndex((p) => { const v = p.fila ? POSTO[estado.ordem]?.(p) : m[0](p); return v == null || v <= med; });
     return i > 0 ? { i, rot: m[1](med) } : null;
   });
   // paper aberto (por link, por Alt + setas ou por um grafico): a linha dele entra na tela
@@ -41,6 +50,9 @@
   const aberto = (p) => liberados(p) || (p.prom ? 'prometido' : p.radar.abertura == null ? null : 'nada');
   // fora da tabela nao ha cabecalho de coluna: o fato leva o nome junto
   const abertoLongo = (p) => (liberados(p) ? `liberou ${liberados(p)}` : p.prom ? 'só prometido' : p.radar.abertura == null ? 'abertura não lida' : 'nada liberado');
+  // no celular a coluna e curta: com dois ou mais artefatos, a contagem
+  const nLib = (p) => Object.values(p.ab).filter((e) => e === 'liberado').length;
+  const abertoEstreito = (p) => (nLib(p) > 1 ? `liberou ${nLib(p)} de ${Object.keys(ART).length}` : abertoLongo(p));
   const nomeLongo = (p) => [p.t, `${p.u} votos`, SOL_FRASE[p.sol].toLowerCase(), ganhoDe(p) != null ? `ganho ${sgn(ganhoDe(p))}%` : null,
     p.radar.facilidade != null ? `esforço: ${ESFORCO[p.esf].toLowerCase()}` : null, liberados(p) ? `liberou ${liberados(p)}` : null].filter(Boolean).join('. ');
 
@@ -48,7 +60,7 @@
   const COLS = [['recentes', 'Data', 'c-d'], ['votos', 'Votos', 'c-n'], ['solidez', 'Prova', 'c-s'], ['ganho', 'Ganho', 'c-n'],
     ['facilidade', 'Adoção', 'c-a'], ['abertura', 'Abertura', 'c-l'], ['amplitude', 'Amplitude', 'c-n']];
   const ROT_ORDEM = { recentes: 'data', votos: 'votos', solidez: 'prova', ganho: 'ganho', facilidade: 'adoção, da mais fácil à mais difícil', abertura: 'abertura', amplitude: 'amplitude, em benchmarks' };
-  const SEM = { solidez: 'Prova não lida', ganho: 'Sem rival externo ou não lido', facilidade: 'Sem esforço medido', abertura: 'Abertura não lida', amplitude: 'Sem benchmark próprio' };
+  const SEM = { solidez: 'Prova não lida', ganho: 'Sem rival externo ou ganho não lido', facilidade: 'Só informa: não há o que adotar', abertura: 'Abertura não lida', amplitude: 'Amplitude não lida' };
 
   // grade navegavel por setas (uma so parada de Tab)
   let foco = $state({ i: 0, c: 0 });
@@ -58,7 +70,7 @@
     if (e.key === 'ArrowDown') ni = Math.min(n - 1, i + 1);
     else if (e.key === 'ArrowUp' && i === 0 && el?.querySelector('.cab')?.offsetParent) {
       // da primeira linha, a seta para cima alcanca o cabecalho (ordenar por coluna)
-      e.preventDefault(); (el.querySelector(`[data-h="${estado.ordem}"]`) || el.querySelector('[data-h]'))?.focus(); return;
+      e.preventDefault(); const h = el.querySelector(`[data-h="${estado.ordem}"]`); (h?.offsetParent ? h : [...el.querySelectorAll('[data-h]')].find((b) => b.offsetParent))?.focus(); return;
     }
     else if (e.key === 'ArrowUp') ni = Math.max(0, i - 1);
     else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') nc = c ? 0 : 1;
@@ -68,7 +80,8 @@
     else if (e.key === 'PageUp') ni = Math.max(0, i - 8);
     else return;
     e.preventDefault();
-    if (ni >= visiveis.length - 1 && visiveis.length < ord.length && e.key !== 'ArrowUp') paginas++;
+    if (linhas[ni]?.fila) nc = 0;                 // a linha da fila so tem o link
+    if (ni >= visiveis.length - 1 && visiveis.length < linhas.length && e.key !== 'ArrowUp') paginas++;
     foco = { i: ni, c: nc };
     await tick();
     el?.querySelector(`[data-i="${ni}"][data-c="${nc}"]`)?.focus();
@@ -76,7 +89,12 @@
   const tab = (i, c) => (foco.i === i && foco.c === c ? 0 : -1);
   async function cabeca(e, k) {
     const ks = COLS.map((c) => c[0]), j = ks.indexOf(k);
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); el?.querySelector(`[data-h="${ks[(j + (e.key === 'ArrowRight' ? 1 : ks.length - 1)) % ks.length]}"]`)?.focus(); }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      // pula as colunas que a largura escondeu
+      e.preventDefault(); const d = e.key === 'ArrowRight' ? 1 : ks.length - 1, bt = (n) => el?.querySelector(`[data-h="${ks[n]}"]`);
+      let n = j; do { n = (n + d) % ks.length; } while (n !== j && !bt(n)?.offsetParent);
+      bt(n)?.focus();
+    }
     else if (e.key === 'ArrowDown' || e.key === 'Escape') { e.preventDefault(); foco = { i: 0, c: 0 }; await tick(); el?.querySelector('[data-i="0"][data-c="0"]')?.focus(); }
   }
 </script>
@@ -106,16 +124,40 @@
   {:else}
     <div class="lista" role="grid" aria-label="Papers do recorte" aria-rowcount={visiveis.length}>
       {#each visiveis as p, i (p.id)}
-        {@const g = ganhoDe(p)}
-        {@const st = realcar(sub(p), estado.busca)}
+        {@const g = p.fila ? null : ganhoDe(p)}
+        {@const st = p.fila ? [] : realcar(sub(p), estado.busca)}
         <div class="grupo" role="rowgroup" animate:flip={{ duration: mov(200) }}>
         {#if estado.ordem === 'recentes' && (i === 0 || visiveis[i - 1].d !== p.d)}
           <div class="div" role="row"><span role="gridcell">{intervalo(p.d, p.d)}</span></div>
-        {:else if i === nCom && nCom > 0 && SEM[estado.ordem]}
-          <div class="div" role="row"><span role="gridcell">{SEM[estado.ordem]} · {visiveis.length - nCom}</span></div>
+        {:else if p.fila && !POSTO[estado.ordem] && !visiveis[i - 1]?.fila}
+          <div class="div" role="row"><span role="gridcell">Na fila, ainda sem leitura · {faltam.length}</span></div>
+        {:else if !p.fila && i === nCom && nCom > 0 && SEM[estado.ordem]}
+          <div class="div" role="row"><span role="gridcell">{SEM[estado.ordem]} · {ord.length - nCom}</span></div>
         {:else if mediana && i === mediana.i}
           <div class="div med" role="row"><span role="gridcell">Mediana do recorte · {mediana.rot}</span></div>
         {/if}
+        {#if p.fila}
+          <!-- paper da fila: so ha titulo, data e votos; a linha leva ao arXiv -->
+          <div class="linha fila" role="row">
+            <div role="gridcell" class="g-abre">
+              <a class="abre" href="https://arxiv.org/abs/{p.id}" target="_blank" rel="noopener" data-i={i} data-c="0" tabindex={tab(i, 0)}
+                aria-label="{p.t}. {p.u} votos. Na fila, ainda sem leitura. Abre o arXiv em outra aba"
+                onkeydown={(e) => mover(e, i, 0)} onfocus={() => (foco = { i, c: 0 })}>
+                <span class="glifo"><MiniRadar radar={null} cor="var(--sol-nada)" tam={32} tracejado /></span>
+                <span class="c-t">
+                  <span class="t">{#each realcar(p.t, estado.busca) as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
+                  <span class="s um">arXiv <span class="num">{p.id}</span></span>
+                </span>
+                <span class="fatos">
+                  <span class="f-d num">{dataCurta(p.d)}</span>
+                  <span class="f-v num">{p.u}<small> votos</small></span>
+                  <span class="f-fila"><span class="um">Na fila, ainda sem leitura</span><Icone nome="fora" tam={12} /></span>
+                </span>
+              </a>
+            </div>
+            <div role="gridcell" class="g-cmp"></div>
+          </div>
+        {:else}
         <div class="linha" role="row" class:ativa={estado.sel === p.id} class:aceso={estado.hover === p.id}>
           <div role="gridcell" class="g-abre">
             <button class="abre" data-i={i} data-c="0" tabindex={tab(i, 0)} aria-label={nomeLongo(p)} aria-current={estado.sel === p.id ? 'true' : undefined}
@@ -127,14 +169,17 @@
                 <span class="s um" class:tem={st.some((x) => x[1])}>{#each st as [tx, casou]}{#if casou}<mark>{tx}</mark>{:else}{tx}{/if}{/each}</span>
                 {#if estado.busca && ondeAchou(p, estado.busca)}<span class="acha um">{ondeAchou(p, estado.busca)}</span>{/if}
               </span>
+              <!-- nenhum traco no lugar de um fato: o que falta diz por que falta -->
               <span class="fatos">
                 <span class="f-d num">{dataCurta(p.d)}</span>
                 <span class="f-v num">{p.u}<small> votos</small></span>
                 <span class="f-s"><i class="sol {p.sol}"></i><span class="um" class:mut={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? 'Não lida' : SOL_ROT[p.sol]}</span></span>
-                <span class="f-g num" class:mut={g == null}><small>ganho</small>{g == null ? '–' : sgn(g) + '%'}</span>
-                <span class="f-a" class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}<span class="um">{p.radar.facilidade == null ? '–' : ESFORCO[p.esf]}</span></span>
-                <span class="f-l um" class:mut={aberto(p) == null}><span class="cur">{aberto(p) ?? '–'}</span><span class="lon">{abertoLongo(p)}</span></span>
-                <span class="f-b num" class:mut={bench(p) == null}>{bench(p) ?? '–'}</span>
+                {#if g != null}<span class="f-g num" class:neg={g < 0}><small>ganho</small>{sgn(g)}%</span>
+                {:else if p.res.length}<span class="f-g sem">sem rival</span>
+                {:else}<span class="f-g sem"><small>ganho</small>não lido</span>{/if}
+                <span class="f-a" class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}<span class="um">{ESFORCO[p.esf]}</span></span>
+                <span class="f-l um" class:mut={aberto(p) == null}><span class="cur">{aberto(p) ?? 'não lida'}</span><span class="lon">{abertoLongo(p)}</span><span class="est">{abertoEstreito(p)}</span></span>
+                {#if bench(p) != null}<span class="f-b num">{bench(p)}</span>{:else}<span class="f-b sem">não lida</span>{/if}
               </span>
             </button>
           </div>
@@ -144,20 +189,14 @@
               onclick={() => alternaComparar(p.id)} onkeydown={(e) => mover(e, i, 1)} onfocus={() => (foco = { i, c: 1 })}>{#if letra(p.id)}{letra(p.id)}{:else}<Icone nome="mais" tam={12} />{/if}</button>
           </div>
         </div>
+        {/if}
         </div>
       {/each}
     </div>
   {/if}
 
-  {#if ord.length > visiveis.length}
-    <button class="btn sec mais" onclick={() => paginas++}>Mostrar mais {Math.min(PAGINA, ord.length - visiveis.length)} de {ord.length - visiveis.length}</button>
-  {/if}
-
-  {#if faltam.length && !estado.busca}
-    <div class="fila">
-      <h3 class="rot pts"><span>Na fila, ainda sem leitura</span><span class="num">{faltam.length}</span></h3>
-      <ul>{#each faltam as f (f.id)}<li><a class="lk um" href="https://arxiv.org/abs/{f.id}" target="_blank" rel="noopener">{f.t}</a><span class="mut v"><span class="num">{f.u}</span> votos</span></li>{/each}</ul>
-    </div>
+  {#if linhas.length > visiveis.length}
+    <button class="btn sec mais" onclick={() => paginas++}>Mostrar mais {Math.min(PAGINA, linhas.length - visiveis.length)} de {linhas.length - visiveis.length}</button>
   {/if}
 </div>
 
@@ -179,7 +218,6 @@
   @media (pointer: coarse) {
     .busca, .ordem :global(.sel) { min-height: 44px; }
     .ordem :global(.sel)::after { inset: 0; }
-    .fila .lk { padding-block: var(--sp-3); }
   }
 
   /* cabecalho da tabela (so na forma larga): preso logo abaixo do recorte */
@@ -190,10 +228,12 @@
   .cab .c-cmp { text-align: center; }
   .cab button { font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; color: var(--muted); display: inline-flex; align-items: center; gap: 2px; min-height: var(--alvo); border-radius: var(--r-1); justify-self: start; transition: color var(--dur-1); }
   .cab button.c-n, .cab button.c-d { justify-self: end; flex-direction: row-reverse; }
+  .cab button.c-a { margin-left: var(--sp-3); }
   .cab button:hover { color: var(--ink); }
   .cab button[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
 
-  .indice { --colunas: 32px minmax(0, 1fr) 44px 48px 84px 64px 132px 116px 72px; }
+  /* a adocao comeca 12 px depois da sua coluna: o numero do ganho, alinhado a direita, nao encosta nela */
+  .indice { --colunas: 32px minmax(0, 1fr) 44px 48px 84px 64px 144px 108px 72px; }
   .lista { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); overflow: clip; }
   .linha { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; border-top: 1px solid var(--line); position: relative; background: var(--surface); }
   .grupo:first-child > :first-child { border-top: 0; }
@@ -214,15 +254,21 @@
   .s { display: none; font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
   .s.tem { display: block; }                       /* a busca casou no tipo ou na camada: a linha aparece */
   .acha { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); }
-  .fatos { display: grid; grid-template-columns: 72px 30px 26px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; align-items: center;
+  /* tres colunas: a abertura cai embaixo do ganho, e a adocao ocupa as duas primeiras */
+  .fatos { display: grid; grid-template-columns: 72px 68px minmax(0, 1fr); column-gap: var(--sp-3); row-gap: 2px; align-items: center;
     font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); }
   .fatos > * { min-width: 0; white-space: nowrap; }
   .f-d, .f-b { display: none; }
-  .f-v { grid-column: 1; } .f-s { grid-column: 2 / 4; } .f-g { grid-column: 4; }
-  .f-a { grid-column: 1 / 3; grid-row: 2; } .f-l { grid-column: 3 / 5; grid-row: 2; }
+  .f-v { grid-column: 1; } .f-s { grid-column: 2; } .f-g { grid-column: 3; }
+  .f-a { grid-column: 1 / 3; grid-row: 2; } .f-l { grid-column: 3; grid-row: 2; }
+  /* o fato que falta e uma palavra, na fonte do texto: nao disputa com os numeros */
+  .sem { color: var(--muted); }
+  .f-g.neg { color: var(--alert); }
+  .f-fila { grid-column: 2 / -1; display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--muted); }
+  a.abre { color: inherit; text-decoration: none; }
   .f-v small { font-family: var(--f-ui); letter-spacing: 0; font-size: inherit; margin-left: .3em; }
   .f-g small { font-family: var(--f-ui); letter-spacing: 0; font-size: inherit; margin-right: .4em; color: var(--muted); }
-  .f-l .cur { display: none; }
+  .f-l .cur, .f-l .lon { display: none; }
   .f-s, .f-a { display: inline-flex; align-items: center; gap: 6px; }
 
   .cmp { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-strong); font-size: var(--fs-12); font-weight: 600;
@@ -244,10 +290,12 @@
     .glifo { display: grid; grid-row: 1 / 3; align-self: start; padding-top: 2px; }
     .fatos { grid-column: 2; grid-template-columns: 72px 96px 104px 140px minmax(0, 1fr); column-gap: var(--sp-4); }
     .f-v, .f-s, .f-g, .f-a, .f-l { grid-column: auto; grid-row: 1; }
+    .f-l .lon { display: inline; } .f-l .est { display: none; }
+    .f-fila { grid-column: 2 / -1; }
   }
 
   /* largo: tabela. So entra quando sobra pelo menos 300 px para o titulo */
-  @container (min-width: 1120px) {
+  @container (min-width: 980px) {
     .cab { display: grid; }
     .lista { border-radius: 0 0 var(--r-3) var(--r-3); border-top: 0; }
     .linha { grid-template-columns: minmax(0, 1fr) 72px; column-gap: var(--sp-3); }
@@ -262,11 +310,16 @@
     .f-d { color: var(--muted); font-size: var(--fs-12); }
     .f-v small, .f-g small, .f-l .lon { display: none; }
     .f-l .cur { display: inline; }
+    .f-fila { grid-column: 5 / -1; }
+    .f-g.sem, .f-b.sem { text-align: right; justify-self: end; }
+    .f-a { padding-left: var(--sp-3); }
+  }
+  /* tabela com pouco lugar (paper aberto ao lado, em tela larga): saem a data e a amplitude, ficam as colunas da decisao */
+  @container (min-width: 980px) and (max-width: 1119.98px) {
+    .cab-g, .abre { --colunas: 32px minmax(0, 1fr) 48px 84px 64px 144px 108px; }
+    .f-d, .f-b, .cab [data-h="recentes"], .cab [data-h="amplitude"] { display: none; }
+    .f-fila { grid-column: 4 / -1; }
   }
 
   .mais { margin-top: var(--sp-3); width: 100%; }
-  .fila { margin-top: var(--sp-6); }
-  .fila ul { margin-top: var(--sp-2); display: grid; gap: var(--sp-1); }
-  .fila li { display: flex; gap: var(--sp-3); justify-content: space-between; align-items: baseline; min-height: var(--alvo); min-width: 0; }
-  .fila .v { white-space: nowrap; flex: none; font-size: var(--fs-12); }
 </style>

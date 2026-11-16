@@ -2,13 +2,13 @@
   // A letra miuda: o que o proprio paper admite, as ressalvas graves e as
   // manchetes que a tabela nao confirma. Abre o paper direto nos trechos.
   import Quadro from '../pecas/Quadro.svelte';
-  import { curto, fmt } from '../lib/dados.js';
+  import { nome, fmt } from '../lib/dados.js';
   import { estado, abrir } from '../lib/estado.svelte.js';
   let { papers } = $props();
   const GRAVE = ['preliminar', 'amostra_pequena', 'pesos_ficticios'];
-  const TIPO = { man: 'Manchete não confere', grave: 'Ressalva grave', adm: 'Limite admitido' };
-  const TIPOS = { man: ['manchete não confere', 'manchetes não conferem'], grave: ['ressalva grave', 'ressalvas graves'], adm: ['limite admitido', 'limites admitidos'] };
-  const LIM = 5;
+  const TIPO = { man: 'Manchete fora das tabelas lidas', grave: 'Ressalva grave', adm: 'Limite admitido' };
+  const TIPOS = { man: ['manchete fora das tabelas lidas', 'manchetes fora das tabelas lidas'], grave: ['ressalva grave', 'ressalvas graves'], adm: ['limite admitido', 'limites admitidos'] };
+  const LIM = 4;
   // "alega 5,4 pontos": o numero da manchete com a unidade que o paper usou
   const alega = (m) => (m.n == null ? null : m.u === '%' ? `${fmt(m.n)}%` : m.u === 'posição' ? `${fmt(m.n)}ª posição` : `${fmt(m.n)}${m.u ? ' ' + m.u : ''}`);
   const lista = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} e ${xs.at(-1)}`);
@@ -32,9 +32,9 @@
     <ul>
       {#each visiveis as it, i (it.p.id + it.tipo + i)}
         <li><button class="neg {it.tipo}" onclick={() => abrir(it.p.id, 2)} onmouseenter={() => (estado.hover = it.p.id)} onmouseleave={() => (estado.hover = null)}>
-          <span class="tipo pts"><span>{TIPO[it.tipo]}</span>{#if it.g}<span>{it.g} não está nas tabelas lidas</span>{/if}</span>
+          <span class="tipo pts"><span>{TIPO[it.tipo]}</span>{#if it.g}<span>{it.g}</span>{/if}</span>
           <q lang="en">{it.q}</q>
-          <span class="quem"><i class="sol {it.p.sol}"></i>{curto(it.p.t, 32)}</span>
+          <span class="quem"><i class="sol {it.p.sol}"></i>{nome(it.p)}</span>
         </button></li>
       {/each}
     </ul>

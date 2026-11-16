@@ -7,7 +7,7 @@
   import Grafico from '../lib/Grafico.svelte';
   import Nomes from '../pecas/Nomes.svelte';
   import Chave from '../pecas/Chave.svelte';
-  import { median, curto, sgn, esc, plural, SOL_FRASE } from '../lib/dados.js';
+  import { median, nome, nomeMenor, sgn, esc, plural, SOL_FRASE } from '../lib/dados.js';
   import { base, pontoProva, rotNum, grade, dica, dominio, pct, rotular, toca, larguraTexto } from '../lib/tema.js';
   import { estado } from '../lib/estado.svelte.js';
 
@@ -45,14 +45,18 @@
     // marcas curtas, para caberem todas no celular: ÷16 e o custo dividido por 16
     const marcaX = (v) => (v === 0 ? 'igual' : `${v < 0 ? '÷' : '×'}${(2 ** Math.abs(v)).toLocaleString('pt-BR')}`);
     const fonte = `12px ${t.fUi}`, fonteB = `600 12px ${t.fUi}`, fonteT = `500 12px ${t.fUi}`;
-    const texto = (o) => curto(o.p.t, 18) + (fora(o) ? ` ${sgn(o.g)}%` : '');
+    // o nome curto do painel onde cabe em menos de metade do desenho; senao, o menor
+    let cabeNome = 160;
+    const texto = (o) => (larguraTexto(nome(o.p), fonteB) <= cabeNome ? nome(o.p) : nomeMenor(o.p)) + (fora(o) ? ` ${sgn(o.g)}%` : '');
     const raio = (o) => (bom(o) ? 8 : 6);
     // ganha nome primeiro quem responde a pergunta; os outros, so onde ha lugar limpo
     const ordem = pontos.map((_, i) => i).sort((i, j) => bom(pontos[j]) - bom(pontos[i]) || pontos[j].p.u - pontos[i].p.u);
-    const certos = new Set(ordem.filter((i) => bom(pontos[i])).slice(0, 6));
+    // com poucos pontos, todos ganham nome: ninguem precisa passar o ponteiro para saber quem e
+    const certos = new Set(pontos.length <= 6 ? ordem : ordem.filter((i) => bom(pontos[i])).slice(0, 6));
 
     let arranjo = null;
     function arranjar(api, area) {
+      cabeNome = area.width * 0.45;
       const pos = pontos.map((o) => api.coord([lx(o.f), cl(o.g)]));
       const a = api.coord([x0, y1]), b = api.coord([0, 0]);
       const z = [a[0], a[1], b[0] - a[0], b[1] - a[1]];
@@ -62,7 +66,7 @@
         .find((c) => c[0] + wt < z[0] + z[2] - 4 && !bolas.some((o) => toca(c, o))) || null;
       const caixas = rotular(
         ordem.map((i) => { const o = pontos[i]; return { x: pos[i][0], y: pos[i][1], r: raio(o), w: larguraTexto(texto(o), bom(o) ? fonteB : fonte), dentro: bom(o), obrigatorio: certos.has(i) }; }),
-        { area: [area.x + 2, area.y, area.width + 10, area.height], zona: z, ocupado: tit ? [tit] : [],
+        { area: [area.x + 2, area.y, area.width + 54, area.height], zona: z, ocupado: tit ? [tit] : [],
           linhas: [[b[0] - 2, area.y, 4, area.height], [area.x, b[1] - 2, area.width, 4]] });
       const rot = pontos.map(() => null); ordem.forEach((i, k) => { rot[i] = caixas[k]; });
       return { pos, z, tit, rot };
@@ -71,7 +75,8 @@
 
     return {
       ...base(t),
-      grid: { left: 0, right: 16, top: 28, bottom: 32, containLabel: true },
+      // a margem direita guarda lugar para o nome de quem fica junto da borda
+      grid: { left: 0, right: 56, top: 28, bottom: 32, containLabel: true },
       graphic: [{ type: 'text', left: 0, top: 2, silent: true, style: { text: 'ganho', fill: t.muted, font: `12px ${t.fNum}` } }],
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
         const o = porId.get(q.data?.pid); if (!o) return '';
@@ -88,7 +93,7 @@
           renderItem: (q, api) => { arranjo = arranjar(api, q.coordSys); const { z, tit } = arranjo;
             return { type: 'group', children: [
               { type: 'rect', shape: { x: z[0], y: z[1], width: z[2], height: z[3] }, style: { fill: t.sunk } },
-              ...(tit ? [{ type: 'text', x: tit[0], y: tit[1], style: { text: TITULO, fill: t.ink2, font: fonteT } }] : []),
+              ...(tit ? [{ type: 'text', x: tit[0], y: tit[1], style: { text: TITULO, fill: t.ink2, font: fonteT, backgroundColor: t.sunk, padding: [1, 3] } }] : []),
             ] }; },
           markLine: { silent: true, symbol: 'none', z: 1, label: { show: false }, lineStyle: { color: t.ink, type: 'solid', width: 1, opacity: .5 },
             data: [{ xAxis: 0 }, { yAxis: 0 }] } },

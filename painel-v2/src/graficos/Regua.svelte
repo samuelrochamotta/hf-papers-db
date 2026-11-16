@@ -26,7 +26,7 @@
     }
     return [...new Set([...L.keys(), ...R.keys()])]
       .map((f) => ({ f, l: L.get(f) || 0, r: R.get(f) || 0 }))
-      .sort((a, b) => (b.l + b.r) - (a.l + a.r) || b.l - a.l).slice(0, 9);
+      .sort((a, b) => (b.l + b.r) - (a.l + a.r) || b.l - a.l).slice(0, 12);
   });
   const ativas = $derived(lentesDe('fam'));
   const topoBase = $derived([...linhas].sort((a, b) => b.l - a.l)[0]);
@@ -38,7 +38,7 @@
     const apaga = (f) => (ativas.length && !ativas.includes(f) ? 0.3 : 1);
     return {
       ...base(t),
-      grid: { left: 0, right: 8, top: 28, bottom: 4, containLabel: true },
+      grid: { left: 0, right: 8, top: 30, bottom: 4, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: t.sunk, opacity: .6 } },
         formatter: (qs) => { const l = linhas[qs[0].dataIndex];
           return `<div style="font-weight:600;margin-bottom:2px">${esc(l.f)}</div><div style="opacity:.8">${ROT[modo][0]}: <b>${l.l}</b></div><div style="opacity:.8">${ROT[modo][1]}: <b>${l.r}</b></div>`; } },
@@ -46,10 +46,6 @@
       yAxis: { type: 'category', inverse: true, data: linhas.map((l) => l.f), triggerEvent: true,
         axisTick: { show: false }, axisLine: { show: false },
         axisLabel: { ...rotCat(t), margin: 12, formatter: (v) => (ativas.length && !ativas.includes(v) ? `{off|${v}}` : v), rich: { off: { color: t.muted, fontSize: 12, fontFamily: t.fUi } } } },
-      graphic: [
-        { type: 'text', right: '52%', top: 4, style: { text: ROT[modo][0], fill: t.muted, font: `500 12px ${t.fUi}`, align: 'right' } },
-        { type: 'text', left: '56%', top: 4, style: { text: ROT[modo][1], fill: t.muted, font: `500 12px ${t.fUi}` } },
-      ],
       series: [
         { type: 'bar', stack: 'x', barWidth: 12, data: linhas.map((l) => ({ value: -l.l, fam: l.f, itemStyle: { opacity: apaga(l.f) } })),
           itemStyle: { color: t.ink, borderRadius: [2, 0, 0, 2] }, cursor: 'pointer', emphasis: { disabled: true },
@@ -57,6 +53,14 @@
         { type: 'bar', stack: 'x', barWidth: 12, data: linhas.map((l) => ({ value: l.r, fam: l.f, itemStyle: { opacity: apaga(l.f) } })),
           itemStyle: { color: t.lineStrong, borderRadius: [0, 2, 2, 0] }, cursor: 'pointer', emphasis: { disabled: true },
           label: { show: true, position: 'right', formatter: (q) => q.value || '', ...rotNum(t) } },
+        // o eixo do zero e os dois titulos, um de cada lado dele
+        { type: 'custom', silent: true, z: 1, tooltip: { show: false }, data: [[0, 0]],
+          renderItem: (q, api) => { const x = api.coord([0, 0])[0], a = q.coordSys, f = `500 12px ${t.fUi}`;
+            return { type: 'group', children: [
+              { type: 'line', shape: { x1: x, y1: a.y - 4, x2: x, y2: a.y + a.height }, style: { stroke: t.lineStrong, lineWidth: 1 } },
+              { type: 'text', x: x - 8, y: a.y - 22, style: { text: ROT[modo][0], fill: t.muted, font: f, align: 'right' } },
+              { type: 'text', x: x + 8, y: a.y - 22, style: { text: ROT[modo][1], fill: t.muted, font: f } },
+            ] }; } },
       ],
     };
   });

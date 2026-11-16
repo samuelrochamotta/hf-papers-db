@@ -9,8 +9,8 @@
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { tick } from 'svelte';
-  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, fmt, median, urlSegura, radarValores, intervalo, ganhoDe, liberados } from '../lib/dados.js';
-  import { base, corSolidez, dica } from '../lib/tema.js';
+  import { ordenar, ENTREGA, CAMADA, ESFORCO, EIXOS, SIG, ART, ART_EST, SOL_FRASE, HW, sgn, median, urlSegura, radarValores, intervalo, ganhoDe, liberados, FATO, SEM_FATO, nBench, passaDoEixo, parteNaoLida } from '../lib/dados.js';
+  import { base, corSolidez, dica, marcasRadar } from '../lib/tema.js';
   import { estado, fechar, alternaComparar, abrir, mov } from '../lib/estado.svelte.js';
 
   let { papers, todos } = $props();
@@ -45,20 +45,28 @@
   const medBruta = $derived(EIXOS.map(([k]) => median(papers.map((x) => x.radar[k]))));
   // onde o paper fica frente a mediana do recorte, em cada eixo (mesma conta do radar)
   const IDX = Object.fromEntries(EIXOS.map(([k], i) => [k, i]));
-  const frente = (k) => { const v = p.radar[k], m = medBruta[IDX[k]]; return v == null || m == null ? null : { v, m, rot: v > m ? 'acima da mediana do recorte' : v < m ? 'abaixo da mediana do recorte' : 'na mediana do recorte' }; };
+  const frente = (k) => { const v = p.radar[k], m = medBruta[IDX[k]]; return v == null || m == null ? null : { v, m, rot: v > m ? 'acima da mediana' : v < m ? 'abaixo da mediana' : 'na mediana' }; };
   const cor = $derived(p ? (p.sol === 'sem_leitura' ? t.solNada : corSolidez(t, p.sol)) : '');
   const naoLidos = $derived(p ? EIXOS.filter(([k]) => p.radar[k] == null).map(([, r]) => r) : []);
+  // O radar desenha a nota de 0 a 100; ao lado do nome de cada eixo vai o fato,
+  // na unidade dele. Os avisos ficam no desenho: vertice vazado onde a abertura
+  // so conta parte dos artefatos, marca de corte onde a amplitude passa do teto.
+  let largR = $state(360);
+  const raioR = $derived(Math.round(Math.max(52, Math.min(74, (largR - 208) / 2))));
+  const cortesR = $derived(p ? EIXOS.map(([k]) => passaDoEixo(k, p)) : []), vazadosR = $derived(p ? EIXOS.map(([k]) => parteNaoLida(k, p)) : []);
+  const fatoR = (k) => (k === 'amplitude' && nBench(p) != null ? `${nBench(p)} bench.` : FATO[k](p));
   const opRadar = $derived.by(() => {
     if (!p || !t.ink) return null;
     return {
       ...base(t),
       tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => q.data.mediana
         ? dica('Mediana do recorte', ...EIXOS.map(([, r], i) => `${r}: <b>${medBruta[i] == null ? '–' : Math.round(medBruta[i])}</b>`))
-        : dica('Este paper', ...EIXOS.map(([k, r]) => `${r}: <b>${p.radar[k] == null ? 'não lido' : p.radar[k]}</b>`)) },
-      radar: { indicator: EIXOS.map(([k, r]) => (p.radar[k] == null ? { name: `${r}\nnão lido`, max: 100, color: t.muted } : { name: `${r}\n{v|${p.radar[k]}}`, max: 100 })),
-        radius: '60%', center: ['50%', '52%'], splitNumber: 4,
-        axisName: { color: t.ink2, fontSize: 12, fontFamily: t.fUi, lineHeight: 16, rich: { v: { fontFamily: t.fNum, fontSize: 12, color: t.ink, fontWeight: 600 } } },
+        : dica('Este paper', ...EIXOS.map(([k, r]) => `${r}: <b>${FATO[k](p) ?? SEM_FATO[k](p)}</b>${p.radar[k] == null ? '' : ` · nota ${p.radar[k]}`}`)) },
+      radar: { indicator: EIXOS.map(([k, r]) => (fatoR(k) == null ? { name: `${r}\n${SEM_FATO[k](p).toLowerCase()}`, max: 100, color: t.muted } : { name: `${r}\n{v|${fatoR(k)}}`, max: 100 })),
+        radius: raioR, center: ['50%', 129], splitNumber: 4,
+        axisName: { color: t.ink2, fontSize: 12, fontFamily: t.fUi, lineHeight: 16, rich: { v: { fontFamily: t.fUi, fontSize: 12, color: t.ink, fontWeight: 600 } } },
         splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } } },
+      graphic: marcasRadar(t, { cx: largR / 2, cy: 129, r: raioR, itens: [{ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor, simbolo: 'circle', vazados: vazadosR, cortes: cortesR }] }),
       series: [{ type: 'radar', data: [
         { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { color: t.muted, type: [4, 4], width: 1 } },
         { name: p.t, value: radarValores(EIXOS.map(([k]) => p.radar[k])), symbol: naoLidos.length ? 'none' : 'circle', symbolSize: 5,
@@ -114,6 +122,8 @@
   const nCasas = (n) => { if (n == null || !Number.isFinite(n)) return 0; const s = String(+Math.abs(n).toFixed(2)), i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; };
   const casasDe = (r, j) => Math.max(0, ...r.lin.map((l) => nCasas(l[j])));
   const fixo = (n, c) => n.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
+  // os dois numeros de um resultado saem com as mesmas casas: "98,8 contra 98,0"
+  const par = (r, v) => fixo(v, Math.min(2, Math.max(nCasas(r.nos[1]), nCasas(r.ext[1]))));
   async function verTabela(i) {
     estado.prof = 3; await tick();
     painel?.querySelector(`#tab-${i}`)?.scrollIntoView({ block: 'start', behavior: mov(1) ? 'smooth' : 'auto' });
@@ -174,10 +184,10 @@
 
           <dl class="fatos">
             <div><dt class="rot">Ganho</dt>
-              {#if ganhoDe(p) != null}<dd class="v titulo">{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `mediana de ${comRival} resultados` : 'em 1 resultado'}{#if p.best && comRival > 1}; melhor, {sgn(p.best.r)}% contra {p.best.x}{:else if p.best} contra {p.best.x}{/if}</dd>
-              {:else}<dd class="v titulo nd">–</dd><dd class="d">{p.res.length ? 'sem rival externo' : 'não lido'}</dd>{/if}{@render frenteMed('ganho')}</div>
+              {#if ganhoDe(p) != null}<dd class="v titulo" class:neg={ganhoDe(p) < 0}>{sgn(ganhoDe(p))}%</dd><dd class="d">{comRival > 1 ? `mediana de ${comRival} resultados` : p.best ? `em 1 resultado, contra ${p.best.x}` : 'em 1 resultado'}</dd>
+              {:else}<dd class="v titulo nd">{p.res.length ? 'Sem rival' : 'Não lido'}</dd><dd class="d">{p.res.length ? 'os resultados não trazem rival externo' : 'nenhum resultado em tabela lido'}</dd>{/if}{@render frenteMed('ganho')}</div>
             <div><dt class="rot">Prova</dt>
-              <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? '–' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
+              <dd class="v titulo" class:nd={p.sol === 'sem_leitura'}>{p.sol === 'sem_leitura' ? 'Não lida' : SOL_FRASE[p.sol].replace('Prova ', '').replace(/^./, (c) => c.toUpperCase())}</dd>
               <dd class="d">{sinais}</dd>{@render frenteMed('solidez')}</div>
             <div><dt class="rot">Adoção</dt>
               <dd class="v titulo" class:nd={p.radar.facilidade == null}>{ESFORCO[p.esf]}</dd>
@@ -197,7 +207,7 @@
           <section class="bloco">
             <header><h3>Adoção</h3></header>
             <dl class="pares">
-              <div><dt>Esforço</dt><dd class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}{ESFORCO[p.esf]}</dd></div>
+              <div><dt>Facilidade</dt><dd class:mut={p.radar.facilidade == null}>{#if p.radar.facilidade != null}<Degraus esf={p.esf} />{/if}{ESFORCO[p.esf]}</dd></div>
               <div><dt>Hardware</dt><dd class:mut={p.hw === 'nao_reportado'}>{HW[p.hw] || p.hw}</dd></div>
               {#each Object.entries(p.ab) as [k, v]}
                 <div><dt>{ART[k]}</dt><dd class:mut={v !== 'liberado'}>{#if linkDe(k)}<a class="lk" href={linkDe(k)} target="_blank" rel="noopener">{curtaUrl(linkDe(k))}</a>{:else}{ART_EST[v]}{/if}</dd></div>
@@ -215,7 +225,7 @@
                     <i class="cel {CL_ESTADO[r.e] || 'semrival'}" aria-hidden="true"></i>
                     <span class="b pts"><b>{r.b}</b>{#if r.m && r.m !== r.b}<span class="mut">{r.m}</span>{/if}</span>
                     <span class="dif num {CL_ESTADO[r.e] || ''}" class:mut={r.rext == null}>{r.rext != null ? `${sgn(r.rext)}%` : '–'}</span>
-                    <span class="det mut">{#if r.nos && r.ext}<span class="vh">{ROT_ESTADO[r.e]}: </span><span class="num">{fmt(r.nos[1], 2)}</span> contra <span class="num">{fmt(r.ext[1], 2)}</span> de {r.ext[0]}{:else}{ROT_ESTADO[r.e]}{/if}{#if ri < LIM_FICHA && r.lin.length}<button class="lk ver" aria-label="Ver a tabela de {r.b}" onclick={() => verTabela(ri)}>tabela</button>{/if}</span>
+                    <span class="det mut">{#if r.nos && r.ext}<span class="vh">{ROT_ESTADO[r.e]}: </span><span class="num">{par(r, r.nos[1])}</span> contra <span class="num">{par(r, r.ext[1])}</span> de {r.ext[0]}{:else}{ROT_ESTADO[r.e]}{/if}{#if ri < LIM_FICHA && r.lin.length}<button class="lk ver" aria-label="Ver a tabela de {r.b}" onclick={() => verTabela(ri)}>tabela</button>{/if}</span>
                   </li>
                 {/each}
               </ul>
@@ -224,15 +234,15 @@
           {/if}
 
           <section class="bloco">
-            <header><h3>Os seis eixos</h3><span class="t-12 mut"><i class="tr"></i>mediana do recorte</span></header>
-            {#if opRadar}<Grafico opcao={opRadar} altura={248} rotulo="Radar do paper nos seis eixos, contra a mediana do recorte" />{/if}
+            <header><h3>Os seis eixos</h3><span class="t-12 mut chv"><span><i class="tr"></i>mediana do recorte</span>{#if vazadosR.some(Boolean)}<span><i class="oco"></i>parte não lida</span>{/if}{#if cortesR.some(Boolean)}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}</span></header>
+            <div bind:clientWidth={largR}>{#if opRadar}<Grafico opcao={opRadar} altura={248} rotulo="Radar do paper nos seis eixos, contra a mediana do recorte" />{/if}</div>
           </section>
           <p class="nota t-12 mut">{leitura.frase}</p>
 
         {:else if estado.prof === 2}
           {#if p.entTr}<blockquote><span class="rot">O que entrega</span><q lang="en">{p.entTr}</q></blockquote>{/if}
           {#if p.man}
-            <blockquote class:alerta={p.man.conf === false}><span class="rot pts"><span>Manchete</span><span>{p.man.conf ? 'confere com a tabela' : p.man.conf === false ? 'não confere com a tabela' : 'sem tabela para conferir'}</span></span><q lang="en">{p.man.tr}</q></blockquote>
+            <blockquote class:alerta={p.man.conf === false}><span class="rot pts"><span>Manchete</span><span>{p.man.conf ? 'confere com a tabela' : p.man.conf === false ? 'número fora das tabelas lidas' : 'sem tabela para conferir'}</span></span><q lang="en">{p.man.tr}</q></blockquote>
           {/if}
           {#each p.aleg.filter((a) => a[0] !== 'manchete') as a}
             <blockquote><span class="rot pts"><span>{ALEG[a[0]] || a[0]}</span>{#if secao(a[2])}<span>{secao(a[2])}</span>{/if}</span><q lang="en">{a[1]}</q></blockquote>
@@ -248,9 +258,11 @@
             {@const temDp = r.lin.some((l) => l[3] != null)}
             <table id="tab-{ri}">
               <caption class="pts"><b>{r.b}</b>{#if r.tab}<span class="mut">{r.tab}</span>{/if}{#if r.m && r.m !== r.b}<span class="mut">{r.m}</span>{/if}</caption>
+              <thead><tr><th scope="col">Sistema</th><th scope="col">Papel</th><th scope="col" class="num">Valor</th>{#if temDp}<th scope="col" class="num">± do paper</th>{/if}</tr></thead>
               <tbody>
                 {#each r.lin as l}
-                  <tr class:nos={l[1] === 'nosso'}><th scope="row">{l[0]}</th><td class="mut">{LINHA[l[1]] || l[1]}</td><td class="num v">{l[2] == null ? '–' : fixo(l[2], cv)}</td>{#if temDp}<td class="num dp">{#if l[3] != null}±{fixo(l[3], cd)}{/if}</td>{/if}</tr>
+                  {@const rival = l[1] === 'externo' && r.ext && l[0] === r.ext[0] && l[2] === r.ext[1]}
+                  <tr class:nos={l[1] === 'nosso'} class:rival><th scope="row">{l[0]}</th><td class="mut">{rival ? 'melhor rival' : LINHA[l[1]] || l[1]}</td><td class="num v">{l[2] == null ? '–' : fixo(l[2], cv)}</td>{#if temDp}<td class="num dp">{#if l[3] != null}±{fixo(l[3], cd)}{/if}</td>{/if}</tr>
                 {/each}
               </tbody>
             </table>
@@ -319,6 +331,7 @@
   .fatos > div { display: grid; grid-template-rows: auto auto 1fr auto; }   /* as reguas da mediana alinham na base */
   .fatos .v { font-size: var(--fs-24); line-height: var(--lh-24); margin-top: 2px; }
   .fatos .v.nd { color: var(--muted); }
+  .fatos .v.neg { color: var(--alert); }
   .fatos .d { font-size: var(--fs-12); line-height: var(--lh-12); color: var(--muted); margin-top: 2px; }
 
   .bloco { margin-top: var(--sp-6); }
@@ -364,10 +377,14 @@
   .chave.res .cel { margin: 0; }
   .mais { width: 100%; margin-top: var(--sp-2); }
   .pos { display: grid; gap: var(--sp-1); margin-top: var(--sp-2); font-size: var(--fs-12); line-height: var(--lh-12); color: var(--ink2); }
-  .trilho { display: block; position: relative; height: 4px; border-radius: 2px; background: var(--sunk); max-width: 96px; }
+  .trilho { display: block; position: relative; height: 4px; border-radius: 2px; background: var(--sunk); }
   .trilho i { display: block; height: 100%; border-radius: 2px; background: var(--line-strong); }
   .trilho b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); }
   .tr { width: 16px; border-top: 1.5px dashed var(--muted); display: inline-block; vertical-align: middle; margin-right: 6px; }
+  .chv { display: inline-flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); justify-content: flex-end; }
+  .chv > span { display: inline-flex; align-items: center; white-space: nowrap; }
+  .chv .oco { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink2); margin-right: 6px; }
+  .chv b { font-weight: 600; color: var(--ink2); margin-right: 6px; }
   .nota { margin-top: var(--sp-5); }
 
   table { width: 100%; margin-bottom: var(--sp-5); font-size: var(--fs-12); line-height: var(--lh-12); }
@@ -377,5 +394,10 @@
   td.num { text-align: right; font-size: var(--fs-12); width: 1%; }
   td.dp { color: var(--muted); padding-left: var(--sp-2); font-weight: 400; }
   tr.nos th, tr.nos td { font-weight: 600; color: var(--ink); }
+  /* o rival que entra na conta do ganho: o mesmo que o Resumo cita */
+  tr.rival th, tr.rival td { font-weight: 500; color: var(--ink); }
+  thead th { border-top: 0; padding: 0 0 var(--sp-1); font-size: var(--fs-12); color: var(--muted); font-weight: 500; }
+  thead th + th { padding-left: var(--sp-3); }
+  thead th.num { text-align: right; white-space: nowrap; }
   .links { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-5); }
 </style>

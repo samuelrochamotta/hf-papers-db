@@ -16,6 +16,12 @@
  * 8. O eixo so corta o que foge muito: valor a menos de um passo da borda entra.
  * 9. A marca de prova nao depende so da cor: o disco enche conforme o nivel
  *    (inteiro, 3/4, metade, 1/4) e "nao lida" e um anel tracejado.
+ * 10. Fato que falta diz por que falta: nenhuma tela poe traco no lugar dele.
+ * 11. No radar, o que a nota de 0 a 100 esconde aparece no desenho: marca de
+ *     corte em quem passa do teto da amplitude, vertice vazado onde a abertura
+ *     so conta parte dos artefatos, e a escala escrita nos aneis.
+ * 12. A fila (paper sem leitura) entra na busca pelo titulo e pelo id.
+ * 13. O nome curto de um paper e um so em todo o painel.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,8 +29,9 @@ import { readFileSync } from 'node:fs';
 import {
   aplicaLentes, lenteValida, rotuloLente, ordenar, comDado, ORDENS, buscar, periodos, noPeriodo,
   radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ, realcar, ondeAchou,
+  buscarFila, SEM_FATO, FATO, EIXOS, ESFORCO, TETO_AMPLITUDE, passaDoEixo, parteNaoLida, naoLidosDe, nBench, nome, nomeMenor,
 } from '../../painel-v2/src/lib/dados.js';
-import { enxame, rotular, toca, dominio, pontoProva } from '../../painel-v2/src/lib/tema.js';
+import { enxame, rotular, toca, dominio, pontoProva, marcasRadar } from '../../painel-v2/src/lib/tema.js';
 
 const RADAR = { atencao: 50, solidez: 50, ganho: 50, facilidade: 50, abertura: 50, amplitude: 50 };
 function paper(id, o = {}) {
@@ -240,4 +247,74 @@ test('nos dados publicados, toda ordem e uma permutacao e todo filtro existente 
   const c = cobertura(ps, REAL.faltam);
   assert.equal(c.inteira + c.parcial + c.insuf, ps.length);
   assert.equal(c.total, ps.length + REAL.faltam.length);
+});
+
+test('fato que falta diz por que falta, sem traco', () => {
+  const semRes = paper('a', { sol: 'sem_leitura', esf: 0, radar: { ganho: null, solidez: null, abertura: null, facilidade: null, amplitude: null } });
+  const semRival = paper('b', { res: [{ b: 'X', rext: null }], radar: { ganho: null } });
+  assert.equal(SEM_FATO.ganho(semRes), 'não lido');
+  assert.equal(SEM_FATO.ganho(semRival), 'sem rival externo');
+  assert.equal(SEM_FATO.facilidade(semRes), ESFORCO[0]);
+  for (const [k] of EIXOS) {
+    const txt = FATO[k](semRes) ?? SEM_FATO[k](semRes);
+    assert.ok(typeof txt === 'string' && !/^[–—-]?$/.test(txt.trim()) || k === 'atencao', `${k}: "${txt}"`);
+  }
+  // nos dados publicados, todo paper tem um texto para cada eixo
+  for (const p of REAL.papers) for (const [k] of EIXOS) {
+    const txt = FATO[k](p) ?? SEM_FATO[k](p);
+    assert.ok(txt && !/^[–—-]$/.test(txt), `${p.id} ${k}`);
+  }
+});
+
+test('no radar, quem passa do teto da amplitude e a abertura lida em parte ganham aviso', () => {
+  const res = (n) => Array.from({ length: n }, (_, i) => ({ b: `B${i}`, rext: 1 }));
+  const cinco = paper('a', { res: res(TETO_AMPLITUDE), radar: { amplitude: 100 } }), nove = paper('b', { res: res(9), radar: { amplitude: 100 } });
+  assert.equal(nBench(cinco), TETO_AMPLITUDE);
+  assert.equal(passaDoEixo('amplitude', cinco), false);
+  assert.equal(passaDoEixo('amplitude', nove), true);
+  assert.equal(passaDoEixo('ganho', nove), false);
+  const parte = paper('c', { ab: { codigo: 'liberado', pesos: 'nao_lido', dados: 'nao_lido', demo: 'nao_lido' }, radar: { abertura: 100 } });
+  const tudo = paper('d', { ab: { codigo: 'liberado', pesos: 'ausente', dados: 'ausente', demo: 'ausente' }, radar: { abertura: 40 } });
+  const nada = paper('e', { ab: { codigo: 'nao_lido', pesos: 'nao_lido', dados: 'nao_lido', demo: 'nao_lido' }, radar: { abertura: null } });
+  assert.equal(naoLidosDe(parte), 3);
+  assert.equal(parteNaoLida('abertura', parte), true);
+  assert.equal(parteNaoLida('abertura', tudo), false);
+  assert.equal(parteNaoLida('abertura', nada), false, 'eixo todo nao lido nao tem vertice');
+  assert.equal(parteNaoLida('amplitude', parte), false);
+});
+
+test('as marcas do radar: escala nos aneis, vertice vazado e corte fora do anel', () => {
+  const t = { muted: '#666', surface: '#fff', fNum: 'mono' }, r = 100, cx = 200, cy = 200;
+  const itens = [{ valores: [50, 100, null, 100, 20, 30], cor: '#a00', simbolo: 'circle', vazados: [false, true, false, false, false, false], cortes: [false, false, false, true, false, false] }];
+  const els = marcasRadar(t, { cx, cy, r, itens });
+  const textos = els.filter((e) => e.type === 'text').map((e) => e.style.text);
+  assert.deepEqual(textos, ['50', '100']);
+  // a escala fica na aresta entre o primeiro e o ultimo eixo: nunca em cima de um raio, onde caem os vertices
+  for (const e of els.filter((x) => x.type === 'text')) assert.ok(Math.abs(e.x - cx) > 10, 'rotulo fora do raio do topo');
+  const oco = els.find((e) => e.type === 'circle');
+  assert.ok(oco && oco.style.fill === t.surface && oco.style.stroke === '#a00');
+  // o vertice vazado fica no anel de 100 do segundo eixo (60 graus a esquerda do topo)
+  assert.ok(Math.abs(Math.hypot(oco.shape.cx - cx, oco.shape.cy - cy) - r) < 0.01);
+  const cortes = els.filter((e) => e.type === 'polyline');
+  assert.equal(cortes.length, 2);
+  for (const c of cortes) assert.ok(Math.hypot(c.shape.points[1][0] - cx, c.shape.points[1][1] - cy) > r, 'a marca de corte fica fora do anel');
+  // sem aviso, so a escala
+  assert.equal(marcasRadar(t, { cx, cy, r, itens: [{ valores: [1, 2, 3, 4, 5, 6], cor: '#000', simbolo: 'rect' }] }).length, 2);
+});
+
+test('a fila entra na busca pelo titulo e pelo id', () => {
+  const fila = [{ id: '2611.05376', t: 'From Autonomous Agents to Cognitive Symbionts', u: 105, d: '2026-11-06' }, { id: '2611.12806', t: 'Learning Heterogeneous Tactile Representation', u: 102, d: '2026-11-10' }];
+  assert.equal(buscarFila(fila, '').length, 2);
+  assert.deepEqual(ids(buscarFila(fila, 'TÁCTILE learning')), ['2611.12806']);
+  assert.deepEqual(ids(buscarFila(fila, '2611.05376')), ['2611.05376']);
+  assert.equal(buscarFila(fila, 'robot').length, 0);
+  assert.equal(buscarFila(REAL.faltam, '').length, REAL.faltam.length);
+});
+
+test('o nome curto e um so: o titulo ate os dois-pontos, cortado em palavra inteira', () => {
+  assert.equal(nome({ t: 'SLA: Scaling Spatial-Language-Action Model' }), 'SLA');
+  assert.equal(nome({ t: "Don't Just Trust Your Memory: Evidence-Linked Memory" }), "Don't Just Trust Your Memory");
+  assert.equal(nome({ t: 'Advances in Agentic Computer Graphics' }), 'Advances in Agentic Computer…');
+  assert.equal(nomeMenor({ t: 'Advances in Agentic Computer Graphics' }), 'Advances in…');
+  for (const p of REAL.papers) { assert.ok(nome(p).length <= 29, p.t); assert.ok(nomeMenor(p).length <= nome(p).length); }
 });

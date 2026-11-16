@@ -104,6 +104,10 @@ export const curto = (t, max = 22) => {
   for (const w of s.split(/\s+/)) { if ((out + ' ' + w).trim().length > max) break; out = (out + ' ' + w).trim(); }
   return (out || s.slice(0, max)).replace(/[,;.]$/, '') + '…';
 };
+// O nome curto de um paper e um so em todo o painel: o titulo ate os dois-pontos,
+// cortado em palavra inteira. Onde nao couber, o desenho usa `nomeMenor`.
+export const nome = (p) => curto(p.t, 28);
+export const nomeMenor = (p) => curto(p.t, 18);
 export const dataCurta = (d) => d ? `${+d.slice(8, 10)}/${+d.slice(5, 7)}` : '';
 
 // Ordens do indice (e do anterior/proximo do paper). Em toda ordem, paper sem
@@ -173,6 +177,12 @@ export function buscar(papers, q) {
     const alvo = norm([p.t, p.org, p.id, ENTREGA[p.ent], CAMADA[p.cam], ...p.ar.map((a) => ARENA[a]), ...p.ents.map((e) => e[0])].join(' '));
     return termos.every((t) => alvo.includes(t));
   });
+}
+
+// A fila so tem titulo e numero do arXiv: a busca olha os dois.
+export function buscarFila(faltam, q) {
+  const termos = norm(q).split(/\s+/).filter(Boolean);
+  return termos.length ? faltam.filter((f) => { const alvo = norm(`${f.t} ${f.id}`); return termos.every((t) => alvo.includes(t)); }) : faltam;
 }
 
 // Onde a busca casou. `realcar` devolve o texto em pedacos [texto, casou] para
@@ -266,9 +276,23 @@ export const nBench = (p) => (p.radar.amplitude == null ? null : new Set(p.res.m
 export const FATO = {
   ganho: (p) => (ganhoDe(p) == null ? null : `${sgn(ganhoDe(p))}%`),
   solidez: (p) => (p.sol === 'sem_leitura' ? null : SOL_ROT[p.sol]),
-  abertura: (p) => liberados(p) || (p.prom ? 'só prometido' : p.radar.abertura == null ? null : 'nada liberado'),
+  abertura: (p) => liberados(p) || (p.prom ? 'só prometido' : p.radar.abertura == null ? null : Object.values(p.ab).includes('so_pagina') ? 'só a página' : 'nada liberado'),
   facilidade: (p) => (p.radar.facilidade == null ? null : ESFORCO[p.esf]),
   amplitude: (p) => (nBench(p) == null ? null : plural(nBench(p), 'benchmark', 'benchmarks')),
   atencao: (p) => `${p.u.toLocaleString('pt-BR')} votos`,
 };
-export const SEM_FATO = { ganho: 'sem rival externo', solidez: 'não lida', abertura: 'não lida', facilidade: 'não medida', amplitude: 'sem benchmark próprio', atencao: '–' };
+// Por que o fato falta, em palavras: "nao lido" nao e "nao ha". Nenhuma tela
+// poe um traco no lugar de um fato do paper.
+export const semGanho = (p) => (p.res.length ? 'sem rival externo' : 'não lido');
+export const SEM_FATO = {
+  ganho: semGanho, solidez: () => 'não lida', abertura: () => 'não lida',
+  facilidade: (p) => ESFORCO[p.esf], amplitude: () => 'não lida', atencao: () => '',
+};
+// O radar desenha a nota de 0 a 100 que vem do Python. Dois avisos ficam no
+// proprio desenho: a amplitude tem teto (20 pontos por benchmark, entao acima
+// de 5 a nota e a mesma) e a abertura so conta os artefatos que a leitura
+// alcancou.
+export const TETO_AMPLITUDE = 5;
+export const passaDoEixo = (k, p) => k === 'amplitude' && (nBench(p) ?? 0) > TETO_AMPLITUDE;
+export const naoLidosDe = (p) => Object.values(p.ab).filter((e) => e === 'nao_lido').length;
+export const parteNaoLida = (k, p) => k === 'abertura' && p.radar.abertura != null && naoLidosDe(p) > 0;

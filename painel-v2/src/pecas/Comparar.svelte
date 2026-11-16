@@ -8,8 +8,8 @@
   import Grafico from '../lib/Grafico.svelte';
   import Icone from '../lib/Icone.svelte';
   import Menu from './Menu.svelte';
-  import { EIXOS, EIXO_DICA, FATO, SEM_FATO, ART, ART_EST, nBench, ganhoDe, median, curto, esc, radarValores } from '../lib/dados.js';
-  import { base, dica, corCmp } from '../lib/tema.js';
+  import { EIXOS, EIXO_DICA, FATO, SEM_FATO, ART, ART_EST, nBench, ganhoDe, median, nome, esc, radarValores, passaDoEixo, parteNaoLida, naoLidosDe } from '../lib/dados.js';
+  import { base, dica, corCmp, marcasRadar } from '../lib/tema.js';
   import { estado, alternaComparar, abrir, MAX_COMPARAR } from '../lib/estado.svelte.js';
 
   let { papers, todos } = $props();
@@ -27,28 +27,37 @@
     const vs = sel.map((p) => medida(k, p)).filter((x) => x != null), m = Math.max(...vs);
     return vs.length > 1 && vs.some((x) => x < m) ? m : null;
   }));
-  // Posicao na barra, de 0 a 100. A amplitude vai ate o paper com mais
-  // benchmarks do periodo; o ganho usa a nota do radar, em que 50 e o zero.
+  // Posicao na barra, de 0 a 100. Onde ha numero escrito, a barra e proporcional
+  // a ele: a amplitude vai ate o paper com mais benchmarks do periodo e os votos
+  // ate o mais votado. O ganho usa a nota do radar, em que 50 e o zero; prova e
+  // adocao usam a nota do radar (sinais cumpridos e degrau de esforco).
   const maxBench = $derived(Math.max(1, ...todos.map((p) => nBench(p) ?? 0)));
-  const pos = (k, p) => (k === 'amplitude' ? (nBench(p) == null ? null : (100 * nBench(p)) / maxBench) : p.radar[k]);
+  const maxVotos = $derived(Math.max(1, ...todos.map((p) => p.u)));
+  const pos = (k, p) => (k === 'amplitude' ? (nBench(p) == null ? null : (100 * nBench(p)) / maxBench) : k === 'atencao' ? (100 * p.u) / maxVotos : p.radar[k]);
   const medPos = $derived(EIXOS.map(([k]) => median(papers.map((p) => pos(k, p)))));
   const artefatos = (p) => Object.keys(ART).map((a) => `${ART[a]} ${ART_EST[p.ab[a]] ?? 'não lido'}`).join(' · ');
   const TRACO = ['solid', [6, 3], [2, 3]], MARCA = ['circle', 'rect', 'triangle'];
   // o radar ocupa o que a largura deixa (os nomes dos eixos pedem uns 75 px de cada lado) e a altura acompanha: sem vao em cima nem embaixo
   const raio = $derived(Math.round(Math.max(60, Math.min((larg - 150) / 2, 165))));
 
+  // avisos que ficam no proprio desenho: quem passa do teto da amplitude e onde a abertura so conta parte dos artefatos
+  const cortes = $derived(sel.map((p) => EIXOS.map(([k]) => passaDoEixo(k, p))));
+  const vazados = $derived(sel.map((p) => EIXOS.map(([k]) => parteNaoLida(k, p))));
+  const temCorte = $derived(cortes.some((c) => c.some(Boolean))), temVazado = $derived(vazados.some((c) => c.some(Boolean)));
+
   const opcao = $derived(!t.ink || !sel.length ? null : {
     ...base(t),
     tooltip: { ...base(t).tooltip, trigger: 'item', formatter: (q) => {
       if (q.data.mediana) return dica('Mediana do recorte', ...EIXOS.map(([, r], i) => `${r}: <b>${medBruta[i] == null ? '–' : Math.round(medBruta[i])}</b>`));
       const p = porId.get(q.data.pid);
-      return dica(`${q.data.letra} · ${esc(p.t)}`, ...EIXOS.map(([k, r]) => `${r}: <b>${FATO[k](p) ?? SEM_FATO[k]}</b>`));
+      return dica(`${q.data.letra} · ${esc(p.t)}`, ...EIXOS.map(([k, r]) => `${r}: <b>${FATO[k](p) ?? SEM_FATO[k](p)}</b>`));
     } },
     radar: {
       indicator: EIXOS.map(([, r]) => ({ name: r, max: 100 })), radius: raio, center: ['50%', '50%'], splitNumber: 4, shape: 'polygon',
       axisName: { color: t.ink2, fontSize: 12, fontWeight: 500, fontFamily: t.fUi },
       splitLine: { lineStyle: { color: t.line } }, splitArea: { show: false }, axisLine: { lineStyle: { color: t.line } },
     },
+    graphic: marcasRadar(t, { cx: larg / 2, cy: raio + 36, r: raio, itens: sel.map((p, i) => ({ valores: radarValores(EIXOS.map(([k]) => p.radar[k])), cor: corCmp(t, i), simbolo: MARCA[i], vazados: vazados[i], cortes: cortes[i] })) }),
     series: [{ type: 'radar', data: [
       { name: 'Mediana', mediana: true, value: radarValores(medBruta), symbol: 'none', lineStyle: { color: t.muted, type: [4, 4], width: 1 }, areaStyle: { color: t.lineStrong, opacity: .08 } },
       ...sel.map((p, i) => { const c = corCmp(t, i);
@@ -87,8 +96,10 @@
       <div class="g" bind:clientWidth={larg}>
         {#if opcao}<Grafico {opcao} altura={2 * raio + 72} rotulo="Radar de seis eixos com os papers escolhidos e a mediana do recorte" />{/if}
         <p class="chave t-12 mut">
-          {#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg><b>{'ABC'[i]}</b>{curto(p.t, 18)}</span>{/each}
+          {#each sel as p, i (p.id)}<span><svg width="26" height="10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--cmp-{i + 1})" stroke-width="2" stroke-dasharray={i === 1 ? '6 3' : i === 2 ? '2 3' : null} /></svg><b>{'ABC'[i]}</b>{nome(p)}</span>{/each}
           <span><i class="med"></i>mediana do recorte</span>
+          {#if temVazado}<span><i class="oco"></i>parte não lida</span>{/if}
+          {#if temCorte}<span><b aria-hidden="true">»</b>passa do eixo</span>{/if}
         </p>
       </div>
 
@@ -101,7 +112,7 @@
                 <span class="cabp">
                   <i class="letra" aria-hidden="true">{'ABC'[i]}</i>
                   <button class="nome" onclick={() => abrir(p.id)} title={p.t} onmouseenter={() => (estado.hover = p.id)} onmouseleave={() => (estado.hover = null)}>
-                    <span class="vh">{'ABC'[i]}: </span><span class="nm" class:fora={!noRecorte.has(p.id)}>{curto(p.t, 28)}</span></button>
+                    <span class="vh">{'ABC'[i]}: </span><span class="nm" class:fora={!noRecorte.has(p.id)}>{nome(p)}</span></button>
                   <button class="tira" aria-label="Tirar {p.t} da comparação" title="Tirar da comparação" onclick={() => alternaComparar(p.id)}><Icone nome="x" tam={14} /></button>
                 </span>
               </th>
@@ -115,8 +126,8 @@
                 {#each sel as p, i (p.id)}
                   {@const x = v(pos(k, p))}
                   {@const f = FATO[k](p)}
-                  <td style:--c="var(--cmp-{i + 1})" class:top={melhor[ei] != null && medida(k, p) === melhor[ei]}>
-                    <span class="fato" class:mut={f == null}>{#if k === 'amplitude' && f != null}{nBench(p)} <span class="un-l">{nBench(p) === 1 ? 'benchmark' : 'benchmarks'}</span><span class="un-c">bench.</span>{:else}{f ?? SEM_FATO[k]}{/if}</span>
+                  <td style:--c="var(--cmp-{i + 1})" class:top={melhor[ei] != null && medida(k, p) === melhor[ei]} class:neg={k === 'ganho' && ganhoDe(p) < 0}>
+                    <span class="fato" class:mut={f == null}>{#if k === 'amplitude' && f != null}{nBench(p)} <span class="un-l">{nBench(p) === 1 ? 'benchmark' : 'benchmarks'}</span><span class="un-c">bench.</span>{:else}{f ?? SEM_FATO[k](p)}{/if}{#if parteNaoLida(k, p)}<span class="nl">{' · '}{naoLidosDe(p)} não {naoLidosDe(p) === 1 ? 'lido' : 'lidos'}</span>{/if}{#if k === 'solidez' && f != null && p.nl}<span class="nl">{' · '}{p.T} de {p.nl} sinais</span>{/if}</span>
                     {#if k === 'abertura'}
                       <span class="pecas" title={artefatos(p)}>{#each Object.keys(ART) as a}<i class={p.ab[a] ?? 'nao_lido'}></i>{/each}<span class="vh">{artefatos(p)}</span></span>
                     {:else}
@@ -134,8 +145,10 @@
         </table>
         <p class="chave pe t-12 mut">
           <span><i class="tique"></i>mediana do recorte</span>
+          <span><i class="zero"></i>ganho zero</span>
           {#if sel.length > 1}<span><b>negrito</b>melhor da linha</span>{/if}
           <span><span class="pecas ex" aria-hidden="true"><i class="liberado"></i><i class="liberado"></i><i class="liberado"></i><i class="liberado"></i></span>código, pesos, dados e demo</span>
+          <span><span class="pecas ex um" aria-hidden="true"><i class="nao_lido"></i></span>não lido</span>
         </p>
       </div>
     </div>
@@ -161,6 +174,10 @@
   .chave.pe { justify-content: flex-start; margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--line); --c: var(--ink2); }
   .chave .med { width: 16px; height: 10px; border-radius: 2px; border: 1px dashed var(--muted); background: color-mix(in srgb, var(--line-strong) 12%, var(--surface)); }
   .chave .tique { width: 2px; height: 12px; border-radius: 1px; background: var(--ink2); }
+  .chave .zero { width: 0; height: 12px; border-left: 1px dotted var(--ink2); }
+  .chave .oco { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink2); }
+  .nl { color: var(--muted); font-weight: 400; }
+  td.neg .fato { color: var(--alert); }
 
   .letra { width: 20px; height: 20px; border-radius: 50%; background: var(--c); color: var(--surface); display: inline-grid; place-items: center; font-size: var(--fs-12); line-height: 1; font-weight: 600; font-style: normal; flex: none; }
 
@@ -189,21 +206,25 @@
   .trilho { display: block; position: relative; height: 6px; border-radius: 3px; background: var(--sunk); margin-top: var(--sp-2); }
   .trilho.nd { background: none; box-shadow: inset 0 0 0 1px var(--line); }
   .trilho i { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 3px; background: var(--c); transition: width var(--dur-3) var(--sai), left var(--dur-3) var(--sai); }
-  .trilho em { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px; background: var(--muted); }
+  .trilho em { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 0; border-left: 1px dotted var(--ink2); }
   .trilho b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink2); border-radius: 1px; }
   /* abertura: um segmento por artefato (codigo, pesos, dados, demo), no estado em que a leitura o achou */
   .pecas { display: flex; gap: 3px; margin-top: var(--sp-2); }
   .pecas i { flex: 1; height: 6px; border-radius: 3px; background: var(--sunk); }
   .pecas .liberado { background: var(--c); }
   .pecas .prometido, .pecas .so_pagina { background: none; box-shadow: inset 0 0 0 1.5px var(--c); }
-  .pecas .nao_lido { background: none; box-shadow: inset 0 0 0 1px var(--line); }
+  /* nao lido: tracejado, como a marca de prova nao lida; ausente fica cheio e neutro */
+  .pecas .nao_lido { background: repeating-linear-gradient(90deg, var(--sol-nada) 0 3px, transparent 3px 6px); height: 2px; align-self: center; border-radius: 0; }
   .pecas.ex { width: 56px; margin-top: 0; flex: none; }
+  .pecas.ex.um { width: 14px; }
 
   @container (max-width: 520px) {
     .eixo { width: 68px; }
-    .cabp { grid-template-columns: minmax(0, 1fr) 28px; }
+    /* cada coluna vira uma caixa: a letra, o nome e o botao de tirar ficam juntos, sem parecer "A × B × C ×" */
+    .cabp { grid-template-columns: minmax(0, 1fr) 28px; background: var(--sunk); border-radius: var(--r-2); padding: 6px 6px var(--sp-1) var(--sp-2); }      /* a linha de 8 px entre o botao de tirar e o nome e o que separa os dois alvos de toque */
     .cabp .nome { grid-column: 1 / -1; grid-row: 2; }
-    .un-l { display: none; } .un-c { display: inline; }
+    .tira { margin: -2px -2px 0 0; }
+    .un-l, .nl { display: none; } .un-c { display: inline; }      /* estreito: os segmentos tracejados ja dizem o que nao foi lido */
     .fato { font-size: var(--fs-12); line-height: var(--lh-12); }
     th, td { padding-inline: var(--sp-1); }
   }

@@ -9,7 +9,7 @@
   // Enter ou espaco escolhe; Esc fecha e devolve o foco ao botao.
   import Icone from '../lib/Icone.svelte';
   // itens: [valor, texto, contagem?]
-  let { nome, rotulo, descricao = '', valor = '', itens = [], aoEscolher, ligado = false, icone = '', classe = '', busca = false, prefixo = '', varias = false } = $props();
+  let { nome, rotulo, descricao = '', valor = '', itens = [], aoEscolher, ligado = false, icone = '', classe = '', busca = false, prefixo = '', varias = false, aoTirar = null } = $props();
   const id = $props.id();
   let aberto = $state(false), ativo = $state(0), filtro = $state('');
   let botao = $state(null), caixa = $state(null), campo = $state(null);
@@ -65,9 +65,13 @@
   }
 </script>
 
-<button bind:this={botao} class="sel {classe}" class:on={ligado} popovertarget={id} aria-haspopup="listbox" aria-expanded={aberto} aria-label={descricao || `${nome}: ${rotulo}`} onkeydown={teclaBotao}>
-  {#if icone}<Icone nome={icone} tam={12} />{/if}<span>{#if prefixo}<span class="pre">{prefixo}</span>{/if}{rotulo}</span><Icone nome="baixo" tam={12} />
-</button>
+<!-- filtro ligado: o "×" ao lado tira so este filtro, com um gesto, como o da busca -->
+<span class="par" class:tem={ligado && aoTirar}>
+  <button bind:this={botao} class="sel {classe}" class:on={ligado} popovertarget={id} aria-haspopup="listbox" aria-expanded={aberto} aria-label={descricao || `${nome}: ${rotulo}`} onkeydown={teclaBotao}>
+    {#if icone}<Icone nome={icone} tam={12} />{/if}<span>{#if prefixo}<span class="pre">{prefixo}</span>{/if}{rotulo}</span><Icone nome="baixo" tam={12} />
+  </button>
+  {#if ligado && aoTirar}<button class="sel on tirar" aria-label="Tirar o filtro de {nome.toLowerCase()}" title="Tirar o filtro" onclick={aoTirar}><Icone nome="x" tam={12} /></button>{/if}
+</span>
 <div bind:this={caixa} {id} popover="auto" class="menu" onbeforetoggle={antes} ontoggle={depois}>
   {#if comBusca}
     <label class="filtro"><Icone nome="busca" tam={14} /><span class="vh">Buscar em {nome}</span>
@@ -88,6 +92,11 @@
 
 <style>
   button { cursor: pointer; font-family: inherit; }
+  .par { display: contents; }
+  .par.tem { display: inline-flex; align-items: stretch; gap: 1px; }
+  .par.tem > .sel:first-child { border-radius: 999px 0 0 999px; padding-right: 6px; }
+  .par.tem > .tirar { border-radius: 0 999px 999px 0; padding: 0 10px 0 6px; }
+  @media (pointer: coarse) { .par.tem > .tirar { padding: 0 14px 0 10px; } .par.tem > .tirar::after { inset: -4px -4px; } }
   .menu { position: fixed; inset: auto; margin: 0; padding: var(--sp-1); border: 1px solid var(--line); border-radius: var(--r-2); background: var(--raise); color: var(--ink);
     box-shadow: var(--sombra-2); max-width: min(380px, calc(100vw - 16px)); overflow-y: auto; overscroll-behavior: contain; font-size: var(--fs-14); line-height: var(--lh-14); }
   .menu:popover-open { display: grid; align-content: start; animation: entra var(--dur-1) var(--sai); }

@@ -44,20 +44,25 @@
   });
   const vencem = $derived([...placar.values()].sort((a, b) => b.v - a.v || b.v / b.n - a.v / a.n || b.p.u - a.p.u).map((o) => o.p));
 
+  // o fim de cada barra diz o placar: a barra conta resultados, a coluna da esquerda conta papers
+  let larg = $state(480);
+  const estreito = $derived(larg < 420);
+  const placarDe = (l, i) => `${l.c.ganha} de ${l.n}${i === 0 && !estreito ? (l.c.ganha === 1 ? ' vence' : ' vencem') : ''}`;
+
   const opcao = $derived.by(() => {
     if (!t.ink) return null;
     const cor = { ganha: t.resGanha, ruido: t.resRuido, perde: t.resPerde, sem_rival: t.surface };
     const apaga = (k) => (ativas.length && !ativas.includes(k) ? 0.3 : 1);
     return {
       ...base(t),
-      grid: { left: 0, right: 12, top: 22, bottom: 36, containLabel: true },
+      grid: { left: 0, right: estreito ? 56 : 108, top: 22, bottom: 36, containLabel: true },
       tooltip: { ...base(t).tooltip, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: t.sunk, opacity: .6 } },
         formatter: (qs) => {
           const l = linhas[qs[0].dataIndex];
           const le = ESTADOS.filter(([e]) => l.c[e]).map(([e, r]) => `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${cor[e]};box-shadow:inset 0 0 0 1px ${e === 'sem_rival' ? t.lineStrong : cor[e]};margin-right:6px"></span>${r}: <b>${l.c[e]}</b>`);
           return `<div style="font-weight:600">${esc(nome(l.k))}</div><div style="opacity:.8;margin-bottom:6px">${plural(l.ps.size, 'paper', 'papers')} · ${plural(l.n, 'resultado', 'resultados')}</div>${le.join('<br>')}`;
         } },
-      xAxis: { type: 'value', minInterval: 1, splitLine: grade(t), axisLabel: rotNum(t),
+      xAxis: { type: 'value', minInterval: 1, splitNumber: estreito ? 3 : 5, splitLine: grade(t), axisLabel: { ...rotNum(t), hideOverlap: true },
         name: 'resultados em tabela', nameLocation: 'middle', nameGap: 26, nameTextStyle: rotNum(t) },
       yAxis: {
         type: 'category', inverse: true, data: linhas.map((l) => nome(l.k)), triggerEvent: true,
@@ -74,7 +79,11 @@
         itemStyle: { color: cor[e], borderRadius: 2, borderColor: e === 'sem_rival' ? t.lineStrong : t.surface, borderWidth: e === 'sem_rival' ? 1.5 : 1 },
         emphasis: { disabled: true },
         data: linhas.map((l) => ({ value: l.c[e] || 0, arena: l.k, itemStyle: { opacity: l.c[e] ? apaga(l.k) : 0 } })),
-      })),
+      })).concat({
+        // serie sem barra, so para escrever o placar depois do ultimo segmento
+        type: 'bar', stack: 'r', barWidth: 14, silent: true, itemStyle: { color: 'transparent' }, emphasis: { disabled: true }, data: linhas.map(() => 0),
+        label: { show: true, position: 'right', distance: 8, color: t.ink2, fontFamily: t.fUi, fontSize: 12, formatter: (q) => placarDe(linhas[q.dataIndex], q.dataIndex) },
+      }),
     };
   });
   const clicar = (q) => {
@@ -85,7 +94,7 @@
 
 <Quadro id="arenas" pergunta="Onde está a disputa?" valor={topo ? topo.ps.size : 0} {resposta} vazio={!linhas.length}>
   {#if opcao && linhas.length}
-    <Grafico {opcao} altura={Math.max(176, linhas.length * 28 + 78)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" />
+    <div bind:clientWidth={larg}><Grafico {opcao} altura={Math.max(176, linhas.length * 28 + 78)} aoClicar={clicar} rotulo="Resultados por arena, separados em vitória, ruído, derrota e sem rival externo" /></div>
   {:else}<div class="vazio">Nenhum resultado com benchmark neste recorte.</div>{/if}
   <Nomes papers={vencem} max={4} titulo="Mais vencem em {nome(foco)}" rotulo="Papers que mais vencem em {nome(foco)}" valor={(p) => `${placar.get(p.id).v} de ${placar.get(p.id).n}`} />
   {#snippet legenda()}

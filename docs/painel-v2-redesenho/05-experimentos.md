@@ -215,7 +215,23 @@ Acrescentadas depois da primeira rodada de crítica (`06-rodadas.md`):
     ou escala pelo maior do período.
 12. Miniatura do radar na lista (D6): três críticos não conseguiram ler a forma em
     32 px. Hoje ela aparece só onde há largura (some no celular). Opções: manter
-    assim, tirar, ou trocar pela marca de prova.
+    assim, tirar, ou trocar pela marca de prova. Na segunda rodada três críticos
+    repetiram o achado; o estado sem leitura virou um hexágono tracejado limpo.
+
+Acrescentada depois da segunda rodada de crítica:
+
+13. Abertura no radar (D3 e D12): a conta do Python pesa os artefatos (código 40%,
+    pesos 30%, dados 20%, demo 10%) e divide pelo peso do que foi lido. Com só o
+    código lido e liberado, o vértice vai a 100: é o caso de 10 dos 28 papers
+    (em outros 14 nenhum artefato foi lido e o eixo fica vazio). Os quatro
+    críticos da segunda rodada leram esse 100 como "tudo liberado". Hoje o
+    painel avisa no desenho (vértice vazado e "código · 3 não lidos") sem mudar
+    a conta. Opções: manter a conta com o aviso; dividir pelos quatro artefatos,
+    tratando o não lido como zero no radar (contraria D3: não lido vira zero);
+    ou só desenhar o eixo quando pelo menos dois artefatos foram lidos.
+
+Na segunda rodada os quatro críticos também voltaram à decisão 11: enquanto ela
+não sai, quem passa de 5 benchmarks leva a marca de corte "»" fora do anel.
 
 ## Como refazer
 

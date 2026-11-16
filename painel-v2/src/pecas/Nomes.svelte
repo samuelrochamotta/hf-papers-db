@@ -1,7 +1,7 @@
 <script>
   // Os papers que respondem a pergunta de um quadro, pelo nome: da para abrir
   // sem cacar ponto no grafico. Passar o ponteiro acende o ponto do paper.
-  import { curto } from '../lib/dados.js';
+  import { nome } from '../lib/dados.js';
   import { estado, abrir } from '../lib/estado.svelte.js';
   // `titulo` e o rotulo escrito antes dos nomes, quando eles nao sao a resposta do numero grande
   let { papers, rotulo, valor = null, alerta = false, max = 8, titulo = '' } = $props();
@@ -12,7 +12,7 @@
     {#if titulo}<li class="resto" aria-hidden="true">{titulo}</li>{/if}
     {#each papers.slice(0, max) as p (p.id)}
       <li><button title={p.t} onclick={() => abrir(p.id)} onmouseenter={() => (estado.hover = p.id)} onmouseleave={() => (estado.hover = null)}>
-        <i class="sol {p.sol}"></i><span class="um">{curto(p.t, 26)}</span>{#if valor}<span class="v">{valor(p)}</span>{/if}</button></li>
+        <i class="sol {p.sol}"></i><span class="um">{nome(p)}</span>{#if valor}<span class="v">{valor(p)}</span>{/if}</button></li>
     {/each}
     {#if papers.length > max}<li class="resto">e mais {papers.length - max}</li>{/if}
   </ul>

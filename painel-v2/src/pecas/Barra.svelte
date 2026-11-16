@@ -11,9 +11,9 @@
   let { vistas = [], papers, todos, faltam, dias } = $props();
   const escuro = $derived(estado.tema.escuro);
   const pers = $derived(periodos(estado.dados));
-  // a leitura e a do recorte: com filtro ou busca, a fila (que nao tem leitura) sai da conta
+  // a leitura e a do recorte; a fila (que nao tem leitura) fica ao lado da contagem
   const ativo = $derived(estado.lentes.length > 0 || !!estado.busca.trim());
-  const cob = $derived(cobertura(papers, ativo ? [] : faltam));
+  const cob = $derived(cobertura(papers, faltam));
   function limpar() { semLente(); estado.busca = ''; }
   // altura da faixa presa: o cabecalho da tabela se prende logo abaixo dela
   let altRecorte = $state(53);
@@ -65,7 +65,8 @@
         <div class="seg per" role="group" aria-label="Período">
           {#each pers as [k, r, n]}<button aria-pressed={estado.periodo === k} onclick={() => (estado.periodo = k)}>{r} <span class="n">{n}</span></button>{/each}
         </div>
-        <span class="perm"><Menu nome="Período" rotulo={estado.periodo === 'tudo' ? 'Período todo' : pers.find((p) => p[0] === estado.periodo)?.[1] ?? 'Período todo'} valor={estado.periodo} itens={pers} aoEscolher={(v) => (estado.periodo = v)} /></span>
+        <!-- o mesmo nome e a mesma contagem do seletor largo: "Tudo 28", "7 dias 10" -->
+        <span class="perm"><Menu nome="Período" icone="calendario" rotulo={(pers.find((p) => p[0] === estado.periodo) ?? pers.at(-1)).slice(1, 3).join(' ')} valor={estado.periodo} itens={pers} aoEscolher={(v) => (estado.periodo = v)} /></span>
       {/if}
       <button class="ico" onclick={() => aplicarTema(escuro ? 'light' : 'dark')} aria-label={escuro ? 'Usar tema claro' : 'Usar tema escuro'} title={escuro ? 'Tema claro' : 'Tema escuro'}><Icone nome={escuro ? 'sol' : 'lua'} /></button>
     </div>
@@ -73,13 +74,13 @@
 </header>
 <div class="recorte" class:ativo role="region" aria-label="Recorte e filtros" bind:offsetHeight={altRecorte}>
   <div class="pagina l2" data-regiao="recorte">
-    <p class="rec pts" aria-live="polite"><b>{papers.length === todos.length ? plural(todos.length, 'paper', 'papers') : `${papers.length} de ${plural(todos.length, 'paper', 'papers')}`}</b>{#if dias.length}<span class="mut">{intervalo(dias[0], dias[1])}</span>{/if}</p>
+    <p class="rec pts" aria-live="polite"><b>{papers.length === todos.length ? plural(todos.length, 'paper', 'papers') : `${papers.length} de ${plural(todos.length, 'paper', 'papers')}`}</b>{#if cob.fila}<span class="fila">mais <span class="num">{cob.fila}</span> na fila</span>{/if}{#if dias.length}<span class="mut quando">{intervalo(dias[0], dias[1])}</span>{/if}</p>
     <div class="filtros" role="group" aria-label="Filtrar por">
       {#each facetas as [k, nome, itens, total]}
         {#if itens.length > 1 || valores(k).length}
           {@const vs = valores(k)}
           <Menu {nome} {varias} prefixo={vs.length === 1 ? `${nome}: ` : ''} rotulo={rotulo(k, nome, itens)} descricao={vs.length ? `${nome}: ${nomes(k, itens).join(', ')}` : `Filtrar por ${nome.toLowerCase()}`} valor={varias ? vs : vs[0] ?? ''} ligado={vs.length > 0}
-            itens={[['', TODAS[k], total], ...itens]} aoEscolher={(v) => escolher(k, v)} />
+            itens={[['', TODAS[k], total], ...itens]} aoEscolher={(v) => escolher(k, v)} aoTirar={() => semLente(k)} />
         {/if}
       {/each}
       {#if estado.busca.trim()}<button class="sel on achado" onclick={() => (estado.busca = '')} aria-label="Tirar a busca por {estado.busca.trim()}" title="Tirar a busca"><span class="um">“{estado.busca.trim()}”</span><Icone nome="x" tam={12} /></button>{/if}
@@ -87,7 +88,7 @@
     {#if ativo}<button class="btn fan limpa" onclick={limpar} aria-label="Limpar {[estado.lentes.length ? `o filtro ${estado.lentes.map(rotuloLente).join(', ')}` : '', estado.busca.trim() ? `a busca por ${estado.busca.trim()}` : ''].filter(Boolean).join(' e ')}"><Icone nome="x" tam={12} />Limpar</button>{/if}
     <p class="cob mut" title="Quanto do texto de cada paper foi lido">
       <span class="med" aria-hidden="true"><i style:flex={cob.inteira} class="a"></i><i style:flex={cob.parcial} class="b"></i><i style:flex={cob.insuf} class="c"></i></span>
-      <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span><span><b>{cob.insuf}</b> com prova não lida</span></span>{#if cob.fila}<span class="fila">mais <b>{cob.fila}</b> na fila</span>{/if}
+      <span class="pts"><span>Leitura: <b>{cob.inteira}</b> {cob.inteira === 1 ? 'inteira' : 'inteiras'}</span><span><b>{cob.parcial}</b> {cob.parcial === 1 ? 'parcial' : 'parciais'}</span><span><b>{cob.insuf}</b> com prova não lida</span></span>
     </p>
   </div>
 </div>
@@ -123,6 +124,7 @@
   .l2 { display: flex; align-items: center; gap: var(--sp-2) var(--sp-4); min-height: 44px; padding-bottom: var(--sp-2); }
   .rec { white-space: nowrap; }
   .rec b { font-weight: 600; }
+  .rec .fila { color: var(--ink2); }
   .filtros { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
   /* estreito: a contagem ocupa a primeira linha e sobe com a pagina (top negativo);
      presa no topo fica so a linha dos filtros, todos a vista, sem rolagem lateral */
@@ -137,13 +139,13 @@
     .limpa::after { inset: -4px -2px; }
     .rec { flex: 1 1 0; order: 1; height: var(--l1); display: flex; align-items: center; min-width: 0; }
     .limpa { order: 2; min-height: var(--l1); }
-    .filtros { flex: 1 0 100%; order: 3; gap: 6px; }
+    .filtros { flex: 1 0 100%; order: 3; gap: var(--sp-2) 6px; }      /* 8 px entre linhas: se os filtros quebram, os alvos de 44 px se encostam sem se cobrir */
+    .filtros :global(.par.tem > .sel:first-child > svg:last-child) { display: none; }      /* o filtro ligado ja tem o × ao lado: sem a seta, os quatro cabem numa linha */
     .filtros :global(.pre) { display: none; }      /* preso no topo, o filtro ligado mostra so o valor */
     .filtros :global(.sel) { padding: 0 6px 0 10px; }
   }
   .cob { display: none; align-items: center; gap: var(--sp-2); margin-left: auto; font-size: var(--fs-12); line-height: var(--lh-12); white-space: nowrap; }
   .cob b { font-weight: 500; color: var(--ink2); }
-  .cob .fila { padding-left: var(--sp-2); border-left: 1px solid var(--line-strong); }
   .med { display: inline-flex; width: 56px; height: 6px; border-radius: 3px; overflow: hidden; gap: 1px; }
   .med i { min-width: 0; } .med .a { background: var(--ink); } .med .b { background: var(--muted); } .med .c { background: var(--line-strong); opacity: .6; }
 

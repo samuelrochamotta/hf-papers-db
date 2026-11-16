@@ -16,11 +16,12 @@
 <section class="quadro" aria-labelledby="q-{id}" data-regiao={id}>
   <header>
     <h3 id="q-{id}">{pergunta}</h3>
-    {#if extra}{@render extra()}{/if}
   </header>
   {#if valor !== undefined && !vazio}
     <p class="resp"><b class="titulo">{valor == null ? '–' : mostra}{#if sufixo && valor != null}<small>{sufixo}</small>{/if}</b><span>{resposta}</span></p>
   {/if}
+  <!-- o controle do desenho fica junto do desenho: o numero de cada quadro da fileira comeca na mesma altura -->
+  {#if extra}<div class="extra">{@render extra()}</div>{/if}
   <div class="g">{@render children()}</div>
   {#if legenda && !vazio}<footer>{@render legenda()}</footer>{/if}
 </section>
@@ -34,6 +35,9 @@
   .resp b { font-size: var(--fs-35); line-height: var(--lh-35); }
   .resp b small { font-size: .5em; letter-spacing: 0; margin-left: 2px; color: var(--ink2); }
   .resp span { font-size: var(--fs-14); line-height: var(--lh-14); color: var(--ink2); max-width: 34ch; text-wrap: balance; }
+  /* quadro estreito: o numero fica sozinho na linha e a frase vem embaixo, igual em todos os quadros da fileira */
+  @container (max-width: 440px) { .resp span { flex-basis: 100%; } }
+  .extra { margin-bottom: var(--sp-3); display: flex; }
   .g { min-width: 0; display: flex; flex-direction: column; margin-bottom: var(--sp-3); }
   /* os quadros de uma fileira terminam juntos: a legenda fica no pe */
   footer { margin-top: auto; padding-top: var(--sp-3); border-top: 1px solid var(--line); }
