@@ -118,7 +118,7 @@ def casos(d):
 
     # nada lido: so o eixo atencao existe
     nl = [copy.deepcopy(p) for p in P if p["sol"] == "sem_leitura"]
-    c["nada-lido"] = _novo(d, nl, faltam=[dict(f) for f in d["faltam"]] * 12)
+    c["nada-lido"] = _novo(d, nl, faltam=[dict(f, id=f"{f['id']}.{i}") for i in range(12) for f in d["faltam"]])
 
     # 240 papers em 30 dias: o que acontece quando "tudo" vira um mes
     muitos, dias = [], []

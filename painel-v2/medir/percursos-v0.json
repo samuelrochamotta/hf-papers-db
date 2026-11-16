@@ -1,0 +1,12 @@
+{
+  "K1 abrir o mais votado e voltar": { "passos": [["^Advances in Agentic", "Enter"], [null, "Escape"]], "focoFinal": "^Advances in Agentic" },
+  "K2 abrir um paper e ler os trechos": { "passos": [["^Confucius4-R2T2", "Enter"], ["^Trechos", "Enter"]], "espera": "RESSALVAS|Ressalvas|Limites|ALEGA" },
+  "K3 filtrar por Robótica": { "passos": [["arena para filtrar", "Enter"], ["^Robótica", "Enter"]], "espera": "Arena: Robótica" },
+  "K4 limpar o filtro": { "inicio": "?lente=ar:robotica_acao", "passos": [["Tirar o filtro", "Enter"]], "espera": "28 papers" },
+  "K5 comparar dois papers": { "passos": [["^Comparar SLA", "Enter"], ["^Comparar MoviEdit", "Enter"]], "espera": "comparar=[^&]*2611.08373[^&]*2611.02737|comparar=[^&]*2611.02737" },
+  "K6 ver só a última semana": { "passos": [["^7 dias", "Enter"]], "espera": "10 papers" },
+  "K7 abrir a ficha com tabelas e links": { "passos": [["^Confucius4-R2T2", "Enter"], ["^Ficha", "Enter"]], "espera": "ponto de partida|este paper" },
+  "K8 filtrar o que dá para integrar": { "passos": [["degrau de esforço", "Enter"], ["^Integrar", "Enter"]], "espera": "Esforço: Integrar" },
+  "K9 achar os frágeis e abrir um": { "passos": [["nível de solidez", "Enter"], ["^Frágil", "Enter"], ["^CoworkOS", "Enter"]], "espera": "paper=2611.03178", "voltar": false },
+  "K10 trocar o tema": { "passos": [["tema escuro", "Enter"]], "espera": "tema claro" }
+}

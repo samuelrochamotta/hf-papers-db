@@ -33,14 +33,14 @@ visita, **C** é ocasional.
 |---|---|---|---|
 | T11 | Quais papers dá para usar sem treinar, com algo liberado e prova pelo menos firme? | Confucius4-R2T2, Harness-S, Don't Just Trust Your Memory, Sage-Taiyi | A |
 | T12 | O que este paper exige para adotar: esforço, hardware, o que liberou, onde está o código? | esforço, hardware e links do paper aberto | A |
-| T13 | O que melhora gastando menos? | MoviEdit (30,9× menos), Route Anything (8,8× menos), Think Less, Locally (41,7% menos) | B |
+| T13 | O que melhora gastando menos? | MoviEdit (30,9× menos) e Think Less, Locally (41,7% menos); Route Anything gasta menos, mas perde do rival | B |
 | T14 | Sobre que modelo-base o campo está construindo? | Qwen (7 papers) | C |
 
 ## 4. Como A se compara com B?
 
 | # | Tarefa | Resposta nos dados de hoje | Prio |
 |---|---|---|---|
-| T15 | Entre Wave Forcing e CoworkOS, quem tem prova mais sólida e quem é mais fácil de adotar? | Wave Forcing em solidez (75 contra 33); CoworkOS em facilidade (60 contra 40) | A |
+| T15 | Entre SLA e Harness-S, quem tem prova mais sólida e quem é mais fácil de adotar? | SLA em solidez (83 contra 67); Harness-S em facilidade (60 contra 0) | A |
 | T16 | Este paper está acima ou abaixo da mediana do período em cada eixo? | radar do paper contra a mediana | B |
 | T17 | Em que arena está a disputa e quem vence nela? | Robótica (7 papers); filtrar e ver os ganhos | B |
 | T18 | Quanto os papers costumam ganhar do melhor rival, e os maiores ganhos são sólidos? | mediana +3,4%; 12 de 15 vencem; DreamX no topo | C |
