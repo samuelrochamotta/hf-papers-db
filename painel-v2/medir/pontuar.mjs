@@ -34,7 +34,7 @@ for (const f of readdirSync(saida).filter((x) => /^uso-.*\.jsonl$/.test(x))) {
     // campo de texto nao tem nome no registro antigo: vale como "campo de busca"
     const alvo = c1 ? `${c1.alvo?.regiao || ''} | ${c1.alvo?.nome || (c1.alvo?.tag === 'input' ? 'campo de busca' : '')} | ${c1.alvo?.canvas ? 'canvas' : ''}` : '';
     const p1 = c1 ? new RegExp(prim[id] || '$^', 'i').test(alvo) : certo;
-    linhas.push({ tarefa: id, prio: t.prio, largura: es[0].largura, certo, desistiu, passos: acoes.length,
+    linhas.push({ tarefa: id, prio: t.prio, largura: es[0].largura, certo, desistiu, passos: acoes.length, semPasso: acoes.length === 0,
       cliques: acoes.filter((e) => e.tipo === 'clicar').length, rolagens: acoes.filter((e) => e.tipo === 'rolar').length,
       tempo: +acoes.reduce((a, e) => a + custo(e), 0).toFixed(1), primeiro: p1, alvo1: alvo.slice(0, 70), resposta: texto.slice(0, 160) });
   }
@@ -45,6 +45,8 @@ for (const larg of [...new Set(linhas.map((l) => l.largura))]) {
   const ls = linhas.filter((l) => l.largura === larg);
   const med = (xs) => { const a = [...xs].sort((x, y) => x - y); return a.length ? (a.length % 2 ? a[a.length >> 1] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2) : null; };
   resumo[larg] = { tarefas: ls.length, acerto: ls.filter((l) => l.certo).length, primeiroClique: ls.filter((l) => l.primeiro).length,
+    // respondidas sem nenhum passo: ou a primeira tela ja responde, ou a resposta veio de memoria (conferir)
+    semPasso: ls.filter((l) => l.semPasso).map((l) => l.tarefa).join(' '),
     passosTotal: ls.reduce((a, l) => a + l.passos, 0), passosMediana: med(ls.map((l) => l.passos)), tempoTotal: +ls.reduce((a, l) => a + l.tempo, 0).toFixed(0), tempoMediana: med(ls.map((l) => l.tempo)) };
 }
 writeFileSync(join(saida, 'uso.json'), JSON.stringify({ resumo, linhas }, null, 1));

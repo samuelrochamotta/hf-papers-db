@@ -21,13 +21,21 @@ como alguém com mouse (ou dedo) e teclado. Não é um teste de programação.
   pelo fator indicado antes de clicar.
 - É proibido ler código-fonte, arquivos de dados, o registro ou qualquer
   outro arquivo; é proibido usar outro comando. Isso invalida o teste.
-- Faça as tarefas na ordem, uma por vez. Aja como uma pessoa prática: vá pelo
-  caminho que parecer mais direto na tela. No máximo 18 ações por tarefa; se
-  não conseguir, registre `responder Tn "desisto: <motivo>"` e passe adiante.
-- Responda com o que a tela mostra. Se a tela não permitir saber, diga isso.
+- Você recebe uma tarefa só e nunca viu este painel antes. Aja como uma pessoa
+  prática: vá pelo caminho que parecer mais direto na tela. No máximo 18 ações;
+  se não conseguir, registre `responder Tn "desisto: <motivo>"`.
+- Responda com o que a tela mostra, nas capturas desta sessão. Se a tela não
+  permitir saber, diga isso.
 
 ## Ao terminar
 
-Devolva, para cada tarefa: a resposta registrada, se você teve certeza dela, e
-uma frase sobre o que atrapalhou ou ajudou (o que procurou primeiro, onde se
-perdeu, o que era ambíguo). Sem sugestões de solução.
+Devolva: a resposta registrada, se você teve certeza dela, e uma frase sobre o
+que atrapalhou ou ajudou (o que procurou primeiro, onde se perdeu, o que era
+ambíguo). Sem sugestões de solução.
+
+## Nota de método
+
+Na primeira medição (E1) cada leitor fez várias tarefas em sequência, e algumas
+respostas saíram de memória, sem nenhum passo. Desde então cada tarefa tem um
+leitor próprio, que começa do zero, e a pontuação lista as tarefas respondidas
+sem nenhum passo para conferência.

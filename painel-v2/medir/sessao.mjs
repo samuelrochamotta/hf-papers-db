@@ -62,6 +62,8 @@ createServer(async (q, r) => {
       await page.keyboard.type(String(a.texto || ''), { delay: 20 }); await page.waitForTimeout(500);
       grava({ tipo: 'digitar', texto: a.texto, url: page.url() });
     } else if (a.tipo === 'responder') {
+      // a resposta vale para a tarefa aberta: ninguem responde de memoria uma tarefa que nao iniciou
+      if (a.tarefa && a.tarefa !== tarefa) throw new Error(`a tarefa aberta e ${tarefa}; use "iniciar ${a.tarefa}" antes de responder`);
       grava({ tipo: 'responder', tarefa: a.tarefa || tarefa, resposta: a.resposta, url: page.url() });
       extra = 'resposta registrada. ';
     } else if (a.tipo === 'fim') { r.end('ok'); await b.close(); s.fechar(); process.exit(0); }
