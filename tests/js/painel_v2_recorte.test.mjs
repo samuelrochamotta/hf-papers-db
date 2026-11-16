@@ -9,15 +9,20 @@
  * 3. O periodo so oferece a opcao que muda o recorte.
  * 4. No radar, eixo nao lido nao vira zero.
  * 5. O enxame do grafico de prova e deterministico e nao sobrepoe pontos.
+ * 6. A busca diz onde casou: marca o termo no texto visivel e nomeia o campo
+ *    quando o termo nao esta na linha.
+ * 7. Nome de ponto nao encobre ponto nem outro nome e fica do mesmo lado da
+ *    zona que o ponto; quem responde a pergunta do quadro ganha nome sempre.
+ * 8. O eixo so corta o que foge muito: valor a menos de um passo da borda entra.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   aplicaLentes, lenteValida, rotuloLente, ordenar, comDado, ORDENS, buscar, periodos, noPeriodo,
-  radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ,
+  radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ, realcar, ondeAchou,
 } from '../../painel-v2/src/lib/dados.js';
-import { enxame } from '../../painel-v2/src/lib/tema.js';
+import { enxame, rotular, toca, dominio } from '../../painel-v2/src/lib/tema.js';
 
 const RADAR = { atencao: 50, solidez: 50, ganho: 50, facilidade: 50, abertura: 50, amplitude: 50 };
 function paper(id, o = {}) {
@@ -102,6 +107,23 @@ test('a busca ignora acento e caixa e exige todos os termos', () => {
   assert.equal(buscar(ps, '   '), ps);
 });
 
+test('a busca marca o termo no texto, sem trocar o texto', () => {
+  const pedacos = realcar('Geração de Vídeo: geracao rápida', 'GERACAO video');
+  assert.equal(pedacos.map((x) => x[0]).join(''), 'Geração de Vídeo: geracao rápida');
+  assert.deepEqual(pedacos.filter((x) => x[1]).map((x) => x[0]), ['Geração', 'Vídeo', 'geracao']);
+  assert.deepEqual(realcar('Sem termo', '  '), [['Sem termo', false]]);
+  assert.deepEqual(realcar('Nada casa aqui', 'xyz'), [['Nada casa aqui', false]]);
+});
+
+test('a busca nomeia o campo quando o termo nao esta na linha', () => {
+  const p = paper('a', { t: 'Agent Harness', org: 'USP', cam: 'agente_harness', ar: ['robotica_acao'], ents: [['Qwen2.5-VL', 'modelo']] });
+  assert.equal(ondeAchou(p, 'agent'), '', 'termo no titulo');
+  assert.equal(ondeAchou(p, 'metodo harness'), '', 'tipo e camada ja aparecem na linha');
+  assert.equal(ondeAchou(p, 'usp'), 'Organização: USP');
+  assert.equal(ondeAchou(p, 'qwen robotica'), 'Cita: Qwen2.5-VL · Arena: Robótica');
+  assert.equal(ondeAchou(p, ''), '');
+});
+
 test('o periodo so oferece a opcao que muda o recorte', () => {
   const dias = ['2026-11-01', '2026-11-09', '2026-11-10'];
   const dados = { dias, papers: [paper('a', { d: '2026-11-10' }), paper('b', { d: '2026-11-09' }), paper('c', { d: '2026-11-01' })] };
@@ -132,6 +154,44 @@ test('o enxame e deterministico, nao sobrepoe pontos e cabe na faixa', () => {
   // sem espaco, encolhe para dentro da faixa em vez de vazar para a linha vizinha
   const apertado = enxame(Array.from({ length: 30 }, () => ({ x: 0, y: 0 })), 40);
   for (const dy of apertado) assert.ok(Math.abs(dy) <= 40 / 2 - 6.5 - 1 + 1e-9);
+});
+
+test('nome de ponto nao encobre ponto nem outro nome e respeita a zona', () => {
+  const area = [0, 0, 300, 200], zona = [0, 0, 200, 100], linhas = [[198, 0, 4, 200], [0, 98, 300, 4]];
+  const itens = [
+    { x: 40, y: 60, r: 8, w: 60, dentro: true, obrigatorio: true },      // na zona
+    { x: 170, y: 55, r: 8, w: 90, dentro: true, obrigatorio: true },     // na zona, perto da linha de custo igual
+    { x: 215, y: 30, r: 6, w: 50, dentro: false },                       // fora, logo depois da linha
+    { x: 212, y: 44, r: 6, w: 120, dentro: false },                      // fora, sem lugar limpo para um nome longo
+    { x: 120, y: 160, r: 6, w: 80, dentro: false },                      // fora, embaixo
+  ];
+  const cx = rotular(itens, { area, zona, linhas });
+  assert.deepEqual(rotular(itens, { area, zona, linhas }), cx, 'mesma entrada, mesmo desenho');
+  assert.ok(cx[0] && cx[1], 'quem responde a pergunta tem nome');
+  assert.equal(cx[3], null, 'sem lugar limpo, o nome nao entra');
+  const bolas = itens.map((o) => [o.x - o.r, o.y - o.r, 2 * o.r, 2 * o.r]);
+  cx.forEach((c, i) => {
+    if (!c) return;
+    assert.ok(c[0] >= area[0] && c[0] + c[2] <= area[0] + area[2] && c[1] >= area[1] && c[1] + c[3] <= area[1] + area[3], `nome ${i} dentro da area`);
+    bolas.forEach((b, j) => { if (j !== i) assert.ok(!toca(c, b), `nome ${i} encobre o ponto ${j}`); });
+    cx.forEach((d, j) => { if (d && j > i) assert.ok(!toca(c, d), `nomes ${i} e ${j} se sobrepoem`); });
+    linhas.forEach((l) => assert.ok(!toca(c, l), `nome ${i} cruza linha de referencia`));
+    if (itens[i].dentro) assert.ok(c[0] >= zona[0] && c[0] + c[2] <= zona[0] + zona[2] && c[1] + c[3] <= zona[1] + zona[3], `nome ${i} fica na zona`);
+    else assert.ok(!toca(c, zona), `nome ${i}, de fora, entra na zona`);
+  });
+  // apertado, o obrigatorio ainda ganha nome (no lugar menos ruim); o opcional, nao
+  const junto = [{ x: 50, y: 50, r: 8, w: 280, dentro: true, obrigatorio: true }, { x: 60, y: 60, r: 6, w: 280, dentro: false }];
+  const ap = rotular(junto, { area, zona, linhas });
+  assert.ok(ap[0]); assert.equal(ap[1], null);
+});
+
+test('o eixo so corta o que foge muito', () => {
+  // -12,6 fica a menos de um passo de -10: entra. +66 foge do conjunto: fica de fora, para ser desenhado na borda.
+  const [d0, d1, passo] = dominio([-12.6, 3.4, 4.7, 7.8, 10.2], { inclui: [-10, 10] });
+  assert.equal(passo, 5); assert.equal(d0, -15); assert.ok(d1 >= 10.2);
+  const [, e1] = dominio([66.2, 21.4, 12.7, 10.2, 7.8, 4.7, 4.2, 3.4, 1.2, 0.6, 0.6, 0.3, -1.1, -9.2, -12.6]);
+  assert.ok(e1 < 66.2 && e1 >= 21.4);
+  assert.deepEqual(dominio([]), [0, 5, 5]);
 });
 
 test('textos de apoio: intervalo, plural, sinal e nome curto', () => {
