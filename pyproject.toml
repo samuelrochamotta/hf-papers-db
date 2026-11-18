@@ -36,6 +36,7 @@ packages = ["src/hfpapers"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["slow: teste lento; o Stop hook (.claude/hooks/verificar_ao_parar.sh) pula com -m \"not slow\""]
 # scripts/ e paineis/v1|v2 entram no path pelos testes dos scripts e dos
 # geradores dos paineis: nao sao modulos do pacote, mas a regra de
 # ranqueamento do hall e o export do v2 sao logica de verdade e precisam de teste.

@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/verificar_ao_parar.sh",
+            "timeout": 120
+          }
+        ]
+      }
     ]
   }
 }
