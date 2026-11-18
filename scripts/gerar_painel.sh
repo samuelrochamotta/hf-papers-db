@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Geracao do painel HTML estatico, para o launchd (macOS).
+# Geracao do painel v1 estatico, para o launchd (macOS).
 #
 # Roda DEPOIS do pipeline, nao junto: o gatilho e `WatchPaths` em
 # marts/_manifest.json, que o estagio de export escreve por ultimo e de forma

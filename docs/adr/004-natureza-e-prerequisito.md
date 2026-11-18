@@ -76,7 +76,7 @@ de servir:
 - **Valer só daqui para frente**: dois regimes para sempre no banco, no painel
   e nos Parquet, por uma economia de ~US$ 6,5.
 
-## Adendo (21/10/2026): o painel HTML deixa o pré-requisito de fora
+## Adendo (21/10/2026): o painel v1 deixa o pré-requisito de fora
 
 Depois da reclassificação total, a coluna de pré-requisito no painel, os perfis
 de leitura e o Padrão Extraído se mostraram mais confusos do que úteis: os

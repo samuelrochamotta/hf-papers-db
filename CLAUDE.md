@@ -1,5 +1,22 @@
 # CLAUDE.md
 
+## Painel
+
+O foco do repositório é o desenvolvimento do painel v2. A v1 é só para consumo
+pessoal: não a evolua nem priorize mudanças nela, salvo pedido explícito.
+
+O código dos dois painéis fica em `paineis/`. `relatorios/painel/` e
+`relatorios/painel-v2/` são gerados; edite a fonte.
+
+- **v1 (consumo pessoal):** `paineis/v1/gerar_painel.py` e
+  `paineis/v1/painel_app.js`. Gere a prévia com `python paineis/v1/gerar_painel.py --force --destino /tmp/previa.html`.
+- **v2:** o front-end fica em `paineis/v2/` (Svelte), e os dados vêm de
+  `paineis/v2/gerar_painel_v2.py`. Antes de mexer, leia
+  `docs/adr/007-painel-v2.md`.
+
+Caso precise, as abas, o agendamento e a publicação estão no `README.md`, nas seções
+"Agendamento", "Painel v1" e "Painel v2".
+
 ## Ambiente
 
 - Python local: `/opt/miniconda3/envs/digest-hf/bin/python` (env conda
@@ -26,20 +43,6 @@ _Avoid_.
 Antes de mexer em `prompts/`, nos estágios A/B ou na grade, leia
 `docs/adr/004-natureza-e-prerequisito.md`, o ADR da área tocada em `docs/adr/`
 e a spec correspondente em `docs/specs/`, se houver.
-
-## Painel
-
-O código dos dois painéis fica em `paineis/`. `relatorios/painel/` e
-`relatorios/painel-v2/` são gerados; edite a fonte.
-
-- **v1:** `paineis/v1/gerar_painel.py` e `paineis/v1/painel_app.js`. Gere a
-  prévia com `python paineis/v1/gerar_painel.py --force --destino /tmp/previa.html`.
-- **v2:** o front-end fica em `paineis/v2/` (Svelte), e os dados vêm de
-  `paineis/v2/gerar_painel_v2.py`. Antes de mexer, leia
-  `docs/adr/007-painel-v2.md`.
-
-As abas, o agendamento e a publicação estão no `README.md`, nas seções
-"Agendamento", "Painel HTML" e "Painel v2".
 
 ## Git
 

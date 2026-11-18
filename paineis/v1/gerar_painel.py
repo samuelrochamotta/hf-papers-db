@@ -1,4 +1,4 @@
-"""Gera o painel HTML estatico a partir dos Parquet de marts/.
+"""Gera o painel v1 estatico a partir dos Parquet de marts/.
 
 E a interface de leitura do projeto: nao ha outro dashboard. O painel e um
 site estatico publico (GitHub Pages), sem servidor: uma pasta com
@@ -917,7 +917,7 @@ def escrever(arquivos: dict[str, str], destino: Path) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(description="Gera o painel HTML estatico de marts/.")
+    ap = argparse.ArgumentParser(description="Gera o painel v1 estatico de marts/.")
     ap.add_argument(
         "--dias",
         type=int,

@@ -3,7 +3,7 @@
 - **Data**: 2026-11-14
 - **Estado**: aceito
 - **Supera**: a frase do README e de `paineis/v1/gerar_painel.py` que tratava o
-  painel HTML como vitrine de distribuição e uma ferramenta de BI externa como
+  painel v1 como vitrine de distribuição e uma ferramenta de BI externa como
   a interface de leitura.
 
 ## Decisão

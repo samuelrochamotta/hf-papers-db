@@ -66,7 +66,7 @@ launchctl kickstart -k gui/$(id -u)/com.samuelrochamotta.hfpapers-db
 tail -f logs/run_*.log
 ```
 
-## Painel HTML
+## Painel v1
 
 Um site estático, sem servidor, publicado no GitHub Pages. `paineis/v1/gerar_painel.py`
 lê os Parquet e grava `relatorios/painel/`:
