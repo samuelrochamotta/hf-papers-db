@@ -24,7 +24,6 @@ import datetime as dt
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "src"))
@@ -34,7 +33,7 @@ from hfpapers.leitura.derivar import derivar_todos  # noqa: E402
 DESTINO = RAIZ / "relatorios" / "painel-v2" / "dados.json"
 
 
-def do_banco(dias: int, hoje: Optional[dt.date] = None) -> dict:
+def do_banco(dias: int, hoje: dt.date | None = None) -> dict:
     from hfpapers import db
     from hfpapers.config import config
 
@@ -94,7 +93,7 @@ def montar(itens: list, faltam: list, modelo: str) -> dict:
     }
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--dias", type=int, default=14)
     ap.add_argument("--extracoes", type=Path)

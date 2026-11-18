@@ -14,16 +14,17 @@ from __future__ import annotations
 import math
 import re
 import statistics as st
-from typing import Any, Iterable, Optional, cast
+from collections.abc import Iterable
+from typing import Any, cast
 
 GRAVE = {"preliminar", "amostra_pequena", "pesos_ficticios"}
-RANK_ARTEFATO: dict[Optional[str], int] = {"liberado": 4, "prometido": 3, "so_pagina": 2, "ausente": 1}
+RANK_ARTEFATO: dict[str | None, int] = {"liberado": 4, "prometido": 3, "so_pagina": 2, "ausente": 1}
 FATOR_ARTEFATO = {"liberado": 1.0, "prometido": 0.4, "so_pagina": 0.15, "ausente": 0.0}
 PESO_ARTEFATO = {"codigo": 0.4, "pesos": 0.3, "dados": 0.2, "demo": 0.1}
 EIXOS = ("ganho", "solidez", "abertura", "facilidade", "amplitude", "atencao")
 
 
-def num(x: Any) -> Optional[float]:
+def num(x: Any) -> float | None:
     try:
         v = float(x)
     except (TypeError, ValueError):
@@ -36,7 +37,7 @@ def _valor(linha: dict) -> float:
     return cast(float, num(linha["valor"]))
 
 
-def _pm(linha: dict) -> Optional[float]:
+def _pm(linha: dict) -> float | None:
     return num(linha.get("pm")) if linha.get("pm") is not None else None
 
 
@@ -60,7 +61,7 @@ def url_segura(u):
     return u.strip() if isinstance(u, str) and _HTTP.match(u) else None
 
 
-def resultado(r: dict) -> Optional[dict]:
+def resultado(r: dict) -> dict | None:
     """Uma tabela comparativa: melhor linha nossa contra o melhor rival
     externo e contra a linha fraca (base ou trivial), no sentido da metrica.
     Linha cujo numero nao foi achado no texto fica de fora."""
@@ -71,7 +72,7 @@ def resultado(r: dict) -> Optional[dict]:
     menor = r.get("direcao") == "menor_melhor"
     escolher = min if menor else max
 
-    def melhor(xs: list[dict]) -> Optional[dict]:
+    def melhor(xs: list[dict]) -> dict | None:
         return escolher(xs, key=_valor) if xs else None
 
     nos = melhor([l for l in linhas if l.get("papel") == "nosso"])
@@ -79,13 +80,13 @@ def resultado(r: dict) -> Optional[dict]:
     fracas = [l for l in linhas if l.get("papel") in ("base", "trivial")]
     fraca = (max if menor else min)(fracas, key=_valor) if fracas else None
 
-    def delta(x: Optional[dict]) -> Optional[float]:
+    def delta(x: dict | None) -> float | None:
         if not nos or not x:
             return None
         d = _valor(nos) - _valor(x)
         return round(-d if menor else d, 4)
 
-    def relativo(x: Optional[dict]) -> Optional[float]:
+    def relativo(x: dict | None) -> float | None:
         d = delta(x)
         base = num(x["valor"]) if x else None
         if d is None or not base:
@@ -123,13 +124,13 @@ def resultado(r: dict) -> Optional[dict]:
 # ── sinais de solidez ───────────────────────────────────────────────────────
 
 
-def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, Optional[float], Optional[dict]]:
+def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, float | None, dict | None]:
     comp = [r for r in res if r["ext"] and r["nos"]]
     vit = round(sum(r["e"] == "ganha" for r in comp) / len(comp), 2) if comp else None
     # O que o codigo nao achou no texto nao conta como sinal.
     e: dict = o["estatistica"] if _ok(o.get("estatistica")) else {}
     ev = o.get("evidencia") or []
-    sig: dict[str, Optional[bool]] = {}
+    sig: dict[str, bool | None] = {}
     v = e.get("variancia")
     sig["var"] = True if v in ("pm_definido", "ic") else (
         False if v == "pm_sem_definicao" or (v == "nenhuma" and not parcial) else None)
@@ -182,7 +183,7 @@ def solidez(sig: dict) -> tuple[str, int, int]:
 # ── abertura e esforco ──────────────────────────────────────────────────────
 
 
-def abertura(o: dict, parcial: bool, github: Optional[str]) -> tuple[dict, bool]:
+def abertura(o: dict, parcial: bool, github: str | None) -> tuple[dict, bool]:
     ab: dict[str, Any] = {}
     for t in PESO_ARTEFATO:
         estados = [x.get("estado") for x in _conferidos(o.get("artefatos")) if x.get("tipo") == t]
@@ -195,7 +196,7 @@ def abertura(o: dict, parcial: bool, github: Optional[str]) -> tuple[dict, bool]
     return ab, conferido
 
 
-def esforco(entrega: str, camada: Optional[str], ab: dict) -> int:
+def esforco(entrega: str, camada: str | None, ab: dict) -> int:
     liberado = any(ab[t] == "liberado" for t in ("codigo", "pesos", "dados"))
     if entrega in ("panorama_posicao", "estudo"):
         return 0
@@ -227,7 +228,7 @@ def amplitude(n: int) -> int:
     return round(min(100.0, 100 * math.log1p(n) / math.log1p(TETO_BENCH)))
 
 
-def faixa_abertura(ab: dict) -> tuple[Optional[int], Optional[int]]:
+def faixa_abertura(ab: dict) -> tuple[int | None, int | None]:
     """Abertura como faixa: (confirmado, maximo possivel), de 0 a 100.
     O confirmado soma o que foi lido (artefato nao lido nao soma nada); o
     maximo soma o que foi lido e trata todo artefato nao lido como liberado.
@@ -240,7 +241,7 @@ def faixa_abertura(ab: dict) -> tuple[Optional[int], Optional[int]]:
     return round(100 * conf), round(100 * (conf + falta))
 
 
-def radar(p: dict) -> dict[str, Optional[float]]:
+def radar(p: dict) -> dict[str, float | None]:
     """Seis eixos de 0 a 100. `None` quando o texto lido nao permite medir,
     o que o painel desenha como "nao lido", nunca como zero."""
     rx = [r["rext"] for r in p["res"] if r["rext"] is not None]

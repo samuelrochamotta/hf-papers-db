@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -24,7 +24,7 @@ def id_base(paper_id: str) -> str:
     return RE_VERSAO.sub("", (paper_id or "").strip())
 
 
-def _data(valor: Any) -> Optional[dt.date]:
+def _data(valor: Any) -> dt.date | None:
     """ISO do HF (`2026-08-24T00:00:00.000Z`) -> date. Nunca levanta."""
     if valor is None:
         return None
@@ -46,32 +46,32 @@ class _Base(BaseModel):
 
 
 class Usuario(_Base):
-    name: Optional[str] = None
-    fullname: Optional[str] = None
-    user: Optional[str] = None
+    name: str | None = None
+    fullname: str | None = None
+    user: str | None = None
 
     @property
-    def login(self) -> Optional[str]:
+    def login(self) -> str | None:
         return self.user or self.name
 
 
 class Organizacao(_Base):
-    name: Optional[str] = None
-    fullname: Optional[str] = None
+    name: str | None = None
+    fullname: str | None = None
 
 
 class Autor(_Base):
-    name: Optional[str] = None
+    name: str | None = None
     hidden: bool = False
-    status: Optional[str] = None          # 'claimed_verified' no endpoint por-paper
-    user: Optional[Usuario] = None
+    status: str | None = None          # 'claimed_verified' no endpoint por-paper
+    user: Usuario | None = None
 
     @property
     def verificado(self) -> bool:
         return self.status == "claimed_verified"
 
     @property
-    def hf_user(self) -> Optional[str]:
+    def hf_user(self) -> str | None:
         return self.user.login if self.user else None
 
 
@@ -80,26 +80,26 @@ class Paper(_Base):
 
     id: str
     title: str
-    summary: Optional[str] = None
+    summary: str | None = None
     authors: list[Autor] = Field(default_factory=list)
-    publishedAt: Optional[dt.date] = None          # data informada pelo HF; pode corresponder a uma revisao, nao v1
-    submittedOnDailyAt: Optional[dt.date] = None   # entrada na lista diaria do HF
-    submittedOnDailyBy: Optional[Usuario] = None
-    upvotes: Optional[int] = None
-    githubStars: Optional[int] = None
-    githubRepo: Optional[str] = None
-    githubRepoAddedBy: Optional[str] = None
-    projectPage: Optional[str] = None
-    discussionId: Optional[str] = None
-    ai_summary: Optional[str] = None
+    publishedAt: dt.date | None = None          # data informada pelo HF; pode corresponder a uma revisao, nao v1
+    submittedOnDailyAt: dt.date | None = None   # entrada na lista diaria do HF
+    submittedOnDailyBy: Usuario | None = None
+    upvotes: int | None = None
+    githubStars: int | None = None
+    githubRepo: str | None = None
+    githubRepoAddedBy: str | None = None
+    projectPage: str | None = None
+    discussionId: str | None = None
+    ai_summary: str | None = None
     ai_keywords: list[str] = Field(default_factory=list)
-    ai_summary_model: Optional[str] = None
-    organization: Optional[Organizacao] = None
+    ai_summary_model: str | None = None
+    organization: Organizacao | None = None
 
     # so no endpoint por-paper
-    numTotalModels: Optional[int] = None
-    numTotalDatasets: Optional[int] = None
-    numTotalSpaces: Optional[int] = None
+    numTotalModels: int | None = None
+    numTotalDatasets: int | None = None
+    numTotalSpaces: int | None = None
 
     @field_validator("publishedAt", "submittedOnDailyAt", mode="before")
     @classmethod
@@ -134,19 +134,19 @@ class ItemDiario(_Base):
     """
 
     paper: Paper
-    numComments: Optional[int] = None
-    thumbnail: Optional[str] = None
-    submittedBy: Optional[Usuario] = None
-    organization: Optional[Organizacao] = None
-    isAuthorParticipating: Optional[bool] = None
+    numComments: int | None = None
+    thumbnail: str | None = None
+    submittedBy: Usuario | None = None
+    organization: Organizacao | None = None
+    isAuthorParticipating: bool | None = None
 
 
 def paper_para_dim(
     paper: Paper,
     *,
-    item: Optional[ItemDiario] = None,
-    primeiro_visto_em: Optional[str] = None,
-    enriquecido_em: Optional[str] = None,
+    item: ItemDiario | None = None,
+    primeiro_visto_em: str | None = None,
+    enriquecido_em: str | None = None,
 ) -> dict[str, Any]:
     """Achata Paper (+ envelope, quando houver) na linha de `dim_paper`."""
     org = paper.organization or (item.organization if item else None)
@@ -186,7 +186,7 @@ def paper_para_metrica(
     *,
     data_snapshot: dt.date,
     origem: str,
-    comentarios: Optional[int] = None,
+    comentarios: int | None = None,
 ) -> dict[str, Any]:
     return {
         "paper_id": paper.paper_id,

@@ -12,8 +12,9 @@ import json
 import sqlite3
 import time
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Optional, Sequence
+from typing import Any
 
 from .. import db
 from ..config import Config, config
@@ -36,8 +37,8 @@ class ResultadoLeitura:
 
 
 def candidatos(conn: sqlite3.Connection, cfg: Config, *, dias: int, min_votos: int,
-               ids: Optional[Sequence[str]] = None, refazer: bool = False,
-               hoje: Optional[dt.date] = None) -> list[dict]:
+               ids: Sequence[str] | None = None, refazer: bool = False,
+               hoje: dt.date | None = None) -> list[dict]:
     """Papers do HF Daily na janela, do mais votado para o menos votado."""
     hoje = hoje or dt.date.today()
     filtros, params = [], []
@@ -80,9 +81,9 @@ def gravar(conn: sqlite3.Connection, cfg: Config, lt: extrator.Leitura, fonte: s
         )
 
 
-def rodar(conn: sqlite3.Connection, cfg: Optional[Config] = None, *, dias: Optional[int] = None,
-          limite: Optional[int] = None, min_votos: Optional[int] = None,
-          ids: Optional[Sequence[str]] = None, refazer: bool = False,
+def rodar(conn: sqlite3.Connection, cfg: Config | None = None, *, dias: int | None = None,
+          limite: int | None = None, min_votos: int | None = None,
+          ids: Sequence[str] | None = None, refazer: bool = False,
           cliente: Any = None, http: Any = None) -> ResultadoLeitura:
     cfg = cfg or config()
     lc = cfg.leitura

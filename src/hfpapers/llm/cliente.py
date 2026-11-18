@@ -12,13 +12,15 @@ codigo. A chave nunca aparece em log, nem em mensagem de erro.
 
 from __future__ import annotations
 
+import functools
 import json
 import sqlite3
 import threading
 import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterator, Optional
+from typing import Any
 
 import httpx
 from openai import OpenAI
@@ -157,7 +159,7 @@ class Uso:
     # tem o preco cheio de entrada/saida, sem a tarifa de leitura de cache.
     tokens_cache_leitura: int = 0
 
-    def somar(self, outro: "Uso") -> None:
+    def somar(self, outro: Uso) -> None:
         self.tokens_entrada += outro.tokens_entrada
         self.tokens_saida += outro.tokens_saida
         self.custo_usd += outro.custo_usd
@@ -186,7 +188,7 @@ class Preco:
         return tokens_entrada * self.entrada_por_token + tokens_saida * self.saida_por_token
 
 
-def catalogo_modelos(cfg: Optional[Config] = None, *, timeout: float = 30.0) -> list[dict]:
+def catalogo_modelos(cfg: Config | None = None, *, timeout: float = 30.0) -> list[dict]:
     cfg = cfg or config()
     chave = ambiente().chave_openrouter()
     headers = {"Authorization": f"Bearer {chave}"} if chave else {}
@@ -200,7 +202,7 @@ def suporta_saida_estruturada(modelo: dict) -> bool:
     return "structured_outputs" in sp or "response_format" in sp
 
 
-def tabela_precos(cfg: Optional[Config] = None) -> dict[str, Preco]:
+def tabela_precos(cfg: Config | None = None) -> dict[str, Preco]:
     precos: dict[str, Preco] = {}
     for m in catalogo_modelos(cfg):
         p = m.get("pricing") or {}
@@ -211,7 +213,7 @@ def tabela_precos(cfg: Optional[Config] = None) -> dict[str, Preco]:
     return precos
 
 
-def tabela_parametros(cfg: Optional[Config] = None) -> dict[str, set[str]]:
+def tabela_parametros(cfg: Config | None = None) -> dict[str, set[str]]:
     """Quais parametros cada modelo aceita, segundo o proprio OpenRouter.
 
     Isto importa por causa do `require_parameters`: ele roteia so para provedor
@@ -231,17 +233,17 @@ class ClienteLLM:
     # Default de classe, nao so de `__init__`: dubles de teste e clientes
     # montados por `__new__` tambem precisam responder "nao estou bufferizando".
     # Ligar o buffer atribui uma lista *na instancia*, sem vazar entre elas.
-    _buffer: Optional[list[dict]] = None
+    _buffer: list[dict] | None = None
 
     def __init__(
         self,
-        cfg: Optional[Config] = None,
+        cfg: Config | None = None,
         *,
-        conn: Optional[sqlite3.Connection] = None,
+        conn: sqlite3.Connection | None = None,
         run_id: str = "sem-run",
-        cliente: Optional[OpenAI] = None,
-        precos: Optional[dict[str, Preco]] = None,
-        parametros: Optional[dict[str, set[str]]] = None,
+        cliente: OpenAI | None = None,
+        precos: dict[str, Preco] | None = None,
+        parametros: dict[str, set[str]] | None = None,
     ) -> None:
         self.cfg = cfg or config()
         self.conn = conn
@@ -249,7 +251,7 @@ class ClienteLLM:
         self.uso = Uso()
         self._precos = precos
         self._parametros = parametros
-        self._buffer: Optional[list[dict]] = None
+        self._buffer: list[dict] | None = None
 
         if cliente is not None:
             self.openai = cliente
@@ -274,8 +276,8 @@ class ClienteLLM:
 
     @classmethod
     def somente_precos(
-        cls, cfg: Optional[Config] = None, *, precos: Optional[dict[str, Preco]] = None
-    ) -> "ClienteLLM":
+        cls, cfg: Config | None = None, *, precos: dict[str, Preco] | None = None
+    ) -> ClienteLLM:
         """Instancia sem cliente de chat, para o `--dry-run`: le a tabela de
         precos e nao e capaz de gastar token."""
         obj = cls.__new__(cls)
@@ -335,13 +337,13 @@ class ClienteLLM:
         etapa: str,
         modelo: str,
         prompt: str,
-        sistema: Optional[str] = None,
+        sistema: str | None = None,
         response_format: dict[str, Any],
         temperatura: float = 0.0,
         max_tokens: int = 1200,
-        esforco_raciocinio: Optional[str] = None,
-        paper_id: Optional[str] = None,
-        validar: Optional[Callable[[dict], None]] = None,
+        esforco_raciocinio: str | None = None,
+        paper_id: str | None = None,
+        validar: Callable[[dict], None] | None = None,
     ) -> Resposta:
         """Uma chamada com saida estruturada, com retentativa.
 
@@ -353,14 +355,14 @@ class ClienteLLM:
         espera = self.cfg.llm.retry.backoff_inicial_s
         prompt_atual = prompt
         teto_saida = max_tokens
-        ultimo_erro: Optional[Exception] = None
+        ultimo_erro: Exception | None = None
         t0 = time.monotonic()
 
         for tentativa in range(1, tentativas + 1):
             uso = Uso()
             # Reiniciado a cada volta: a tentativa que morre antes da resposta
             # nao tem provedor, e herdar o da anterior seria acusar inocente.
-            provedor: Optional[str] = None
+            provedor: str | None = None
             try:
                 mensagens: list[ChatCompletionMessageParam] = []
                 if sistema:
@@ -394,17 +396,17 @@ class ClienteLLM:
                 if self.aceita(modelo, "temperature"):
                     extras["temperature"] = temperatura
 
-                def _criar() -> Any:
-                    # `response_format` e `extra_body` seguem o OpenRouter, nao
-                    # os TypedDict do SDK da OpenAI.
-                    return self.openai.chat.completions.create(  # type: ignore[call-overload]
-                        model=modelo,
-                        messages=mensagens,
-                        max_tokens=teto_saida,
-                        response_format=response_format,
-                        extra_body=corpo_extra,
-                        **extras,
-                    )
+                # `partial` fixa os argumentos agora: a thread que `_com_prazo`
+                # abandona nao pode ler as variaveis da tentativa seguinte.
+                _criar: Callable[[], Any] = functools.partial(
+                    self.openai.chat.completions.create,
+                    model=modelo,
+                    messages=mensagens,
+                    max_tokens=teto_saida,
+                    response_format=response_format,
+                    extra_body=corpo_extra,
+                    **extras,
+                )
 
                 prazo = self.cfg.llm.prazo_total_s
                 r = _com_prazo(_criar, prazo) if prazo > 0 else _criar()
@@ -534,12 +536,12 @@ class ClienteLLM:
         self,
         etapa: str,
         modelo: str,
-        paper_id: Optional[str],
+        paper_id: str | None,
         uso: Uso,
         tentativa: int,
-        erro: Optional[str],
-        latencia_ms: Optional[int] = None,
-        provedor: Optional[str] = None,
+        erro: str | None,
+        latencia_ms: int | None = None,
+        provedor: str | None = None,
     ) -> None:
         if self.conn is None:
             return

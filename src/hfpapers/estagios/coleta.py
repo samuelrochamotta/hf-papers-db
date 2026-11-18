@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Sequence
 
 from .. import db
 from ..fontes.hf_client import ClienteHF, ErroHF
@@ -33,7 +33,7 @@ class ResultadoColeta:
 
 
 def dias_faltantes(
-    conn: sqlite3.Connection, *, hoje: Optional[dt.date] = None, limite: int = 30
+    conn: sqlite3.Connection, *, hoje: dt.date | None = None, limite: int = 30
 ) -> list[dt.date]:
     """Do ultimo dia coberto ate hoje. Fim de semana entra na lista mesmo assim:
     o feed simplesmente devolve vazio e isso nao e erro (secao 2.4)."""
@@ -80,7 +80,7 @@ def gravar_itens(
     conn: sqlite3.Connection,
     itens: Sequence[ItemDiario],
     *,
-    data_snapshot: Optional[dt.date] = None,
+    data_snapshot: dt.date | None = None,
     origem: str = "daily",
 ) -> tuple[list[str], int]:
     """Upsert de dim_paper + metrica do dia + pontes. Devolve (ids novos, ja vistos)."""
@@ -115,8 +115,8 @@ def rodar(
     conn: sqlite3.Connection,
     cliente: ClienteHF,
     *,
-    datas: Optional[Iterable[dt.date]] = None,
-    hoje: Optional[dt.date] = None,
+    datas: Iterable[dt.date] | None = None,
+    hoje: dt.date | None = None,
     coletados_min_dia_util: int = 15,
 ) -> ResultadoColeta:
     hoje = hoje or db.hoje()

@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from dotenv import load_dotenv
@@ -31,9 +30,9 @@ class Ambiente(BaseSettings):
         extra="ignore",
     )
 
-    openrouter_api_key: Optional[SecretStr] = Field(default=None)
+    openrouter_api_key: SecretStr | None = Field(default=None)
 
-    def chave_openrouter(self) -> Optional[str]:
+    def chave_openrouter(self) -> str | None:
         return self.openrouter_api_key.get_secret_value() if self.openrouter_api_key else None
 
 
@@ -64,7 +63,7 @@ class EstagioLLM(BaseModel):
     # `None` nao manda o campo: modelo que nao anuncia `reasoning` sai da lista
     # de provedores sob `require_parameters` e a chamada volta 404 - a mesma
     # armadilha do `temperature` (issue #1).
-    esforco_raciocinio: Optional[str] = None
+    esforco_raciocinio: str | None = None
 
     @property
     def configurado(self) -> bool:
@@ -230,7 +229,7 @@ class Config(BaseModel):
         return self._abs(self.paths.relatorios)
 
 
-def carregar_config(caminho: Optional[Path] = None) -> Config:
+def carregar_config(caminho: Path | None = None) -> Config:
     """Le o config.yaml. Ausencia do arquivo nao e erro: os defaults valem."""
     caminho = caminho or Path(os.environ.get("HFPAPERS_CONFIG", RAIZ / "config.yaml"))
     dados: dict = {}

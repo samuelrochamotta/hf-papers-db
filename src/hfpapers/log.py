@@ -12,7 +12,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _PADROES_SEGREDO = [
     re.compile(r"sk-or-v1-[A-Za-z0-9\-_]{8,}"),
@@ -65,7 +65,7 @@ _CONFIGURADO = False
 
 
 def configurar(
-    dir_logs: Optional[Path] = None, *, nivel: str = "INFO", arquivo: str = "hfpapers.jsonl"
+    dir_logs: Path | None = None, *, nivel: str = "INFO", arquivo: str = "hfpapers.jsonl"
 ) -> None:
     global _CONFIGURADO
     if _CONFIGURADO:

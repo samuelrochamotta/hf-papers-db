@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from ..config import Config, config
 from ..log import logger
@@ -89,22 +89,22 @@ class Ficha:
     implicacao_pratica: str
     exemplo_concreto: str
     ressalva: str
-    padrao_nome: Optional[str] = None
-    padrao_mecanismo: Optional[str] = None
+    padrao_nome: str | None = None
+    padrao_mecanismo: str | None = None
 
 
 @dataclass
 class ResultadoB:
     paper_id: str
-    regra_fora: Optional[str]
-    natureza: Optional[str]
-    padrao_extraido: Optional[dict[str, str]]
-    prerequisito: Optional[str]
-    pratica_contradita: Optional[str]
-    falta_o_como: Optional[str]
-    artefato_status: Optional[str]
+    regra_fora: str | None
+    natureza: str | None
+    padrao_extraido: dict[str, str] | None
+    prerequisito: str | None
+    pratica_contradita: str | None
+    falta_o_como: str | None
+    artefato_status: str | None
     justificativa: str
-    ficha: Optional[Ficha]
+    ficha: Ficha | None
     uso: Uso = field(default_factory=Uso)
     avisos: list[str] = field(default_factory=list)
 
@@ -120,7 +120,7 @@ class ResultadoB:
 # ── validacoes ──────────────────────────────────────────────────────────────
 
 
-def _texto(valor: Any) -> Optional[str]:
+def _texto(valor: Any) -> str | None:
     """Texto aparado, ou None. Vazio e ausencia: nao vale retentativa."""
     if not isinstance(valor, str):
         return None
@@ -150,7 +150,7 @@ def nomes_proprios(titulo: str) -> set[str]:
     return nomes
 
 
-def _cita_nome(texto: str, nomes: set[str]) -> Optional[str]:
+def _cita_nome(texto: str, nomes: set[str]) -> str | None:
     for nome in sorted(nomes):
         if re.search(rf"(?<![A-Za-z0-9]){re.escape(nome)}(?![A-Za-z0-9])", texto):
             return nome
@@ -234,7 +234,7 @@ def validar(dados: dict[str, Any], titulo: str = "") -> None:
 
 
 def avisos_de_coerencia(
-    r: "ResultadoB", vertentes: list[str], evidencia_artefato: bool
+    r: ResultadoB, vertentes: list[str], evidencia_artefato: bool
 ) -> list[str]:
     """Combinacoes possiveis mas suspeitas: viram aviso, nunca retentativa."""
     if not r.aprovado:
@@ -257,7 +257,7 @@ def avisos_de_coerencia(
 # ── prompt e chamada ────────────────────────────────────────────────────────
 
 
-def montar_prompt(paper: PaperEntrada, cfg: Optional[Config] = None) -> str:
+def montar_prompt(paper: PaperEntrada, cfg: Config | None = None) -> str:
     resumo = (
         f"**Resumo gerado pelo HF:**\n{paper.ai_summary}" if paper.ai_summary else ""
     )
@@ -284,7 +284,7 @@ def _texto_evidencia(paper: PaperEntrada) -> str:
 
 
 def avaliar(
-    cliente: ClienteLLM, paper: PaperEntrada, *, cfg: Optional[Config] = None
+    cliente: ClienteLLM, paper: PaperEntrada, *, cfg: Config | None = None
 ) -> ResultadoB:
     cfg = cfg or config()
     est = cfg.llm.estagio_b

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from . import db, taxonomia
 from .config import Config, ambiente, config
@@ -24,7 +24,7 @@ class Item:
     dados: dict[str, Any] = field(default_factory=dict)
 
 
-def _ultimo_dia_util(hoje: Optional[dt.date] = None) -> dt.date:
+def _ultimo_dia_util(hoje: dt.date | None = None) -> dt.date:
     d = (hoje or dt.date.today()) - dt.timedelta(days=1)
     while d.isoweekday() > 5:
         d -= dt.timedelta(days=1)
@@ -335,7 +335,7 @@ def checar_pendencias(cfg: Config) -> Item:
     )
 
 
-def rodar(cfg: Optional[Config] = None, *, sem_rede: bool = False) -> list[Item]:
+def rodar(cfg: Config | None = None, *, sem_rede: bool = False) -> list[Item]:
     cfg = cfg or config()
     itens = checar_config(cfg)
     itens.append(checar_chave())

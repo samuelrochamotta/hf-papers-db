@@ -12,7 +12,6 @@ aviso de distribuicao por degrau e novo: se
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .config import Guardrails as ConfigGuardrails
 
@@ -31,7 +30,7 @@ class Contagens:
         return self.fora + self.aprovados
 
     @property
-    def taxa_fora(self) -> Optional[float]:
+    def taxa_fora(self) -> float | None:
         return self.fora / self.classificados if self.classificados else None
 
 
@@ -60,7 +59,7 @@ def _avisos_volume(c: Contagens, cfg: ConfigGuardrails) -> list[str]:
     return avisos
 
 
-def avaliar(c: Contagens, cfg: Optional[ConfigGuardrails] = None) -> list[str]:
+def avaliar(c: Contagens, cfg: ConfigGuardrails | None = None) -> list[str]:
     cfg = cfg or ConfigGuardrails()
     avisos: list[str] = []
 

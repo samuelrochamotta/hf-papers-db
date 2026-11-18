@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import datetime as dt
 import time
-from typing import Optional
 
 import httpx
 
@@ -48,9 +47,9 @@ class LimitadorTaxa:
 class ClienteHF:
     def __init__(
         self,
-        cfg: Optional[Config] = None,
+        cfg: Config | None = None,
         *,
-        cliente: Optional[httpx.Client] = None,
+        cliente: httpx.Client | None = None,
     ) -> None:
         self.cfg = (cfg or config()).hf
         self._proprio = cliente is None
@@ -63,7 +62,7 @@ class ClienteHF:
         self.limitador = LimitadorTaxa(self.cfg.req_por_segundo)
         self.requisicoes = 0
 
-    def __enter__(self) -> "ClienteHF":
+    def __enter__(self) -> ClienteHF:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -75,9 +74,9 @@ class ClienteHF:
 
     # ── transporte ──────────────────────────────────────────────────────────
 
-    def _get(self, url: str, params: Optional[dict] = None) -> httpx.Response:
+    def _get(self, url: str, params: dict | None = None) -> httpx.Response:
         espera = self.cfg.backoff_inicial_s
-        ultimo: Optional[Exception] = None
+        ultimo: Exception | None = None
         for tentativa in range(1, self.cfg.tentativas + 1):
             self.limitador.esperar()
             self.requisicoes += 1

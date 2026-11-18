@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Mapping, Optional, Sequence
+from typing import Any
 
 from .config import PERFIS_PADRAO, Config, Perfil, config
 from .log import logger
@@ -50,7 +51,7 @@ def conectar(
     caminho: Path | str,
     *,
     migrar_schema: bool = True,
-    perfis: Optional[Sequence[Perfil]] = None,
+    perfis: Sequence[Perfil] | None = None,
 ) -> sqlite3.Connection:
     caminho = Path(caminho)
     if str(caminho) != ":memory:":
@@ -64,7 +65,7 @@ def conectar(
     return conn
 
 
-def abrir(cfg: Optional[Config] = None, **kwargs: Any) -> sqlite3.Connection:
+def abrir(cfg: Config | None = None, **kwargs: Any) -> sqlite3.Connection:
     cfg = cfg or config()
     kwargs.setdefault("perfis", cfg.perfis)
     return conectar(cfg.caminho_banco, **kwargs)
@@ -139,7 +140,7 @@ WHERE t.veredito = 'aprovado';
 """
 
 
-def migrar(conn: sqlite3.Connection, *, perfis: Optional[Sequence[Perfil]] = None) -> None:
+def migrar(conn: sqlite3.Connection, *, perfis: Sequence[Perfil] | None = None) -> None:
     """Aplica schema.sql, as colunas de `COLUNAS_MIGRADAS`, a reconstrucao de
     `ponte_paper_area`, a saida de `tax_candidato`, a contracao da grade
     anterior e a passagem para o regime do ADR 004; recria as views e
@@ -544,7 +545,7 @@ def contar(conn: sqlite3.Connection, tabela: str, onde: str = "", params: Sequen
     return int(conn.execute(sql, params).fetchone()["n"])
 
 
-def max_data_hf(conn: sqlite3.Connection) -> Optional[dt.date]:
+def max_data_hf(conn: sqlite3.Connection) -> dt.date | None:
     row = conn.execute("SELECT MAX(data_hf_daily) AS d FROM dim_paper").fetchone()
     if not row or not row["d"]:
         return None

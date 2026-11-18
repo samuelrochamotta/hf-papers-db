@@ -17,7 +17,8 @@ aviso no log; `validar_justificativa` explica por que ele nao derruba o paper.
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from ..log import logger
 from ..taxonomia import EIXOS, MAX_VERTENTES_POR_PAPER

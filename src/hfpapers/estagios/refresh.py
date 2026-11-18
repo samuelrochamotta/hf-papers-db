@@ -13,7 +13,6 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .. import db
 from ..config import Refresh as ConfigRefresh
@@ -85,7 +84,7 @@ def rodar(
     cliente: ClienteHF,
     cfg: ConfigRefresh,
     *,
-    hoje: Optional[dt.date] = None,
+    hoje: dt.date | None = None,
     forcar_semanal: bool = False,
 ) -> ResultadoRefresh:
     hoje = hoje or db.hoje()

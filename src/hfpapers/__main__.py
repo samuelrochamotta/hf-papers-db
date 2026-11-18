@@ -6,7 +6,6 @@ import datetime as dt
 import json
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -31,7 +30,7 @@ app.add_typer(app_modelos, name="modelos")
 _SIMBOLO = {"ok": "[ok]   ", "aviso": "[aviso]", "erro": "[ERRO] "}
 
 
-def _data(valor: Optional[str]) -> Optional[dt.date]:
+def _data(valor: str | None) -> dt.date | None:
     return dt.date.fromisoformat(valor) if valor else None
 
 
@@ -46,8 +45,8 @@ def _preparar():
 
 @app.command()
 def run(
-    data: Optional[str] = typer.Option(None, "--data", help="Forca uma data (YYYY-MM-DD)."),
-    only: Optional[str] = typer.Option(
+    data: str | None = typer.Option(None, "--data", help="Forca uma data (YYYY-MM-DD)."),
+    only: str | None = typer.Option(
         None, "--only", help="Subconjunto de estagios, separados por virgula."
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Estima custo, nao chama LLM."),
@@ -158,10 +157,10 @@ def export() -> None:
 
 @app.command()
 def ler(
-    dias: Optional[int] = typer.Option(None, "--dias", help="Janela em dias de HF Daily (padrao: config)."),
-    limite: Optional[int] = typer.Option(None, "--limite", help="No maximo N papers, dos mais votados."),
-    min_votos: Optional[int] = typer.Option(None, "--min-votos", help="Piso de votos (padrao: config)."),
-    ids: Optional[Path] = typer.Option(None, "--ids", help="Arquivo com um id do arXiv por linha."),
+    dias: int | None = typer.Option(None, "--dias", help="Janela em dias de HF Daily (padrao: config)."),
+    limite: int | None = typer.Option(None, "--limite", help="No maximo N papers, dos mais votados."),
+    min_votos: int | None = typer.Option(None, "--min-votos", help="Piso de votos (padrao: config)."),
+    ids: Path | None = typer.Option(None, "--ids", help="Arquivo com um id do arXiv por linha."),
     refazer: bool = typer.Option(False, "--refazer", help="Le de novo quem ja foi lido nesta versao do esquema."),
 ) -> None:
     """Le o texto completo com o Claude Haiku 5.5 e grava em leitura_texto (ADR 007)."""
@@ -205,14 +204,14 @@ def _degraus(por: dict[str, int]) -> str:
 
 @app.command()
 def reclassificar(
-    data: Optional[str] = typer.Option(None, "--data", help="Reclassifica um dia inteiro."),
-    paper: Optional[str] = typer.Option(None, "--paper", help="Reclassifica um paper."),
-    ids_arquivo: Optional[Path] = typer.Option(
+    data: str | None = typer.Option(None, "--data", help="Reclassifica um dia inteiro."),
+    paper: str | None = typer.Option(None, "--paper", help="Reclassifica um paper."),
+    ids_arquivo: Path | None = typer.Option(
         None,
         "--ids-arquivo",
         help="Reclassifica os papers listados no arquivo, um id por linha (# comenta).",
     ),
-    retomar: Optional[str] = typer.Option(
+    retomar: str | None = typer.Option(
         None,
         "--retomar",
         help=(
@@ -223,7 +222,7 @@ def reclassificar(
     tudo: bool = typer.Option(
         False, "--tudo", help="Reclassifica a base inteira (rodada total, horas)."
     ),
-    concorrencia: Optional[int] = typer.Option(
+    concorrencia: int | None = typer.Option(
         None,
         "--concorrencia",
         help=(
@@ -347,7 +346,7 @@ def taxonomia_listar() -> None:
 
 @app_tax.command("nao-encaixes")
 def taxonomia_nao_encaixes(
-    eixo: Optional[str] = typer.Option(
+    eixo: str | None = typer.Option(
         None, "--eixo", help="area | subarea | vertente (padrao: os tres)"
     ),
 ) -> None:
@@ -393,7 +392,7 @@ def taxonomia_fundir(
     # - nao o traceback do sqlite3.
     except (ValueError, sqlite3.IntegrityError) as e:
         typer.echo(str(e))
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from None
     finally:
         conn.close()
     typer.echo(f"'{de}' -> '{para}': {r['papers_no_destino']} papers no destino")
@@ -402,7 +401,7 @@ def taxonomia_fundir(
 TAXONOMIA_INICIAL = "config/taxonomia_inicial.json"
 
 
-def _taxonomia_inicial(cfg, informado: Optional[Path]) -> Path:
+def _taxonomia_inicial(cfg, informado: Path | None) -> Path:
     """O padrao e o arquivo versionado do projeto, nao um homonimo no CWD.
 
     Resolver contra `cfg.raiz` e o que o resto do projeto faz (`config._abs`).
@@ -416,7 +415,7 @@ def _taxonomia_inicial(cfg, informado: Optional[Path]) -> Path:
 
 @app_tax.command("exportar")
 def taxonomia_exportar(
-    destino: Optional[Path] = typer.Option(
+    destino: Path | None = typer.Option(
         None, "--destino", help=f"Arquivo JSON de saida (padrao: {TAXONOMIA_INICIAL})."
     ),
 ) -> None:
@@ -443,7 +442,7 @@ def taxonomia_exportar(
 
 @app_tax.command("carregar")
 def taxonomia_carregar(
-    arquivo: Optional[Path] = typer.Argument(
+    arquivo: Path | None = typer.Argument(
         None, help=f"JSON gerado por `taxonomia exportar` (padrao: {TAXONOMIA_INICIAL})."
     ),
 ) -> None:
@@ -476,7 +475,7 @@ def modelos_listar(
     max_preco: float = typer.Option(
         5.0, "--max-preco", help="Teto de US$ por milhao de tokens de entrada."
     ),
-    contem: Optional[str] = typer.Option(None, "--contem", help="Filtra por trecho do id."),
+    contem: str | None = typer.Option(None, "--contem", help="Filtra por trecho do id."),
     limite: int = typer.Option(40, "--limite"),
 ) -> None:
     """Lista modelos com saida estruturada e preco por milhao de tokens.
@@ -514,7 +513,7 @@ def modelos_listar(
 
 @app.command()
 def custos(
-    mes: Optional[str] = typer.Option(None, "--mes", help="AAAA-MM; padrao: mes corrente."),
+    mes: str | None = typer.Option(None, "--mes", help="AAAA-MM; padrao: mes corrente."),
 ) -> None:
     """Quanto a LLM custou no mes, por etapa e modelo."""
     cfg = _preparar()

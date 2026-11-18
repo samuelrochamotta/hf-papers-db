@@ -17,8 +17,9 @@ na irma de maior afinidade.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Optional, Sequence
+from typing import Any
 
 from . import db
 from .log import logger
@@ -69,13 +70,13 @@ class Area:
 
     rotulo: str
     definicao: str
-    subareas: list["Area"] = field(default_factory=list)
+    subareas: list[Area] = field(default_factory=list)
 
 
 # ── leitura ─────────────────────────────────────────────────────────────────
 
 
-def hierarquia(conn: sqlite3.Connection) -> dict[str, Optional[str]]:
+def hierarquia(conn: sqlite3.Connection) -> dict[str, str | None]:
     """Cada rotulo de `dim_area` com o pai dele; a area raiz aponta para None.
 
     E o que responde "esta sub-area e filha desta area?" numa consulta so. O
@@ -128,7 +129,7 @@ def vertentes(conn: sqlite3.Connection) -> list[str]:
     ]
 
 
-def vertente_dominante(conn: sqlite3.Connection, paper_id: str) -> Optional[str]:
+def vertente_dominante(conn: sqlite3.Connection, paper_id: str) -> str | None:
     """A vertente de ordem 1 do paper - a resposta unica que ranking e
     agregacao precisam quando o paper tem duas (user story 10)."""
     row = conn.execute(
@@ -147,10 +148,10 @@ def aplicar_classificacao(
     *,
     area_primaria: str,
     subarea_primaria: str,
-    area_secundaria: Optional[str] = None,
-    subarea_secundaria: Optional[str] = None,
+    area_secundaria: str | None = None,
+    subarea_secundaria: str | None = None,
     vertentes_paper: Sequence[str] = (),
-    nao_coube: Optional[NaoEncaixe] = None,
+    nao_coube: NaoEncaixe | None = None,
 ) -> None:
     """Reescreve as pontes de um paper: os pares (area > sub-area) e as vertentes.
 
@@ -209,7 +210,7 @@ def aplicar_classificacao(
     # Viram fila de revisao depois de `nao_coube`, e nao no lugar dele.
     rejeitados: list[str] = []
 
-    def _aprovar_par(area: Optional[str], subarea: Optional[str]) -> bool:
+    def _aprovar_par(area: str | None, subarea: str | None) -> bool:
         """True se o par pode ser gravado; **reprovar enfileira o motivo**."""
         if not area and not subarea:
             return False                 # par secundario nulo e a resposta comum
@@ -221,7 +222,7 @@ def aplicar_classificacao(
             return False
         return True
 
-    candidatos: list[tuple[Optional[str], Optional[str]]] = [(area_primaria, subarea_primaria)]
+    candidatos: list[tuple[str | None, str | None]] = [(area_primaria, subarea_primaria)]
     if (area_secundaria, subarea_secundaria) != (area_primaria, subarea_primaria):
         candidatos.append((area_secundaria, subarea_secundaria))
 
@@ -274,7 +275,7 @@ def aplicar_classificacao(
 
 
 def _registrar_nao_encaixe(
-    conn: sqlite3.Connection, paper_id: str, nao_coube: Optional[NaoEncaixe]
+    conn: sqlite3.Connection, paper_id: str, nao_coube: NaoEncaixe | None
 ) -> None:
     """Grava a declaracao de nao-encaixe do paper, se houver uma utilizavel.
 
@@ -344,7 +345,7 @@ def _registrar_par_rejeitado(
 
 
 def nao_encaixes(
-    conn: sqlite3.Connection, *, eixo: Optional[str] = None
+    conn: sqlite3.Connection, *, eixo: str | None = None
 ) -> list[dict[str, Any]]:
     """A fila de revisao da grade, opcionalmente de um eixo so.
 
@@ -524,7 +525,7 @@ def listar(conn: sqlite3.Connection) -> dict[str, Any]:
     distinto, e nao linha: desde que o par secundario pode repetir a area do
     primario, um paper so chega a ter duas linhas na mesma area.
     """
-    por_pai: dict[Optional[str], list[dict]] = {}
+    por_pai: dict[str | None, list[dict]] = {}
     for r in conn.execute(
         "SELECT d.area AS rotulo, d.definicao, d.desde, d.area_pai, "
         "       (SELECT COUNT(DISTINCT p.paper_id) FROM ponte_paper_area p "

@@ -21,7 +21,6 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
@@ -112,7 +111,7 @@ def _sem_enriquecimento(conn, dia: dt.date) -> list[str]:
     ]
 
 
-def novo_run_id(agora: Optional[dt.datetime] = None) -> str:
+def novo_run_id(agora: dt.datetime | None = None) -> str:
     """Prefixo proprio: e por ele que se separa o que esta varredura fez.
 
     `run-` e da rodada diaria. Com `retro-`, a pergunta "quanto de modelo esta
@@ -151,8 +150,8 @@ def rodar(
     *,
     inicio: dt.date,
     fim: dt.date,
-    hoje: Optional[dt.date] = None,
-    run_id: Optional[str] = None,
+    hoje: dt.date | None = None,
+    run_id: str | None = None,
 ) -> ResultadoRetroativo:
     """Varre a janela dia a dia, coletando e enriquecendo o que falta.
 

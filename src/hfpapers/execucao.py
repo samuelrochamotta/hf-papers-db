@@ -10,8 +10,8 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
 
 from . import db, guardrails
 from .config import Config, config
@@ -47,7 +47,7 @@ class ResultadoRun:
     arquivos: dict[str, int] = field(default_factory=dict)
 
     @property
-    def taxa_fora(self) -> Optional[float]:
+    def taxa_fora(self) -> float | None:
         total = self.fora + self.aprovados
         return self.fora / total if total else None
 
@@ -80,7 +80,7 @@ def _absorver(res: ResultadoRun, parcial: classificacao.ResultadoClassificacao) 
     res.uso.somar(parcial.uso)
 
 
-def novo_run_id(hoje: Optional[dt.datetime] = None) -> str:
+def novo_run_id(hoje: dt.datetime | None = None) -> str:
     return (hoje or dt.datetime.now()).strftime("run-%Y%m%d-%H%M%S")
 
 
@@ -125,14 +125,14 @@ def _fechar_execucao(conn: sqlite3.Connection, res: ResultadoRun) -> None:
 
 def rodar(
     *,
-    cfg: Optional[Config] = None,
-    conn: Optional[sqlite3.Connection] = None,
-    data: Optional[dt.date] = None,
-    apenas: Optional[Sequence[str]] = None,
+    cfg: Config | None = None,
+    conn: sqlite3.Connection | None = None,
+    data: dt.date | None = None,
+    apenas: Sequence[str] | None = None,
     force: bool = False,
-    hoje: Optional[dt.date] = None,
-    cliente_hf: Optional[ClienteHF] = None,
-    cliente_llm: Optional[ClienteLLM] = None,
+    hoje: dt.date | None = None,
+    cliente_hf: ClienteHF | None = None,
+    cliente_llm: ClienteLLM | None = None,
 ) -> ResultadoRun:
     cfg = cfg or config()
     hoje = hoje or db.hoje()
@@ -142,7 +142,7 @@ def rodar(
     run_id = novo_run_id()
     res = ResultadoRun(run_id=run_id)
     hf = cliente_hf or ClienteHF(cfg)
-    llm: Optional[ClienteLLM] = cliente_llm
+    llm: ClienteLLM | None = cliente_llm
     falhou = False
 
     try:
@@ -255,15 +255,15 @@ def rodar(
 
 def reclassificar(
     *,
-    cfg: Optional[Config] = None,
-    conn: Optional[sqlite3.Connection] = None,
-    ids: Optional[Sequence[str]] = None,
-    data: Optional[str] = None,
+    cfg: Config | None = None,
+    conn: sqlite3.Connection | None = None,
+    ids: Sequence[str] | None = None,
+    data: str | None = None,
     tudo: bool = False,
-    concorrencia: Optional[int] = None,
+    concorrencia: int | None = None,
     so_estagio_a: bool = False,
-    retomar: Optional[str] = None,
-    cliente_llm: Optional[ClienteLLM] = None,
+    retomar: str | None = None,
+    cliente_llm: ClienteLLM | None = None,
 ) -> ResultadoRun:
     """Roda so o estagio 3, sobre papers ja vistos, e registra a rodada.
 
@@ -402,11 +402,11 @@ class ResultadoDryRun:
 
 def dry_run(
     *,
-    cfg: Optional[Config] = None,
-    conn: Optional[sqlite3.Connection] = None,
-    data: Optional[dt.date] = None,
-    hoje: Optional[dt.date] = None,
-    cliente_hf: Optional[ClienteHF] = None,
+    cfg: Config | None = None,
+    conn: sqlite3.Connection | None = None,
+    data: dt.date | None = None,
+    hoje: dt.date | None = None,
+    cliente_hf: ClienteHF | None = None,
 ) -> ResultadoDryRun:
     """Estima o custo da rodada sem gravar nada e sem chamar modelo."""
     cfg = cfg or config()
