@@ -5,7 +5,6 @@ import pyarrow.parquet as pq
 
 from hfpapers import db
 from hfpapers.estagios import export
-from hfpapers.estagios.export import faixa_upvotes
 
 HOJE = dt.date(2026, 8, 26)
 
@@ -81,31 +80,30 @@ def _semear(conn):
 
 def test_export_gera_todos_os_arquivos(conn, cfg):
     _semear(conn)
-    r = export.rodar(conn, cfg, run_id="run-teste", hoje=HOJE)
+    r = export.rodar(conn, cfg, run_id="run-teste")
 
     esperados = {
         "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
         "dim_area", "dim_vertente",
         "ponte_paper_area", "ponte_paper_vertente",
-        "ponte_paper_keyword", "ponte_paper_autor", "fato_execucao",
         "dim_natureza",
     }
-    assert esperados <= set(r.arquivos)
+    assert set(r.arquivos) == esperados
     for nome in esperados:
         assert (cfg.dir_marts / f"{nome}.parquet").exists()
 
     manifest = json.loads((cfg.dir_marts / "_manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "run-teste"
     assert manifest["linhas"]["dim_paper"] == 1
-    assert manifest["versao_schema"] == 3
+    assert manifest["versao_schema"] == 4
     for morto in export.ARQUIVOS_MORTOS:
         assert morto not in manifest["linhas"]
         assert not (cfg.dir_marts / f"{morto}.parquet").exists()
 
 
 def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
-    """O analista corta o acervo pelos dois niveis da area, e a coluna precisa
-    chegar ate o Parquet - o painel le o mesmo arquivo."""
+    """O painel mostra o par area > sub-area, e a sub-area precisa chegar ate o
+    Parquet que ele le."""
     _semear(conn)
     with db.transacao(conn):
         db.upsert_area(conn, {"area": "Contexto & recuperação", "definicao": "d"})
@@ -120,7 +118,7 @@ def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
             {"paper_id": "2608.00001", "area": "Contexto & recuperação",
              "subarea": "Memória de longo prazo", "is_primaria": 1},
         )
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
 
     ponte = pq.read_table(cfg.dir_marts / "ponte_paper_area.parquet").to_pylist()
     assert ponte == [{
@@ -143,7 +141,7 @@ def test_dim_area_leva_o_pai_ao_parquet(conn, cfg):
             {"area": "Memória de longo prazo", "definicao": "d",
              "area_pai": "Contexto & recuperação"},
         )
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
 
     areas = pq.read_table(cfg.dir_marts / "dim_area.parquet").to_pylist()
     assert {a["area"]: a["area_pai"] for a in areas} == {
@@ -153,8 +151,8 @@ def test_dim_area_leva_o_pai_ao_parquet(conn, cfg):
 
 
 def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
-    """User story 27: sem a ordem no Parquet o analista nao separa a dominante
-    da secundaria, e as duas viram a mesma medida."""
+    """Sem a ordem no Parquet o painel nao sabe qual vertente e a dominante,
+    que o card exibe primeiro."""
     _semear(conn)
     with db.transacao(conn):
         for v in ("Baratear", "Escalar"):
@@ -165,7 +163,7 @@ def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
                 "ponte_paper_vertente",
                 {"paper_id": "2608.00001", "vertente": v, "ordem": ordem},
             )
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
 
     ponte = pq.read_table(cfg.dir_marts / "ponte_paper_vertente.parquet").to_pylist()
     assert sorted(ponte, key=lambda r: r["ordem"]) == [
@@ -174,90 +172,114 @@ def test_ponte_paper_vertente_leva_a_ordem_ao_parquet(conn, cfg):
     ]
 
 
-def test_fato_triagem_leva_a_classificacao_e_os_booleanos_derivados(conn, cfg):
-    """Os booleanos saem prontos para quem le nao reimplementar as regras:
-    `contradiz_pratica` e `como_incompleto` derivam dos textos, e o artefato
-    aberto vem de `vw_artefato` (evidencia + `liberado`)."""
+def test_fato_triagem_leva_a_classificacao_e_o_artefato_aberto(conn, cfg):
+    """O artefato aberto sai pronto de `vw_artefato` (evidencia + `liberado`),
+    para o painel nao reimplementar a regra."""
     _semear(conn)
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
     linha = pq.read_table(cfg.dir_marts / "fato_triagem.parquet").to_pylist()[0]
-    assert (linha["veredito"], linha["aprovado"]) == ("aprovado", True)
-    assert (linha["natureza"], linha["prerequisito"]) == ("proposta", "treino")
-    assert linha["contradiz_pratica"] is True
-    assert linha["como_incompleto"] is False
-    assert linha["evidencia_artefato"] is True
+    assert (linha["veredito"], linha["natureza"]) == ("aprovado", "proposta")
+    assert linha["pratica_contradita"] == "usar a mesma temperatura no rollout e na avaliacao"
     assert linha["artefato_aberto"] is True
 
 
-def test_tabelas_sem_leitor_ficam_no_banco_mas_nao_no_parquet(conn, cfg):
-    """ADR 005: so o Parquet sai. Perfis, degraus e calendario continuam no
-    banco, onde a view `vw_paper_perfil` e os testes de vocabulario os usam."""
+def test_o_painel_monta_a_partir_do_export(conn, cfg, monkeypatch):
+    """O contrato de ponta a ponta: o painel le o que o export escreve. Os
+    testes de `gerar_painel` escrevem os proprios Parquet; este e o unico que
+    quebra se o export cortar uma coluna que o painel le.
+
+    Todo campo semeado tem valor diferente do padrao do `.get(...) or` do
+    painel: uma coluna cortada viraria `""`, `0` ou `None` e o teste falharia,
+    em vez de passar em silencio."""
+    import gerar_painel
+
     _semear(conn)
-    export.rodar(conn, cfg, hoje=HOJE)
+    with db.transacao(conn):
+        db.upsert_paper(
+            conn,
+            {
+                "paper_id": "2608.00001",
+                "titulo": "Paper com repo",
+                "data_hf_daily": dt.date(2026, 8, 25),
+                "github_repo": "https://github.com/x/y",
+                "primeiro_visto_em": db.agora(),
+                "url_hf": "https://huggingface.co/papers/2608.00001",
+                "project_page": "https://x.github.io/y",
+                "organizacao": "org-x",
+                "qtd_autores": 7,
+                "qtd_autores_verificados": 3,
+            },
+        )
+        db.upsert_metrica(
+            conn,
+            {"paper_id": "2608.00001", "data_snapshot": HOJE, "upvotes": 55,
+             "comentarios": 4, "github_stars": 120, "origem": "daily"},
+        )
+    export.rodar(conn, cfg, run_id="run-teste")
+    monkeypatch.setattr(gerar_painel, "DIR_MARTS", cfg.dir_marts)
+    dados, _ = gerar_painel.montar_dados(janela=100_000, dias_hall=100_000)
+
+    [p] = dados["papers"]
+    lidos_do_parquet = {
+        "id": "2608.00001", "t": "Paper com repo", "d": "2026-08-25",
+        "v": "aprovado", "oa": 1, "pp": 1, "u": 55, "c": 4, "gs": 120,
+        "org": "org-x", "na": 7, "nv": 3,
+        "url": "https://huggingface.co/papers/2608.00001", "f": 1,
+        "pc": "usar a mesma temperatura no rollout e na avaliacao",
+        "gh": "https://github.com/x/y", "pg": "https://x.github.io/y",
+        "ao": 1, "j": "j",
+    }
+    assert {k: p.get(k) for k in lidos_do_parquet} == lidos_do_parquet
+    assert dados["fichas"] == [
+        {"p": "2608.00001", "ach": "a", "imp": "i", "ex": "e", "res": "r"}
+    ]
+
+
+def test_tabelas_sem_leitor_ficam_no_banco_mas_nao_no_parquet(conn, cfg):
+    """ADRs 005 e 008: so o Parquet sai. Perfis, degraus, calendario, autores,
+    keywords e o log de execucao continuam no banco."""
+    _semear(conn)
+    export.rodar(conn, cfg)
     assert [tuple(r) for r in conn.execute("SELECT paper_id, perfil FROM vw_paper_perfil")] == [
         ("2608.00001", "pesquisa_treino")
     ]
-    for nome in ("ponte_paper_perfil", "dim_prerequisito", "dim_perfil",
-                 "ponte_perfil_prerequisito", "dim_calendario"):
+    for nome in export.ARQUIVOS_MORTOS:
         assert not (cfg.dir_marts / f"{nome}.parquet").exists()
 
 
 def test_parquets_de_tabelas_mortas_sao_apagados(conn, cfg):
     """O export so escreve; sem a limpeza `marts/` continuaria carregando o
-    arquivo das tabelas que sairam nos ADRs 004 e 005."""
+    arquivo das tabelas que sairam nos ADRs 004, 005 e 008."""
     cfg.dir_marts.mkdir(parents=True, exist_ok=True)
     mortos = [cfg.dir_marts / f"{n}.parquet" for n in export.ARQUIVOS_MORTOS]
     for m in mortos:
         m.write_bytes(b"velho")
     _semear(conn)
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
     assert not any(m.exists() for m in mortos)
 
 
 def test_datas_saem_como_date_nao_string(conn, cfg):
     _semear(conn)
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
     t = pq.read_table(cfg.dir_marts / "dim_paper.parquet")
     assert str(t.schema.field("data_hf_daily").type) == "date32[day]"
     met = pq.read_table(cfg.dir_marts / "fato_metrica.parquet")
     assert str(met.schema.field("data_snapshot").type) == "date32[day]"
 
 
-def test_numtotal_propaga_para_frente_e_delta_e_calculado(conn, cfg):
+def test_dim_paper_leva_a_ultima_metrica(conn, cfg):
     _semear(conn)
-    export.rodar(conn, cfg, hoje=HOJE)
-    t = pq.read_table(cfg.dir_marts / "fato_metrica.parquet").to_pylist()
-    t.sort(key=lambda r: r["data_snapshot"])
-    assert t[0]["qtd_modelos"] == 3
-    assert t[1]["qtd_modelos"] == 3          # snapshot 'daily' herda o ultimo nao nulo
-    assert t[0]["upvotes_delta_dia"] is None
-    assert t[1]["upvotes_delta_dia"] == 15
-
-
-def test_colunas_derivadas_de_filtro(conn, cfg):
-    _semear(conn)
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
     r = pq.read_table(cfg.dir_marts / "dim_paper.parquet").to_pylist()[0]
     assert r["tem_project_page"] is False
-    assert r["dias_desde_publicacao"] == 1
-    assert r["upvotes_atual"] == 55
-    assert r["faixa_upvotes_atual"] == "50-99"
-
-
-def test_faixa_upvotes():
-    bordas = [1, 10, 50, 100]
-    assert faixa_upvotes(0, bordas) == "0"
-    assert faixa_upvotes(5, bordas) == "1-9"
-    assert faixa_upvotes(10, bordas) == "10-49"
-    assert faixa_upvotes(99, bordas) == "50-99"
-    assert faixa_upvotes(1000, bordas) == "100+"
-    assert faixa_upvotes(None, bordas) == "sem dado"
+    assert (r["upvotes_atual"], r["comentarios_atual"]) == (55, 4)
 
 
 def test_export_sobrescreve_sem_duplicar(conn, cfg):
     _semear(conn)
-    export.rodar(conn, cfg, hoje=HOJE)
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
+    export.rodar(conn, cfg)
     t = pq.read_table(cfg.dir_marts / "dim_paper.parquet")
     assert t.num_rows == 1
     assert not list(cfg.dir_marts.glob("*.tmp"))
@@ -266,5 +288,5 @@ def test_export_sobrescreve_sem_duplicar(conn, cfg):
 def test_export_com_csv(conn, cfg):
     _semear(conn)
     cfg.export.csv = True
-    export.rodar(conn, cfg, hoje=HOJE)
+    export.rodar(conn, cfg)
     assert (cfg.dir_marts / "dim_paper.csv").exists()

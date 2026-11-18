@@ -234,7 +234,7 @@ def rodar(
 
         # ── 5. export ───────────────────────────────────────────────────────
         if "export" in etapas:
-            r_export = export.rodar(conn, cfg, run_id=run_id, hoje=hoje)
+            r_export = export.rodar(conn, cfg, run_id=run_id)
             res.arquivos = r_export.arquivos
 
     except Exception:

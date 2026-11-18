@@ -58,8 +58,8 @@ prática que ainda não existe é contexto, não contradição.
 
 **Falta o como** (`falta_o_como`):
 O princípio é portável, mas o paper não diz como implementar. Texto, não
-booleano: o booleano `como_incompleto` deriva dele no export. No painel a marca
-se chama **somente princípio** ("princípio" no card).
+booleano. No painel a marca se chama **somente princípio** ("princípio" no
+card).
 
 **Evidência de artefato** e **artefato aberto**:
 A evidência é externa e calculada em código (`vw_artefato`): repositório no HF,
