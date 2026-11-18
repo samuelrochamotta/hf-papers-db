@@ -186,20 +186,53 @@ def test_fato_triagem_leva_a_classificacao_e_o_artefato_aberto(conn, cfg):
 def test_o_painel_monta_a_partir_do_export(conn, cfg, monkeypatch):
     """O contrato de ponta a ponta: o painel le o que o export escreve. Os
     testes de `gerar_painel` escrevem os proprios Parquet; este e o unico que
-    quebra se o export cortar uma coluna que o painel le com `[]`."""
+    quebra se o export cortar uma coluna que o painel le.
+
+    Todo campo semeado tem valor diferente do padrao do `.get(...) or` do
+    painel: uma coluna cortada viraria `""`, `0` ou `None` e o teste falharia,
+    em vez de passar em silencio."""
     import gerar_painel
 
     _semear(conn)
+    with db.transacao(conn):
+        db.upsert_paper(
+            conn,
+            {
+                "paper_id": "2608.00001",
+                "titulo": "Paper com repo",
+                "data_hf_daily": dt.date(2026, 8, 25),
+                "github_repo": "https://github.com/x/y",
+                "primeiro_visto_em": db.agora(),
+                "url_hf": "https://huggingface.co/papers/2608.00001",
+                "project_page": "https://x.github.io/y",
+                "organizacao": "org-x",
+                "qtd_autores": 7,
+                "qtd_autores_verificados": 3,
+            },
+        )
+        db.upsert_metrica(
+            conn,
+            {"paper_id": "2608.00001", "data_snapshot": HOJE, "upvotes": 55,
+             "comentarios": 4, "github_stars": 120, "origem": "daily"},
+        )
     export.rodar(conn, cfg, run_id="run-teste")
     monkeypatch.setattr(gerar_painel, "DIR_MARTS", cfg.dir_marts)
     dados, _ = gerar_painel.montar_dados(janela=100_000, dias_hall=100_000)
 
     [p] = dados["papers"]
-    assert (p["id"], p["v"], p["u"], p["oa"]) == ("2608.00001", "aprovado", 55, 1)
-    assert p["pc"] == "usar a mesma temperatura no rollout e na avaliacao"
-    assert p["gh"] == "https://github.com/x/y"
-    assert p["ao"] == 1
-    assert p["f"] == 1
+    lidos_do_parquet = {
+        "id": "2608.00001", "t": "Paper com repo", "d": "2026-08-25",
+        "v": "aprovado", "oa": 1, "pp": 1, "u": 55, "c": 4, "gs": 120,
+        "org": "org-x", "na": 7, "nv": 3,
+        "url": "https://huggingface.co/papers/2608.00001", "f": 1,
+        "pc": "usar a mesma temperatura no rollout e na avaliacao",
+        "gh": "https://github.com/x/y", "pg": "https://x.github.io/y",
+        "ao": 1, "j": "j",
+    }
+    assert {k: p.get(k) for k in lidos_do_parquet} == lidos_do_parquet
+    assert dados["fichas"] == [
+        {"p": "2608.00001", "ach": "a", "imp": "i", "ex": "e", "res": "r"}
+    ]
 
 
 def test_tabelas_sem_leitor_ficam_no_banco_mas_nao_no_parquet(conn, cfg):

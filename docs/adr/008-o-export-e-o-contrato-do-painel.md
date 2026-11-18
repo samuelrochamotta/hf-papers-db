@@ -64,9 +64,10 @@ teste que roda o export e o painel em sequência.
 
 ## Consequências
 
-- **Coluna nova no painel começa no schema de `export.py`.** O teste de ponta a
-  ponta só falha quando o painel lê a coluna com `[]`; com `.get()`, ela chega
-  vazia em silêncio.
+- **Coluna nova no painel começa no schema de `export.py`.** Ela também entra
+  no teste de ponta a ponta, com um valor diferente do padrão do
+  `.get(...) or` do painel. Sem isso, um corte futuro da coluna passa em
+  silêncio.
 - **Análise ad hoc lê o banco**, não `marts/`.
 - **Pendências no SQLite, sem migração agora:** `dim_calendario` e as tabelas
   e a view de perfis continuam sendo preenchidas, mas nada lê essas tabelas.
