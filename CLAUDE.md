@@ -28,7 +28,7 @@ _Avoid_.
 
 Antes de mexer em `prompts/`, nos estágios A/B ou na grade, leia
 `docs/adr/004-natureza-e-prerequisito.md`, o ADR da área tocada em `docs/adr/`
-e a spec correspondente em `docs/specs/`.
+e a spec correspondente em `docs/specs/`, se houver.
 
 ## Painel
 

@@ -2,8 +2,10 @@
 
 - **Data**: 2026-09-08
 - **Estado**: aceito
-- **Contexto**: `docs/specs/taxonomia-facetada.md`, seção *Further Notes*; tickets 07, 08 e 09
-- **Substitui**: a lista de nove vertentes fixada na seção *A grade* da spec
+- **Contexto**: `config/taxonomia_inicial.json` (lista `vertentes`); tickets 07, 08 e 09
+- **Substitui**: a lista de nove vertentes fixada na spec da taxonomia facetada
+  (removida de `docs/specs/` em 18/11/2026; a citação abaixo é o trecho que
+  importa)
 
 ## Contexto
 
@@ -149,3 +151,17 @@ o que já está medido:
   outro motivo.
 - O piso de seis vertentes vivas segue folgado: são dez. Absorver as duas
   deixaria oito.
+
+## Limiares da grade (nota de 18/11/2026)
+
+Os limiares vinham da spec da taxonomia facetada (seção *Operação*, passo 5),
+que saiu de `docs/specs/`. São estes, e `scripts/relatorio_massa.py` os aplica:
+
+| regra | limiar | constante |
+|---|---|---|
+| sub-área grande demais: ramificar | acima de 25% da sua área | `TETO_SUBAREA` |
+| sub-área pequena demais: fundir | abaixo de 3% da sua área ou de 10 papers | `PISO_SUBAREA_PCT`, `PISO_SUBAREA_N` |
+| vertente rara: absorver | abaixo de 2% da base | `PISO_VERTENTE` |
+
+Rótulo a até 3 pontos de um limiar (`FOLGA`) é tratado à parte. A grade tem
+~19% de instabilidade intrínseca, e decidir ali é decidir sobre ruído.

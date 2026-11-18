@@ -1,7 +1,7 @@
 """Relatorio de massa da grade facetada: le o banco e escreve o Markdown.
 
-E o instrumento das duas checagens objetivas da spec (secao *Operacao*, passo 5),
-e por isso mora aqui e nao numa consulta ad hoc: o ticket 08 deriva a grade v2
+E o instrumento das duas checagens objetivas da grade (limiares no ADR 002), e
+por isso mora aqui e nao numa consulta ad hoc: o ticket 08 deriva a grade v2
 destas contagens, e uma contagem que ninguem consegue repetir nao serve de base
 para fundir rotulo nenhum.
 
@@ -34,7 +34,7 @@ from collections import defaultdict
 
 BANCO = "data/hfpapers.db"
 
-# Limiares da spec (secao *Operacao*, passo 5). Ficam nomeados porque o
+# Limiares da grade (ADR 002, secao *Limiares da grade*). Ficam nomeados porque o
 # relatorio cita o numero que motivou cada marca, e um literal solto no meio de
 # uma f-string nao se deixa citar.
 TETO_SUBAREA = 0.25       # acima disso, falta ramificar
@@ -163,7 +163,7 @@ def gerar(
     w("# Relatório de massa da grade facetada\n")
     w(f"- **Rodada**: `{run_id or '(log inteiro)'}`")
     w(f"- **Base**: {total} papers")
-    w("- **Checagens**: `docs/specs/taxonomia-facetada.md`, seção *Operação*, passo 5\n")
+    w("- **Checagens**: limiares de ramificar, fundir e absorver do ADR 002\n")
 
     w("## 1. Cobertura\n")
     w("| | papers | % da base |")
@@ -370,15 +370,15 @@ def gerar(
 def main() -> None:
     # O arquivo de saida e **obrigatorio**, e nao tem default. O default era
     # `docs/relatorios/massa-grade-v1.md`, entao rodar o script sem o segundo
-    # argumento sobrescrevia em silencio o relatorio da v1 - que e a evidencia
-    # que justifica cada fusao do ticket 08. Um instrumento de medicao nao pode
+    # argumento sobrescrevia em silencio o relatorio da v1 - que era a evidencia
+    # das fusoes do ticket 08 e hoje vive no historico do git. Um instrumento de medicao nao pode
     # ter, no caminho mais curto, o apagamento da medicao anterior.
     if len(sys.argv) < 3:
         raise SystemExit(
             "uso: python scripts/relatorio_massa.py <run_id> <saida.md> "
             "[estimativa_usd]\n"
             "     o arquivo de saida e obrigatorio: sem ele o script sobrescrevia "
-            "o relatorio da grade v1, que e a evidencia das fusoes do ticket 08.\n"
+            "o relatorio que estivesse no caminho padrao.\n"
             "     run_id '-' usa o log inteiro."
         )
     run_id = sys.argv[1] if sys.argv[1] != "-" else None

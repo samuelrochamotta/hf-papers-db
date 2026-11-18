@@ -128,7 +128,7 @@ mudou desde a última geração (`marts/.painel_run_id`).
 ## Painel v2 (em construção)
 
 Classifica os papers pelo que eles provam, lido do **texto completo** pelo
-Claude Haiku 5.5 (ADR 007, especificação em `docs/specs/painel-v2.md`). Nasce
+Claude Haiku 5.5 (ADR 007). Nasce
 ao lado do v1, em `relatorios/painel-v2/`, publicado em `/v2/` no Pages.
 
 ```bash
