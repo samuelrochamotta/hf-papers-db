@@ -2,7 +2,12 @@
 #   python3 medir/leitura/pontuar.py <pasta com linhas-por-tela.json e r/*.json>
 # Cada resposta e um JSON por leitor (X-1.json, O-2.json...); o gabarito e uma
 # lista de expressoes que precisam aparecer todas. Grava leitura.json na pasta.
-import json, re, glob, os, sys
+import glob
+import json
+import os
+import re
+import sys
+
 S = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
 linhas = json.load(open(f'{S}/linhas-por-tela.json'))
 NAO = r'n[ãa]o d[áa] para saber'

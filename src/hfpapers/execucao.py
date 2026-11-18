@@ -167,8 +167,8 @@ def rodar(
 
         # ── 2. enriquecimento ───────────────────────────────────────────────
         if "enriquecimento" in etapas and novos:
-            r = enriquecimento.rodar(conn, hf, novos, data_snapshot=hoje)
-            res.avisos.extend(r.avisos)
+            r_enriq = enriquecimento.rodar(conn, hf, novos, data_snapshot=hoje)
+            res.avisos.extend(r_enriq.avisos)
 
         # ── 3. classificacao ────────────────────────────────────────────────
         if "classificacao" in etapas:
@@ -198,9 +198,9 @@ def rodar(
 
         # ── 4. refresh ──────────────────────────────────────────────────────
         if "refresh" in etapas:
-            r = refresh.rodar(conn, hf, cfg.refresh, hoje=hoje)
-            res.refresh_papers = r.papers_atualizados
-            res.avisos.extend(r.avisos)
+            r_refresh = refresh.rodar(conn, hf, cfg.refresh, hoje=hoje)
+            res.refresh_papers = r_refresh.papers_atualizados
+            res.avisos.extend(r_refresh.avisos)
 
         if "datas_arxiv" in etapas:
             from .auditoria_arxiv import auditar
@@ -234,8 +234,8 @@ def rodar(
 
         # ── 5. export ───────────────────────────────────────────────────────
         if "export" in etapas:
-            r = export.rodar(conn, cfg, run_id=run_id, hoje=hoje)
-            res.arquivos = r.arquivos
+            r_export = export.rodar(conn, cfg, run_id=run_id, hoje=hoje)
+            res.arquivos = r_export.arquivos
 
     except Exception:
         res.status = "erro"

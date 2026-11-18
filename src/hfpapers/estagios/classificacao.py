@@ -142,7 +142,8 @@ def selecionar(
         "a.evidencia, a.github_repo, a.links_abstract "
         "FROM dim_paper p JOIN vw_artefato a ON a.paper_id = p.paper_id"
     )
-    cond, params = [], []
+    cond: list[str] = []
+    params: list[object] = []
     if ids:
         cond.append(f"p.paper_id IN ({', '.join('?' for _ in ids)})")
         params.extend(ids)
@@ -181,7 +182,8 @@ def _gravar_triagem(
             "SELECT revisao FROM fato_triagem WHERE paper_id = ?", (paper_id,)
         ).fetchone()
         revisao = (row["revisao"] + 1) if row else 1
-    aprovado = b is not None and b.aprovado
+    aprovado_b = b if b is not None and b.aprovado else None
+    aprovado = aprovado_b is not None
     db.upsert_triagem(
         conn,
         {
@@ -189,11 +191,11 @@ def _gravar_triagem(
             "veredito": "aprovado" if aprovado else "fora",
             "regra_fora": None if aprovado else regra_fora,
             "justificativa": justificativa,
-            "natureza": b.natureza if aprovado else None,
-            "prerequisito": b.prerequisito if aprovado else None,
-            "pratica_contradita": b.pratica_contradita if aprovado else None,
-            "falta_o_como": b.falta_o_como if aprovado else None,
-            "artefato_status": b.artefato_status if aprovado else None,
+            "natureza": aprovado_b.natureza if aprovado_b is not None else None,
+            "prerequisito": aprovado_b.prerequisito if aprovado_b is not None else None,
+            "pratica_contradita": aprovado_b.pratica_contradita if aprovado_b is not None else None,
+            "falta_o_como": aprovado_b.falta_o_como if aprovado_b is not None else None,
+            "artefato_status": aprovado_b.artefato_status if aprovado_b is not None else None,
             "classificado_em": db.agora(),
             "run_id": run_id,
             "revisao": revisao,
@@ -478,7 +480,7 @@ def _varrer_paralelo(
                     conn, paper, a, run_id=run_id, so_estagio_a=so_estagio_a, res=res
                 ):
                     continue
-                assert entrada_b is not None  # `_aplicar_estagio_a` so aprova quem tem B
+                assert entrada_b is not None and b is not None  # `_aplicar_estagio_a` so aprova quem tem B
                 if isinstance(b, ErroLLM):
                     _adiar_estagio_b(falhas_b, a, entrada_b, b)
                     continue

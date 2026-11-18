@@ -221,7 +221,7 @@ def aplicar_classificacao(
             return False
         return True
 
-    candidatos = [(area_primaria, subarea_primaria)]
+    candidatos: list[tuple[Optional[str], Optional[str]]] = [(area_primaria, subarea_primaria)]
     if (area_secundaria, subarea_secundaria) != (area_primaria, subarea_primaria):
         candidatos.append((area_secundaria, subarea_secundaria))
 

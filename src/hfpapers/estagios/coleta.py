@@ -41,7 +41,7 @@ def dias_faltantes(
     ultimo = db.max_data_hf(conn)
     if ultimo is None:
         return [hoje]
-    dias = []
+    dias: list[dt.date] = []
     d = ultimo + dt.timedelta(days=1)
     while d <= hoje and len(dias) < limite:
         dias.append(d)

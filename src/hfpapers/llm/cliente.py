@@ -22,6 +22,7 @@ from typing import Any, Callable, Iterator, Optional
 
 import httpx
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
 from .. import db
 from ..config import Config, ambiente, config
@@ -361,7 +362,7 @@ class ClienteLLM:
             # nao tem provedor, e herdar o da anterior seria acusar inocente.
             provedor: Optional[str] = None
             try:
-                mensagens = []
+                mensagens: list[ChatCompletionMessageParam] = []
                 if sistema:
                     mensagens.append({"role": "system", "content": sistema})
                 mensagens.append({"role": "user", "content": prompt_atual})
@@ -394,7 +395,9 @@ class ClienteLLM:
                     extras["temperature"] = temperatura
 
                 def _criar() -> Any:
-                    return self.openai.chat.completions.create(
+                    # `response_format` e `extra_body` seguem o OpenRouter, nao
+                    # os TypedDict do SDK da OpenAI.
+                    return self.openai.chat.completions.create(  # type: ignore[call-overload]
                         model=modelo,
                         messages=mensagens,
                         max_tokens=teto_saida,
@@ -522,6 +525,7 @@ class ClienteLLM:
             else:
                 linhas = [x for x in buffer if x["paper_id"] == paper_id]
                 self._buffer = [x for x in buffer if x["paper_id"] != paper_id]
+        assert self.conn is not None  # so ha buffer quando ha conexao (ver `_registrar`)
         for linha in linhas:
             db.registrar_llm(self.conn, linha)
         return len(linhas)

@@ -58,17 +58,17 @@ def run(
     alvo = _data(data)
 
     if dry_run:
-        r = execucao.dry_run(cfg=cfg, data=alvo)
-        typer.echo(f"Dias: {', '.join(r.dias)}")
-        typer.echo(f"Coletados: {r.coletados} | ja triados: {r.ja_na_base} | a classificar: {r.a_classificar}")
+        estimado = execucao.dry_run(cfg=cfg, data=alvo)
+        typer.echo(f"Dias: {', '.join(estimado.dias)}")
+        typer.echo(f"Coletados: {estimado.coletados} | ja triados: {estimado.ja_na_base} | a classificar: {estimado.a_classificar}")
         typer.echo("")
-        for item in r.estimativa.itens:
+        for item in estimado.estimativa.itens:
             typer.echo(
                 f"  {item['etapa']:<11} {item['modelo']:<34} "
                 f"{item['papers']:>4} papers  ~{item['tokens_entrada']:>7} in / "
                 f"{item['tokens_saida']:>6} out  US$ {item['custo_usd']:.4f}"
             )
-        typer.echo(f"\nEstimativa total: US$ {r.estimativa.total_usd:.4f} (nenhum token gasto)")
+        typer.echo(f"\nEstimativa total: US$ {estimado.estimativa.total_usd:.4f} (nenhum token gasto)")
         return
 
     apenas = [e.strip() for e in only.split(",")] if only else None

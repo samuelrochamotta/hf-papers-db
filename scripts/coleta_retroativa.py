@@ -31,7 +31,7 @@ from hfpapers.config import config  # noqa: E402
 from hfpapers.estagios import coleta, enriquecimento  # noqa: E402
 from hfpapers.fontes.hf_client import ClienteHF  # noqa: E402
 from hfpapers.log import configurar as configurar_log  # noqa: E402
-from hfpapers.log import logger
+from hfpapers.log import logger  # noqa: E402
 
 log = logger("retroativa")
 

@@ -123,6 +123,7 @@ def test_falha_externa_nao_bloqueia(tmp_path):
 
 def test_export_preserva_datas(cfg, tmp_path):
     import pyarrow.parquet as pq
+
     from hfpapers.estagios import export
     conn = banco()
     db.registrar_arxiv_v1(conn, '2608.19269', '2026-08-18', '2026-09-08T10:00:00')
@@ -135,6 +136,7 @@ def test_export_preserva_datas(cfg, tmp_path):
 
 def test_cli_readonly_nao_migra(tmp_path, monkeypatch):
     from typer.testing import CliRunner
+
     from hfpapers import __main__ as cli
     from hfpapers.config import Config
     from hfpapers.fontes.arxiv_client import ClienteArxiv

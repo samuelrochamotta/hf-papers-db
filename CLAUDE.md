@@ -6,6 +6,7 @@
   `digest-hf`). Na nuvem, instale com `uv pip install -e ".[dev]"`.
 - Testes: `python -m pytest -q`. É a porta única: sem rede, com banco em
   `tmp_path`, e já roda a suíte JS do painel via `node --test`.
+- Lint e tipos: `python -m ruff check .` e `python -m mypy`. O CI roda os três.
 
 ## Vocabulário
 

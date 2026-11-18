@@ -14,10 +14,10 @@ from __future__ import annotations
 import math
 import re
 import statistics as st
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, cast
 
 GRAVE = {"preliminar", "amostra_pequena", "pesos_ficticios"}
-RANK_ARTEFATO = {"liberado": 4, "prometido": 3, "so_pagina": 2, "ausente": 1}
+RANK_ARTEFATO: dict[Optional[str], int] = {"liberado": 4, "prometido": 3, "so_pagina": 2, "ausente": 1}
 FATOR_ARTEFATO = {"liberado": 1.0, "prometido": 0.4, "so_pagina": 0.15, "ausente": 0.0}
 PESO_ARTEFATO = {"codigo": 0.4, "pesos": 0.3, "dados": 0.2, "demo": 0.1}
 EIXOS = ("ganho", "solidez", "abertura", "facilidade", "amplitude", "atencao")
@@ -29,6 +29,11 @@ def num(x: Any) -> Optional[float]:
     except (TypeError, ValueError):
         return None
     return v if math.isfinite(v) else None
+
+
+def _valor(linha: dict) -> float:
+    """O `valor` de uma linha que ja passou pelo filtro `num(valor) is not None`."""
+    return cast(float, num(linha["valor"]))
 
 
 def _pm(linha: dict) -> Optional[float]:
@@ -67,17 +72,17 @@ def resultado(r: dict) -> Optional[dict]:
     escolher = min if menor else max
 
     def melhor(xs: list[dict]) -> Optional[dict]:
-        return escolher(xs, key=lambda l: num(l["valor"])) if xs else None
+        return escolher(xs, key=_valor) if xs else None
 
     nos = melhor([l for l in linhas if l.get("papel") == "nosso"])
     ext = melhor([l for l in linhas if l.get("papel") == "externo"])
     fracas = [l for l in linhas if l.get("papel") in ("base", "trivial")]
-    fraca = (max if menor else min)(fracas, key=lambda l: num(l["valor"])) if fracas else None
+    fraca = (max if menor else min)(fracas, key=_valor) if fracas else None
 
     def delta(x: Optional[dict]) -> Optional[float]:
         if not nos or not x:
             return None
-        d = num(nos["valor"]) - num(x["valor"])
+        d = _valor(nos) - _valor(x)
         return round(-d if menor else d, 4)
 
     def relativo(x: Optional[dict]) -> Optional[float]:
@@ -89,11 +94,11 @@ def resultado(r: dict) -> Optional[dict]:
 
     dext = delta(ext)
     ruido = None
-    if dext is not None and _pm(nos) is not None and _pm(ext) is not None:
+    if dext is not None and nos and ext and _pm(nos) is not None and _pm(ext) is not None:
         ruido = abs(dext) <= (_pm(nos) or 0) + (_pm(ext) or 0)
     if not nos:
         estado = "sem_nosso"
-    elif ext is None:
+    elif ext is None or dext is None:  # com `nos` e `ext`, `dext` nunca e None
         estado = "sem_rival"
     elif ruido:
         estado = "ruido"
@@ -122,7 +127,7 @@ def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, Optional[floa
     comp = [r for r in res if r["ext"] and r["nos"]]
     vit = round(sum(r["e"] == "ganha" for r in comp) / len(comp), 2) if comp else None
     # O que o codigo nao achou no texto nao conta como sinal.
-    e = o.get("estatistica") if _ok(o.get("estatistica")) else {}
+    e: dict = o["estatistica"] if _ok(o.get("estatistica")) else {}
     ev = o.get("evidencia") or []
     sig: dict[str, Optional[bool]] = {}
     v = e.get("variancia")
@@ -141,7 +146,7 @@ def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, Optional[floa
     man = None
     conf = None
     if manchetes:
-        n0 = num(manchetes[0]["numero"])
+        n0 = cast(float, num(manchetes[0]["numero"]))  # filtrado acima
         cands: list[float] = []
         for r in res:
             cands += [l[2] for l in r["lin"]]
@@ -178,7 +183,7 @@ def solidez(sig: dict) -> tuple[str, int, int]:
 
 
 def abertura(o: dict, parcial: bool, github: Optional[str]) -> tuple[dict, bool]:
-    ab: dict[str, str] = {}
+    ab: dict[str, Any] = {}
     for t in PESO_ARTEFATO:
         estados = [x.get("estado") for x in _conferidos(o.get("artefatos")) if x.get("tipo") == t]
         ab[t] = max(estados, key=lambda e: RANK_ARTEFATO.get(e, 0)) if estados else (
