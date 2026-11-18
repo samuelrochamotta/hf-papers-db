@@ -154,7 +154,9 @@ def selecionar(
         cond.append("p.paper_id NOT IN (SELECT paper_id FROM fato_triagem)")
     if exceto_run_id:
         # `reclassificar --retomar`: quem ja tem triagem desta rodada fica.
-        cond.append("p.paper_id NOT IN (SELECT paper_id FROM fato_triagem WHERE run_id = ?)")
+        cond.append(
+            "p.paper_id NOT IN (SELECT paper_id FROM fato_triagem WHERE run_id = ?)"
+        )
         params.append(exceto_run_id)
     if cond:
         sql += " WHERE " + " AND ".join(cond)
@@ -193,9 +195,13 @@ def _gravar_triagem(
             "justificativa": justificativa,
             "natureza": aprovado_b.natureza if aprovado_b is not None else None,
             "prerequisito": aprovado_b.prerequisito if aprovado_b is not None else None,
-            "pratica_contradita": aprovado_b.pratica_contradita if aprovado_b is not None else None,
+            "pratica_contradita": aprovado_b.pratica_contradita
+            if aprovado_b is not None
+            else None,
             "falta_o_como": aprovado_b.falta_o_como if aprovado_b is not None else None,
-            "artefato_status": aprovado_b.artefato_status if aprovado_b is not None else None,
+            "artefato_status": aprovado_b.artefato_status
+            if aprovado_b is not None
+            else None,
             "classificado_em": db.agora(),
             "run_id": run_id,
             "revisao": revisao,
@@ -227,7 +233,9 @@ def _gravar_sucesso_b(
             b=b,
         )
         if b.aprovado and b.ficha:
-            gravar_ficha(conn, paper_id, b.ficha, modelo=cfg.llm.estagio_b.modelo, run_id=run_id)
+            gravar_ficha(
+                conn, paper_id, b.ficha, modelo=cfg.llm.estagio_b.modelo, run_id=run_id
+            )
             res.fichas += 1
         elif not b.aprovado:
             conn.execute("DELETE FROM dim_ficha WHERE paper_id = ?", (paper_id,))
@@ -245,7 +253,12 @@ def _gravar_sucesso_b(
 
 
 def gravar_ficha(
-    conn: sqlite3.Connection, paper_id: str, ficha: eb.Ficha, *, modelo: str, run_id: str
+    conn: sqlite3.Connection,
+    paper_id: str,
+    ficha: eb.Ficha,
+    *,
+    modelo: str,
+    run_id: str,
 ) -> None:
     db.upsert_ficha(
         conn,
@@ -460,7 +473,9 @@ def _varrer_paralelo(
     a paper (ver `drenar_registros`).
     """
     with cliente.registros_adiados():
-        pool = ThreadPoolExecutor(max_workers=concorrencia, thread_name_prefix="estagio3")
+        pool = ThreadPoolExecutor(
+            max_workers=concorrencia, thread_name_prefix="estagio3"
+        )
         try:
             futuros: list[Future[_Tarefa]] = [
                 pool.submit(_tarefa_paper, cliente, p, vocab, cfg, so_estagio_a)
@@ -480,14 +495,22 @@ def _varrer_paralelo(
                     conn, paper, a, run_id=run_id, so_estagio_a=so_estagio_a, res=res
                 ):
                     continue
-                assert entrada_b is not None and b is not None  # `_aplicar_estagio_a` so aprova quem tem B
+                assert (
+                    entrada_b is not None and b is not None
+                )  # `_aplicar_estagio_a` so aprova quem tem B
                 if isinstance(b, ErroLLM):
                     _adiar_estagio_b(falhas_b, a, entrada_b, b)
                     continue
 
                 res.uso.somar(b.uso)
                 _gravar_sucesso_b(
-                    conn, paper_id=paper.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+                    conn,
+                    paper_id=paper.paper_id,
+                    a=a,
+                    b=b,
+                    run_id=run_id,
+                    cfg=cfg,
+                    res=res,
                 )
         finally:
             # `cancel_futures` porque, se a varredura estourou no meio, esperar
@@ -531,7 +554,9 @@ def _segunda_passada(
     lote e retentado com a mesma concorrencia da varredura."""
     espera = cfg.llm.retry.backoff_inicial_s * _MULTIPLICADOR_BACKOFF_SEGUNDA_PASSADA
     log.warning(
-        "segunda passada do estagio B: %s paper(s), espera de %ss", len(falhas_b), espera
+        "segunda passada do estagio B: %s paper(s), espera de %ss",
+        len(falhas_b),
+        espera,
     )
     time.sleep(espera)
 
@@ -544,12 +569,20 @@ def _segunda_passada(
                 continue
             res.uso.somar(b.uso)
             _gravar_sucesso_b(
-                conn, paper_id=entrada_b.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+                conn,
+                paper_id=entrada_b.paper_id,
+                a=a,
+                b=b,
+                run_id=run_id,
+                cfg=cfg,
+                res=res,
             )
         return
 
     with cliente.registros_adiados():
-        pool = ThreadPoolExecutor(max_workers=concorrencia, thread_name_prefix="estagio3b")
+        pool = ThreadPoolExecutor(
+            max_workers=concorrencia, thread_name_prefix="estagio3b"
+        )
         try:
             futuros = [
                 pool.submit(eb.avaliar, cliente, entrada_b, cfg=cfg)
@@ -566,7 +599,13 @@ def _segunda_passada(
 
                 res.uso.somar(b.uso)
                 _gravar_sucesso_b(
-                    conn, paper_id=entrada_b.paper_id, a=a, b=b, run_id=run_id, cfg=cfg, res=res
+                    conn,
+                    paper_id=entrada_b.paper_id,
+                    a=a,
+                    b=b,
+                    run_id=run_id,
+                    cfg=cfg,
+                    res=res,
                 )
         finally:
             pool.shutdown(wait=True, cancel_futures=True)
@@ -619,26 +658,48 @@ def rodar(
 
     if concorrencia == 1:
         _varrer_sequencial(
-            conn, cliente, papers, vocab, run_id=run_id, cfg=cfg,
+            conn,
+            cliente,
+            papers,
+            vocab,
+            run_id=run_id,
+            cfg=cfg,
             so_estagio_a=so_estagio_a,
-            res=res, falhas_b=falhas_b,
+            res=res,
+            falhas_b=falhas_b,
         )
     else:
         _varrer_paralelo(
-            conn, cliente, papers, vocab, run_id=run_id, cfg=cfg,
+            conn,
+            cliente,
+            papers,
+            vocab,
+            run_id=run_id,
+            cfg=cfg,
             so_estagio_a=so_estagio_a,
-            concorrencia=concorrencia, res=res, falhas_b=falhas_b,
+            concorrencia=concorrencia,
+            res=res,
+            falhas_b=falhas_b,
         )
 
     if falhas_b:
         _segunda_passada(
-            conn, cliente, falhas_b, run_id=run_id, cfg=cfg,
-            concorrencia=concorrencia, res=res,
+            conn,
+            cliente,
+            falhas_b,
+            run_id=run_id,
+            cfg=cfg,
+            concorrencia=concorrencia,
+            res=res,
         )
 
     log.info(
         "classificacao: %s fora, %s aprovados %s, %s fichas, %s pendentes, US$ %.4f",
-        res.fora, res.aprovados, res.por_prerequisito, res.fichas, res.nao_classificados,
+        res.fora,
+        res.aprovados,
+        res.por_prerequisito,
+        res.fichas,
+        res.nao_classificados,
         res.uso.custo_usd,
     )
     return res
@@ -668,8 +729,12 @@ def estimar(
 
     vocab = ea.carregar_vocabulario(conn)
     amostra = papers[: min(len(papers), 5)]
-    tok_a = sum(estimar_tokens(ea.montar_prompt(p, vocab, cfg)) for p in amostra) // len(amostra)
-    tok_b = sum(estimar_tokens(eb.montar_prompt(p, cfg)) for p in amostra) // len(amostra)
+    tok_a = sum(
+        estimar_tokens(ea.montar_prompt(p, vocab, cfg)) for p in amostra
+    ) // len(amostra)
+    tok_b = sum(estimar_tokens(eb.montar_prompt(p, cfg)) for p in amostra) // len(
+        amostra
+    )
 
     est.acrescentar(
         "estagio_a",

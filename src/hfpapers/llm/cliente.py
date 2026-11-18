@@ -185,7 +185,10 @@ class Preco:
     saida_por_token: float = 0.0
 
     def custo(self, tokens_entrada: int, tokens_saida: int) -> float:
-        return tokens_entrada * self.entrada_por_token + tokens_saida * self.saida_por_token
+        return (
+            tokens_entrada * self.entrada_por_token
+            + tokens_saida * self.saida_por_token
+        )
 
 
 def catalogo_modelos(cfg: Config | None = None, *, timeout: float = 30.0) -> list[dict]:
@@ -207,7 +210,9 @@ def tabela_precos(cfg: Config | None = None) -> dict[str, Preco]:
     for m in catalogo_modelos(cfg):
         p = m.get("pricing") or {}
         try:
-            precos[m["id"]] = Preco(float(p.get("prompt") or 0), float(p.get("completion") or 0))
+            precos[m["id"]] = Preco(
+                float(p.get("prompt") or 0), float(p.get("completion") or 0)
+            )
         except (TypeError, ValueError):
             continue
     return precos
@@ -317,7 +322,9 @@ class ClienteLLM:
                 try:
                     self._parametros = tabela_parametros(self.cfg)
                 except Exception as e:  # noqa: BLE001
-                    log.warning("catalogo de parametros indisponivel: %s", type(e).__name__)
+                    log.warning(
+                        "catalogo de parametros indisponivel: %s", type(e).__name__
+                    )
                     self._parametros = {}
             return self._parametros
 
@@ -423,18 +430,24 @@ class ClienteLLM:
                     validar(dados)
             except ErroTruncado as e:
                 ultimo_erro = e
-                self._registrar(etapa, modelo, paper_id, uso, tentativa, str(e),
-                                provedor=provedor)
+                self._registrar(
+                    etapa, modelo, paper_id, uso, tentativa, str(e), provedor=provedor
+                )
                 teto_saida *= 2
                 log.warning(
                     "resposta truncada (%s, tentativa %s); novo teto de saida: %s",
-                    paper_id, tentativa, teto_saida,
+                    paper_id,
+                    tentativa,
+                    teto_saida,
                 )
             except ErroValidacao as e:
                 ultimo_erro = e
-                self._registrar(etapa, modelo, paper_id, uso, tentativa, str(e),
-                                provedor=provedor)
-                log.warning("validacao falhou (%s, tentativa %s): %s", paper_id, tentativa, e)
+                self._registrar(
+                    etapa, modelo, paper_id, uso, tentativa, str(e), provedor=provedor
+                )
+                log.warning(
+                    "validacao falhou (%s, tentativa %s): %s", paper_id, tentativa, e
+                )
                 prompt_atual = (
                     f"{prompt}\n\n---\n\n"
                     f"A resposta anterior foi rejeitada pela validacao: {e}\n"
@@ -442,20 +455,45 @@ class ClienteLLM:
                 )
             except json.JSONDecodeError as e:
                 ultimo_erro = e
-                self._registrar(etapa, modelo, paper_id, uso, tentativa,
-                                f"json invalido: {e}", provedor=provedor)
+                self._registrar(
+                    etapa,
+                    modelo,
+                    paper_id,
+                    uso,
+                    tentativa,
+                    f"json invalido: {e}",
+                    provedor=provedor,
+                )
                 log.warning("json invalido (%s, tentativa %s)", paper_id, tentativa)
             except Exception as e:  # noqa: BLE001 - erro de rede/provedor
                 ultimo_erro = e
                 self._registrar(
-                    etapa, modelo, paper_id, Uso(), tentativa, f"{type(e).__name__}: {e}",
+                    etapa,
+                    modelo,
+                    paper_id,
+                    Uso(),
+                    tentativa,
+                    f"{type(e).__name__}: {e}",
                     provedor=provedor,
                 )
-                log.warning("chamada falhou (%s, tentativa %s): %s", paper_id, tentativa, type(e).__name__)
+                log.warning(
+                    "chamada falhou (%s, tentativa %s): %s",
+                    paper_id,
+                    tentativa,
+                    type(e).__name__,
+                )
             else:
                 latencia = int((time.monotonic() - t0) * 1000)
-                self._registrar(etapa, modelo, paper_id, uso, tentativa, None, latencia,
-                                provedor=provedor)
+                self._registrar(
+                    etapa,
+                    modelo,
+                    paper_id,
+                    uso,
+                    tentativa,
+                    None,
+                    latencia,
+                    provedor=provedor,
+                )
                 return Resposta(dados, uso, modelo, tentativa, latencia)
 
             if tentativa < tentativas:
@@ -473,7 +511,13 @@ class ClienteLLM:
         detalhes = getattr(u, "prompt_tokens_details", None)
         cache_leitura = int(getattr(detalhes, "cached_tokens", 0) or 0)
         with _TRAVA:  # `self.uso` e acumulador compartilhado entre as threads
-            uso = Uso(entrada, saida, self.preco(modelo).custo(entrada, saida), 1, cache_leitura)
+            uso = Uso(
+                entrada,
+                saida,
+                self.preco(modelo).custo(entrada, saida),
+                1,
+                cache_leitura,
+            )
             self.uso.somar(uso)
         return uso
 
@@ -527,7 +571,9 @@ class ClienteLLM:
             else:
                 linhas = [x for x in buffer if x["paper_id"] == paper_id]
                 self._buffer = [x for x in buffer if x["paper_id"] != paper_id]
-        assert self.conn is not None  # so ha buffer quando ha conexao (ver `_registrar`)
+        assert (
+            self.conn is not None
+        )  # so ha buffer quando ha conexao (ver `_registrar`)
         for linha in linhas:
             db.registrar_llm(self.conn, linha)
         return len(linhas)
@@ -576,7 +622,13 @@ class Estimativa:
     total_usd: float = 0.0
 
     def acrescentar(
-        self, etapa: str, modelo: str, papers: int, tok_entrada: int, tok_saida: int, preco: Preco
+        self,
+        etapa: str,
+        modelo: str,
+        papers: int,
+        tok_entrada: int,
+        tok_saida: int,
+        preco: Preco,
     ) -> None:
         custo = preco.custo(tok_entrada * papers, tok_saida * papers)
         self.itens.append(

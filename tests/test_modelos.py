@@ -28,11 +28,9 @@ def test_paper_normaliza_id_e_datas(daily_bruto):
 
 def test_as_duas_datas_divergem_no_lote_real(daily_bruto):
     itens = [ItemDiario.model_validate(x) for x in daily_bruto]
-    divergem = [
-        i for i in itens if i.paper.publishedAt != i.paper.submittedOnDailyAt
-    ]
+    divergem = [i for i in itens if i.paper.publishedAt != i.paper.submittedOnDailyAt]
     assert len(itens) == 35
-    assert len(divergem) == 35   # a divergencia e a regra, nao a excecao
+    assert len(divergem) == 35  # a divergencia e a regra, nao a excecao
 
 
 def test_campos_opcionais_ausentes_nao_quebram(daily_bruto):
@@ -63,7 +61,9 @@ def test_numcomments_so_existe_no_envelope(daily_bruto):
     item = ItemDiario.model_validate(daily_bruto[0])
     assert item.numComments is not None
     m = paper_para_metrica(
-        item.paper, data_snapshot=dt.date(2026, 8, 26), origem="daily",
+        item.paper,
+        data_snapshot=dt.date(2026, 8, 26),
+        origem="daily",
         comentarios=item.numComments,
     )
     assert m["comentarios"] == item.numComments

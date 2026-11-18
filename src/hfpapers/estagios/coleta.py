@@ -94,13 +94,14 @@ def gravar_itens(
         p = item.paper
         if p.paper_id not in existentes:
             novos.append(p.paper_id)
-        db.upsert_paper(
-            conn, paper_para_dim(p, item=item, primeiro_visto_em=agora)
-        )
+        db.upsert_paper(conn, paper_para_dim(p, item=item, primeiro_visto_em=agora))
         db.upsert_metrica(
             conn,
             paper_para_metrica(
-                p, data_snapshot=data_snapshot, origem=origem, comentarios=item.numComments
+                p,
+                data_snapshot=data_snapshot,
+                origem=origem,
+                comentarios=item.numComments,
             ),
         )
         _gravar_pontes(conn, p)
@@ -142,7 +143,9 @@ def rodar(
         if dia_util and 0 < len(itens) < coletados_min_dia_util:
             res.avisos.append(f"coleta_suspeita:{data.isoformat()}:{len(itens)}")
         if not itens:
-            log.info("%s sem papers%s", data, "" if dia_util else " (fim de semana, normal)")
+            log.info(
+                "%s sem papers%s", data, "" if dia_util else " (fim de semana, normal)"
+            )
             continue
 
         with db.transacao(conn):

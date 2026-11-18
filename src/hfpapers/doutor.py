@@ -33,7 +33,10 @@ def _ultimo_dia_util(hoje: dt.date | None = None) -> dt.date:
 
 def checar_config(cfg: Config) -> list[Item]:
     itens = [Item("config", OK, f"config.yaml lido; banco em {cfg.caminho_banco}")]
-    for nome, est in (("estagio_a", cfg.llm.estagio_a), ("estagio_b", cfg.llm.estagio_b)):
+    for nome, est in (
+        ("estagio_a", cfg.llm.estagio_a),
+        ("estagio_b", cfg.llm.estagio_b),
+    ):
         if est.configurado:
             itens.append(Item(f"modelo.{nome}", OK, est.modelo))
         else:
@@ -70,7 +73,8 @@ def checar_hf(cfg: Config, timeout: float = 15.0) -> Item:
     return Item(
         "api_hf",
         estado,
-        f"{n} papers em {data.isoformat()}" + ("" if estado == OK else " (volume baixo para dia util)"),
+        f"{n} papers em {data.isoformat()}"
+        + ("" if estado == OK else " (volume baixo para dia util)"),
         {"data": data.isoformat(), "qtd": n},
     )
 
@@ -124,7 +128,11 @@ def checar_banco(cfg: Config) -> list[Item]:
     ]
     if diag["tabelas_faltando"]:
         itens.append(
-            Item("schema", ERRO, "tabelas faltando: " + ", ".join(diag["tabelas_faltando"]))
+            Item(
+                "schema",
+                ERRO,
+                "tabelas faltando: " + ", ".join(diag["tabelas_faltando"]),
+            )
         )
     else:
         itens.append(Item("schema", OK, f"{len(diag['contagens'])} tabelas presentes"))
@@ -132,13 +140,20 @@ def checar_banco(cfg: Config) -> list[Item]:
     if diag["integridade"] != "ok":
         itens.append(Item("integridade", ERRO, str(diag["integridade"])))
     elif diag["fk_violacoes"]:
-        itens.append(Item("integridade", ERRO, f"{diag['fk_violacoes']} violacoes de FK"))
+        itens.append(
+            Item("integridade", ERRO, f"{diag['fk_violacoes']} violacoes de FK")
+        )
     else:
-        itens.append(Item("integridade", OK, f"integrity_check ok, journal={diag['journal_mode']}"))
+        itens.append(
+            Item(
+                "integridade", OK, f"integrity_check ok, journal={diag['journal_mode']}"
+            )
+        )
 
-    resumo = ", ".join(
-        f"{t}={n}" for t, n in diag["contagens"].items() if n
-    ) or "banco vazio"
+    resumo = (
+        ", ".join(f"{t}={n}" for t, n in diag["contagens"].items() if n)
+        or "banco vazio"
+    )
     itens.append(Item("conteudo", OK, resumo, diag["contagens"]))
     return itens
 
@@ -209,14 +224,17 @@ def checar_regime(cfg: Config) -> Item:
     try:
         marcas = ", ".join("?" for _ in schemas.REGRAS_FORA)
         legado_fora = db.contar(
-            conn, "fato_triagem",
-            f"veredito = 'fora' AND regra_fora NOT IN ({marcas})", schemas.REGRAS_FORA,
+            conn,
+            "fato_triagem",
+            f"veredito = 'fora' AND regra_fora NOT IN ({marcas})",
+            schemas.REGRAS_FORA,
         )
         legado_aprovado = db.contar(
             conn, "fato_triagem", "veredito = 'aprovado' AND natureza IS NULL"
         )
         incoerentes = db.contar(
-            conn, "fato_triagem",
+            conn,
+            "fato_triagem",
             "veredito = 'aprovado' AND ("
             "(natureza IN ('teoria','panorama') AND prerequisito <> 'sem_acao') OR "
             "(natureza = 'proposta' AND prerequisito = 'sem_acao') OR "
@@ -224,7 +242,8 @@ def checar_regime(cfg: Config) -> Item:
         )
         regra_area = sum(
             db.contar(
-                conn, "fato_triagem t",
+                conn,
+                "fato_triagem t",
                 "t.regra_fora = ? AND NOT EXISTS (SELECT 1 FROM ponte_paper_area a "
                 "WHERE a.paper_id = t.paper_id AND a.is_primaria = 1 AND a.area = ?)",
                 (regra, area),
@@ -247,10 +266,14 @@ def checar_regime(cfg: Config) -> Item:
             "natureza - rode `hfpapers reclassificar --tudo`"
         )
     if incoerentes:
-        problemas.append(f"{incoerentes} aprovados com natureza incoerente com o pre-requisito")
+        problemas.append(
+            f"{incoerentes} aprovados com natureza incoerente com o pre-requisito"
+        )
     if problemas:
         return Item("regime", AVISO, "; ".join(problemas), dados)
-    return Item("regime", OK, "triagem toda no regime do ADR 004, sem incoerencia", dados)
+    return Item(
+        "regime", OK, "triagem toda no regime do ADR 004, sem incoerencia", dados
+    )
 
 
 def checar_pendencias(cfg: Config) -> Item:
@@ -291,7 +314,9 @@ def checar_pendencias(cfg: Config) -> Item:
         ]
         if not pendentes:
             total = db.contar(conn, "dim_paper")
-            return Item("triagem", OK, f"{total} papers, todos com veredito", {"pendentes": 0})
+            return Item(
+                "triagem", OK, f"{total} papers, todos com veredito", {"pendentes": 0}
+            )
 
         row = conn.execute(
             "SELECT e.run_id, e.finalizado_em, "

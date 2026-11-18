@@ -22,8 +22,12 @@ app = typer.Typer(
     no_args_is_help=True,
     help="Camada de preparacao de dados dos HF Daily Papers para o painel.",
 )
-app_tax = typer.Typer(no_args_is_help=True, help="Governanca do vocabulario controlado.")
-app_modelos = typer.Typer(no_args_is_help=True, help="Catalogo de modelos do OpenRouter.")
+app_tax = typer.Typer(
+    no_args_is_help=True, help="Governanca do vocabulario controlado."
+)
+app_modelos = typer.Typer(
+    no_args_is_help=True, help="Catalogo de modelos do OpenRouter."
+)
 app.add_typer(app_tax, name="taxonomia")
 app.add_typer(app_modelos, name="modelos")
 
@@ -45,12 +49,18 @@ def _preparar():
 
 @app.command()
 def run(
-    data: str | None = typer.Option(None, "--data", help="Forca uma data (YYYY-MM-DD)."),
+    data: str | None = typer.Option(
+        None, "--data", help="Forca uma data (YYYY-MM-DD)."
+    ),
     only: str | None = typer.Option(
         None, "--only", help="Subconjunto de estagios, separados por virgula."
     ),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Estima custo, nao chama LLM."),
-    force: bool = typer.Option(False, "--force", help="Reclassifica papers que ja tem triagem."),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Estima custo, nao chama LLM."
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Reclassifica papers que ja tem triagem."
+    ),
 ) -> None:
     """Pipeline completo do dia."""
     cfg = _preparar()
@@ -59,7 +69,9 @@ def run(
     if dry_run:
         estimado = execucao.dry_run(cfg=cfg, data=alvo)
         typer.echo(f"Dias: {', '.join(estimado.dias)}")
-        typer.echo(f"Coletados: {estimado.coletados} | ja triados: {estimado.ja_na_base} | a classificar: {estimado.a_classificar}")
+        typer.echo(
+            f"Coletados: {estimado.coletados} | ja triados: {estimado.ja_na_base} | a classificar: {estimado.a_classificar}"
+        )
         typer.echo("")
         for item in estimado.estimativa.itens:
             typer.echo(
@@ -67,7 +79,9 @@ def run(
                 f"{item['papers']:>4} papers  ~{item['tokens_entrada']:>7} in / "
                 f"{item['tokens_saida']:>6} out  US$ {item['custo_usd']:.4f}"
             )
-        typer.echo(f"\nEstimativa total: US$ {estimado.estimativa.total_usd:.4f} (nenhum token gasto)")
+        typer.echo(
+            f"\nEstimativa total: US$ {estimado.estimativa.total_usd:.4f} (nenhum token gasto)"
+        )
         return
 
     apenas = [e.strip() for e in only.split(",")] if only else None
@@ -111,17 +125,28 @@ def run(
 def auditar_datas_arxiv(
     aplicar: bool = typer.Option(False, "--aplicar"),
     revalidar: bool = typer.Option(False, "--revalidar"),
-    relatorio: Path = typer.Option(Path("relatorios/auditoria-arxiv.json"), "--relatorio"),
+    relatorio: Path = typer.Option(
+        Path("relatorios/auditoria-arxiv.json"), "--relatorio"
+    ),
 ) -> None:
     """Audita toda a base; so --aplicar migra e preenche datas v1 verificadas."""
     from .auditoria_arxiv import auditar
+
     cfg = _preparar()
     caminho = cfg.caminho_banco
-    conn = sqlite3.connect(f"file:{caminho}?mode={'rw' if aplicar else 'ro'}", uri=True, isolation_level=None)
+    conn = sqlite3.connect(
+        f"file:{caminho}?mode={'rw' if aplicar else 'ro'}",
+        uri=True,
+        isolation_level=None,
+    )
     conn.row_factory = sqlite3.Row
     try:
         if aplicar:
-            backup = caminho.with_name(caminho.name + ".pre-arxiv-" + dt.datetime.now().strftime('%Y%m%dT%H%M%S%f'))
+            backup = caminho.with_name(
+                caminho.name
+                + ".pre-arxiv-"
+                + dt.datetime.now().strftime("%Y%m%dT%H%M%S%f")
+            )
             destino = sqlite3.connect(backup)
             try:
                 conn.backup(destino)
@@ -129,10 +154,15 @@ def auditar_datas_arxiv(
                 destino.close()
             typer.echo(f"Backup: {backup}")
             db.migrar(conn)
-        resultado = auditar(conn, cache=caminho.parent / 'cache_arxiv_v1', aplicar=aplicar, revalidar=revalidar)
+        resultado = auditar(
+            conn,
+            cache=caminho.parent / "cache_arxiv_v1",
+            aplicar=aplicar,
+            revalidar=revalidar,
+        )
         relatorio.parent.mkdir(parents=True, exist_ok=True)
         relatorio.write_text(json.dumps(resultado, ensure_ascii=False, indent=2))
-        typer.echo(json.dumps(resultado['resumo'], ensure_ascii=False))
+        typer.echo(json.dumps(resultado["resumo"], ensure_ascii=False))
         typer.echo(f"Relatorio: {relatorio}")
     finally:
         conn.close()
@@ -157,11 +187,21 @@ def export() -> None:
 
 @app.command()
 def ler(
-    dias: int | None = typer.Option(None, "--dias", help="Janela em dias de HF Daily (padrao: config)."),
-    limite: int | None = typer.Option(None, "--limite", help="No maximo N papers, dos mais votados."),
-    min_votos: int | None = typer.Option(None, "--min-votos", help="Piso de votos (padrao: config)."),
-    ids: Path | None = typer.Option(None, "--ids", help="Arquivo com um id do arXiv por linha."),
-    refazer: bool = typer.Option(False, "--refazer", help="Le de novo quem ja foi lido nesta versao do esquema."),
+    dias: int | None = typer.Option(
+        None, "--dias", help="Janela em dias de HF Daily (padrao: config)."
+    ),
+    limite: int | None = typer.Option(
+        None, "--limite", help="No maximo N papers, dos mais votados."
+    ),
+    min_votos: int | None = typer.Option(
+        None, "--min-votos", help="Piso de votos (padrao: config)."
+    ),
+    ids: Path | None = typer.Option(
+        None, "--ids", help="Arquivo com um id do arXiv por linha."
+    ),
+    refazer: bool = typer.Option(
+        False, "--refazer", help="Le de novo quem ja foi lido nesta versao do esquema."
+    ),
 ) -> None:
     """Le o texto completo com o Claude Haiku 5.5 e grava em leitura_texto (ADR 007)."""
     from . import leitura
@@ -169,12 +209,21 @@ def ler(
     cfg = _preparar()
     conn = db.abrir(cfg)
     try:
-        r = leitura.rodar(conn, cfg, dias=dias, limite=limite, min_votos=min_votos,
-                          ids=ler_ids(ids) if ids else None, refazer=refazer)
+        r = leitura.rodar(
+            conn,
+            cfg,
+            dias=dias,
+            limite=limite,
+            min_votos=min_votos,
+            ids=ler_ids(ids) if ids else None,
+            refazer=refazer,
+        )
     finally:
         conn.close()
-    typer.echo(f"{len(r.lidos)} lidos ({len(r.so_abstract)} so com abstract), "
-               f"{len(r.falhas)} falhas, US$ {r.custo_usd:.4f} estimados")
+    typer.echo(
+        f"{len(r.lidos)} lidos ({len(r.so_abstract)} so com abstract), "
+        f"{len(r.falhas)} falhas, US$ {r.custo_usd:.4f} estimados"
+    )
     for pid, erro in r.falhas.items():
         typer.echo(f"  [falha] {pid}: {erro}")
     if r.falhas and not r.lidos:
@@ -204,7 +253,9 @@ def _degraus(por: dict[str, int]) -> str:
 
 @app.command()
 def reclassificar(
-    data: str | None = typer.Option(None, "--data", help="Reclassifica um dia inteiro."),
+    data: str | None = typer.Option(
+        None, "--data", help="Reclassifica um dia inteiro."
+    ),
     paper: str | None = typer.Option(None, "--paper", help="Reclassifica um paper."),
     ids_arquivo: Path | None = typer.Option(
         None,
@@ -274,14 +325,22 @@ def reclassificar(
     conn = db.abrir(cfg)
     try:
         r = execucao.reclassificar(
-            cfg=cfg, conn=conn, ids=ids, data=data, tudo=tudo,
-            concorrencia=concorrencia, so_estagio_a=so_estagio_a, retomar=retomar,
+            cfg=cfg,
+            conn=conn,
+            ids=ids,
+            data=data,
+            tudo=tudo,
+            concorrencia=concorrencia,
+            so_estagio_a=so_estagio_a,
+            retomar=retomar,
         )
         if not r.selecionados:
             typer.echo("nada a reclassificar")
             return
 
-        typer.echo(f"\nrun_id: {r.run_id}  status: {r.status}  ({r.selecionados} papers)")
+        typer.echo(
+            f"\nrun_id: {r.run_id}  status: {r.status}  ({r.selecionados} papers)"
+        )
         typer.echo(
             f"fora {r.fora} | aprovados {r.aprovados} {_degraus(r.por_prerequisito)} | "
             f"fichas {r.fichas} | pendentes {r.nao_classificados} | US$ {r.uso.custo_usd:.4f}"
@@ -443,7 +502,8 @@ def taxonomia_exportar(
 @app_tax.command("carregar")
 def taxonomia_carregar(
     arquivo: Path | None = typer.Argument(
-        None, help=f"JSON gerado por `taxonomia exportar` (padrao: {TAXONOMIA_INICIAL})."
+        None,
+        help=f"JSON gerado por `taxonomia exportar` (padrao: {TAXONOMIA_INICIAL}).",
     ),
 ) -> None:
     """Repoe o vocabulario num banco vazio. Idempotente: rotulo existente nao e tocado."""
@@ -475,7 +535,9 @@ def modelos_listar(
     max_preco: float = typer.Option(
         5.0, "--max-preco", help="Teto de US$ por milhao de tokens de entrada."
     ),
-    contem: str | None = typer.Option(None, "--contem", help="Filtra por trecho do id."),
+    contem: str | None = typer.Option(
+        None, "--contem", help="Filtra por trecho do id."
+    ),
     limite: int = typer.Option(40, "--limite"),
 ) -> None:
     """Lista modelos com saida estruturada e preco por milhao de tokens.
@@ -499,7 +561,9 @@ def modelos_listar(
             continue
         linhas.append((entrada, saida, m["id"], m.get("context_length")))
 
-    typer.echo(f"{len(modelos)} modelos com saida estruturada; {len(linhas)} dentro do filtro\n")
+    typer.echo(
+        f"{len(modelos)} modelos com saida estruturada; {len(linhas)} dentro do filtro\n"
+    )
     typer.echo(f"{'US$/Mtok in':>12} {'out':>9}  {'contexto':>9}  id")
     for entrada, saida, mid, ctx in sorted(linhas)[:limite]:
         typer.echo(f"{entrada:>12.3f} {saida:>9.3f}  {ctx or 0:>9}  {mid}")
@@ -513,7 +577,9 @@ def modelos_listar(
 
 @app.command()
 def custos(
-    mes: str | None = typer.Option(None, "--mes", help="AAAA-MM; padrao: mes corrente."),
+    mes: str | None = typer.Option(
+        None, "--mes", help="AAAA-MM; padrao: mes corrente."
+    ),
 ) -> None:
     """Quanto a LLM custou no mes, por etapa e modelo."""
     cfg = _preparar()
@@ -547,7 +613,9 @@ def custos(
 
 @app.command()
 def doutor(
-    sem_rede: bool = typer.Option(False, "--sem-rede", help="Nao chama HF nem OpenRouter."),
+    sem_rede: bool = typer.Option(
+        False, "--sem-rede", help="Nao chama HF nem OpenRouter."
+    ),
 ) -> None:
     """Diagnostico: chave ok? API ok? banco integro?"""
     cfg = _preparar()
@@ -578,7 +646,9 @@ def mostrar_schema() -> None:
     finally:
         conn.close()
     typer.echo(f"\n-- banco: {cfg.caminho_banco}")
-    typer.echo("-- linhas: " + ", ".join(f"{t}={n}" for t, n in diag["contagens"].items()))
+    typer.echo(
+        "-- linhas: " + ", ".join(f"{t}={n}" for t, n in diag["contagens"].items())
+    )
 
 
 if __name__ == "__main__":

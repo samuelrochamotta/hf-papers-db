@@ -73,13 +73,17 @@ def rodar(
             )
             db.upsert_metrica(
                 conn,
-                paper_para_metrica(paper, data_snapshot=data_snapshot, origem="por_paper"),
+                paper_para_metrica(
+                    paper, data_snapshot=data_snapshot, origem="por_paper"
+                ),
             )
             _atualizar_autores(conn, paper)
             for kw in paper.ai_keywords:
                 if kw:
                     db.inserir_ignorando(
-                        conn, "ponte_paper_keyword", {"paper_id": paper.paper_id, "keyword": kw}
+                        conn,
+                        "ponte_paper_keyword",
+                        {"paper_id": paper.paper_id, "keyword": kw},
                     )
         res.enriquecidos += 1
 

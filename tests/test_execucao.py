@@ -18,7 +18,10 @@ HOJE = dt.date(2026, 8, 26)
 @pytest.fixture()
 def base(cfg, daily_bruto, monkeypatch):
     from hfpapers.fontes.arxiv_client import ClienteArxiv
-    monkeypatch.setattr(ClienteArxiv, "consultar", lambda self, ids: {pid: "2026-08-24" for pid in ids})
+
+    monkeypatch.setattr(
+        ClienteArxiv, "consultar", lambda self, ids: {pid: "2026-08-24" for pid in ids}
+    )
     conn = db.abrir(cfg)
     with db.transacao(conn):
         povoar_vocabulario(conn)
@@ -46,8 +49,12 @@ def test_run_completo_e_depois_idempotente(cfg, base, daily_bruto, paper_bruto):
     llm = LLMDuble(base, cfg)
 
     r1 = execucao.rodar(
-        cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE,
-        cliente_hf=_hf(), cliente_llm=llm,
+        cfg=cfg,
+        conn=base,
+        data=dt.date(2026, 8, 25),
+        hoje=HOJE,
+        cliente_hf=_hf(),
+        cliente_llm=llm,
     )
     assert r1.coletados == 6 and r1.novos == 6
     assert r1.fora + r1.aprovados == 6
@@ -59,14 +66,20 @@ def test_run_completo_e_depois_idempotente(cfg, base, daily_bruto, paper_bruto):
 
     # segunda rodada no mesmo dia: nenhuma linha nova de triagem, nenhuma chamada
     r2 = execucao.rodar(
-        cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE,
-        cliente_hf=_hf(), cliente_llm=llm,
+        cfg=cfg,
+        conn=base,
+        data=dt.date(2026, 8, 25),
+        hoje=HOJE,
+        cliente_hf=_hf(),
+        cliente_llm=llm,
     )
     assert db.contar(base, "fato_triagem") == triagens_1
     assert len(llm.chamadas) == chamadas_1
     assert r2.fora == 0 and r2.aprovados == 0
     # e o snapshot de metricas do dia continua sendo um por paper
-    assert db.contar(base, "fato_metrica", "data_snapshot = ?", (HOJE.isoformat(),)) == 6
+    assert (
+        db.contar(base, "fato_metrica", "data_snapshot = ?", (HOJE.isoformat(),)) == 6
+    )
 
 
 @respx.mock
@@ -78,13 +91,23 @@ def test_force_reclassifica_e_incrementa_revisao(cfg, base, daily_bruto, paper_b
         return_value=httpx.Response(200, json=paper_bruto)
     )
     llm = LLMDuble(base, cfg)
-    execucao.rodar(cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE,
-                   cliente_hf=_hf(), cliente_llm=llm)
-    revisao_1 = base.execute("SELECT MAX(revisao) AS r FROM fato_triagem").fetchone()["r"]
+    execucao.rodar(
+        cfg=cfg,
+        conn=base,
+        data=dt.date(2026, 8, 25),
+        hoje=HOJE,
+        cliente_hf=_hf(),
+        cliente_llm=llm,
+    )
+    revisao_1 = base.execute("SELECT MAX(revisao) AS r FROM fato_triagem").fetchone()[
+        "r"
+    ]
 
     papers = classificacao.selecionar(base, data="2026-08-25", force=True)
     classificacao.rodar(base, llm, papers, run_id="run-2", cfg=cfg)
-    revisao_2 = base.execute("SELECT MAX(revisao) AS r FROM fato_triagem").fetchone()["r"]
+    revisao_2 = base.execute("SELECT MAX(revisao) AS r FROM fato_triagem").fetchone()[
+        "r"
+    ]
     assert revisao_2 == revisao_1 + 1
 
 
@@ -97,8 +120,14 @@ def test_falha_do_estagio_b_nao_aborta_a_rodada(cfg, base, daily_bruto, paper_br
         return_value=httpx.Response(200, json=paper_bruto)
     )
     llm = LLMQuebrado(base, cfg)
-    r = execucao.rodar(cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE,
-                       cliente_hf=_hf(), cliente_llm=llm)
+    r = execucao.rodar(
+        cfg=cfg,
+        conn=base,
+        data=dt.date(2026, 8, 25),
+        hoje=HOJE,
+        cliente_hf=_hf(),
+        cliente_llm=llm,
+    )
 
     # 2 dos 6 papers viram "candidato" no Estagio A (um_a_cada=3) e caem no
     # Estagio B, que a duble sempre derruba - nas duas passadas. Nenhum dos
@@ -106,7 +135,7 @@ def test_falha_do_estagio_b_nao_aborta_a_rodada(cfg, base, daily_bruto, paper_br
     # Estagio A e nem chegam ao Estagio B, entao sao gravados normalmente.
     avisos_b = [a for a in r.avisos if a.startswith("estagio_b_falhou")]
     assert len(avisos_b) == 2
-    assert db.contar(base, "fato_triagem") == 4      # so os "fora" foram gravados
+    assert db.contar(base, "fato_triagem") == 4  # so os "fora" foram gravados
     assert db.contar(base, "dim_ficha") == 0
     assert r.nao_classificados == 2
     # o denominador chega ao guardrail: sem isso o aviso de volume ficaria
@@ -130,20 +159,23 @@ def test_dry_run_nao_grava_nem_gasta_token(cfg, base, daily_bruto):
     original = mod.tabela_precos
     mod.tabela_precos = lambda cfg=None: precos
     try:
-        r = execucao.dry_run(cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE,
-                             cliente_hf=_hf())
+        r = execucao.dry_run(
+            cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE, cliente_hf=_hf()
+        )
     finally:
         mod.tabela_precos = original
 
     assert r.coletados == 35 and r.a_classificar == 35
     assert r.estimativa.total_usd > 0
     assert [i["etapa"] for i in r.estimativa.itens] == ["estagio_a", "estagio_b"]
-    assert db.contar(base, "dim_paper") == 0        # nada gravado
+    assert db.contar(base, "dim_paper") == 0  # nada gravado
     assert db.contar(base, "log_llm") == 0
 
 
 @respx.mock
-def test_nao_encaixe_da_rodada_entra_na_fila_de_revisao(cfg, base, daily_bruto, paper_bruto):
+def test_nao_encaixe_da_rodada_entra_na_fila_de_revisao(
+    cfg, base, daily_bruto, paper_bruto
+):
     """A rodada diaria alimenta a fila de revisao da grade e nao promove nada:
     quem promove e a revisao da grade, por quorum, fora do ato de classificar."""
     respx.get("https://huggingface.co/api/daily_papers").mock(
@@ -153,13 +185,22 @@ def test_nao_encaixe_da_rodada_entra_na_fila_de_revisao(cfg, base, daily_bruto, 
         return_value=httpx.Response(200, json=paper_bruto)
     )
     vocabulario_antes = (taxonomia.arvore_de_areas(base), taxonomia.vertentes(base))
-    execucao.rodar(cfg=cfg, conn=base, data=dt.date(2026, 8, 25), hoje=HOJE,
-                   cliente_hf=_hf(), cliente_llm=LLMComNaoEncaixe(base, cfg))
+    execucao.rodar(
+        cfg=cfg,
+        conn=base,
+        data=dt.date(2026, 8, 25),
+        hoje=HOJE,
+        cliente_hf=_hf(),
+        cliente_llm=LLMComNaoEncaixe(base, cfg),
+    )
 
     fila = taxonomia.nao_encaixes(base, eixo="subarea")
     assert len(fila) == db.contar(base, "fato_triagem") > 0
     assert fila[0]["justificativa"].startswith("Cache semântico")
-    assert (taxonomia.arvore_de_areas(base), taxonomia.vertentes(base)) == vocabulario_antes
+    assert (
+        taxonomia.arvore_de_areas(base),
+        taxonomia.vertentes(base),
+    ) == vocabulario_antes
 
 
 # ── reclassificar ───────────────────────────────────────────────────────────
@@ -175,7 +216,8 @@ def _papers(conn, n=3, dia="2026-08-25"):
                 {
                     "paper_id": f"2608.0000{i}",
                     "titulo": f"Paper {i}",
-                    "abstract": "Um resumo qualquer, longo o bastante para o prompt. " * 3,
+                    "abstract": "Um resumo qualquer, longo o bastante para o prompt. "
+                    * 3,
                     "data_hf_daily": dia,
                     "primeiro_visto_em": "2026-08-25T07:30:00",
                 },
@@ -184,7 +226,9 @@ def _papers(conn, n=3, dia="2026-08-25"):
 
 def test_reclassificar_tudo_registra_a_rodada_em_log_execucao(cfg, base):
     _papers(base, 3)
-    r = execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg))
+    r = execucao.reclassificar(
+        cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg)
+    )
 
     assert r.selecionados == 3
     assert r.fora + r.aprovados == 3
@@ -197,11 +241,16 @@ def test_reclassificar_tudo_registra_a_rodada_em_log_execucao(cfg, base):
     assert linha["finalizado_em"] is not None
     assert linha["status"] == "ok"
     assert (linha["qtd_fora"], linha["qtd_aprovados"]) == (
-        r.fora, r.aprovados,
+        r.fora,
+        r.aprovados,
     )
     assert linha["taxa_fora"] == pytest.approx(r.fora / 3)
     # nada de coleta nem de refresh aconteceu: os campos ficam zerados, nao herdados
-    assert (linha["qtd_coletados"], linha["qtd_novos"], linha["qtd_refresh"]) == (0, 0, 0)
+    assert (linha["qtd_coletados"], linha["qtd_novos"], linha["qtd_refresh"]) == (
+        0,
+        0,
+        0,
+    )
     # e a triagem carrega o run_id da rodada, que e o que o painel trava
     assert db.contar(base, "fato_triagem", "run_id = ?", (r.run_id,)) == 3
 
@@ -218,7 +267,9 @@ def test_reclassificar_dirigido_tambem_registra_a_rodada(cfg, base):
 
 def test_reclassificar_sem_alvo_nao_abre_execucao(cfg, base):
     """Base sem paper nenhum: nada a fazer e nenhuma linha de rodada vazia."""
-    r = execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg))
+    r = execucao.reclassificar(
+        cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg)
+    )
     assert r.selecionados == 0
     assert db.contar(base, "log_execucao") == 0
 
@@ -233,10 +284,13 @@ def test_reclassificar_registra_o_nao_encaixe_e_nao_cria_rotulo(cfg, base):
         execucao.reclassificar(
             cfg=cfg, conn=base, cliente_llm=LLMComNaoEncaixe(base, cfg), **alvo
         )
-        assert [r["paper_id"] for r in taxonomia.nao_encaixes(base, eixo="subarea")] == [
-            "2608.00000", "2608.00001", "2608.00002"
-        ]
-        assert (taxonomia.arvore_de_areas(base), taxonomia.vertentes(base)) == vocabulario_antes
+        assert [
+            r["paper_id"] for r in taxonomia.nao_encaixes(base, eixo="subarea")
+        ] == ["2608.00000", "2608.00001", "2608.00002"]
+        assert (
+            taxonomia.arvore_de_areas(base),
+            taxonomia.vertentes(base),
+        ) == vocabulario_antes
 
 
 def test_reclassificar_lista_os_papers_que_o_estagio_b_derrubou(cfg, base):
@@ -247,14 +301,16 @@ def test_reclassificar_lista_os_papers_que_o_estagio_b_derrubou(cfg, base):
         cfg=cfg, conn=base, tudo=True, cliente_llm=LLMQuebrado(base, cfg)
     )
 
-    assert r.falhas_estagio_b == ["2608.00002"]     # 1 dos 3 chega ao Estagio B
+    assert r.falhas_estagio_b == ["2608.00002"]  # 1 dos 3 chega ao Estagio B
     assert r.nao_classificados == 1
-    assert db.contar(base, "fato_triagem") == 2     # os dois `fora` do Estagio A
+    assert db.contar(base, "fato_triagem") == 2  # os dois `fora` do Estagio A
 
 
 def test_conferir_le_o_criterio_de_conclusao_da_rodada(cfg, base):
     _papers(base, 3)
-    r = execucao.reclassificar(cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg))
+    r = execucao.reclassificar(
+        cfg=cfg, conn=base, tudo=True, cliente_llm=LLMDuble(base, cfg)
+    )
     assert execucao.conferir(base, r.run_id) == {"outro_run_id": 0, "sem_triagem": 0}
 
     # um paper novo que ninguem classificou, e uma triagem de outra rodada

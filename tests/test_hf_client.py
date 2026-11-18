@@ -11,7 +11,7 @@ from hfpapers.fontes.hf_client import ClienteHF, ErroHF
 @pytest.fixture()
 def cfg_rapido():
     c = Config()
-    c.hf.req_por_segundo = 1000     # sem espera artificial no teste
+    c.hf.req_por_segundo = 1000  # sem espera artificial no teste
     c.hf.backoff_inicial_s = 0
     c.hf.tentativas = 3
     return c

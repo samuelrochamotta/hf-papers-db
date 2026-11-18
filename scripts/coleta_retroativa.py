@@ -190,11 +190,18 @@ def rodar(
 
             log.info(
                 "[%s/%s] %s: %s coletados, %s novos (acumulado: %s)",
-                n, len(fila), dia, r.coletados, len(r.novos), res.novos,
+                n,
+                len(fila),
+                dia,
+                r.coletados,
+                len(r.novos),
+                res.novos,
             )
 
         res.status = (
-            "parcial" if any(a.startswith("coleta_falhou") for a in res.avisos) else "ok"
+            "parcial"
+            if any(a.startswith("coleta_falhou") for a in res.avisos)
+            else "ok"
         )
     except BaseException:
         res.status = "erro"
@@ -239,10 +246,18 @@ def _parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         description="Coleta e enriquece uma janela de dias antigos, sem classificar."
     )
-    ap.add_argument("--inicio", type=dt.date.fromisoformat, required=True,
-                    help="Primeiro dia da janela (YYYY-MM-DD).")
-    ap.add_argument("--fim", type=dt.date.fromisoformat, required=True,
-                    help="Ultimo dia da janela, inclusive (YYYY-MM-DD).")
+    ap.add_argument(
+        "--inicio",
+        type=dt.date.fromisoformat,
+        required=True,
+        help="Primeiro dia da janela (YYYY-MM-DD).",
+    )
+    ap.add_argument(
+        "--fim",
+        type=dt.date.fromisoformat,
+        required=True,
+        help="Ultimo dia da janela, inclusive (YYYY-MM-DD).",
+    )
     return ap
 
 
@@ -252,7 +267,9 @@ def _imprimir(res: ResultadoRetroativo, conf: Conferencia) -> None:
     Sai depois da varredura e le do banco, nao dos contadores em memoria: e a
     diferenca entre "o laco acha que fez" e "esta gravado".
     """
-    print(f"\nrun_id: {res.run_id}  status: {res.status}  dias visitados: {len(res.dias)}")
+    print(
+        f"\nrun_id: {res.run_id}  status: {res.status}  dias visitados: {len(res.dias)}"
+    )
     print(
         f"coletados {res.coletados} | novos {res.novos} | ja vistos {res.ja_vistos} | "
         f"enriquecidos {res.enriquecidos}"

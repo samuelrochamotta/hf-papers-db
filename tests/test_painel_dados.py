@@ -16,8 +16,10 @@ DIA = dt.date(2020, 1, 1)
 JANELA_LONGA = 100_000
 
 PAR_PRIMARIO = {
-    "paper_id": "p1", "area": "Contexto & recuperação",
-    "subarea": "Memória de longo prazo", "is_primaria": True,
+    "paper_id": "p1",
+    "area": "Contexto & recuperação",
+    "subarea": "Memória de longo prazo",
+    "is_primaria": True,
 }
 
 VOCAB = {
@@ -29,8 +31,18 @@ VOCAB = {
 }
 
 
-def _montar(tmp_path, monkeypatch, papers, triagem, *, areas=None, vertentes=None,
-            grade=None, fichas=None, dias_hall=JANELA_LONGA):
+def _montar(
+    tmp_path,
+    monkeypatch,
+    papers,
+    triagem,
+    *,
+    areas=None,
+    vertentes=None,
+    grade=None,
+    fichas=None,
+    dias_hall=JANELA_LONGA,
+):
     import gerar_painel
 
     (tmp_path / "_manifest.json").write_text("{}", encoding="utf-8")
@@ -53,8 +65,14 @@ def _montar(tmp_path, monkeypatch, papers, triagem, *, areas=None, vertentes=Non
 
 def _paper(pid, **extra):
     return {
-        "paper_id": pid, "titulo": "T " + pid, "data_hf_daily": DIA, "data_arxiv": DIA,
-        "upvotes_atual": 10, "organizacao": "org", "url_hf": "https://x/" + pid, **extra,
+        "paper_id": pid,
+        "titulo": "T " + pid,
+        "data_hf_daily": DIA,
+        "data_arxiv": DIA,
+        "upvotes_atual": 10,
+        "organizacao": "org",
+        "url_hf": "https://x/" + pid,
+        **extra,
     }
 
 
@@ -67,19 +85,28 @@ def _triado(pid, veredito="aprovado", **extra):
 
 # ══════════════ classificacao na lista da janela ══════════════
 
+
 def test_aprovado_carrega_natureza_textos_e_links(tmp_path, monkeypatch):
     dados = _montar(
-        tmp_path, monkeypatch,
+        tmp_path,
+        monkeypatch,
         [_paper("p1", github_repo="https://github.com/x/y", project_page="https://p")],
-        [_triado("p1", prerequisito="nenhum", natureza="proposta",
-                 pratica_contradita="reusar o mesmo prompt", falta_o_como=None,
-                 artefato_aberto=True)],
+        [
+            _triado(
+                "p1",
+                prerequisito="nenhum",
+                natureza="proposta",
+                pratica_contradita="reusar o mesmo prompt",
+                falta_o_como=None,
+                artefato_aberto=True,
+            )
+        ],
     )
     p = dados["papers"][0]
     assert (p["v"], p["nt"], p["ao"]) == ("aprovado", "proposta", 1)
-    assert "pr" not in p                       # o pre-requisito saiu do painel
+    assert "pr" not in p  # o pre-requisito saiu do painel
     assert p["pc"] == "reusar o mesmo prompt"
-    assert "fo" not in p                       # texto ausente nao viaja vazio
+    assert "fo" not in p  # texto ausente nao viaja vazio
     assert (p["gh"], p["pg"], p["oa"]) == ("https://github.com/x/y", "https://p", 1)
 
 
@@ -88,7 +115,8 @@ def test_descartado_nao_carrega_classificacao(tmp_path, monkeypatch):
     chave vazia repetida vira quilobyte. O descartado leva o repositorio so
     como coordenada da dispersao (`oa`)."""
     dados = _montar(
-        tmp_path, monkeypatch,
+        tmp_path,
+        monkeypatch,
         [_paper("p1", github_repo="https://github.com/x/y")],
         [_triado("p1", "fora")],
     )
@@ -107,13 +135,16 @@ def test_aprovado_sem_natureza_fica_na_janela(tmp_path, monkeypatch):
 
 
 def test_contrato_antigo_nao_viaja(tmp_path, monkeypatch):
-    dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1", prerequisito="treino")])
+    dados = _montar(
+        tmp_path, monkeypatch, [_paper("p1")], [_triado("p1", prerequisito="treino")]
+    )
     p = dados["papers"][0]
     for chave in ("cr", "fc", "fr", "art"):
         assert chave not in p
 
 
 # ══════════════ vocabulario ══════════════
+
 
 def test_naturezas_saem_na_ordem_do_banco_e_perfis_nao_viajam(tmp_path, monkeypatch):
     dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1")])
@@ -122,16 +153,22 @@ def test_naturezas_saem_na_ordem_do_banco_e_perfis_nao_viajam(tmp_path, monkeypa
 
 
 def test_fichas_nao_levam_o_padrao(tmp_path, monkeypatch):
-    dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1", natureza="proposta")])
+    dados = _montar(
+        tmp_path, monkeypatch, [_paper("p1")], [_triado("p1", natureza="proposta")]
+    )
     for f in dados["fichas"]:
         assert "pn" not in f and "pm" not in f
 
 
 # ══════════════ vertente e par area > sub-area ══════════════
 
+
 def test_paper_carrega_a_vertente_com_a_dominante_em_primeiro(tmp_path, monkeypatch):
     dados = _montar(
-        tmp_path, monkeypatch, [_paper("p1")], [_triado("p1")],
+        tmp_path,
+        monkeypatch,
+        [_paper("p1")],
+        [_triado("p1")],
         vertentes=[
             {"paper_id": "p1", "vertente": "Escalar", "ordem": 2},
             {"paper_id": "p1", "vertente": "Baratear", "ordem": 1},
@@ -141,20 +178,27 @@ def test_paper_carrega_a_vertente_com_a_dominante_em_primeiro(tmp_path, monkeypa
 
 
 def test_a_subarea_do_par_primario_chega_ao_painel(tmp_path, monkeypatch):
-    dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1")], areas=[PAR_PRIMARIO])
+    dados = _montar(
+        tmp_path, monkeypatch, [_paper("p1")], [_triado("p1")], areas=[PAR_PRIMARIO]
+    )
     p = dados["papers"][0]
     assert (p["a"], p["sa"]) == ("Contexto & recuperação", "Memória de longo prazo")
 
 
 def test_a_classificacao_acompanha_o_paper_ate_a_aba_historica(tmp_path, monkeypatch):
     dados = _montar(
-        tmp_path, monkeypatch, [_paper("p1")],
+        tmp_path,
+        monkeypatch,
+        [_paper("p1")],
         [_triado("p1", prerequisito="treino", natureza="proposta")],
         areas=[PAR_PRIMARIO],
-        dias_hall=-1,      # corte no futuro: o paper sai da janela e entra no hall
+        dias_hall=-1,  # corte no futuro: o paper sai da janela e entra no hall
     )
     entrada = dados["hall"][0]["ap"][0]
-    assert (entrada["a"], entrada["sa"]) == ("Contexto & recuperação", "Memória de longo prazo")
+    assert (entrada["a"], entrada["sa"]) == (
+        "Contexto & recuperação",
+        "Memória de longo prazo",
+    )
     assert entrada["nt"] == "proposta" and "pr" not in entrada
 
 
@@ -166,15 +210,25 @@ def test_paper_sem_par_nao_inventa_subarea(tmp_path, monkeypatch):
 GRADE = [
     {"area": "Contexto & recuperação", "definicao": "d1", "area_pai": None},
     {"area": "Interface & modalidade", "definicao": "d2", "area_pai": None},
-    {"area": "Memória de longo prazo", "definicao": "", "area_pai": "Contexto & recuperação"},
+    {
+        "area": "Memória de longo prazo",
+        "definicao": "",
+        "area_pai": "Contexto & recuperação",
+    },
     {"area": "Fala & áudio", "definicao": "", "area_pai": "Interface & modalidade"},
 ]
 
 
 def test_o_menu_de_area_lista_so_as_raizes(tmp_path, monkeypatch):
     """`DADOS.areas` alimenta o filtro ÁREA, que compara com `p.a`, sempre raiz."""
-    dados = _montar(tmp_path, monkeypatch, [_paper("p1")], [_triado("p1")],
-                    areas=[PAR_PRIMARIO], grade=GRADE)
+    dados = _montar(
+        tmp_path,
+        monkeypatch,
+        [_paper("p1")],
+        [_triado("p1")],
+        areas=[PAR_PRIMARIO],
+        grade=GRADE,
+    )
     assert dados["areas"] == [
         {"a": "Contexto & recuperação", "def": "d1"},
         {"a": "Interface & modalidade", "def": "d2"},

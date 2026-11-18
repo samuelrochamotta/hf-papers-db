@@ -66,7 +66,12 @@ def _b(v: Any) -> bool | None:
 
 
 def _escrever(
-    dir_saida: Path, nome: str, linhas: list[dict], schema: pa.Schema, *, csv_tambem: bool
+    dir_saida: Path,
+    nome: str,
+    linhas: list[dict],
+    schema: pa.Schema,
+    *,
+    csv_tambem: bool,
 ) -> int:
     colunas = {c: [linha.get(c) for linha in linhas] for c in schema.names}
     tabela = pa.Table.from_pydict(colunas, schema=schema)
@@ -74,7 +79,7 @@ def _escrever(
     destino = dir_saida / f"{nome}.parquet"
     tmp = destino.with_suffix(".parquet.tmp")
     pq.write_table(tabela, tmp, compression="snappy")
-    os.replace(tmp, destino)   # atomico no mesmo volume, inclusive no Windows
+    os.replace(tmp, destino)  # atomico no mesmo volume, inclusive no Windows
 
     if csv_tambem:
         destino_csv = dir_saida / f"{nome}.csv"
@@ -152,7 +157,9 @@ def _fato_metrica(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
     agrega, e a data da ultima medicao do registro historico."""
     linhas = [
         {**r, "data_snapshot": _d(r["data_snapshot"])}
-        for r in _rows(conn, "SELECT * FROM fato_metrica ORDER BY paper_id, data_snapshot")
+        for r in _rows(
+            conn, "SELECT * FROM fato_metrica ORDER BY paper_id, data_snapshot"
+        )
     ]
     schema = pa.schema(
         [
@@ -190,7 +197,9 @@ def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
     return linhas, schema
 
 
-def _simples(conn: sqlite3.Connection, tabela: str, schema: pa.Schema) -> tuple[list[dict], pa.Schema]:
+def _simples(
+    conn: sqlite3.Connection, tabela: str, schema: pa.Schema
+) -> tuple[list[dict], pa.Schema]:
     return _rows(conn, f"SELECT * FROM {tabela}"), schema
 
 
@@ -289,11 +298,15 @@ def rodar(
     for nome, schema in _SCHEMAS_SIMPLES.items():
         linhas, sch = _simples(conn, nome, schema)
         if nome == "ponte_paper_area":
-            linhas = [{**linha, "is_primaria": _b(linha["is_primaria"])} for linha in linhas]
+            linhas = [
+                {**linha, "is_primaria": _b(linha["is_primaria"])} for linha in linhas
+            ]
         tabelas.append((nome, (linhas, sch)))
 
     for nome, (linhas, schema) in tabelas:
-        res.arquivos[nome] = _escrever(dir_saida, nome, linhas, schema, csv_tambem=csv_tambem)
+        res.arquivos[nome] = _escrever(
+            dir_saida, nome, linhas, schema, csv_tambem=csv_tambem
+        )
     _apagar_mortos(dir_saida)
 
     if run_id is None:

@@ -21,13 +21,16 @@ def base(conn):
     with db.transacao(conn):
         povoar_vocabulario(conn)
         db.upsert_paper(
-            conn, {"paper_id": "2608.00001", "titulo": "P", "primeiro_visto_em": db.agora()}
+            conn,
+            {"paper_id": "2608.00001", "titulo": "P", "primeiro_visto_em": db.agora()},
         )
     return conn
 
 
 def _entrada(paper_id: str = "2608.00001") -> PaperEntrada:
-    return PaperEntrada(paper_id=paper_id, titulo="P", abstract="um abstract", keywords=[])
+    return PaperEntrada(
+        paper_id=paper_id, titulo="P", abstract="um abstract", keywords=[]
+    )
 
 
 class LLMFalhaTransitoria(LLMDuble):
@@ -55,8 +58,12 @@ class LLMComVeredito(LLMDuble):
     def chamar(self, *, etapa, modelo, prompt, validar=None, paper_id=None, **kw):
         if etapa != "estagio_b":
             return super().chamar(
-                etapa=etapa, modelo=modelo, prompt=prompt, validar=validar,
-                paper_id=paper_id, **kw,
+                etapa=etapa,
+                modelo=modelo,
+                prompt=prompt,
+                validar=validar,
+                paper_id=paper_id,
+                **kw,
             )
         self.chamadas.append((etapa, paper_id))
         self.tentativas_b += 1
@@ -93,13 +100,13 @@ def test_segunda_passada_resolve_falha_transitoria(cfg, base):
     assert len([c for c in llm.chamadas if c[0] == "estagio_a"]) == 1  # A nao repete
     assert res.avisos == []
     assert res.nao_classificados == 0
-    assert res.aprovados == 1      # RESPOSTA_B: aprovado em `implementar`
+    assert res.aprovados == 1  # RESPOSTA_B: aprovado em `implementar`
     assert res.fichas == 1
     assert db.contar(base, "fato_triagem") == 1
     assert db.contar(base, "dim_ficha") == 1
     # o custo e os tokens da chamada que passou na 2a passada nao podem sumir
     # do total da rodada - senao a rodada mente sobre quanto gastou
-    assert res.uso.chamadas == 2      # Estagio A + o B que passou na 2a passada
+    assert res.uso.chamadas == 2  # Estagio A + o B que passou na 2a passada
     assert res.uso.custo_usd == pytest.approx(0.0002)
 
 
@@ -212,16 +219,19 @@ def test_backoff_da_segunda_passada(cfg, base, monkeypatch):
     monkeypatch.setattr(classificacao.time, "sleep", esperas.append)
     with db.transacao(base):
         db.upsert_paper(
-            base, {"paper_id": "2608.00002", "titulo": "P2", "primeiro_visto_em": db.agora()}
+            base,
+            {"paper_id": "2608.00002", "titulo": "P2", "primeiro_visto_em": db.agora()},
         )
     llm = LLMQuebrado(base, cfg, um_a_cada=1)
     entradas = [_entrada("2608.00001"), _entrada("2608.00002")]
 
     classificacao.rodar(base, llm, entradas, run_id="run-1", cfg=cfg)
 
-    assert len(esperas) == 1                          # uma espera para o lote, nao por paper
-    assert esperas == [pytest.approx(2.0)]             # 0.5 * 4, numero fixo
-    assert esperas[0] > cfg.llm.retry.backoff_inicial_s  # o contrato: maior que o retry interno
+    assert len(esperas) == 1  # uma espera para o lote, nao por paper
+    assert esperas == [pytest.approx(2.0)]  # 0.5 * 4, numero fixo
+    assert (
+        esperas[0] > cfg.llm.retry.backoff_inicial_s
+    )  # o contrato: maior que o retry interno
 
 
 def test_sem_falha_nao_espera(cfg, base, monkeypatch):

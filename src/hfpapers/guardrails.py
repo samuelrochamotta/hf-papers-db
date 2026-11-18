@@ -53,7 +53,10 @@ def _avisos_volume(c: Contagens, cfg: ConfigGuardrails) -> list[str]:
     # Distribuicao por degrau: com poucos aprovados a fracao e ruido, entao so
     # le a partir de um minimo.
     nenhum = c.por_prerequisito.get("nenhum", 0)
-    if c.aprovados >= cfg.prerequisito_min_aprovados and nenhum / c.aprovados > cfg.prerequisito_nenhum_max:
+    if (
+        c.aprovados >= cfg.prerequisito_min_aprovados
+        and nenhum / c.aprovados > cfg.prerequisito_nenhum_max
+    ):
         avisos.append(f"prerequisito_nenhum_alto:{nenhum / c.aprovados:.0%}")
 
     return avisos

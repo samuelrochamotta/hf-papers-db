@@ -21,7 +21,7 @@ from gerar_painel import (
 )
 
 HOJE = dt.date(2026, 12, 1)
-CORTE = HOJE - dt.timedelta(days=90)      # 2026-09-02
+CORTE = HOJE - dt.timedelta(days=90)  # 2026-09-02
 
 
 def paper(pid: str, dia: dt.date, upvotes: int, **extra) -> dict:
@@ -60,14 +60,15 @@ def montar(papers, triagem, fichas=None, ultimo_voto=None, corte=CORTE):
         papers,
         triagem,
         fichas or {},
-        {},          # par_primario
-        {},          # vertentes_por_paper
+        {},  # par_primario
+        {},  # vertentes_por_paper
         ultimo_voto or {},
         corte=corte,
     )
 
 
 # ══════════════ periodo ══════════════
+
 
 @pytest.mark.parametrize(
     "dia, chave, ini, fim",
@@ -90,6 +91,7 @@ def test_periodo_rotula_em_portugues():
 
 # ══════════════ ordenacao ══════════════
 
+
 def test_por_voto_ordena_decrescente_e_desempata_por_id():
     # o desempate por id e o que impede o commit diario do painel de ganhar
     # diff sem significado quando dois papers empatam em votos
@@ -106,10 +108,13 @@ def test_por_voto_trata_upvote_ausente_como_zero():
 
 # ══════════════ recorte ══════════════
 
+
 def test_so_entra_no_hall_quem_ja_saiu_da_janela():
-    dentro = paper("dentro", dt.date(2026, 10, 1), 900)     # depois do corte
+    dentro = paper("dentro", dt.date(2026, 10, 1), 900)  # depois do corte
     fora = paper("fora", dt.date(2026, 7, 15), 10)
-    hall = montar([dentro, fora], {"dentro": triado("aprovado"), "fora": triado("aprovado")})
+    hall = montar(
+        [dentro, fora], {"dentro": triado("aprovado"), "fora": triado("aprovado")}
+    )
 
     assert len(hall) == 1
     assert [p["id"] for p in hall[0]["ap"]] == ["fora"]
@@ -122,18 +127,22 @@ def test_contagem_do_periodo_inclui_quem_ainda_esta_na_janela():
     que o trimestre esta saindo aos poucos.
     """
     saiu = paper("saiu", dt.date(2026, 7, 15), 10)
-    ainda = paper("ainda", dt.date(2026, 9, 20), 10)        # mesmo trimestre, ainda na janela
+    ainda = paper("ainda", dt.date(2026, 9, 20), 10)  # mesmo trimestre, ainda na janela
     descartado = paper("desc", dt.date(2026, 9, 25), 5)
-    triagem = {"saiu": triado("aprovado"), "ainda": triado("aprovado"), "desc": triado("fora")}
+    triagem = {
+        "saiu": triado("aprovado"),
+        "ainda": triado("aprovado"),
+        "desc": triado("fora"),
+    }
 
     hall = montar([saiu, ainda, descartado], triagem)
     assert (hall[0]["n"], hall[0]["na"], hall[0]["nd"]) == (3, 2, 1)
-    assert len(hall[0]["ap"]) == 1        # mas so um saiu da janela
+    assert len(hall[0]["ap"]) == 1  # mas so um saiu da janela
 
 
 def test_trimestre_em_consolidacao_e_marcado():
-    aberto = paper("a", dt.date(2026, 7, 15), 10)           # T3 termina 30/09 > corte 02/09
-    fechado = paper("b", dt.date(2026, 5, 15), 10)          # T2 terminou 30/06 < corte
+    aberto = paper("a", dt.date(2026, 7, 15), 10)  # T3 termina 30/09 > corte 02/09
+    fechado = paper("b", dt.date(2026, 5, 15), 10)  # T2 terminou 30/06 < corte
     hall = montar([aberto, fechado], {"a": triado("aprovado"), "b": triado("aprovado")})
 
     por_chave = {h["per"]: h for h in hall}
@@ -159,20 +168,24 @@ def test_cada_paper_cai_em_um_unico_periodo():
     construcao (`ap` e truncado em dez), sem exercitar nada.
     """
     dias = [
-        dt.date(2025, 12, 30), dt.date(2025, 12, 31),      # 2025-T4
-        dt.date(2026, 1, 1), dt.date(2026, 3, 31),         # 2026-T1
-        dt.date(2026, 4, 1), dt.date(2026, 6, 30),         # 2026-T2
+        dt.date(2025, 12, 30),
+        dt.date(2025, 12, 31),  # 2025-T4
+        dt.date(2026, 1, 1),
+        dt.date(2026, 3, 31),  # 2026-T1
+        dt.date(2026, 4, 1),
+        dt.date(2026, 6, 30),  # 2026-T2
     ]
     ps = [paper(f"p{i}", d, i) for i, d in enumerate(dias)]
-    triagem = {p["paper_id"]: triado("aprovado" if i % 2 else "fora")
-               for i, p in enumerate(ps)}
+    triagem = {
+        p["paper_id"]: triado("aprovado" if i % 2 else "fora") for i, p in enumerate(ps)
+    }
 
     hall = montar(ps, triagem)
     assert [h["per"] for h in hall] == ["2026-T2", "2026-T1", "2025-T4"]
     assert [h["n"] for h in hall] == [2, 2, 2]
 
     vistos = [e["id"] for h in hall for e in h["ap"] + h["de"]]
-    assert sorted(vistos) == [p["paper_id"] for p in ps]     # cada um exatamente uma vez
+    assert sorted(vistos) == [p["paper_id"] for p in ps]  # cada um exatamente uma vez
 
 
 def test_virada_de_ano_ordena_pelo_calendario_e_nao_pela_string():
@@ -198,20 +211,29 @@ def test_o_corte_e_exclusivo_no_proprio_dia():
 def test_trimestre_que_termina_no_corte_ainda_consolida():
     """`fim >= corte` e a fronteira: no dia exato o trimestre nao fechou."""
     # CORTE = 2026-09-02, dentro do T3 (que termina em 30/09)
-    dentro = montar([paper("a", dt.date(2026, 7, 1), 1)], {"a": triado("aprovado")},
-                    corte=dt.date(2026, 9, 30))
+    dentro = montar(
+        [paper("a", dt.date(2026, 7, 1), 1)],
+        {"a": triado("aprovado")},
+        corte=dt.date(2026, 9, 30),
+    )
     assert dentro[0]["cons"] == 1
 
-    depois = montar([paper("a", dt.date(2026, 7, 1), 1)], {"a": triado("aprovado")},
-                    corte=dt.date(2026, 10, 1))
+    depois = montar(
+        [paper("a", dt.date(2026, 7, 1), 1)],
+        {"a": triado("aprovado")},
+        corte=dt.date(2026, 10, 1),
+    )
     assert depois[0]["cons"] == 0
 
 
 # ══════════════ as duas listas ══════════════
 
+
 def test_lista_de_aprovados_e_limitada_e_ordenada_por_voto():
     ps = [paper(f"p{i:02}", dt.date(2026, 7, 1), i) for i in range(30)]
-    triagem = {p["paper_id"]: triado("aprovado", prerequisito="implementar") for p in ps}
+    triagem = {
+        p["paper_id"]: triado("aprovado", prerequisito="implementar") for p in ps
+    }
     fichas = {p["paper_id"]: ficha(p["paper_id"]) for p in ps}
 
     ap = montar(ps, triagem, fichas)[0]["ap"]
@@ -225,11 +247,17 @@ def test_o_hall_e_um_ranking_unico_por_voto():
     dia = dt.date(2026, 7, 1)
     produto = [paper(f"i{i:02}", dia, 1000 + i) for i in range(20)]
     treino = [paper(f"t{i:02}", dia, i) for i in range(3)]
-    triagem = {p["paper_id"]: triado("aprovado", prerequisito="implementar") for p in produto}
-    triagem.update({p["paper_id"]: triado("aprovado", prerequisito="treino") for p in treino})
+    triagem = {
+        p["paper_id"]: triado("aprovado", prerequisito="implementar") for p in produto
+    }
+    triagem.update(
+        {p["paper_id"]: triado("aprovado", prerequisito="treino") for p in treino}
+    )
 
     h = montar(produto + treino, triagem)[0]
-    assert [p["id"] for p in h["ap"]] == [f"i{i:02}" for i in range(19, 19 - TOPO_APROVADOS, -1)]
+    assert [p["id"] for p in h["ap"]] == [
+        f"i{i:02}" for i in range(19, 19 - TOPO_APROVADOS, -1)
+    ]
     assert h["na"] == 23 and "nad" not in h
 
 
@@ -252,7 +280,10 @@ def test_aprovado_carrega_a_ficha_inteira():
 
     assert entrada["f"] == 1
     assert [entrada[k] for k in ("ach", "imp", "ex", "res")] == [
-        "achado", "implicacao", "exemplo", "ressalva"
+        "achado",
+        "implicacao",
+        "exemplo",
+        "ressalva",
     ]
     assert "pn" not in entrada and "pm" not in entrada
 
@@ -261,9 +292,16 @@ def test_aprovado_carrega_justificativa_e_classificacao():
     """`entradas_aprov` traz `j`/`h` (cabecalho da decisao), natureza,
     os textos e os links - o mesmo contrato da aba viva."""
     p = paper("p1", dt.date(2026, 7, 1), 10, github_repo="https://github.com/x/y")
-    triagem = {"p1": triado("aprovado", justificativa="motivo forte", prerequisito="treino",
-                            natureza="achado_empirico", pratica_contradita="usar PPO assim",
-                            artefato_aberto=True)}
+    triagem = {
+        "p1": triado(
+            "aprovado",
+            justificativa="motivo forte",
+            prerequisito="treino",
+            natureza="achado_empirico",
+            pratica_contradita="usar PPO assim",
+            artefato_aberto=True,
+        )
+    }
     entrada = montar([p], triagem)[0]["ap"][0]
 
     assert (entrada["j"], entrada["h"]) == ("motivo forte", 0)
@@ -285,7 +323,9 @@ def test_aprovado_com_justificativa_de_fallback_do_estagio_b_vira_aviso():
     """Linha legada com esse prefixo de fallback continua entrando no ranking dos
     aprovados, com aviso no lugar do texto."""
     p = paper("p1", dt.date(2026, 7, 1), 10)
-    triagem = {"p1": triado("aprovado", justificativa=PREFIXO_FALLBACK + " timeout na chamada")}
+    triagem = {
+        "p1": triado("aprovado", justificativa=PREFIXO_FALLBACK + " timeout na chamada")
+    }
     entrada = montar([p], triagem)[0]["ap"][0]
 
     assert entrada["j"] == ""
@@ -313,8 +353,13 @@ def test_aprovado_sem_ficha_continua_no_ranking():
 
 def test_descartado_carrega_regra_e_justificativa():
     p = paper("p1", dt.date(2026, 7, 1), 300)
-    triagem = {"p1": triado("fora", regra_fora="treino_ou_postreino",
-                            justificativa="O payload principal e treino.")}
+    triagem = {
+        "p1": triado(
+            "fora",
+            regra_fora="treino_ou_postreino",
+            justificativa="O payload principal e treino.",
+        )
+    }
     entrada = montar([p], triagem)[0]["de"][0]
 
     assert entrada["rf"] == "treino_ou_postreino"
@@ -327,7 +372,9 @@ def test_descartado_carrega_regra_e_justificativa():
 def test_descartado_com_justificativa_de_fallback_do_estagio_b_vira_aviso():
     """Uma justificativa que so registra a falha de infra nao pode se passar por raciocinio."""
     p = paper("p1", dt.date(2026, 7, 1), 300)
-    triagem = {"p1": triado("fora", justificativa=PREFIXO_FALLBACK + " timeout na chamada")}
+    triagem = {
+        "p1": triado("fora", justificativa=PREFIXO_FALLBACK + " timeout na chamada")
+    }
     entrada = montar([p], triagem)[0]["de"][0]
 
     assert entrada["h"] == 2
@@ -347,8 +394,9 @@ def test_descartado_sem_justificativa_vira_codigo_tres():
 
 def test_data_da_ultima_medicao_acompanha_o_paper():
     p = paper("p1", dt.date(2026, 7, 1), 300)
-    entrada = montar([p], {"p1": triado("aprovado")},
-                     ultimo_voto={"p1": "2026-09-29"})[0]["ap"][0]
+    entrada = montar([p], {"p1": triado("aprovado")}, ultimo_voto={"p1": "2026-09-29"})[
+        0
+    ]["ap"][0]
     assert entrada["uq"] == "2026-09-29"
 
 
@@ -364,9 +412,9 @@ def test_paper_sem_triagem_nao_vira_descartado():
     aviso que finge ter sido avaliado. Aconteceria: hoje a base tem papers sem
     linha em fato_triagem (falha do Estagio A).
     """
-    orfao = paper("orfao", dt.date(2026, 7, 1), 999)      # o mais votado de longe
+    orfao = paper("orfao", dt.date(2026, 7, 1), 999)  # o mais votado de longe
     ok = paper("ok", dt.date(2026, 7, 1), 5)
-    hall = montar([orfao, ok], {"ok": triado("fora")})     # `orfao` nao esta na triagem
+    hall = montar([orfao, ok], {"ok": triado("fora")})  # `orfao` nao esta na triagem
 
     h = hall[0]
     assert [p["id"] for p in h["de"]] == ["ok"]
@@ -375,8 +423,12 @@ def test_paper_sem_triagem_nao_vira_descartado():
 
 
 def test_contagens_do_periodo_sempre_fecham():
-    ps = [paper("a", dt.date(2026, 7, 1), 1), paper("b", dt.date(2026, 7, 2), 1),
-          paper("c", dt.date(2026, 7, 3), 1), paper("d", dt.date(2026, 7, 4), 1)]
+    ps = [
+        paper("a", dt.date(2026, 7, 1), 1),
+        paper("b", dt.date(2026, 7, 2), 1),
+        paper("c", dt.date(2026, 7, 3), 1),
+        paper("d", dt.date(2026, 7, 4), 1),
+    ]
     triagem = {"a": triado("aprovado"), "b": triado("aprovado"), "c": triado("fora")}
 
     h = montar(ps, triagem)[0]
@@ -386,7 +438,9 @@ def test_contagens_do_periodo_sempre_fecham():
 def test_paper_sem_data_hf_daily_e_ignorado():
     sem_data = paper("p1", None, 900)
     com_data = paper("p2", dt.date(2026, 7, 1), 10)
-    hall = montar([sem_data, com_data], {"p1": triado("aprovado"), "p2": triado("aprovado")})
+    hall = montar(
+        [sem_data, com_data], {"p1": triado("aprovado"), "p2": triado("aprovado")}
+    )
 
     assert len(hall) == 1
     assert [p["id"] for p in hall[0]["ap"]] == ["p2"]
@@ -416,11 +470,11 @@ def test_corte_do_hall_segue_a_janela_do_refresh():
     "conteudo, esperado",
     [
         ("refresh:\n  janela_morna_dias: 45\n", 45),
-        ("refresh:\n  janela_morna_dias: '60'\n", 60),      # string vira int
-        ("refresh: {}\n", 90),                              # chave ausente -> padrao
-        ("llm: {}\n", 90),                                  # secao ausente -> padrao
+        ("refresh:\n  janela_morna_dias: '60'\n", 60),  # string vira int
+        ("refresh: {}\n", 90),  # chave ausente -> padrao
+        ("llm: {}\n", 90),  # secao ausente -> padrao
         ("refresh:\n  janela_morna_dias: nao-e-numero\n", 90),
-        ("refresh:\n  janela_morna_dias: 0\n", 1),          # nunca zero: dividiria a base
+        ("refresh:\n  janela_morna_dias: 0\n", 1),  # nunca zero: dividiria a base
         ("refresh:\n  janela_morna_dias: -5\n", 1),
     ],
 )
@@ -457,7 +511,7 @@ def test_corte_negativo_chega_intacto_na_cli():
 
 def test_corte_adiantado_tira_o_selo_de_consolidacao():
     """O efeito que o corte negativo produz, medido no proprio hall."""
-    p = paper("a", dt.date(2026, 7, 15), 10)                 # T3, termina 30/09
+    p = paper("a", dt.date(2026, 7, 15), 10)  # T3, termina 30/09
     triagem = {"a": triado("aprovado")}
 
     assert montar([p], triagem, corte=dt.date(2026, 9, 2))[0]["cons"] == 1

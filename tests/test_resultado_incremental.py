@@ -65,7 +65,8 @@ def base(cfg):
                 {
                     "paper_id": f"2608.0000{i}",
                     "titulo": f"Paper {i}",
-                    "abstract": "Um resumo qualquer, longo o bastante para o prompt. " * 3,
+                    "abstract": "Um resumo qualquer, longo o bastante para o prompt. "
+                    * 3,
                     "data_hf_daily": "2026-08-25",
                     "primeiro_visto_em": "2026-08-25T07:30:00",
                 },
@@ -76,7 +77,12 @@ def base(cfg):
 
 def _entradas(n=5):
     return [
-        PaperEntrada(paper_id=f"2608.0000{i}", titulo=f"Paper {i}", abstract="um abstract", keywords=[])
+        PaperEntrada(
+            paper_id=f"2608.0000{i}",
+            titulo=f"Paper {i}",
+            abstract="um abstract",
+            keywords=[],
+        )
         for i in range(n)
     ]
 
@@ -91,12 +97,17 @@ def test_acumulado_sobrevive_ao_estouro_da_varredura(cfg, base, concorrencia):
 
     with pytest.raises(RuntimeError):
         classificacao.rodar(
-            base, llm, _entradas(), run_id="run-1", cfg=cfg,
-            concorrencia=concorrencia, res=res,
+            base,
+            llm,
+            _entradas(),
+            run_id="run-1",
+            cfg=cfg,
+            concorrencia=concorrencia,
+            res=res,
         )
 
-    assert res.classificados == 2          # os dois que passaram antes do estouro
-    assert res.uso.chamadas > 0            # e o que eles custaram
+    assert res.classificados == 2  # os dois que passaram antes do estouro
+    assert res.uso.chamadas > 0  # e o que eles custaram
     assert db.contar(base, "fato_triagem") == 2
 
 
@@ -138,7 +149,8 @@ def _espiar_concorrencia(monkeypatch) -> list:
     pedidos = []
     real = classificacao.rodar
     monkeypatch.setattr(
-        classificacao, "rodar",
+        classificacao,
+        "rodar",
         lambda *a, **kw: (pedidos.append(kw.get("concorrencia")), real(*a, **kw))[1],
     )
     return pedidos

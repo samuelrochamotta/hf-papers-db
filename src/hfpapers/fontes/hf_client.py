@@ -96,8 +96,14 @@ class ClienteHF:
                     r.raise_for_status()
                     return r
             if tentativa < self.cfg.tentativas:
-                log.warning("retry %s/%s em %s apos %.1fs (%s)",
-                            tentativa, self.cfg.tentativas, url, espera, ultimo)
+                log.warning(
+                    "retry %s/%s em %s apos %.1fs (%s)",
+                    tentativa,
+                    self.cfg.tentativas,
+                    url,
+                    espera,
+                    ultimo,
+                )
                 time.sleep(espera)
                 espera *= 2
         raise ErroHF(f"falhou apos {self.cfg.tentativas} tentativas: {ultimo}")

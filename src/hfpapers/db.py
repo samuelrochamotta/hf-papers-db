@@ -26,21 +26,48 @@ SCHEMA_SQL = Path(__file__).with_name("schema.sql")
 log = logger("db")
 
 NOMES_MES = [
-    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
 ]
 NOMES_DIA_SEMANA = [
-    "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
-    "sexta-feira", "sábado", "domingo",
+    "segunda-feira",
+    "terça-feira",
+    "quarta-feira",
+    "quinta-feira",
+    "sexta-feira",
+    "sábado",
+    "domingo",
 ]
 
 TABELAS_ESPERADAS = [
-    "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
-    "dim_area", "dim_vertente",
-    "ponte_paper_area", "ponte_paper_vertente",
-    "dim_natureza", "dim_prerequisito", "dim_perfil", "ponte_perfil_prerequisito",
-    "tax_nao_encaixe", "ponte_paper_keyword", "ponte_paper_autor",
-    "log_execucao", "log_llm", "dim_calendario",
+    "dim_paper",
+    "fato_metrica",
+    "fato_triagem",
+    "dim_ficha",
+    "dim_area",
+    "dim_vertente",
+    "ponte_paper_area",
+    "ponte_paper_vertente",
+    "dim_natureza",
+    "dim_prerequisito",
+    "dim_perfil",
+    "ponte_perfil_prerequisito",
+    "tax_nao_encaixe",
+    "ponte_paper_keyword",
+    "ponte_paper_autor",
+    "log_execucao",
+    "log_llm",
+    "dim_calendario",
 ]
 
 
@@ -150,12 +177,16 @@ def migrar(conn: sqlite3.Connection, *, perfis: Sequence[Perfil] | None = None) 
     As views saem antes e voltam no fim: o SQLite revalida toda view a cada
     ALTER TABLE, e uma view apontando para coluna que a reconstrucao ainda nao
     criou derrubaria a migracao."""
-    conn.executescript("DROP VIEW IF EXISTS vw_artefato; DROP VIEW IF EXISTS vw_paper_perfil;")
+    conn.executescript(
+        "DROP VIEW IF EXISTS vw_artefato; DROP VIEW IF EXISTS vw_paper_perfil;"
+    )
     conn.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
     for tabela, coluna, tipo in COLUNAS_MIGRADAS:
         _garantir_coluna(conn, tabela, coluna, tipo)
-    conn.execute("UPDATE dim_paper SET data_arxiv_informada_hf = data_arxiv "
-                 "WHERE data_arxiv_informada_hf IS NULL AND data_arxiv IS NOT NULL")
+    conn.execute(
+        "UPDATE dim_paper SET data_arxiv_informada_hf = data_arxiv "
+        "WHERE data_arxiv_informada_hf IS NULL AND data_arxiv IS NOT NULL"
+    )
     _migrar_ponte_paper_area(conn)
     _remover_tax_candidato(conn)
     _contrair_grade_antiga(conn)
@@ -255,7 +286,9 @@ def colunas(conn: sqlite3.Connection, tabela: str) -> list[str]:
     return [r["name"] for r in conn.execute(f"PRAGMA table_info({tabela})")]
 
 
-def _garantir_coluna(conn: sqlite3.Connection, tabela: str, coluna: str, tipo: str) -> None:
+def _garantir_coluna(
+    conn: sqlite3.Connection, tabela: str, coluna: str, tipo: str
+) -> None:
     if coluna in colunas(conn, tabela):
         return
     conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
@@ -346,7 +379,9 @@ def _contrair_grade_antiga(conn: sqlite3.Connection) -> None:
         "grade anterior removida: %d topico(s), %d linha(s) da ponte de topico "
         "e %d area(s) da grade plana - quem reclassifica na grade facetada e a "
         "rodada seguinte",
-        topicos, pontes, areas,
+        topicos,
+        pontes,
+        areas,
     )
 
 
@@ -465,22 +500,43 @@ def upsert_paper(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
         chave=["paper_id"],
         nao_sobrescrever=["primeiro_visto_em"],
         manter_se_nulo=[
-            "abstract", "ai_summary", "ai_summary_model", "data_arxiv", "data_arxiv_informada_hf",
-            "data_hf_daily", "project_page", "github_repo", "github_repo_added_by",
-            "discussion_id", "thumbnail_url", "organizacao", "organizacao_nome_longo",
-            "submetido_por", "submetido_por_nome", "autor_participa", "qtd_autores",
-            "qtd_autores_verificados", "enriquecido_em",
+            "abstract",
+            "ai_summary",
+            "ai_summary_model",
+            "data_arxiv",
+            "data_arxiv_informada_hf",
+            "data_hf_daily",
+            "project_page",
+            "github_repo",
+            "github_repo_added_by",
+            "discussion_id",
+            "thumbnail_url",
+            "organizacao",
+            "organizacao_nome_longo",
+            "submetido_por",
+            "submetido_por_nome",
+            "autor_participa",
+            "qtd_autores",
+            "qtd_autores_verificados",
+            "enriquecido_em",
         ],
     )
 
 
-def registrar_arxiv_v1(conn: sqlite3.Connection, pid: str, data: str, verificado: str) -> bool:
+def registrar_arxiv_v1(
+    conn: sqlite3.Connection, pid: str, data: str, verificado: str
+) -> bool:
     """Preenche uma vez; uma revalidacao divergente nunca sobrescreve a v1."""
     dt.date.fromisoformat(data)
     with transacao(conn):
-        conn.execute("UPDATE dim_paper SET data_arxiv_v1=?, arxiv_v1_verificado_em=? "
-                     "WHERE paper_id=? AND data_arxiv_v1 IS NULL", (data, verificado, pid))
-        row = conn.execute("SELECT data_arxiv_v1 FROM dim_paper WHERE paper_id=?", (pid,)).fetchone()
+        conn.execute(
+            "UPDATE dim_paper SET data_arxiv_v1=?, arxiv_v1_verificado_em=? "
+            "WHERE paper_id=? AND data_arxiv_v1 IS NULL",
+            (data, verificado, pid),
+        )
+        row = conn.execute(
+            "SELECT data_arxiv_v1 FROM dim_paper WHERE paper_id=?", (pid,)
+        ).fetchone()
     return bool(row and row[0] == data)
 
 
@@ -496,8 +552,12 @@ def upsert_metrica(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
         dados,
         chave=["paper_id", "data_snapshot"],
         manter_se_nulo=[
-            "upvotes", "comentarios", "github_stars",
-            "qtd_modelos", "qtd_datasets", "qtd_spaces",
+            "upvotes",
+            "comentarios",
+            "github_stars",
+            "qtd_modelos",
+            "qtd_datasets",
+            "qtd_spaces",
         ],
     )
 
@@ -519,7 +579,9 @@ def upsert_vertente(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
 
 
 def upsert_execucao(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
-    upsert(conn, "log_execucao", dados, chave=["run_id"], nao_sobrescrever=["iniciado_em"])
+    upsert(
+        conn, "log_execucao", dados, chave=["run_id"], nao_sobrescrever=["iniciado_em"]
+    )
 
 
 def registrar_llm(conn: sqlite3.Connection, dados: Mapping[str, Any]) -> None:
@@ -534,11 +596,15 @@ def ids_existentes(conn: sqlite3.Connection, ids: Iterable[str]) -> set[str]:
     if not ids:
         return set()
     marca = ", ".join("?" for _ in ids)
-    cur = conn.execute(f"SELECT paper_id FROM dim_paper WHERE paper_id IN ({marca})", ids)
+    cur = conn.execute(
+        f"SELECT paper_id FROM dim_paper WHERE paper_id IN ({marca})", ids
+    )
     return {r["paper_id"] for r in cur}
 
 
-def contar(conn: sqlite3.Connection, tabela: str, onde: str = "", params: Sequence = ()) -> int:
+def contar(
+    conn: sqlite3.Connection, tabela: str, onde: str = "", params: Sequence = ()
+) -> int:
     sql = f"SELECT COUNT(*) AS n FROM {tabela}"
     if onde:
         sql += f" WHERE {onde}"
@@ -572,9 +638,7 @@ def linha_calendario(d: dt.date) -> dict[str, Any]:
     }
 
 
-def popular_calendario(
-    conn: sqlite3.Connection, inicio: dt.date, fim: dt.date
-) -> int:
+def popular_calendario(conn: sqlite3.Connection, inicio: dt.date, fim: dt.date) -> int:
     """Preenche dim_calendario no intervalo fechado [inicio, fim]."""
     if fim < inicio:
         inicio, fim = fim, inicio

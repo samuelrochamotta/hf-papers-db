@@ -20,7 +20,9 @@ PID = "2608.00001"
 def base(conn):
     with db.transacao(conn):
         povoar_vocabulario(conn)
-        db.upsert_paper(conn, {"paper_id": PID, "titulo": "P", "primeiro_visto_em": db.agora()})
+        db.upsert_paper(
+            conn, {"paper_id": PID, "titulo": "P", "primeiro_visto_em": db.agora()}
+        )
     return conn
 
 
@@ -35,7 +37,14 @@ class LLMComResposta(LLMDuble):
 
     def chamar(self, *, etapa, modelo, prompt, validar=None, paper_id=None, **kw):
         if etapa != "estagio_b":
-            return super().chamar(etapa=etapa, modelo=modelo, prompt=prompt, validar=validar, paper_id=paper_id, **kw)
+            return super().chamar(
+                etapa=etapa,
+                modelo=modelo,
+                prompt=prompt,
+                validar=validar,
+                paper_id=paper_id,
+                **kw,
+            )
         self.chamadas.append((etapa, paper_id))
         self.prompts_b.append(prompt)
         if validar:
@@ -77,15 +86,26 @@ def test_fora_no_estagio_b_apaga_ficha_e_classificacao(cfg, base):
     _rodar(base, cfg, RESPOSTA_B, "run-1")
     fora = {
         **RESPOSTA_B,
-        "regra_fora": "fora_de_escopo", "natureza": None, "padrao_extraido": None,
-        "prerequisito": None, "ficha": None,
+        "regra_fora": "fora_de_escopo",
+        "natureza": None,
+        "padrao_extraido": None,
+        "prerequisito": None,
+        "ficha": None,
         "justificativa": "FORA por fora_de_escopo: e econometria de precificacao de ativos, sem modelo de linguagem nem pipeline com ele.",
     }
     res, _ = _rodar(base, cfg, fora, "run-2")
     assert res.fora == 1
     row = base.execute("SELECT * FROM fato_triagem").fetchone()
-    assert (row["veredito"], row["regra_fora"], row["natureza"], row["prerequisito"]) == (
-        "fora", "fora_de_escopo", None, None,
+    assert (
+        row["veredito"],
+        row["regra_fora"],
+        row["natureza"],
+        row["prerequisito"],
+    ) == (
+        "fora",
+        "fora_de_escopo",
+        None,
+        None,
     )
     assert row["revisao"] == 2
     assert db.contar(base, "dim_ficha") == 0
@@ -94,7 +114,7 @@ def test_fora_no_estagio_b_apaga_ficha_e_classificacao(cfg, base):
 def test_fora_no_estagio_a_apaga_a_ficha(cfg, base):
     _rodar(base, cfg, RESPOSTA_B, "run-1")
     papers = classificacao.selecionar(base, force=True)
-    llm = LLMDuble(base, cfg, um_a_cada=1000)   # todo Estagio A vira RESPOSTA_A_FORA
+    llm = LLMDuble(base, cfg, um_a_cada=1000)  # todo Estagio A vira RESPOSTA_A_FORA
     res = classificacao.rodar(base, llm, papers, run_id="run-2", cfg=cfg)
     assert res.fora == 1
     assert db.contar(base, "dim_ficha") == 0
@@ -104,10 +124,15 @@ def test_fora_no_estagio_a_apaga_a_ficha(cfg, base):
 
 def test_evidencia_de_artefato_chega_ao_estagio_b(cfg, base):
     with db.transacao(base):
-        db.upsert_paper(base, {
-            "paper_id": PID, "titulo": "P", "primeiro_visto_em": db.agora(),
-            "github_repo": "https://github.com/autores/repo",
-        })
+        db.upsert_paper(
+            base,
+            {
+                "paper_id": PID,
+                "titulo": "P",
+                "primeiro_visto_em": db.agora(),
+                "github_repo": "https://github.com/autores/repo",
+            },
+        )
     papers = classificacao.selecionar(base, force=True)
     assert papers[0].evidencia_artefato is True
     assert papers[0].links_artefato == ["https://github.com/autores/repo"]
@@ -118,15 +143,25 @@ def test_evidencia_de_artefato_chega_ao_estagio_b(cfg, base):
     assert row["artefato_aberto"] == 1
 
 
-@pytest.mark.parametrize("abstract,esperado", [
-    ("Code at https://github.com/a/b.", 1),
-    ("Weights: https://huggingface.co/org/model", 1),
-    ("No link here.", 0),
-])
+@pytest.mark.parametrize(
+    "abstract,esperado",
+    [
+        ("Code at https://github.com/a/b.", 1),
+        ("Weights: https://huggingface.co/org/model", 1),
+        ("No link here.", 0),
+    ],
+)
 def test_link_no_abstract_e_evidencia(base, abstract, esperado):
     with db.transacao(base):
-        db.upsert_paper(base, {"paper_id": PID, "titulo": "P", "abstract": abstract,
-                               "primeiro_visto_em": db.agora()})
+        db.upsert_paper(
+            base,
+            {
+                "paper_id": PID,
+                "titulo": "P",
+                "abstract": abstract,
+                "primeiro_visto_em": db.agora(),
+            },
+        )
     assert base.execute("SELECT evidencia FROM vw_artefato").fetchone()[0] == esperado
 
 
@@ -134,34 +169,67 @@ def test_modelo_vinculado_em_snapshot_antigo_e_evidencia(base):
     """O snapshot mais recente costuma vir com os contadores nulos; a view le
     o maximo de todos."""
     with db.transacao(base):
-        db.upsert_metrica(base, {"paper_id": PID, "data_snapshot": "2026-09-01", "qtd_modelos": 2, "origem": "por_paper"})
-        db.upsert_metrica(base, {"paper_id": PID, "data_snapshot": "2026-10-01", "qtd_modelos": None, "origem": "daily"})
+        db.upsert_metrica(
+            base,
+            {
+                "paper_id": PID,
+                "data_snapshot": "2026-09-01",
+                "qtd_modelos": 2,
+                "origem": "por_paper",
+            },
+        )
+        db.upsert_metrica(
+            base,
+            {
+                "paper_id": PID,
+                "data_snapshot": "2026-10-01",
+                "qtd_modelos": None,
+                "origem": "daily",
+            },
+        )
     assert base.execute("SELECT evidencia FROM vw_artefato").fetchone()[0] == 1
 
 
 def test_selecionar_exceto_run_id_leva_so_quem_falta(cfg, base):
     with db.transacao(base):
-        db.upsert_paper(base, {"paper_id": "2608.00002", "titulo": "Q", "primeiro_visto_em": db.agora()})
+        db.upsert_paper(
+            base,
+            {"paper_id": "2608.00002", "titulo": "Q", "primeiro_visto_em": db.agora()},
+        )
     _rodar(base, cfg, RESPOSTA_B, "run-total")
     with db.transacao(base):
-        base.execute("UPDATE fato_triagem SET run_id = 'run-velho' WHERE paper_id = '2608.00002'")
+        base.execute(
+            "UPDATE fato_triagem SET run_id = 'run-velho' WHERE paper_id = '2608.00002'"
+        )
     papers = classificacao.selecionar(base, force=True, exceto_run_id="run-total")
     assert [p.paper_id for p in papers] == ["2608.00002"]
 
 
 def test_reclassificar_retomar_reaproveita_o_run_id_e_reconta(cfg, base):
     with db.transacao(base):
-        db.upsert_paper(base, {"paper_id": "2608.00002", "titulo": "Q", "primeiro_visto_em": db.agora()})
+        db.upsert_paper(
+            base,
+            {"paper_id": "2608.00002", "titulo": "Q", "primeiro_visto_em": db.agora()},
+        )
     primeira = execucao.reclassificar(
-        cfg=cfg, conn=base, ids=[PID], cliente_llm=LLMComResposta(base, cfg, RESPOSTA_B),
+        cfg=cfg,
+        conn=base,
+        ids=[PID],
+        cliente_llm=LLMComResposta(base, cfg, RESPOSTA_B),
     )
     r = execucao.reclassificar(
-        cfg=cfg, conn=base, tudo=True, retomar=primeira.run_id,
+        cfg=cfg,
+        conn=base,
+        tudo=True,
+        retomar=primeira.run_id,
         cliente_llm=LLMComResposta(base, cfg, RESPOSTA_B),
     )
     assert r.run_id == primeira.run_id
-    assert r.selecionados == 1                       # so o que faltava
-    assert r.aprovados == 2                          # recontado da rodada inteira
+    assert r.selecionados == 1  # so o que faltava
+    assert r.aprovados == 2  # recontado da rodada inteira
     assert execucao.conferir(base, r.run_id) == {"outro_run_id": 0, "sem_triagem": 0}
-    linha = base.execute("SELECT qtd_aprovados, qtd_pr_implementar FROM log_execucao WHERE run_id = ?", (r.run_id,)).fetchone()
+    linha = base.execute(
+        "SELECT qtd_aprovados, qtd_pr_implementar FROM log_execucao WHERE run_id = ?",
+        (r.run_id,),
+    ).fetchone()
     assert tuple(linha) == (2, 2)

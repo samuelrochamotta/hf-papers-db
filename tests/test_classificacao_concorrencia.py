@@ -49,7 +49,14 @@ class LLMConcorrente(LLMDuble):
     """
 
     def __init__(
-        self, conn, cfg, *, fora=(), falha_b_uma_vez=(), falha_a=(), nao_couberam=(),
+        self,
+        conn,
+        cfg,
+        *,
+        fora=(),
+        falha_b_uma_vez=(),
+        falha_a=(),
+        nao_couberam=(),
         atraso=0.02,
     ):
         super().__init__(conn, cfg, um_a_cada=1)
@@ -82,10 +89,14 @@ class LLMConcorrente(LLMDuble):
         try:
             time.sleep(self.atraso)
             if etapa == "estagio_a" and paper_id in self.falha_a:
-                self._registrar(etapa, modelo, paper_id, Uso(), 1, "provedor fora do ar")
+                self._registrar(
+                    etapa, modelo, paper_id, Uso(), 1, "provedor fora do ar"
+                )
                 raise ErroLLM("provedor fora do ar")
             if primeira_falha_b:
-                self._registrar(etapa, modelo, paper_id, Uso(), 1, "instabilidade transitoria")
+                self._registrar(
+                    etapa, modelo, paper_id, Uso(), 1, "instabilidade transitoria"
+                )
                 raise ErroLLM("instabilidade transitoria")
 
             if etapa == "estagio_a":
@@ -113,14 +124,23 @@ def base(conn):
         for i in range(1, 9):
             db.upsert_paper(
                 conn,
-                {"paper_id": f"2608.0000{i}", "titulo": f"P{i}", "primeiro_visto_em": db.agora()},
+                {
+                    "paper_id": f"2608.0000{i}",
+                    "titulo": f"P{i}",
+                    "primeiro_visto_em": db.agora(),
+                },
             )
     return conn
 
 
 def _lote() -> list[PaperEntrada]:
     return [
-        PaperEntrada(paper_id=f"2608.0000{i}", titulo=f"P{i}", abstract="um abstract", keywords=[])
+        PaperEntrada(
+            paper_id=f"2608.0000{i}",
+            titulo=f"P{i}",
+            abstract="um abstract",
+            keywords=[],
+        )
         for i in range(1, 9)
     ]
 
@@ -130,7 +150,10 @@ def _lote() -> list[PaperEntrada]:
 # equivalencia so provaria que o caminho feliz e deterministico.
 FORA = ("2608.00002", "2608.00005")
 FALHA_B = ("2608.00003", "2608.00007")
-NAO_COUBERAM = ("2608.00001", "2608.00006")  # dois: o nao-encaixe entra na fila por paper
+NAO_COUBERAM = (
+    "2608.00001",
+    "2608.00006",
+)  # dois: o nao-encaixe entra na fila por paper
 
 # Colunas de relogio: mudam entre duas rodadas por definicao, e nao e delas que
 # o teste de equivalencia trata.
@@ -147,7 +170,8 @@ def _estado(conn) -> dict[str, list[tuple]]:
     saida = {}
     for tabela in db.TABELAS_ESPERADAS:
         cols = [
-            c for c in db.colunas(conn, tabela)
+            c
+            for c in db.colunas(conn, tabela)
             if not c.endswith("_em") and c not in _VOLATEIS
         ]
         saida[tabela] = [
@@ -180,23 +204,35 @@ def test_concorrencia_4_produz_o_mesmo_banco_que_1(cfg, tmp_path, base):
             for i in range(1, 9):
                 db.upsert_paper(
                     outra,
-                    {"paper_id": f"2608.0000{i}", "titulo": f"P{i}", "primeiro_visto_em": db.agora()},
+                    {
+                        "paper_id": f"2608.0000{i}",
+                        "titulo": f"P{i}",
+                        "primeiro_visto_em": db.agora(),
+                    },
                 )
 
         seq, llm_seq = _rodar(base, cfg, 1)
         par, llm_par = _rodar(outra, cfg, 4)
 
         assert _estado(outra) == _estado(base)
-        assert (par.fora, par.aprovados, par.por_prerequisito) == (seq.fora, seq.aprovados, seq.por_prerequisito)
+        assert (par.fora, par.aprovados, par.por_prerequisito) == (
+            seq.fora,
+            seq.aprovados,
+            seq.por_prerequisito,
+        )
         assert (par.fichas, par.nao_classificados, par.pulados) == (
-            seq.fichas, seq.nao_classificados, seq.pulados
+            seq.fichas,
+            seq.nao_classificados,
+            seq.pulados,
         )
         assert par.avisos == seq.avisos
         assert par.uso.chamadas == seq.uso.chamadas
         assert par.uso.custo_usd == pytest.approx(seq.uso.custo_usd)
         # o lote de fato exercitou os tres caminhos
         assert seq.fora == 2 and seq.aprovados == 6 and seq.nao_classificados == 0
-        assert llm_seq.tentativas_b == llm_par.tentativas_b == 8  # 6 + as 2 da 2a passada
+        assert (
+            llm_seq.tentativas_b == llm_par.tentativas_b == 8
+        )  # 6 + as 2 da 2a passada
     finally:
         outra.close()
 
@@ -209,7 +245,9 @@ def test_concorrencia_4_chama_em_paralelo_de_verdade(cfg, base):
 
     assert llm.pico > 1
     assert len(llm.threads) > 1
-    assert threading.main_thread().name not in llm.threads  # nenhuma chamada na principal
+    assert (
+        threading.main_thread().name not in llm.threads
+    )  # nenhuma chamada na principal
     assert res.classificados == 8
 
 
@@ -276,14 +314,16 @@ def test_ordem_de_gravacao_segue_a_ordem_do_lote(cfg, base):
 def test_segunda_passada_tambem_e_paralela(cfg, base):
     """A segunda passada e o resto da rodada: paraleliza-la e o que evita que
     um lote com muitas falhas transitorias volte ao ritmo sequencial."""
-    llm = LLMConcorrente(base, cfg, falha_b_uma_vez=[f"2608.0000{i}" for i in range(1, 9)])
+    llm = LLMConcorrente(
+        base, cfg, falha_b_uma_vez=[f"2608.0000{i}" for i in range(1, 9)]
+    )
     res = classificacao.rodar(
         base, llm, _lote(), run_id="run-1", cfg=cfg, concorrencia=4
     )
 
-    assert res.aprovados == 8          # todos recuperados na segunda passada
+    assert res.aprovados == 8  # todos recuperados na segunda passada
     assert res.nao_classificados == 0
-    assert llm.tentativas_b == 16    # 8 falhas + 8 recuperacoes
+    assert llm.tentativas_b == 16  # 8 falhas + 8 recuperacoes
     assert llm.pico > 1
 
 
@@ -395,7 +435,10 @@ def _cliente_real(conn, cfg):
         conn=conn,
         run_id="run-1",
         cliente=TransporteLento(),
-        precos={"modelo/teste-a": Preco(1e-6, 2e-6), "modelo/teste-b": Preco(2e-6, 1e-5)},
+        precos={
+            "modelo/teste-a": Preco(1e-6, 2e-6),
+            "modelo/teste-b": Preco(2e-6, 1e-5),
+        },
         parametros={},
     )
 
@@ -434,7 +477,11 @@ def test_prazo_estourando_em_concorrencia_4_da_o_mesmo_banco_que_em_1(
         par = _rodar_com_prazo(paralela, cfg, 4)
 
         assert _estado(paralela) == _estado(sequencial)
-        assert (par.fora, par.aprovados, par.por_prerequisito) == (seq.fora, seq.aprovados, seq.por_prerequisito)
+        assert (par.fora, par.aprovados, par.por_prerequisito) == (
+            seq.fora,
+            seq.aprovados,
+            seq.por_prerequisito,
+        )
         assert par.avisos == seq.avisos
         # o lote de fato exercitou o corte: os tres lentos caem no Estagio A
         assert seq.avisos == [f"estagio_a_falhou:2608.0000{i}" for i in (2, 5, 7)]
@@ -462,6 +509,8 @@ def test_a_orfa_do_prazo_nao_acrescenta_linha_em_log_llm(cfg, conn):
     # 3 tentativas por paper lento, todas com ErroPrazo, e nada alem disso
     prazos = [
         r["paper_id"]
-        for r in conn.execute("SELECT paper_id FROM log_llm WHERE erro LIKE 'ErroPrazo%'")
+        for r in conn.execute(
+            "SELECT paper_id FROM log_llm WHERE erro LIKE 'ErroPrazo%'"
+        )
     ]
     assert sorted(prazos) == sorted([f"2608.0000{i}" for i in (2, 5, 7)] * 3)

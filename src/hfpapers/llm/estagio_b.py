@@ -66,10 +66,46 @@ RE_IMPERATIVO = re.compile(
 RE_TOKEN_NOME = re.compile(r"[A-Za-z][A-Za-z0-9]*(?:[-.][A-Za-z0-9]+)*")
 SIGLAS_COMUNS = frozenset(
     {
-        "LLM", "LLMS", "VLM", "VLMS", "MLLM", "MLLMS", "LM", "LMS", "RAG", "RL",
-        "RLHF", "RLVR", "SFT", "DPO", "PPO", "GRPO", "KV", "MOE", "AI", "NLP",
-        "API", "GPU", "GPUS", "CPU", "SQL", "QA", "COT", "OCR", "ASR", "TTS",
-        "SOTA", "MCP", "GUI", "UI", "LORA", "VQA", "ML", "NN", "CNN", "RNN",
+        "LLM",
+        "LLMS",
+        "VLM",
+        "VLMS",
+        "MLLM",
+        "MLLMS",
+        "LM",
+        "LMS",
+        "RAG",
+        "RL",
+        "RLHF",
+        "RLVR",
+        "SFT",
+        "DPO",
+        "PPO",
+        "GRPO",
+        "KV",
+        "MOE",
+        "AI",
+        "NLP",
+        "API",
+        "GPU",
+        "GPUS",
+        "CPU",
+        "SQL",
+        "QA",
+        "COT",
+        "OCR",
+        "ASR",
+        "TTS",
+        "SOTA",
+        "MCP",
+        "GUI",
+        "UI",
+        "LORA",
+        "VQA",
+        "ML",
+        "NN",
+        "CNN",
+        "RNN",
     }
 )
 
@@ -180,7 +216,8 @@ def validar(dados: dict[str, Any], titulo: str = "") -> None:
     if prereq is None:
         raise ErroValidacao(
             "paper aprovado exige prerequisito ("
-            + ", ".join(schemas.PREREQUISITOS) + ")"
+            + ", ".join(schemas.PREREQUISITOS)
+            + ")"
         )
     if not isinstance(ficha, dict):
         raise ErroValidacao("paper aprovado exige ficha preenchida")
@@ -242,7 +279,11 @@ def avisos_de_coerencia(
     if r.pratica_contradita and r.prerequisito == schemas.SEM_ACAO:
         # A contradicao recebe o degrau necessario para aplicar a correcao.
         avisos.append(AVISO_CONTRADICAO_SEM_DEGRAU)
-    if r.natureza == "achado_empirico" and r.prerequisito == schemas.SEM_ACAO and not r.pratica_contradita:
+    if (
+        r.natureza == "achado_empirico"
+        and r.prerequisito == schemas.SEM_ACAO
+        and not r.pratica_contradita
+    ):
         avisos.append(AVISO_ACHADO_SEM_ACAO)
     if (
         vertentes[:1] == ["Treinar"]
@@ -292,7 +333,9 @@ def avaliar(
         modelo=est.modelo,
         prompt=montar_prompt(paper, cfg),
         sistema=SISTEMA,
-        response_format=schemas.response_format("avaliacao_ficha", schemas.SCHEMA_ESTAGIO_B),
+        response_format=schemas.response_format(
+            "avaliacao_ficha", schemas.SCHEMA_ESTAGIO_B
+        ),
         temperatura=est.temperatura,
         max_tokens=est.max_tokens,
         esforco_raciocinio=est.esforco_raciocinio,

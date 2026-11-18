@@ -65,7 +65,10 @@ _CONFIGURADO = False
 
 
 def configurar(
-    dir_logs: Path | None = None, *, nivel: str = "INFO", arquivo: str = "hfpapers.jsonl"
+    dir_logs: Path | None = None,
+    *,
+    nivel: str = "INFO",
+    arquivo: str = "hfpapers.jsonl",
 ) -> None:
     global _CONFIGURADO
     if _CONFIGURADO:

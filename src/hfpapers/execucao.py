@@ -24,7 +24,14 @@ from .log import logger
 
 log = logger("run")
 
-ESTAGIOS = ("coleta", "enriquecimento", "classificacao", "refresh", "datas_arxiv", "export")
+ESTAGIOS = (
+    "coleta",
+    "enriquecimento",
+    "classificacao",
+    "refresh",
+    "datas_arxiv",
+    "export",
+)
 
 
 @dataclass
@@ -59,7 +66,7 @@ class ResultadoRun:
         chama nao precisa conhecer o formato `estagio_b_falhou:<paper_id>`.
         """
         marca = "estagio_b_falhou:"
-        return [a[len(marca):] for a in self.avisos if a.startswith(marca)]
+        return [a[len(marca) :] for a in self.avisos if a.startswith(marca)]
 
 
 def _absorver(res: ResultadoRun, parcial: classificacao.ResultadoClassificacao) -> None:
@@ -187,12 +194,19 @@ def rodar(
                     # e o que ela quer e nao dar rajada no provedor. Quem pede
                     # concorrencia na linha de comando e `reclassificar`.
                     classificacao.rodar(
-                        conn, llm, pendentes, run_id=run_id, cfg=cfg,
-                        concorrencia=cfg.llm.concorrencia, res=parcial,
+                        conn,
+                        llm,
+                        pendentes,
+                        run_id=run_id,
+                        cfg=cfg,
+                        concorrencia=cfg.llm.concorrencia,
+                        res=parcial,
                     )
                 finally:
                     _absorver(res, parcial)
-                falhou = falhou or any(a.startswith("estagio_a_falhou") for a in res.avisos)
+                falhou = falhou or any(
+                    a.startswith("estagio_a_falhou") for a in res.avisos
+                )
             else:
                 log.info("nada a classificar (tudo ja tem triagem)")
 
@@ -204,13 +218,22 @@ def rodar(
 
         if "datas_arxiv" in etapas:
             from .auditoria_arxiv import auditar
-            auditoria = auditar(conn, cache=cfg.caminho_banco.parent / 'cache_arxiv_v1',
-                               aplicar=True, apenas_pendentes=True)
-            res.avisos.extend('arxiv_' + p['resultado'] + ':' + p['paper_id']
-                             for p in auditoria['papers'] if p['resultado'] != 'verificado')
+
+            auditoria = auditar(
+                conn,
+                cache=cfg.caminho_banco.parent / "cache_arxiv_v1",
+                aplicar=True,
+                apenas_pendentes=True,
+            )
+            res.avisos.extend(
+                "arxiv_" + p["resultado"] + ":" + p["paper_id"]
+                for p in auditoria["papers"]
+                if p["resultado"] != "verificado"
+            )
             cfg.dir_relatorios.mkdir(parents=True, exist_ok=True)
-            (cfg.dir_relatorios / 'auditoria-arxiv-pendentes.json').write_text(
-                json.dumps(auditoria, ensure_ascii=False, indent=2))
+            (cfg.dir_relatorios / "auditoria-arxiv-pendentes.json").write_text(
+                json.dumps(auditoria, ensure_ascii=False, indent=2)
+            )
 
         # ── guardrails (validacao, nao decisao) ─────────────────────────────
         dia_util = (data or hoje).isoweekday() <= 5
@@ -328,8 +351,14 @@ def reclassificar(
         parcial = classificacao.ResultadoClassificacao()
         try:
             classificacao.rodar(
-                conn, llm, papers, run_id=run_id, cfg=cfg,
-                concorrencia=cfg.llm.concorrencia if concorrencia is None else concorrencia,
+                conn,
+                llm,
+                papers,
+                run_id=run_id,
+                cfg=cfg,
+                concorrencia=cfg.llm.concorrencia
+                if concorrencia is None
+                else concorrencia,
                 so_estagio_a=so_estagio_a,
                 res=parcial,
             )
@@ -339,7 +368,9 @@ def reclassificar(
         # deu conta; falha do Estagio B deixa o paper pendente, que e caminho
         # previsto (e sai impresso para o operador repetir um a um).
         res.status = (
-            "parcial" if any(a.startswith("estagio_a_falhou") for a in res.avisos) else "ok"
+            "parcial"
+            if any(a.startswith("estagio_a_falhou") for a in res.avisos)
+            else "ok"
         )
         if retomar:
             _recontar(conn, res)
@@ -358,7 +389,9 @@ def reclassificar(
 
 def _recontar(conn: sqlite3.Connection, res: ResultadoRun) -> None:
     """As contagens da rodada inteira, lidas de `fato_triagem` pelo `run_id`."""
-    res.fora = db.contar(conn, "fato_triagem", "run_id = ? AND veredito = 'fora'", (res.run_id,))
+    res.fora = db.contar(
+        conn, "fato_triagem", "run_id = ? AND veredito = 'fora'", (res.run_id,)
+    )
     res.por_prerequisito = {
         r["prerequisito"]: r["n"]
         for r in conn.execute(

@@ -37,10 +37,10 @@ BANCO = "data/hfpapers.db"
 # Limiares da grade (ADR 002, secao *Limiares da grade*). Ficam nomeados porque o
 # relatorio cita o numero que motivou cada marca, e um literal solto no meio de
 # uma f-string nao se deixa citar.
-TETO_SUBAREA = 0.25       # acima disso, falta ramificar
-PISO_SUBAREA_PCT = 0.03   # abaixo disso (ou de 10 papers), a regra manda fundir
+TETO_SUBAREA = 0.25  # acima disso, falta ramificar
+PISO_SUBAREA_PCT = 0.03  # abaixo disso (ou de 10 papers), a regra manda fundir
 PISO_SUBAREA_N = 10
-PISO_VERTENTE = 0.02      # abaixo disso, o rotulo e absorvido
+PISO_VERTENTE = 0.02  # abaixo disso, o rotulo e absorvido
 
 # Faixa de incerteza em volta de cada limiar. A grade tem ~19% de instabilidade
 # intrinseca (81-82% de auto-concordancia, tres medicoes em 2026-09-08): fundir
@@ -68,6 +68,7 @@ def gerar(
     conn: sqlite3.Connection, run_id: str | None, estimativa_usd: float | None = None
 ) -> str:
     conn.row_factory = sqlite3.Row
+
     def q(s, p=()):
         return [dict(r) for r in conn.execute(s, p)]
 
@@ -78,31 +79,55 @@ def gerar(
 
     # ── cobertura ───────────────────────────────────────────────────────────
     cobertura = [
-        ("com par primário (área > sub-área)",
-         um("SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_area WHERE is_primaria=1")),
-        ("com par secundário",
-         um("SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_area WHERE is_primaria=0")),
-        ("com ao menos uma vertente",
-         um("SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_vertente")),
-        ("com duas vertentes",
-         um("SELECT COUNT(*) FROM (SELECT paper_id FROM ponte_paper_vertente "
-            "GROUP BY paper_id HAVING COUNT(*)=2)")),
+        (
+            "com par primário (área > sub-área)",
+            um(
+                "SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_area WHERE is_primaria=1"
+            ),
+        ),
+        (
+            "com par secundário",
+            um(
+                "SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_area WHERE is_primaria=0"
+            ),
+        ),
+        (
+            "com ao menos uma vertente",
+            um("SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_vertente"),
+        ),
+        (
+            "com duas vertentes",
+            um(
+                "SELECT COUNT(*) FROM (SELECT paper_id FROM ponte_paper_vertente "
+                "GROUP BY paper_id HAVING COUNT(*)=2)"
+            ),
+        ),
         # A linha que faltava, e sem a qual o paper com ponte e sem primaria nao
         # aparece em leitura nenhuma: ele nao entra em "com par primário" e nao
         # entra em "sem faceta nenhuma". Foi assim que quatro papers ficaram
         # meses num estado que o `CONTEXT.md` proibe. Depois do reparo ela sai
         # zerada, e e para continuar assim que ela precisa existir.
-        ("com par, sem primária",
-         um("SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_area WHERE paper_id "
-            "NOT IN (SELECT paper_id FROM ponte_paper_area WHERE is_primaria=1)")),
-        ("**sem faceta nenhuma**",
-         um("SELECT COUNT(*) FROM dim_paper WHERE paper_id NOT IN "
-            "(SELECT paper_id FROM ponte_paper_area)")),
+        (
+            "com par, sem primária",
+            um(
+                "SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_area WHERE paper_id "
+                "NOT IN (SELECT paper_id FROM ponte_paper_area WHERE is_primaria=1)"
+            ),
+        ),
+        (
+            "**sem faceta nenhuma**",
+            um(
+                "SELECT COUNT(*) FROM dim_paper WHERE paper_id NOT IN "
+                "(SELECT paper_id FROM ponte_paper_area)"
+            ),
+        ),
     ]
 
     # ── area > sub-area, pelo par primario ──────────────────────────────────
-    linhas = q("SELECT area, subarea, COUNT(*) n FROM ponte_paper_area "
-               "WHERE is_primaria=1 GROUP BY area, subarea")
+    linhas = q(
+        "SELECT area, subarea, COUNT(*) n FROM ponte_paper_area "
+        "WHERE is_primaria=1 GROUP BY area, subarea"
+    )
     por_area: dict[str, int] = defaultdict(int)
     for a in linhas:
         por_area[a["area"]] += a["n"]
@@ -117,42 +142,54 @@ def gerar(
     linhas.sort(key=lambda a: (-por_area[a["area"]], a["area"], -a["n"], a["subarea"]))
 
     # ── vertentes ───────────────────────────────────────────────────────────
-    verts = q("SELECT v.vertente, COUNT(p.paper_id) n, "
-              "SUM(CASE WHEN p.ordem=1 THEN 1 ELSE 0 END) dom "
-              "FROM dim_vertente v LEFT JOIN ponte_paper_vertente p USING (vertente) "
-              "GROUP BY v.vertente ORDER BY n DESC")
+    verts = q(
+        "SELECT v.vertente, COUNT(p.paper_id) n, "
+        "SUM(CASE WHEN p.ordem=1 THEN 1 ELSE 0 END) dom "
+        "FROM dim_vertente v LEFT JOIN ponte_paper_vertente p USING (vertente) "
+        "GROUP BY v.vertente ORDER BY n DESC"
+    )
     atribuicoes = sum(v["n"] for v in verts)
     classificados = um("SELECT COUNT(DISTINCT paper_id) FROM ponte_paper_vertente")
 
-    nao = q("SELECT eixo, COUNT(*) n FROM tax_nao_encaixe GROUP BY eixo ORDER BY n DESC")
+    nao = q(
+        "SELECT eixo, COUNT(*) n FROM tax_nao_encaixe GROUP BY eixo ORDER BY n DESC"
+    )
     # O desacordo de parentesco tem tratamento proprio porque nao e o mesmo
     # sinal: a area serviu e a sub-area existe - o que nao serviu foi a linha
     # entre as duas. E a unica entrada da fila que aponta um conserto concreto.
-    parentesco = q("SELECT replace(justificativa, 'par rejeitado pelo parentesco "
-                   "da grade: ', '') par, COUNT(*) n FROM tax_nao_encaixe "
-                   "WHERE justificativa LIKE 'par rejeitado%' GROUP BY par ORDER BY n DESC")
+    parentesco = q(
+        "SELECT replace(justificativa, 'par rejeitado pelo parentesco "
+        "da grade: ', '') par, COUNT(*) n FROM tax_nao_encaixe "
+        "WHERE justificativa LIKE 'par rejeitado%' GROUP BY par ORDER BY n DESC"
+    )
 
     # ── custo e roteamento, estes sim recortados pela rodada ────────────────
     onde, par = ("WHERE run_id=?", (run_id,)) if run_id else ("WHERE 1=1", ())
-    uso = q(f"SELECT COUNT(*) n, COALESCE(SUM(custo_usd),0) usd, "
-            f"COALESCE(SUM(tokens_entrada),0) tin, COALESCE(SUM(tokens_saida),0) tout, "
-            f"COALESCE(SUM(erro IS NOT NULL),0) erros, COALESCE(SUM(erro LIKE '%cortada%' OR erro LIKE '%Unterminated%'),0) cortadas, "
-            f"COALESCE(SUM(erro LIKE 'ErroPrazo%'),0) prazo, "
-            f"COALESCE(SUM(CASE WHEN erro IS NOT NULL THEN custo_usd END),0) usd_erro, "
-            f"COALESCE(strftime('%s',MAX(criado_em))-strftime('%s',MIN(criado_em)),0) seg "
-            f"FROM log_llm {onde}", par)[0]
-    prov = q(f"SELECT COALESCE(provedor,'(não registrado)') provedor, COUNT(*) n, "
-             f"COALESCE(SUM(erro LIKE '%cortada%' OR erro LIKE '%Unterminated%'),0) cortadas, "
-             f"COALESCE(SUM(erro LIKE 'ErroPrazo%'),0) prazo, "
-             f"COALESCE(SUM(erro IS NOT NULL),0) erros, "
-             f"ROUND(AVG(latencia_ms)/1000.0,1) lat, ROUND(MAX(latencia_ms)/1000.0,1) pior, "
-             # `latencia_ms` conta do inicio do laco de `chamar`, entao uma linha
-             # de tentativa 3 carrega as duas anteriores e os dois backoffs. Sem
-             # esta coluna o relatorio anuncia pior caso de 115,8 s numa rodada
-             # cuja chamada mais lenta levou 19,1 s - e faz o teto de 90 s
-             # parecer furado quando ele estava funcionando.
-             f"ROUND(MAX(CASE WHEN tentativas=1 THEN latencia_ms END)/1000.0,1) pior1 "
-             f"FROM log_llm {onde} GROUP BY 1 ORDER BY n DESC", par)
+    uso = q(
+        f"SELECT COUNT(*) n, COALESCE(SUM(custo_usd),0) usd, "
+        f"COALESCE(SUM(tokens_entrada),0) tin, COALESCE(SUM(tokens_saida),0) tout, "
+        f"COALESCE(SUM(erro IS NOT NULL),0) erros, COALESCE(SUM(erro LIKE '%cortada%' OR erro LIKE '%Unterminated%'),0) cortadas, "
+        f"COALESCE(SUM(erro LIKE 'ErroPrazo%'),0) prazo, "
+        f"COALESCE(SUM(CASE WHEN erro IS NOT NULL THEN custo_usd END),0) usd_erro, "
+        f"COALESCE(strftime('%s',MAX(criado_em))-strftime('%s',MIN(criado_em)),0) seg "
+        f"FROM log_llm {onde}",
+        par,
+    )[0]
+    prov = q(
+        f"SELECT COALESCE(provedor,'(não registrado)') provedor, COUNT(*) n, "
+        f"COALESCE(SUM(erro LIKE '%cortada%' OR erro LIKE '%Unterminated%'),0) cortadas, "
+        f"COALESCE(SUM(erro LIKE 'ErroPrazo%'),0) prazo, "
+        f"COALESCE(SUM(erro IS NOT NULL),0) erros, "
+        f"ROUND(AVG(latencia_ms)/1000.0,1) lat, ROUND(MAX(latencia_ms)/1000.0,1) pior, "
+        # `latencia_ms` conta do inicio do laco de `chamar`, entao uma linha
+        # de tentativa 3 carrega as duas anteriores e os dois backoffs. Sem
+        # esta coluna o relatorio anuncia pior caso de 115,8 s numa rodada
+        # cuja chamada mais lenta levou 19,1 s - e faz o teto de 90 s
+        # parecer furado quando ele estava funcionando.
+        f"ROUND(MAX(CASE WHEN tentativas=1 THEN latencia_ms END)/1000.0,1) pior1 "
+        f"FROM log_llm {onde} GROUP BY 1 ORDER BY n DESC",
+        par,
+    )
 
     o: list[str] = []
     w = o.append
@@ -173,8 +210,12 @@ def gerar(
     w("")
 
     w("## 2. Distribuição por área e sub-área\n")
-    w(f"Percentual da sub-área **dentro da sua área**. Acima de {TETO_SUBAREA:.0%} falta")
-    w(f"ramificar; abaixo de {PISO_SUBAREA_PCT:.0%} da área ou de {PISO_SUBAREA_N} papers, a")
+    w(
+        f"Percentual da sub-área **dentro da sua área**. Acima de {TETO_SUBAREA:.0%} falta"
+    )
+    w(
+        f"ramificar; abaixo de {PISO_SUBAREA_PCT:.0%} da área ou de {PISO_SUBAREA_N} papers, a"
+    )
     w("regra manda fundir.\n")
     w("| Área | Sub-área | papers | % da área | leitura |")
     w("|---|---|---:|---:|---|")
@@ -188,25 +229,32 @@ def gerar(
             acima.append((a["area"], a["subarea"], a["n"], pct))
         elif pct < PISO_SUBAREA_PCT or a["n"] < PISO_SUBAREA_N:
             motivo = " e ".join(
-                x for x in (
+                x
+                for x in (
                     f"{pct:.1%} da área" if pct < PISO_SUBAREA_PCT else "",
                     f"{a['n']} papers" if a["n"] < PISO_SUBAREA_N else "",
-                ) if x
+                )
+                if x
             )
             marca = f"fundir ({motivo})"
         # Sub-area vazia nao esta "perto do piso": ela esta no chao, e a
         # decisao sobre ela nao tem ruido que a atrapalhe.
-        if a["n"] and (abs(pct - TETO_SUBAREA) <= FOLGA
-                       or abs(pct - PISO_SUBAREA_PCT) <= FOLGA):
-            perto.append((f"{a['area']} > {a['subarea']}", a["n"], f"{pct:.1%} da área"))
+        if a["n"] and (
+            abs(pct - TETO_SUBAREA) <= FOLGA or abs(pct - PISO_SUBAREA_PCT) <= FOLGA
+        ):
+            perto.append(
+                (f"{a['area']} > {a['subarea']}", a["n"], f"{pct:.1%} da área")
+            )
             marca = f"{marca} · **no limiar**".lstrip(" ·")
         if a["area"] != ultima:
             ultima = a["area"]
             w(f"| **{ultima}** | _{por_area[ultima]} papers_ | | | |")
         w(f"| | {a['subarea']} | {a['n']} | {pct:.1%} | {marca} |")
     w("")
-    w(f"**Checagem A — nenhuma sub-área acima de ~{TETO_SUBAREA:.0%} da sua área**: "
-      f"{'FALHA' if acima else 'passa'}, {len(acima)} acima do teto.")
+    w(
+        f"**Checagem A — nenhuma sub-área acima de ~{TETO_SUBAREA:.0%} da sua área**: "
+        f"{'FALHA' if acima else 'passa'}, {len(acima)} acima do teto."
+    )
     for area, sub, n, pct in acima:
         w(f"  - {area} > {sub}: {n} papers, {pct:.1%}")
     w("")
@@ -232,13 +280,19 @@ def gerar(
                 (f"vertente {v['vertente']}", v["n"], f"{pct:.1%} dos classificados")
             )
             marca = f"{marca} · **no limiar**".lstrip(" ·")
-        w(f"| {v['vertente']} | {v['n']} | {_pct(v['n'], total):.1%} | {pct:.1%} "
-          f"| {v['dom'] or 0} | {marca} |")
+        w(
+            f"| {v['vertente']} | {v['n']} | {_pct(v['n'], total):.1%} | {pct:.1%} "
+            f"| {v['dom'] or 0} | {marca} |"
+        )
     w("")
-    w(f"Atribuições no total: {atribuicoes} para {classificados} papers "
-      f"({atribuicoes / classificados if classificados else 0:.2f} por paper).")
-    w(f"**Checagem B — nenhuma vertente abaixo de ~{PISO_VERTENTE:.0%}**: "
-      f"{'FALHA' if abaixo else 'passa'}, {len(abaixo)} abaixo do piso.")
+    w(
+        f"Atribuições no total: {atribuicoes} para {classificados} papers "
+        f"({atribuicoes / classificados if classificados else 0:.2f} por paper)."
+    )
+    w(
+        f"**Checagem B — nenhuma vertente abaixo de ~{PISO_VERTENTE:.0%}**: "
+        f"{'FALHA' if abaixo else 'passa'}, {len(abaixo)} abaixo do piso."
+    )
     for rot, n, pct in abaixo:
         w(f"  - {rot}: {n} papers, {pct:.1%}")
     w("")
@@ -309,27 +363,33 @@ def gerar(
         w(f"| ritmo | {uso['n'] * 60 / seg if seg else 0:.1f} ch/min |")
     w("")
     if uso["n"]:
-        w(f"Erros: {uso['erros']}. Respostas cortadas: {uso['cortadas']} "
-          f"({_pct(uso['cortadas'], uso['n']):.1%} das chamadas) — a conta inclui o "
-          "`json invalido: Unterminated string`, que é corte com outro nome.")
+        w(
+            f"Erros: {uso['erros']}. Respostas cortadas: {uso['cortadas']} "
+            f"({_pct(uso['cortadas'], uso['n']):.1%} das chamadas) — a conta inclui o "
+            "`json invalido: Unterminated string`, que é corte com outro nome."
+        )
     if uso["erros"]:
         # `log_execucao.custo_usd` conta so o que virou triagem; `log_llm` conta o
         # que o OpenRouter cobrou. A tentativa que erra e refeita aparece so no
         # segundo, e conciliar fatura pelo primeiro deixa a diferenca sem dono.
         w("")
-        w(f"O custo acima é o do `log_llm` — **tudo o que foi cobrado**, inclusive as "
-          f"{uso['erros']} chamadas que erraram e foram refeitas "
-          f"(US$ {uso['usd_erro']:.4f}). `log_execucao.custo_usd` conta só o que virou "
-          "triagem, e por isso é menor: os dois estão certos e medem coisas diferentes.")
+        w(
+            f"O custo acima é o do `log_llm` — **tudo o que foi cobrado**, inclusive as "
+            f"{uso['erros']} chamadas que erraram e foram refeitas "
+            f"(US$ {uso['usd_erro']:.4f}). `log_execucao.custo_usd` conta só o que virou "
+            "triagem, e por isso é menor: os dois estão certos e medem coisas diferentes."
+        )
     if uso["prazo"]:
         # A chamada abandonada pelo `llm.prazo_total_s` foi cobrada e sai com uso
         # zero: os tokens vinham na resposta que ninguem leu. O custo real e o da
         # tabela mais estas - dize-lo aqui evita conciliar a fatura no escuro.
         w("")
-        w(f"Abandonadas pelo prazo (`llm.prazo_total_s`): {uso['prazo']} "
-          f"({_pct(uso['prazo'], uso['n']):.1%}). **O custo acima as subestima** — "
-          "elas foram cobradas e saíram com uso zero, porque os tokens vinham na "
-          "resposta que nunca foi lida.")
+        w(
+            f"Abandonadas pelo prazo (`llm.prazo_total_s`): {uso['prazo']} "
+            f"({_pct(uso['prazo'], uso['n']):.1%}). **O custo acima as subestima** — "
+            "elas foram cobradas e saíram com uso zero, porque os tokens vinham na "
+            "resposta que nunca foi lida."
+        )
     w("")
 
     w("## 6. Roteamento — por provedor do OpenRouter\n")
@@ -345,11 +405,15 @@ def gerar(
     w("chamada que respondeu: *média (s)* e *pior* contam só as chamadas que")
     w("responderam, e não a rodada. Um provedor cujas chamadas todas morreram")
     w("antes da resposta sai com travessão nas três — não há tempo a medir.\n")
-    w("| Provedor | chamadas | cortadas | prazo | erros | média (s) | pior 1ª tent. (s) | pior acum. (s) |")
+    w(
+        "| Provedor | chamadas | cortadas | prazo | erros | média (s) | pior 1ª tent. (s) | pior acum. (s) |"
+    )
     w("|---|---:|---:|---:|---:|---:|---:|---:|")
     for p in prov:
-        w(f"| {p['provedor']} | {p['n']} | {p['cortadas']} | {p['prazo']} | {p['erros']} "
-          f"| {_tempo(p['lat'])} | {_tempo(p['pior1'])} | {_tempo(p['pior'])} |")
+        w(
+            f"| {p['provedor']} | {p['n']} | {p['cortadas']} | {p['prazo']} | {p['erros']} "
+            f"| {_tempo(p['lat'])} | {_tempo(p['pior1'])} | {_tempo(p['pior'])} |"
+        )
     w("")
 
     w("## 7. Rótulos perto de um limiar\n")

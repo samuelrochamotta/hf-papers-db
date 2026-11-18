@@ -100,7 +100,9 @@ def arvore_de_areas(conn: sqlite3.Connection) -> list[Area]:
         "SELECT area, definicao, area_pai FROM dim_area "
         "WHERE area_pai IS NOT NULL ORDER BY area"
     ):
-        filhas.setdefault(r["area_pai"], []).append(Area(r["area"], r["definicao"] or ""))
+        filhas.setdefault(r["area_pai"], []).append(
+            Area(r["area"], r["definicao"] or "")
+        )
     return [
         Area(r["area"], r["definicao"] or "", filhas.get(r["area"], []))
         for r in conn.execute(
@@ -213,7 +215,7 @@ def aplicar_classificacao(
     def _aprovar_par(area: str | None, subarea: str | None) -> bool:
         """True se o par pode ser gravado; **reprovar enfileira o motivo**."""
         if not area and not subarea:
-            return False                 # par secundario nulo e a resposta comum
+            return False  # par secundario nulo e a resposta comum
         if not subarea or pai_de.get(subarea) != area:
             log.warning(
                 "par (area > sub-area) ignorado em %s: %s > %s", paper_id, area, subarea
@@ -222,7 +224,9 @@ def aplicar_classificacao(
             return False
         return True
 
-    candidatos: list[tuple[str | None, str | None]] = [(area_primaria, subarea_primaria)]
+    candidatos: list[tuple[str | None, str | None]] = [
+        (area_primaria, subarea_primaria)
+    ]
     if (area_secundaria, subarea_secundaria) != (area_primaria, subarea_primaria):
         candidatos.append((area_secundaria, subarea_secundaria))
 
@@ -258,7 +262,9 @@ def aplicar_classificacao(
         if ordem > MAX_VERTENTES_POR_PAPER:
             log.warning(
                 "vertente alem do teto de %d ignorada em %s: %s",
-                MAX_VERTENTES_POR_PAPER, paper_id, v,
+                MAX_VERTENTES_POR_PAPER,
+                paper_id,
+                v,
             )
             break
         db.inserir_ignorando(
@@ -291,7 +297,9 @@ def _registrar_nao_encaixe(
     if nao_coube.eixo not in EIXOS or not justificativa:
         log.warning(
             "nao-encaixe ignorado em %s: eixo '%s', %d caracteres de justificativa",
-            paper_id, nao_coube.eixo, len(justificativa),
+            paper_id,
+            nao_coube.eixo,
+            len(justificativa),
         )
         return
     db.inserir_ignorando(
@@ -492,7 +500,12 @@ def carregar(conn: sqlite3.Connection, dados: dict[str, Any]) -> dict[str, int]:
         entrou = db.inserir_ignorando(
             conn,
             tabela,
-            {coluna: rotulo, "definicao": item.get("definicao") or "", "desde": desde, **extra},
+            {
+                coluna: rotulo,
+                "definicao": item.get("definicao") or "",
+                "desde": desde,
+                **extra,
+            },
         )
         contagem[chave if entrou else "ja_existiam"] += 1
         return rotulo
@@ -500,7 +513,7 @@ def carregar(conn: sqlite3.Connection, dados: dict[str, Any]) -> dict[str, int]:
     for item in dados.get("areas") or []:
         pai = _inserir("areas", "dim_area", "area", item)
         if not pai:
-            continue   # sem pai gravado a FK da auto-referencia recusaria as filhas
+            continue  # sem pai gravado a FK da auto-referencia recusaria as filhas
         for sub in item.get("subareas") or []:
             _inserir("subareas", "dim_area", "area", sub, area_pai=pai)
     for item in dados.get("vertentes") or []:
@@ -537,7 +550,8 @@ def listar(conn: sqlite3.Connection) -> dict[str, Any]:
 
     return {
         "areas": [
-            {**a, "subareas": por_pai.get(a["rotulo"], [])} for a in por_pai.get(None, [])
+            {**a, "subareas": por_pai.get(a["rotulo"], [])}
+            for a in por_pai.get(None, [])
         ],
         "vertentes": [
             dict(r)

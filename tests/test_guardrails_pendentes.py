@@ -14,7 +14,7 @@ from hfpapers.guardrails import Contagens, _avisos_volume, avaliar
 
 def test_avisos_volume_sem_pendentes_preserva_formato_antigo():
     """nao_classificados == 0: o aviso continua sem sufixo, byte a byte."""
-    c = Contagens(coletados=30, fora=27, aprovados=3)   # fora da faixa normal 13-40
+    c = Contagens(coletados=30, fora=27, aprovados=3)  # fora da faixa normal 13-40
     assert _avisos_volume(c, CfgGuard()) == ["volume_atipico:3"]
 
 

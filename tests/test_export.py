@@ -83,16 +83,23 @@ def test_export_gera_todos_os_arquivos(conn, cfg):
     r = export.rodar(conn, cfg, run_id="run-teste")
 
     esperados = {
-        "dim_paper", "fato_metrica", "fato_triagem", "dim_ficha",
-        "dim_area", "dim_vertente",
-        "ponte_paper_area", "ponte_paper_vertente",
+        "dim_paper",
+        "fato_metrica",
+        "fato_triagem",
+        "dim_ficha",
+        "dim_area",
+        "dim_vertente",
+        "ponte_paper_area",
+        "ponte_paper_vertente",
         "dim_natureza",
     }
     assert set(r.arquivos) == esperados
     for nome in esperados:
         assert (cfg.dir_marts / f"{nome}.parquet").exists()
 
-    manifest = json.loads((cfg.dir_marts / "_manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (cfg.dir_marts / "_manifest.json").read_text(encoding="utf-8")
+    )
     assert manifest["run_id"] == "run-teste"
     assert manifest["linhas"]["dim_paper"] == 1
     assert manifest["versao_schema"] == 4
@@ -109,24 +116,33 @@ def test_ponte_paper_area_leva_a_subarea_ao_parquet(conn, cfg):
         db.upsert_area(conn, {"area": "Contexto & recuperação", "definicao": "d"})
         db.upsert_area(
             conn,
-            {"area": "Memória de longo prazo", "definicao": "d",
-             "area_pai": "Contexto & recuperação"},
+            {
+                "area": "Memória de longo prazo",
+                "definicao": "d",
+                "area_pai": "Contexto & recuperação",
+            },
         )
         db.inserir_ignorando(
             conn,
             "ponte_paper_area",
-            {"paper_id": "2608.00001", "area": "Contexto & recuperação",
-             "subarea": "Memória de longo prazo", "is_primaria": 1},
+            {
+                "paper_id": "2608.00001",
+                "area": "Contexto & recuperação",
+                "subarea": "Memória de longo prazo",
+                "is_primaria": 1,
+            },
         )
     export.rodar(conn, cfg)
 
     ponte = pq.read_table(cfg.dir_marts / "ponte_paper_area.parquet").to_pylist()
-    assert ponte == [{
-        "paper_id": "2608.00001",
-        "area": "Contexto & recuperação",
-        "subarea": "Memória de longo prazo",
-        "is_primaria": True,
-    }]
+    assert ponte == [
+        {
+            "paper_id": "2608.00001",
+            "area": "Contexto & recuperação",
+            "subarea": "Memória de longo prazo",
+            "is_primaria": True,
+        }
+    ]
 
 
 def test_dim_area_leva_o_pai_ao_parquet(conn, cfg):
@@ -138,8 +154,11 @@ def test_dim_area_leva_o_pai_ao_parquet(conn, cfg):
         db.upsert_area(conn, {"area": "Contexto & recuperação", "definicao": "d"})
         db.upsert_area(
             conn,
-            {"area": "Memória de longo prazo", "definicao": "d",
-             "area_pai": "Contexto & recuperação"},
+            {
+                "area": "Memória de longo prazo",
+                "definicao": "d",
+                "area_pai": "Contexto & recuperação",
+            },
         )
     export.rodar(conn, cfg)
 
@@ -179,7 +198,10 @@ def test_fato_triagem_leva_a_classificacao_e_o_artefato_aberto(conn, cfg):
     export.rodar(conn, cfg)
     linha = pq.read_table(cfg.dir_marts / "fato_triagem.parquet").to_pylist()[0]
     assert (linha["veredito"], linha["natureza"]) == ("aprovado", "proposta")
-    assert linha["pratica_contradita"] == "usar a mesma temperatura no rollout e na avaliacao"
+    assert (
+        linha["pratica_contradita"]
+        == "usar a mesma temperatura no rollout e na avaliacao"
+    )
     assert linha["artefato_aberto"] is True
 
 
@@ -212,8 +234,14 @@ def test_o_painel_monta_a_partir_do_export(conn, cfg, monkeypatch):
         )
         db.upsert_metrica(
             conn,
-            {"paper_id": "2608.00001", "data_snapshot": HOJE, "upvotes": 55,
-             "comentarios": 4, "github_stars": 120, "origem": "daily"},
+            {
+                "paper_id": "2608.00001",
+                "data_snapshot": HOJE,
+                "upvotes": 55,
+                "comentarios": 4,
+                "github_stars": 120,
+                "origem": "daily",
+            },
         )
     export.rodar(conn, cfg, run_id="run-teste")
     monkeypatch.setattr(gerar_painel, "DIR_MARTS", cfg.dir_marts)
@@ -221,13 +249,25 @@ def test_o_painel_monta_a_partir_do_export(conn, cfg, monkeypatch):
 
     [p] = dados["papers"]
     lidos_do_parquet = {
-        "id": "2608.00001", "t": "Paper com repo", "d": "2026-08-25",
-        "v": "aprovado", "oa": 1, "pp": 1, "u": 55, "c": 4, "gs": 120,
-        "org": "org-x", "na": 7, "nv": 3,
-        "url": "https://huggingface.co/papers/2608.00001", "f": 1,
+        "id": "2608.00001",
+        "t": "Paper com repo",
+        "d": "2026-08-25",
+        "v": "aprovado",
+        "oa": 1,
+        "pp": 1,
+        "u": 55,
+        "c": 4,
+        "gs": 120,
+        "org": "org-x",
+        "na": 7,
+        "nv": 3,
+        "url": "https://huggingface.co/papers/2608.00001",
+        "f": 1,
         "pc": "usar a mesma temperatura no rollout e na avaliacao",
-        "gh": "https://github.com/x/y", "pg": "https://x.github.io/y",
-        "ao": 1, "j": "j",
+        "gh": "https://github.com/x/y",
+        "pg": "https://x.github.io/y",
+        "ao": 1,
+        "j": "j",
     }
     assert {k: p.get(k) for k in lidos_do_parquet} == lidos_do_parquet
     assert dados["fichas"] == [
@@ -240,9 +280,9 @@ def test_tabelas_sem_leitor_ficam_no_banco_mas_nao_no_parquet(conn, cfg):
     keywords e o log de execucao continuam no banco."""
     _semear(conn)
     export.rodar(conn, cfg)
-    assert [tuple(r) for r in conn.execute("SELECT paper_id, perfil FROM vw_paper_perfil")] == [
-        ("2608.00001", "pesquisa_treino")
-    ]
+    assert [
+        tuple(r) for r in conn.execute("SELECT paper_id, perfil FROM vw_paper_perfil")
+    ] == [("2608.00001", "pesquisa_treino")]
     for nome in export.ARQUIVOS_MORTOS:
         assert not (cfg.dir_marts / f"{nome}.parquet").exists()
 

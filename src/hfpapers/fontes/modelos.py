@@ -63,7 +63,7 @@ class Organizacao(_Base):
 class Autor(_Base):
     name: str | None = None
     hidden: bool = False
-    status: str | None = None          # 'claimed_verified' no endpoint por-paper
+    status: str | None = None  # 'claimed_verified' no endpoint por-paper
     user: Usuario | None = None
 
     @property
@@ -82,8 +82,10 @@ class Paper(_Base):
     title: str
     summary: str | None = None
     authors: list[Autor] = Field(default_factory=list)
-    publishedAt: dt.date | None = None          # data informada pelo HF; pode corresponder a uma revisao, nao v1
-    submittedOnDailyAt: dt.date | None = None   # entrada na lista diaria do HF
+    publishedAt: dt.date | None = (
+        None  # data informada pelo HF; pode corresponder a uma revisao, nao v1
+    )
+    submittedOnDailyAt: dt.date | None = None  # entrada na lista diaria do HF
     submittedOnDailyBy: Usuario | None = None
     upvotes: int | None = None
     githubStars: int | None = None
@@ -172,7 +174,9 @@ def paper_para_dim(
         "submetido_por": submetido.login if submetido else None,
         "submetido_por_nome": submetido.fullname if submetido else None,
         "autor_participa": (
-            int(item.isAuthorParticipating) if item and item.isAuthorParticipating is not None else None
+            int(item.isAuthorParticipating)
+            if item and item.isAuthorParticipating is not None
+            else None
         ),
         "qtd_autores": len(paper.authors) or None,
         "qtd_autores_verificados": paper.qtd_autores_verificados,

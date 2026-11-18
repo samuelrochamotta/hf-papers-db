@@ -51,7 +51,9 @@ def test_teto_corta_no_ultimo_titulo_e_registra():
 def test_sem_html_cai_para_o_abstract():
     http = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
     tp = texto.texto_do_paper("2611.00001", abstract="So o resumo.", cliente=http)
-    assert tp.fonte == "abstract" and tp.texto == "So o resumo." and not tp.chegou_ao_fim
+    assert (
+        tp.fonte == "abstract" and tp.texto == "So o resumo." and not tp.chegou_ao_fim
+    )
 
 
 def test_conferidor_acha_trecho_e_numero():
@@ -73,7 +75,13 @@ def _cfg():
 def test_esquema_api_tira_o_que_a_saida_estruturada_recusa():
     sch = extrator.esquema_api(extrator.carregar_esquema(_cfg()))
     s = json.dumps(sch)
-    for chave in ('"maxLength"', '"maxItems"', '"pattern"', '"$schema"', '"uniqueItems"'):
+    for chave in (
+        '"maxLength"',
+        '"maxItems"',
+        '"pattern"',
+        '"$schema"',
+        '"uniqueItems"',
+    ):
         assert chave not in s
     sec = sch["properties"]["entrega"]["properties"]["secundaria"]
     assert sec["anyOf"][1] == {"type": "null"} and None not in sec["anyOf"][0]["enum"]
@@ -94,17 +102,65 @@ class _Cliente:
 
 def _extracao():
     return {
-        "id": "errado", "titulo": "Um Metodo",
-        "leitura": {"fonte_texto": "html", "cobertura": "parcial", "termina_em": None,
-                    "tem_apendice": False, "secao_limitacoes": "ausente"},
-        "entrega": {"primaria": "metodo", "secundaria": None, "trecho": "We propose X.", "secao": "1"},
-        "alegacoes": [{"tipo": "superlativa", "trecho": "outperforms all baselines by 2.3 points", "numero": 2.3},
-                      {"tipo": "tese", "trecho": "frase inventada que nao esta no paper", "numero": None}],
-        "resultados": [{"tabela": "Tabela 2", "benchmark": "LIBERO", "arena": "robotica_acao", "metrica": "SR",
-                        "direcao": "maior_melhor", "linhas": [
-                            {"nome": "Ours", "papel": "nosso", "fechado": False, "valor": 87.4, "pm": None},
-                            {"nome": "Baseline", "papel": "externo", "fechado": False, "valor": 85.1, "pm": None},
-                            {"nome": "Fantasma", "papel": "externo", "fechado": False, "valor": 91.0, "pm": None}]}],
+        "id": "errado",
+        "titulo": "Um Metodo",
+        "leitura": {
+            "fonte_texto": "html",
+            "cobertura": "parcial",
+            "termina_em": None,
+            "tem_apendice": False,
+            "secao_limitacoes": "ausente",
+        },
+        "entrega": {
+            "primaria": "metodo",
+            "secundaria": None,
+            "trecho": "We propose X.",
+            "secao": "1",
+        },
+        "alegacoes": [
+            {
+                "tipo": "superlativa",
+                "trecho": "outperforms all baselines by 2.3 points",
+                "numero": 2.3,
+            },
+            {
+                "tipo": "tese",
+                "trecho": "frase inventada que nao esta no paper",
+                "numero": None,
+            },
+        ],
+        "resultados": [
+            {
+                "tabela": "Tabela 2",
+                "benchmark": "LIBERO",
+                "arena": "robotica_acao",
+                "metrica": "SR",
+                "direcao": "maior_melhor",
+                "linhas": [
+                    {
+                        "nome": "Ours",
+                        "papel": "nosso",
+                        "fechado": False,
+                        "valor": 87.4,
+                        "pm": None,
+                    },
+                    {
+                        "nome": "Baseline",
+                        "papel": "externo",
+                        "fechado": False,
+                        "valor": 85.1,
+                        "pm": None,
+                    },
+                    {
+                        "nome": "Fantasma",
+                        "papel": "externo",
+                        "fechado": False,
+                        "valor": 91.0,
+                        "pm": None,
+                    },
+                ],
+            }
+        ],
     }
 
 
@@ -114,38 +170,87 @@ def test_extrair_confere_e_fixa_a_cobertura():
     lt = extrator.extrair(tp, {"titulo": "Um Metodo"}, cliente=cli, cfg=_cfg())
     kw = cli.chamadas[0]
     assert kw["modelo"] == "anthropic/claude-haiku-5.5" and kw["etapa"] == "leitura"
-    assert kw["response_format"]["type"] == "json_schema" and kw["response_format"]["json_schema"]["strict"]
+    assert (
+        kw["response_format"]["type"] == "json_schema"
+        and kw["response_format"]["json_schema"]["strict"]
+    )
     assert kw["esforco_raciocinio"] == "low" and kw["paper_id"] == "2611.00001"
     assert lt.dados["id"] == "2611.00001"
-    assert lt.dados["leitura"]["cobertura"] == "completa"  # o codigo decide, nao o modelo
-    assert lt.conferencia == {"trechos": 3, "trechos_ok": 2, "numeros": 3, "numeros_ok": 2}
+    assert (
+        lt.dados["leitura"]["cobertura"] == "completa"
+    )  # o codigo decide, nao o modelo
+    assert lt.conferencia == {
+        "trechos": 3,
+        "trechos_ok": 2,
+        "numeros": 3,
+        "numeros_ok": 2,
+    }
     assert lt.custo_usd == pytest.approx(0.0055) and lt.tokens_entrada == 40_000
 
 
 def test_link_de_artefato_so_aceita_http():
-    o = {"artefatos": [{"tipo": "codigo", "estado": "liberado", "url": "javascript:alert(1)"},
-                       {"tipo": "pesos", "estado": "liberado", "url": " https://huggingface.co/x "},
-                       {"tipo": "dados", "estado": "prometido", "url": None}],
-         "leitura": {"cobertura": "completa"}}
-    assert [a[2] for a in derivar.derivar(o, {})["art"]] == [None, "https://huggingface.co/x", None]
+    o = {
+        "artefatos": [
+            {"tipo": "codigo", "estado": "liberado", "url": "javascript:alert(1)"},
+            {
+                "tipo": "pesos",
+                "estado": "liberado",
+                "url": " https://huggingface.co/x ",
+            },
+            {"tipo": "dados", "estado": "prometido", "url": None},
+        ],
+        "leitura": {"cobertura": "completa"},
+    }
+    assert [a[2] for a in derivar.derivar(o, {})["art"]] == [
+        None,
+        "https://huggingface.co/x",
+        None,
+    ]
 
 
 def test_trecho_nao_achado_nao_vira_sinal_nem_artefato():
-    o = {"leitura": {"cobertura": "completa"}, "entrega": {"primaria": "metodo"},
-         "artefatos": [{"tipo": "codigo", "estado": "liberado", "trecho": "inventado", "_ok": False}],
-         "estatistica": {"variancia": "ic", "seeds": 5, "trecho": "inventado", "_ok": False},
-         "ressalvas": [{"tipo": "escopo", "trecho": "inventado", "_ok": False}],
-         "entidades": [{"nome": "Llama", "tipo": "modelo", "papel": "base", "_ok": False}]}
+    o = {
+        "leitura": {"cobertura": "completa"},
+        "entrega": {"primaria": "metodo"},
+        "artefatos": [
+            {
+                "tipo": "codigo",
+                "estado": "liberado",
+                "trecho": "inventado",
+                "_ok": False,
+            }
+        ],
+        "estatistica": {
+            "variancia": "ic",
+            "seeds": 5,
+            "trecho": "inventado",
+            "_ok": False,
+        },
+        "ressalvas": [{"tipo": "escopo", "trecho": "inventado", "_ok": False}],
+        "entidades": [
+            {"nome": "Llama", "tipo": "modelo", "papel": "base", "_ok": False}
+        ],
+    }
     p = derivar.derivar(o, {})
     assert p["ab"]["codigo"] == "ausente" and p["art"] == [] and p["ents"] == []
-    assert p["sig"]["var"] is None and p["sig"]["n"] is None and p["sig"]["ress"] is None
+    assert (
+        p["sig"]["var"] is None and p["sig"]["n"] is None and p["sig"]["ress"] is None
+    )
 
 
 def test_manchete_sem_tabela_chega_ao_painel():
-    o = {"leitura": {"cobertura": "completa"},
-         "alegacoes": [{"tipo": "manchete", "trecho": "improves by 12%", "numero": 12, "_ok": True}]}
+    o = {
+        "leitura": {"cobertura": "completa"},
+        "alegacoes": [
+            {"tipo": "manchete", "trecho": "improves by 12%", "numero": 12, "_ok": True}
+        ],
+    }
     p = derivar.derivar(o, {})
-    assert p["man"]["tr"] == "improves by 12%" and p["man"]["conf"] is None and p["sig"]["man"] is None
+    assert (
+        p["man"]["tr"] == "improves by 12%"
+        and p["man"]["conf"] is None
+        and p["sig"]["man"] is None
+    )
 
 
 def test_leitura_tem_prazo_proprio():
@@ -169,6 +274,7 @@ def test_numero_nao_conferido_nao_vira_rival():
 
 def _amostra():
     from gerar_painel_v2 import de_arquivos
+
     return de_arquivos(FIX / "extracoes", FIX / "amostra.json")
 
 
@@ -193,15 +299,36 @@ def test_radar_fica_entre_0_e_100_ou_nao_lido():
 
 
 def test_amplitude_em_escala_logaritmica_fixa():
-    assert [derivar.amplitude(n) for n in (0, 1, 3, 5, 9, 16, 30)] == [0, 24, 49, 63, 81, 100, 100]
+    assert [derivar.amplitude(n) for n in (0, 1, 3, 5, 9, 16, 30)] == [
+        0,
+        24,
+        49,
+        63,
+        81,
+        100,
+        100,
+    ]
 
 
 def test_abertura_e_faixa_do_confirmado_ao_maximo():
-    tudo_nl = {"codigo": "nao_lido", "pesos": "nao_lido", "dados": "nao_lido", "demo": "nao_lido"}
+    tudo_nl = {
+        "codigo": "nao_lido",
+        "pesos": "nao_lido",
+        "dados": "nao_lido",
+        "demo": "nao_lido",
+    }
     assert derivar.faixa_abertura(tudo_nl) == (None, None)  # nao lido nao vira zero
     so_codigo = {**tudo_nl, "codigo": "liberado"}
-    assert derivar.faixa_abertura(so_codigo) == (40, 100)  # nao vira 100: so o codigo foi confirmado
-    lido = {"codigo": "liberado", "pesos": "prometido", "dados": "ausente", "demo": "ausente"}
+    assert derivar.faixa_abertura(so_codigo) == (
+        40,
+        100,
+    )  # nao vira 100: so o codigo foi confirmado
+    lido = {
+        "codigo": "liberado",
+        "pesos": "prometido",
+        "dados": "ausente",
+        "demo": "ausente",
+    }
     assert derivar.faixa_abertura(lido) == (52, 52)  # tudo lido: a faixa e um ponto
 
 
@@ -214,7 +341,13 @@ def test_radar_traz_a_faixa_da_abertura():
 
 
 def test_esforco_zero_nao_vira_facilidade_maxima():
-    p = derivar.derivar({"entrega": {"primaria": "panorama_posicao"}, "leitura": {"cobertura": "completa"}}, {})
+    p = derivar.derivar(
+        {
+            "entrega": {"primaria": "panorama_posicao"},
+            "leitura": {"cobertura": "completa"},
+        },
+        {},
+    )
     assert p["esf"] == 0 and p["radar"]["facilidade"] is None
 
 
@@ -223,14 +356,27 @@ def test_esforco_zero_nao_vira_facilidade_maxima():
 
 def test_rodar_le_grava_e_nao_repete(tmp_path):
     conn = db.conectar(tmp_path / "t.db")
-    db.upsert_paper(conn, {"paper_id": "2611.00001", "titulo": "Um Metodo", "data_hf_daily": "2026-11-10",
-                           "primeiro_visto_em": "2026-11-10T09:00:00"})
-    http = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, text=HTML)))
+    db.upsert_paper(
+        conn,
+        {
+            "paper_id": "2611.00001",
+            "titulo": "Um Metodo",
+            "data_hf_daily": "2026-11-10",
+            "primeiro_visto_em": "2026-11-10T09:00:00",
+        },
+    )
+    http = httpx.Client(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, text=HTML))
+    )
     cfg = _cfg()
     cli = _Cliente([_extracao()])
     import datetime as dt
+
     hoje = dt.date(2026, 11, 14)
-    assert [c["paper_id"] for c in leitura.candidatos(conn, cfg, dias=7, min_votos=0, hoje=hoje)] == ["2611.00001"]
+    assert [
+        c["paper_id"]
+        for c in leitura.candidatos(conn, cfg, dias=7, min_votos=0, hoje=hoje)
+    ] == ["2611.00001"]
     r = leitura.rodar(conn, cfg, ids=["2611.00001"], cliente=cli, http=http)
     assert r.lidos == ["2611.00001"] and not r.falhas
     linha = dict(conn.execute("SELECT * FROM leitura_texto").fetchone())

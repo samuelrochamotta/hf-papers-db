@@ -13,16 +13,27 @@ from hfpapers.taxonomia import Area
 
 VOCAB = ea.Vocabulario(
     areas=[
-        Area("Harness & orquestração", "o laço que chama o modelo", [
-            Area("Engenharia de código com agente", "def s1"),
-            Area("Sistemas multiagente", "def s2"),
-        ]),
-        Area("Avaliação & instrumentação", "como o comportamento é medido", [
-            Area("Benchmark de agente", "def s3"),
-        ]),
+        Area(
+            "Harness & orquestração",
+            "o laço que chama o modelo",
+            [
+                Area("Engenharia de código com agente", "def s1"),
+                Area("Sistemas multiagente", "def s2"),
+            ],
+        ),
+        Area(
+            "Avaliação & instrumentação",
+            "como o comportamento é medido",
+            [
+                Area("Benchmark de agente", "def s3"),
+            ],
+        ),
     ],
     vertentes=[
-        ("Automatizar", "tira o humano do laço: auto-evolução, síntese, busca automática"),
+        (
+            "Automatizar",
+            "tira o humano do laço: auto-evolução, síntese, busca automática",
+        ),
         ("Medir", "cria o instrumento: benchmark, protocolo, métrica, auditoria"),
     ],
 )
@@ -39,12 +50,8 @@ PAPER = ea.PaperEntrada(
 
 # Justificativas de tamanho legitimo. As validacoes exigem piso de 80 caracteres
 # uteis (issue #7), entao toda fixture que passa por `validar` precisa de uma.
-JUSTIFICATIVA_B = (
-    "Entrega artefato adotavel por quem nao treina modelo: o padrao passou no teste de portabilidade e se sustenta fora do benchmark dos autores."
-)
-JUSTIFICATIVA_A = (
-    "Propoe um harness de agentes reutilizavel fora do benchmark dos autores, entao segue para o Estagio B em vez de cair numa regra de descarte."
-)
+JUSTIFICATIVA_B = "Entrega artefato adotavel por quem nao treina modelo: o padrao passou no teste de portabilidade e se sustenta fora do benchmark dos autores."
+JUSTIFICATIVA_A = "Propoe um harness de agentes reutilizavel fora do benchmark dos autores, entao segue para o Estagio B em vez de cair numa regra de descarte."
 
 
 def _base_a(**over):
@@ -67,7 +74,10 @@ def _base(**over):
     d = {
         "regra_fora": None,
         "natureza": "proposta",
-        "padrao_extraido": {"nome": "Contrato de preservar-e-estender", "mecanismo": "Uma versao nova so e promovida se mantiver o que a anterior resolvia."},
+        "padrao_extraido": {
+            "nome": "Contrato de preservar-e-estender",
+            "mecanismo": "Uma versao nova so e promovida se mantiver o que a anterior resolvia.",
+        },
         "prerequisito": "implementar",
         "pratica_contradita": None,
         "falta_o_como": None,
@@ -105,8 +115,10 @@ def test_contrato_pede_de_uma_a_duas_vertentes_e_nao_pede_mais_topicos():
     s = _schema_a()
     assert "topicos" not in s["properties"] and "topicos" not in s["required"]
     assert "vertentes" in s["required"]
-    assert (s["properties"]["vertentes"]["minItems"],
-            s["properties"]["vertentes"]["maxItems"]) == (1, 2)
+    assert (
+        s["properties"]["vertentes"]["minItems"],
+        s["properties"]["vertentes"]["maxItems"],
+    ) == (1, 2)
 
 
 def test_enum_de_subarea_e_plano_e_traz_as_filhas_de_todas_as_areas():
@@ -160,19 +172,46 @@ def test_ordem_das_propriedades_do_estagio_b_e_normativa():
 
 
 # Um `fora` coerente do Estagio B: sem ficha, sem classificacao, com regra.
-FORA = dict(regra_fora="fora_de_escopo", ficha=None, natureza=None, padrao_extraido=None, prerequisito=None)
+FORA = dict(
+    regra_fora="fora_de_escopo",
+    ficha=None,
+    natureza=None,
+    padrao_extraido=None,
+    prerequisito=None,
+)
 
 
 def test_fora_exige_ficha_nula():
     with pytest.raises(ErroValidacao):
-        eb.validar(_base(**{**FORA, "ficha": {"achado": "a", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d"}}))
+        eb.validar(
+            _base(
+                **{
+                    **FORA,
+                    "ficha": {
+                        "achado": "a",
+                        "implicacao_pratica": "b",
+                        "exemplo_concreto": "c",
+                        "ressalva": "d",
+                    },
+                }
+            )
+        )
 
 
 def test_aprovado_exige_ficha_completa():
     with pytest.raises(ErroValidacao):
         eb.validar(_base(ficha=None))
     with pytest.raises(ErroValidacao):
-        eb.validar(_base(ficha={"achado": " ", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d"}))
+        eb.validar(
+            _base(
+                ficha={
+                    "achado": " ",
+                    "implicacao_pratica": "b",
+                    "exemplo_concreto": "c",
+                    "ressalva": "d",
+                }
+            )
+        )
 
 
 def test_padrao_com_segunda_pessoa_e_rejeitado():
@@ -190,7 +229,12 @@ def test_padrao_com_segunda_pessoa_e_rejeitado():
 def test_padrao_com_imperativo_e_rejeitado():
     with pytest.raises(ErroValidacao):
         eb.validar(
-            _base(padrao_extraido={"nome": "X", "mecanismo": "Use um verificador automatico."})
+            _base(
+                padrao_extraido={
+                    "nome": "X",
+                    "mecanismo": "Use um verificador automatico.",
+                }
+            )
         )
 
 
@@ -202,12 +246,12 @@ def test_padrao_impessoal_passa():
 
 # `minLength` no schema nao basta: a rede em codigo e que segura o caso real.
 DEGENERADAS = [
-    "...",                    # o que o paper 2608.06867 devolveu na migracao da issue #3
+    "...",  # o que o paper 2608.06867 devolveu na migracao da issue #3
     "",
     "   ",
     "Sem motivo.",
-    ". " * 60,                # 120 caracteres, zero conteudo: passa por um teto so
-    None,                     # campo ausente na resposta
+    ". " * 60,  # 120 caracteres, zero conteudo: passa por um teto so
+    None,  # campo ausente na resposta
 ]
 
 
@@ -348,9 +392,15 @@ def test_prompt_diz_que_o_par_secundario_nulo_e_resposta_esperada(cfg):
 
 def test_prompt_b_declara_a_ordem_do_raciocinio(cfg):
     b = eb.montar_prompt(PAPER, cfg)
-    assert b.index("1. `regra_fora`") < b.index("2. `natureza`") < b.index("4. `prerequisito`")
+    assert (
+        b.index("1. `regra_fora`")
+        < b.index("2. `natureza`")
+        < b.index("4. `prerequisito`")
+    )
     assert b.index("4. `prerequisito`") < b.index("8. `justificativa`")
-    assert "nao treina" not in b and "não treina" not in b   # o leitor deixou de ser um so (ADR 004)
+    assert (
+        "nao treina" not in b and "não treina" not in b
+    )  # o leitor deixou de ser um so (ADR 004)
 
 
 def test_vocabulario_do_estagio_a_e_a_grade_facetada(conn):

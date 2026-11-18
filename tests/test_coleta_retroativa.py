@@ -172,8 +172,9 @@ def test_varredura_nao_classifica_nem_chama_modelo(conn):
             run_id="retro-teste",
         )
 
-    conf = retro.conferir(conn, inicio=dt.date(2026, 5, 4), fim=dt.date(2026, 6, 1),
-                          run_id=r.run_id)
+    conf = retro.conferir(
+        conn, inicio=dt.date(2026, 5, 4), fim=dt.date(2026, 6, 1), run_id=r.run_id
+    )
     assert conf.chamadas_llm == 0
     assert conf.triagens == 0
     assert conf.por_mes == {"2026-05": 1, "2026-06": 1}
@@ -193,6 +194,7 @@ def test_dia_magro_nao_vira_aviso_de_coleta_suspeita(conn):
     """O piso de papers por dia util calibra a rodada diaria, nao a varredura."""
     _rotas({"2026-05-04": [_item("2605.00001", dt.date(2026, 5, 4))]})
     with _cliente() as c:
-        r = retro.rodar(conn, c, inicio=dt.date(2026, 5, 4), fim=dt.date(2026, 5, 4),
-                        hoje=HOJE)
+        r = retro.rodar(
+            conn, c, inicio=dt.date(2026, 5, 4), fim=dt.date(2026, 5, 4), hoje=HOJE
+        )
     assert r.avisos == []

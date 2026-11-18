@@ -42,20 +42,35 @@ def do_banco(dias: int, hoje: dt.date | None = None) -> dict:
     ini = (hoje - dt.timedelta(days=dias)).isoformat()
     conn = db.abrir(cfg)
     try:
-        metas = {r["paper_id"]: dict(r) for r in conn.execute(
-            """SELECT p.paper_id, p.titulo, p.data_hf_daily, p.organizacao, p.github_repo,
+        metas = {
+            r["paper_id"]: dict(r)
+            for r in conn.execute(
+                """SELECT p.paper_id, p.titulo, p.data_hf_daily, p.organizacao, p.github_repo,
                       (SELECT m.upvotes FROM fato_metrica m WHERE m.paper_id = p.paper_id
                        ORDER BY m.data_snapshot DESC LIMIT 1) AS upvotes
-               FROM dim_paper p WHERE p.data_hf_daily >= ?""", (ini,))}
-        leituras = {r["paper_id"]: dict(r) for r in conn.execute(
-            "SELECT paper_id, extracao, modelo FROM leitura_texto WHERE versao_esquema = ?",
-            (cfg.leitura.versao_esquema,))}
+               FROM dim_paper p WHERE p.data_hf_daily >= ?""",
+                (ini,),
+            )
+        }
+        leituras = {
+            r["paper_id"]: dict(r)
+            for r in conn.execute(
+                "SELECT paper_id, extracao, modelo FROM leitura_texto WHERE versao_esquema = ?",
+                (cfg.leitura.versao_esquema,),
+            )
+        }
     finally:
         conn.close()
     itens, faltam = [], []
     for pid, m in metas.items():
-        meta = {"id": pid, "t": m["titulo"], "d": m["data_hf_daily"], "u": m["upvotes"] or 0,
-                "org": m["organizacao"] or "", "gh": m["github_repo"]}
+        meta = {
+            "id": pid,
+            "t": m["titulo"],
+            "d": m["data_hf_daily"],
+            "u": m["upvotes"] or 0,
+            "org": m["organizacao"] or "",
+            "gh": m["github_repo"],
+        }
         if pid in leituras:
             itens.append((json.loads(leituras[pid]["extracao"]), meta))
         else:
@@ -70,11 +85,25 @@ def de_arquivos(pasta: Path, amostra: Path) -> dict:
     for f in sorted(pasta.glob("*.json")):
         o = json.loads(f.read_text(encoding="utf-8"))
         a = metas.get(o.get("id"), {})
-        itens.append((o, {"id": o.get("id"), "t": a.get("t"), "d": a.get("d"), "u": a.get("u", 0),
-                          "org": a.get("org") or "", "gh": a.get("gh")}))
+        itens.append(
+            (
+                o,
+                {
+                    "id": o.get("id"),
+                    "t": a.get("t"),
+                    "d": a.get("d"),
+                    "u": a.get("u", 0),
+                    "org": a.get("org") or "",
+                    "gh": a.get("gh"),
+                },
+            )
+        )
         vistos.add(o.get("id"))
-    faltam = [{"id": k, "t": v.get("t"), "u": v.get("u", 0), "d": v.get("d")}
-              for k, v in metas.items() if k not in vistos]
+    faltam = [
+        {"id": k, "t": v.get("t"), "u": v.get("u", 0), "d": v.get("d")}
+        for k, v in metas.items()
+        if k not in vistos
+    ]
     return montar(itens, faltam, "claude-haiku-5-5")
 
 
@@ -82,7 +111,9 @@ def montar(itens: list, faltam: list, modelo: str) -> dict:
     papers = derivar_todos(itens)
     papers.sort(key=lambda p: (-(p["u"] or 0), p["id"]))
     faltam.sort(key=lambda p: -(p["u"] or 0))
-    dias = sorted({p["d"] for p in papers if p["d"]} | {f["d"] for f in faltam if f.get("d")})
+    dias = sorted(
+        {p["d"] for p in papers if p["d"]} | {f["d"] for f in faltam if f.get("d")}
+    )
     return {
         "versao": 1,
         "gerado_em": dt.datetime.now().isoformat(timespec="seconds"),
@@ -107,8 +138,12 @@ def main(argv: list[str] | None = None) -> int:
     else:
         dados = do_banco(a.dias)
     a.destino.parent.mkdir(parents=True, exist_ok=True)
-    a.destino.write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"{len(dados['papers'])} papers lidos, {len(dados['faltam'])} sem leitura -> {a.destino}")
+    a.destino.write_text(
+        json.dumps(dados, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
+    )
+    print(
+        f"{len(dados['papers'])} papers lidos, {len(dados['faltam'])} sem leitura -> {a.destino}"
+    )
     return 0
 
 

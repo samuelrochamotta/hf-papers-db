@@ -18,7 +18,12 @@ from collections.abc import Iterable
 from typing import Any, cast
 
 GRAVE = {"preliminar", "amostra_pequena", "pesos_ficticios"}
-RANK_ARTEFATO: dict[str | None, int] = {"liberado": 4, "prometido": 3, "so_pagina": 2, "ausente": 1}
+RANK_ARTEFATO: dict[str | None, int] = {
+    "liberado": 4,
+    "prometido": 3,
+    "so_pagina": 2,
+    "ausente": 1,
+}
 FATOR_ARTEFATO = {"liberado": 1.0, "prometido": 0.4, "so_pagina": 0.15, "ausente": 0.0}
 PESO_ARTEFATO = {"codigo": 0.4, "pesos": 0.3, "dados": 0.2, "demo": 0.1}
 EIXOS = ("ganho", "solidez", "abertura", "facilidade", "amplitude", "atencao")
@@ -65,8 +70,11 @@ def resultado(r: dict) -> dict | None:
     """Uma tabela comparativa: melhor linha nossa contra o melhor rival
     externo e contra a linha fraca (base ou trivial), no sentido da metrica.
     Linha cujo numero nao foi achado no texto fica de fora."""
-    linhas = [l for l in (r.get("linhas") or [])
-              if num(l.get("valor")) is not None and l.get("_ok") is not False]
+    linhas = [
+        l
+        for l in (r.get("linhas") or [])
+        if num(l.get("valor")) is not None and l.get("_ok") is not False
+    ]
     if not linhas:
         return None
     menor = r.get("direcao") == "menor_melhor"
@@ -95,7 +103,13 @@ def resultado(r: dict) -> dict | None:
 
     dext = delta(ext)
     ruido = None
-    if dext is not None and nos and ext and _pm(nos) is not None and _pm(ext) is not None:
+    if (
+        dext is not None
+        and nos
+        and ext
+        and _pm(nos) is not None
+        and _pm(ext) is not None
+    ):
         ruido = abs(dext) <= (_pm(nos) or 0) + (_pm(ext) or 0)
     if not nos:
         estado = "sem_nosso"
@@ -110,13 +124,22 @@ def resultado(r: dict) -> dict | None:
     else:
         estado = "perde"
     return {
-        "tab": r.get("tabela"), "b": r.get("benchmark"), "ar": r.get("arena") or "outra",
-        "m": r.get("metrica"), "dir": r.get("direcao"), "rec": r.get("recurso"),
-        "inf": bool(r.get("colunas_inferidas")), "sec": r.get("secao"), "e": estado,
+        "tab": r.get("tabela"),
+        "b": r.get("benchmark"),
+        "ar": r.get("arena") or "outra",
+        "m": r.get("metrica"),
+        "dir": r.get("direcao"),
+        "rec": r.get("recurso"),
+        "inf": bool(r.get("colunas_inferidas")),
+        "sec": r.get("secao"),
+        "e": estado,
         "nos": nos and [nos["nome"], num(nos["valor"]), _pm(nos)],
-        "ext": ext and [ext["nome"], num(ext["valor"]), _pm(ext), bool(ext.get("fechado"))],
+        "ext": ext
+        and [ext["nome"], num(ext["valor"]), _pm(ext), bool(ext.get("fechado"))],
         "wk": fraca and [fraca["nome"], num(fraca["valor"]), fraca.get("papel")],
-        "dext": dext, "rext": relativo(ext), "rwk": relativo(fraca),
+        "dext": dext,
+        "rext": relativo(ext),
+        "rwk": relativo(fraca),
         "lin": [[l["nome"], l.get("papel"), num(l["valor"]), _pm(l)] for l in linhas],
     }
 
@@ -124,7 +147,9 @@ def resultado(r: dict) -> dict | None:
 # ── sinais de solidez ───────────────────────────────────────────────────────
 
 
-def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, float | None, dict | None]:
+def sinais(
+    o: dict, res: list[dict], parcial: bool
+) -> tuple[dict, float | None, dict | None]:
     comp = [r for r in res if r["ext"] and r["nos"]]
     vit = round(sum(r["e"] == "ganha" for r in comp) / len(comp), 2) if comp else None
     # O que o codigo nao achou no texto nao conta como sinal.
@@ -132,18 +157,31 @@ def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, float | None,
     ev = o.get("evidencia") or []
     sig: dict[str, bool | None] = {}
     v = e.get("variancia")
-    sig["var"] = True if v in ("pm_definido", "ic") else (
-        False if v == "pm_sem_definicao" or (v == "nenhuma" and not parcial) else None)
+    sig["var"] = (
+        True
+        if v in ("pm_definido", "ic")
+        else (
+            False
+            if v == "pm_sem_definicao" or (v == "nenhuma" and not parcial)
+            else None
+        )
+    )
     seeds, trials = num(e.get("seeds")), num(e.get("trials"))
     escala = max([num(x.get("n")) or 0 for x in _conferidos(o.get("escala"))] + [0])
-    sig["n"] = True if ((seeds or 0) >= 3 or (trials or 0) >= 3 or escala >= 100) else (
-        False if (seeds or trials) else None)
+    sig["n"] = (
+        True
+        if ((seeds or 0) >= 3 or (trials or 0) >= 3 or escala >= 100)
+        else (False if (seeds or trials) else None)
+    )
     sig["ext"] = (len(comp) > 0) if res else None
     sig["vit"] = (vit >= 0.7) if vit is not None else None
     sig["evid"] = (("humana" in ev) or ("mundo_real" in ev)) if ev else None
 
-    manchetes = [x for x in _conferidos(o.get("alegacoes"))
-                 if x.get("tipo") == "manchete" and num(x.get("numero")) is not None]
+    manchetes = [
+        x
+        for x in _conferidos(o.get("alegacoes"))
+        if x.get("tipo") == "manchete" and num(x.get("numero")) is not None
+    ]
     man = None
     conf = None
     if manchetes:
@@ -159,15 +197,32 @@ def sinais(o: dict, res: list[dict], parcial: bool) -> tuple[dict, float | None,
                 if r[k] is not None:
                     cands.append(abs(r[k]))
         # Sem tabela conferida nao ha com o que comparar: conf fica None ("sem tabela").
-        conf = any(abs(c - n0) <= max(0.051, abs(n0) * 0.01) for c in cands if c is not None) if res else None
+        conf = (
+            any(
+                abs(c - n0) <= max(0.051, abs(n0) * 0.01)
+                for c in cands
+                if c is not None
+            )
+            if res
+            else None
+        )
         m = manchetes[0]
-        man = {"n": n0, "u": m.get("unidade"), "contra": m.get("contra"), "tr": m.get("trecho"),
-               "ok": m.get("_ok"), "conf": conf}
+        man = {
+            "n": n0,
+            "u": m.get("unidade"),
+            "contra": m.get("contra"),
+            "tr": m.get("trecho"),
+            "ok": m.get("_ok"),
+            "conf": conf,
+        }
     sig["man"] = conf
     rs = _conferidos(o.get("ressalvas"))
     lim = (o.get("leitura") or {}).get("secao_limitacoes")
-    sig["ress"] = False if any(x.get("tipo") in GRAVE for x in rs) else (
-        True if (rs or lim == "presente") else None)
+    sig["ress"] = (
+        False
+        if any(x.get("tipo") in GRAVE for x in rs)
+        else (True if (rs or lim == "presente") else None)
+    )
     return sig, vit, man
 
 
@@ -177,7 +232,19 @@ def solidez(sig: dict) -> tuple[str, int, int]:
     if len(lidos) < 3:
         return "sem_leitura", t, len(lidos)
     q = t / len(lidos)
-    return ("fragil" if q < 0.35 else "basico" if q < 0.6 else "firme" if q < 0.8 else "forte"), t, len(lidos)
+    return (
+        (
+            "fragil"
+            if q < 0.35
+            else "basico"
+            if q < 0.6
+            else "firme"
+            if q < 0.8
+            else "forte"
+        ),
+        t,
+        len(lidos),
+    )
 
 
 # ── abertura e esforco ──────────────────────────────────────────────────────
@@ -186,9 +253,16 @@ def solidez(sig: dict) -> tuple[str, int, int]:
 def abertura(o: dict, parcial: bool, github: str | None) -> tuple[dict, bool]:
     ab: dict[str, Any] = {}
     for t in PESO_ARTEFATO:
-        estados = [x.get("estado") for x in _conferidos(o.get("artefatos")) if x.get("tipo") == t]
-        ab[t] = max(estados, key=lambda e: RANK_ARTEFATO.get(e, 0)) if estados else (
-            "nao_lido" if parcial else "ausente")
+        estados = [
+            x.get("estado")
+            for x in _conferidos(o.get("artefatos"))
+            if x.get("tipo") == t
+        ]
+        ab[t] = (
+            max(estados, key=lambda e: RANK_ARTEFATO.get(e, 0))
+            if estados
+            else ("nao_lido" if parcial else "ausente")
+        )
     conferido = False
     if github and ab["codigo"] != "liberado":
         ab["codigo"] = "liberado"  # o repositorio vinculado no HF e evidencia externa
@@ -203,7 +277,14 @@ def esforco(entrega: str, camada: str | None, ab: dict) -> int:
     if entrega == "medida":
         return 2 if liberado else 0
     if liberado:
-        return 3 if (entrega == "metodo" and camada in ("pos_treino", "arquitetura_pretreino")) else 2
+        return (
+            3
+            if (
+                entrega == "metodo"
+                and camada in ("pos_treino", "arquitetura_pretreino")
+            )
+            else 2
+        )
     if entrega == "modelo":
         return 5
     return 4 if camada == "arquitetura_pretreino" else 3
@@ -236,7 +317,11 @@ def faixa_abertura(ab: dict) -> tuple[int | None, int | None]:
     que o painel desenha como "nao lido", nunca como zero."""
     if all(e == "nao_lido" for e in ab.values()):
         return None, None
-    conf = sum(PESO_ARTEFATO[t] * FATOR_ARTEFATO.get(e, 0) for t, e in ab.items() if e != "nao_lido")
+    conf = sum(
+        PESO_ARTEFATO[t] * FATOR_ARTEFATO.get(e, 0)
+        for t, e in ab.items()
+        if e != "nao_lido"
+    )
     falta = sum(PESO_ARTEFATO[t] for t, e in ab.items() if e == "nao_lido")
     return round(100 * conf), round(100 * (conf + falta))
 
@@ -252,8 +337,14 @@ def radar(p: dict) -> dict[str, float | None]:
     fac = None if p["esf"] == 0 else (5 - p["esf"]) * 20
     benchs = {r["b"] for r in p["res"] if r["nos"]}
     amp = amplitude(len(benchs)) if (benchs or not p["parcial"]) else None
-    return {"ganho": None if ganho is None else round(ganho), "solidez": sol, "abertura": ab,
-            "facilidade": fac, "amplitude": amp, "atencao": None}
+    return {
+        "ganho": None if ganho is None else round(ganho),
+        "solidez": sol,
+        "abertura": ab,
+        "facilidade": fac,
+        "amplitude": amp,
+        "atencao": None,
+    }
 
 
 def atencao(papers: list[dict]) -> None:
@@ -286,33 +377,72 @@ def derivar(o: dict, meta: dict) -> dict:
     best = max(comp, key=lambda r: r["rext"]) if comp else None
     ok = _ok  # trecho nao achado fica fora
     p = {
-        "id": pid, "t": o.get("titulo") or meta.get("t"), "d": meta.get("d"),
-        "u": meta.get("u") or 0, "org": meta.get("org") or "",
-        "L": {"f": lt.get("fonte_texto"), "c": lt.get("cobertura"), "fim": lt.get("termina_em"),
-              "lim": lt.get("secao_limitacoes")},
+        "id": pid,
+        "t": o.get("titulo") or meta.get("t"),
+        "d": meta.get("d"),
+        "u": meta.get("u") or 0,
+        "org": meta.get("org") or "",
+        "L": {
+            "f": lt.get("fonte_texto"),
+            "c": lt.get("cobertura"),
+            "fim": lt.get("termina_em"),
+            "lim": lt.get("secao_limitacoes"),
+        },
         "parcial": parcial,
-        "ent": entrega, "ent2": (o.get("entrega") or {}).get("secundaria"),
-        "entTr": (o.get("entrega") or {}).get("trecho") if ok(o.get("entrega") or {}) else None,
-        "cam": camada, "prob": o.get("problema"),
-        "res": res, "vit": vit, "sig": sig, "sol": sol, "T": t, "nl": nl,
-        "ab": ab, "abConf": ab_conf, "esf": esf,
+        "ent": entrega,
+        "ent2": (o.get("entrega") or {}).get("secundaria"),
+        "entTr": (o.get("entrega") or {}).get("trecho")
+        if ok(o.get("entrega") or {})
+        else None,
+        "cam": camada,
+        "prob": o.get("problema"),
+        "res": res,
+        "vit": vit,
+        "sig": sig,
+        "sol": sol,
+        "T": t,
+        "nl": nl,
+        "ab": ab,
+        "abConf": ab_conf,
+        "esf": esf,
         "rel": any(ab[k] == "liberado" for k in ("codigo", "pesos", "dados")),
         "prom": any(ab[k] == "prometido" for k in ("codigo", "pesos", "dados")),
         "hw": classe_hardware(_conferidos(o.get("hardware"))),
         "ar": sorted({r["ar"] for r in res}),
-        "ents": [[e.get("nome"), e.get("tipo"), e.get("papel"), e.get("tamanho"), bool(e.get("fechado"))]
-                 for e in _conferidos(o.get("entidades"))],
+        "ents": [
+            [
+                e.get("nome"),
+                e.get("tipo"),
+                e.get("papel"),
+                e.get("tamanho"),
+                bool(e.get("fechado")),
+            ]
+            for e in _conferidos(o.get("entidades"))
+        ],
         "man": man,
-        "aleg": [[x.get("tipo"), x.get("trecho"), x.get("secao")] for x in (o.get("alegacoes") or []) if ok(x)],
-        "ress": [[x.get("tipo"), x.get("trecho"), x.get("secao")] for x in (o.get("ressalvas") or []) if ok(x)],
+        "aleg": [
+            [x.get("tipo"), x.get("trecho"), x.get("secao")]
+            for x in (o.get("alegacoes") or [])
+            if ok(x)
+        ],
+        "ress": [
+            [x.get("tipo"), x.get("trecho"), x.get("secao")]
+            for x in (o.get("ressalvas") or [])
+            if ok(x)
+        ],
         "ef": [x for x in (o.get("efeitos_custo") or []) if ok(x)],
-        "art": [[x.get("tipo"), x.get("estado"), url_segura(x.get("url"))] for x in _conferidos(o.get("artefatos"))],
+        "art": [
+            [x.get("tipo"), x.get("estado"), url_segura(x.get("url"))]
+            for x in _conferidos(o.get("artefatos"))
+        ],
         "naoex": o.get("nao_extraivel") or [],
         "best": best and {"b": best["b"], "r": best["rext"], "x": best["ext"][0]},
         "url": f"https://arxiv.org/abs/{pid}",
     }
     p["radar"] = radar(p)
-    p["abTeto"] = faixa_abertura(ab)[1]  # o maximo que a abertura pode chegar quando o resto for lido
+    p["abTeto"] = faixa_abertura(ab)[
+        1
+    ]  # o maximo que a abertura pode chegar quando o resto for lido
     return p
 
 

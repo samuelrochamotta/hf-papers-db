@@ -26,9 +26,26 @@ URL_HTML = "https://arxiv.org/html/{id}"
 # Classes LaTeXML que encerram o corpo util do paper.
 _FIM = ("ltx_bibliography",)
 # Blocos que nunca viram texto.
-_PULAR_TAGS = {"script", "style", "nav", "header", "footer", "button", "svg", "noscript"}
-_PULAR_CLASSES = ("ltx_page_header", "ltx_page_footer", "ltx_authors", "ltx_dates",
-                  "ltx_role_footnote", "ltx_note_outer", "package-alerts", "ltx_TOC")
+_PULAR_TAGS = {
+    "script",
+    "style",
+    "nav",
+    "header",
+    "footer",
+    "button",
+    "svg",
+    "noscript",
+}
+_PULAR_CLASSES = (
+    "ltx_page_header",
+    "ltx_page_footer",
+    "ltx_authors",
+    "ltx_dates",
+    "ltx_role_footnote",
+    "ltx_note_outer",
+    "package-alerts",
+    "ltx_TOC",
+)
 _TITULOS = {"h1", "h2", "h3", "h4", "h5", "h6"}
 _BLOCOS = {"p", "div", "section", "li", "figcaption", "blockquote", "dd", "dt"}
 
@@ -152,7 +169,9 @@ class _Extrator(HTMLParser):
             elif legenda:
                 self._quebra()
                 self.partes.append(f"[Figura] {legenda}\n\n")
-        elif tag in ("td", "th") and self.celula is not None and self.tabela is not None:
+        elif (
+            tag in ("td", "th") and self.celula is not None and self.tabela is not None
+        ):
             if self.tabela:
                 self.tabela[-1].append(_limpar(" ".join(self.celula)))
             self.celula = None
@@ -189,7 +208,19 @@ class _Extrator(HTMLParser):
         self._escrever(data)
 
 
-_VAZIAS = {"img", "br", "hr", "meta", "link", "input", "col", "source", "wbr", "area", "base"}
+_VAZIAS = {
+    "img",
+    "br",
+    "hr",
+    "meta",
+    "link",
+    "input",
+    "col",
+    "source",
+    "wbr",
+    "area",
+    "base",
+}
 
 
 def _limpar(txt: str) -> str:
@@ -202,10 +233,18 @@ def html_para_texto(arxiv_id: str, html: str) -> TextoPaper:
     ext.close()
     bruto = "".join(ext.partes)
     # Normaliza espacos dentro dos paragrafos, preserva as quebras de bloco.
-    blocos = [re.sub(r"[ \t\r\f\v]+", " ", b).strip() for b in re.split(r"\n{2,}", bruto)]
+    blocos = [
+        re.sub(r"[ \t\r\f\v]+", " ", b).strip() for b in re.split(r"\n{2,}", bruto)
+    ]
     texto = "\n\n".join(b for b in blocos if b)
-    return TextoPaper(arxiv_id=arxiv_id, texto=texto, fonte="html", secoes=ext.secoes,
-                      tabelas=ext.tabelas, chegou_ao_fim=True)
+    return TextoPaper(
+        arxiv_id=arxiv_id,
+        texto=texto,
+        fonte="html",
+        secoes=ext.secoes,
+        tabelas=ext.tabelas,
+        chegou_ao_fim=True,
+    )
 
 
 def aplicar_teto(tp: TextoPaper, teto: int) -> TextoPaper:
@@ -227,8 +266,11 @@ def aplicar_teto(tp: TextoPaper, teto: int) -> TextoPaper:
 def baixar_html(arxiv_id: str, cliente: httpx.Client | None = None) -> str | None:
     """HTML do arXiv, ou None quando o paper nao tem versao HTML (404)."""
     proprio = cliente is None
-    http = cliente or httpx.Client(timeout=60, follow_redirects=True,
-                                   headers={"User-Agent": "hf-papers-db/0.1 (leitura)"})
+    http = cliente or httpx.Client(
+        timeout=60,
+        follow_redirects=True,
+        headers={"User-Agent": "hf-papers-db/0.1 (leitura)"},
+    )
     try:
         r = http.get(URL_HTML.format(id=arxiv_id))
         if r.status_code == 404:
@@ -243,12 +285,21 @@ def baixar_html(arxiv_id: str, cliente: httpx.Client | None = None) -> str | Non
             http.close()
 
 
-def texto_do_paper(arxiv_id: str, *, abstract: str = "", teto: int = 320_000,
-                   cliente: httpx.Client | None = None) -> TextoPaper:
+def texto_do_paper(
+    arxiv_id: str,
+    *,
+    abstract: str = "",
+    teto: int = 320_000,
+    cliente: httpx.Client | None = None,
+) -> TextoPaper:
     html = baixar_html(arxiv_id, cliente)
     if html is None:
-        return TextoPaper(arxiv_id=arxiv_id, texto=abstract or "", fonte="abstract",
-                          chegou_ao_fim=False)
+        return TextoPaper(
+            arxiv_id=arxiv_id,
+            texto=abstract or "",
+            fonte="abstract",
+            chegou_ao_fim=False,
+        )
     return aplicar_teto(html_para_texto(arxiv_id, html), teto)
 
 
@@ -301,14 +352,19 @@ class Conferidor:
             v = float(valor)  # type: ignore[arg-type]
         except (TypeError, ValueError):
             return None
-        return any(abs(v - n) <= 1e-9 + abs(n) * 1e-6 for n in self.numeros) or \
-            any(abs(v - n * 100) < 1e-6 for n in self.numeros if abs(n) <= 1) or \
-            any(abs(v * 100 - n) < 1e-6 for n in self.numeros if abs(v) <= 1)
+        return (
+            any(abs(v - n) <= 1e-9 + abs(n) * 1e-6 for n in self.numeros)
+            or any(abs(v - n * 100) < 1e-6 for n in self.numeros if abs(n) <= 1)
+            or any(abs(v * 100 - n) < 1e-6 for n in self.numeros if abs(v) <= 1)
+        )
 
 
 def _numeros(texto: str) -> list[float]:
     out = []
-    for m in re.finditer(r"(?<![\w.])[-−]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.])[-−]?\d+(?:\.\d+)?", texto):
+    for m in re.finditer(
+        r"(?<![\w.])[-−]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.])[-−]?\d+(?:\.\d+)?",
+        texto,
+    ):
         s = m.group(0).replace("−", "-").replace(",", "")
         try:
             out.append(float(s))

@@ -59,7 +59,9 @@ def test_metrica_daily_nao_apaga_contadores_do_enriquecimento(conn):
     db.upsert_paper(conn, _paper())
     chave = {"paper_id": "2608.23552", "data_snapshot": "2026-08-25"}
     db.upsert_metrica(conn, {**chave, "qtd_modelos": 3, "origem": "por_paper"})
-    db.upsert_metrica(conn, {**chave, "upvotes": 40, "qtd_modelos": None, "origem": "daily"})
+    db.upsert_metrica(
+        conn, {**chave, "upvotes": 40, "qtd_modelos": None, "origem": "daily"}
+    )
     row = conn.execute("SELECT * FROM fato_metrica").fetchone()
     assert row["qtd_modelos"] == 3
     assert row["upvotes"] == 40
@@ -70,7 +72,12 @@ def test_fk_recusa_metrica_de_paper_inexistente(conn):
 
     with pytest.raises(sqlite3.IntegrityError):
         db.upsert_metrica(
-            conn, {"paper_id": "9999.99999", "data_snapshot": "2026-08-25", "origem": "daily"}
+            conn,
+            {
+                "paper_id": "9999.99999",
+                "data_snapshot": "2026-08-25",
+                "origem": "daily",
+            },
         )
 
 
@@ -127,7 +134,7 @@ ALTER TABLE dim_paper ADD COLUMN tem_codigo_aberto INTEGER;
 def _banco_v1(caminho):
     import sqlite3
 
-    db.conectar(caminho).close()            # schema atual, inclusive dim_paper
+    db.conectar(caminho).close()  # schema atual, inclusive dim_paper
     bruto = sqlite3.connect(caminho)
     bruto.executescript(DDL_REGIME_V1)
     for pid in ("2608.1", "2608.2", "2608.3"):
@@ -138,7 +145,11 @@ def _banco_v1(caminho):
     bruto.executemany(
         "INSERT INTO fato_triagem (paper_id, veredito, regra_fora, classificado_em, run_id, revisao, decisao_fronteira) "
         "VALUES (?, ?, ?, '2026-08-25T09:00:00', 'r', 3, 1)",
-        [("2608.1", "amplo", None), ("2608.2", "estrito", None), ("2608.3", "fora", "treino_ou_postreino")],
+        [
+            ("2608.1", "amplo", None),
+            ("2608.2", "estrito", None),
+            ("2608.3", "fora", "treino_ou_postreino"),
+        ],
     )
     bruto.execute("INSERT INTO ponte_paper_criterio VALUES ('2608.1', 'benchmark')")
     bruto.commit()
@@ -167,9 +178,9 @@ def test_migracao_v2_preserva_as_linhas_e_apaga_o_que_morreu(tmp_path):
         assert db.colunas(conn, "ponte_paper_criterio") == []
         assert "tem_codigo_aberto" not in db.colunas(conn, "dim_paper")
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
-        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1   # religada
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1  # religada
 
-        db.migrar(conn)   # segunda vez: idempotente, nao reconstroi de novo
+        db.migrar(conn)  # segunda vez: idempotente, nao reconstroi de novo
         assert db.contar(conn, "fato_triagem") == 3
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
@@ -191,17 +202,36 @@ def test_perfis_sao_sincronizados_do_config(tmp_path):
 
     conn = db.conectar(tmp_path / "p.db")
     try:
-        assert [r[0] for r in conn.execute("SELECT perfil FROM dim_perfil ORDER BY ordem")] == [
-            "produto", "pesquisa_treino",
+        assert [
+            r[0] for r in conn.execute("SELECT perfil FROM dim_perfil ORDER BY ordem")
+        ] == [
+            "produto",
+            "pesquisa_treino",
         ]
-        db.sincronizar_perfis(conn, [Perfil(perfil="tudo_menos_treino", rotulo="X",
-                                            prerequisitos=["nenhum", "implementar", "acesso_interno"])])
-        assert [tuple(r) for r in conn.execute("SELECT perfil, prerequisito FROM ponte_perfil_prerequisito ORDER BY prerequisito")] == [
-            ("tudo_menos_treino", "acesso_interno"), ("tudo_menos_treino", "implementar"),
+        db.sincronizar_perfis(
+            conn,
+            [
+                Perfil(
+                    perfil="tudo_menos_treino",
+                    rotulo="X",
+                    prerequisitos=["nenhum", "implementar", "acesso_interno"],
+                )
+            ],
+        )
+        assert [
+            tuple(r)
+            for r in conn.execute(
+                "SELECT perfil, prerequisito FROM ponte_perfil_prerequisito ORDER BY prerequisito"
+            )
+        ] == [
+            ("tudo_menos_treino", "acesso_interno"),
+            ("tudo_menos_treino", "implementar"),
             ("tudo_menos_treino", "nenhum"),
         ]
-        with pytest.raises(sqlite3.IntegrityError):   # degrau que nao existe
-            db.sincronizar_perfis(conn, [Perfil(perfil="x", rotulo="X", prerequisitos=["inventado"])])
+        with pytest.raises(sqlite3.IntegrityError):  # degrau que nao existe
+            db.sincronizar_perfis(
+                conn, [Perfil(perfil="x", rotulo="X", prerequisitos=["inventado"])]
+            )
     finally:
         conn.close()
 
@@ -237,8 +267,12 @@ def test_migracao_acrescenta_area_pai_sem_perder_linhas(tmp_path):
     try:
         assert "area_pai" in db.colunas(conn, "dim_area")
         row = conn.execute("SELECT * FROM dim_area").fetchone()
-        assert (row["area"], row["definicao"], row["area_pai"]) == ("Agentes & automação", "d", None)
-        db.migrar(conn)   # segunda vez: idempotente, nao tenta ADD COLUMN de novo
+        assert (row["area"], row["definicao"], row["area_pai"]) == (
+            "Agentes & automação",
+            "d",
+            None,
+        )
+        db.migrar(conn)  # segunda vez: idempotente, nao tenta ADD COLUMN de novo
         assert db.colunas(conn, "dim_area").count("area_pai") == 1
         assert db.diagnostico_banco(conn)["tabelas_faltando"] == []
         assert db.contar(conn, "dim_vertente") == 0
@@ -289,9 +323,9 @@ def test_migracao_recria_a_ponte_de_area_com_a_subarea_na_chave(tmp_path):
     try:
         assert "subarea" in db.colunas(conn, "ponte_paper_area")
         assert db.contar(conn, "ponte_paper_area") == 0
-        assert db.contar(conn, "dim_paper") == 1        # so a ponte foi reconstruida
+        assert db.contar(conn, "dim_paper") == 1  # so a ponte foi reconstruida
         assert db.contar(conn, "dim_area") == 1
-        db.migrar(conn)   # segunda vez: idempotente, nao recria a tabela de novo
+        db.migrar(conn)  # segunda vez: idempotente, nao recria a tabela de novo
         assert db.colunas(conn, "ponte_paper_area").count("subarea") == 1
         assert db.diagnostico_banco(conn)["tabelas_faltando"] == []
     finally:
@@ -312,7 +346,11 @@ def test_banco_antigo_ganha_a_ponte_de_vertente_ao_abrir(tmp_path):
 
     conn = db.conectar(caminho)
     try:
-        assert db.colunas(conn, "ponte_paper_vertente") == ["paper_id", "vertente", "ordem"]
+        assert db.colunas(conn, "ponte_paper_vertente") == [
+            "paper_id",
+            "vertente",
+            "ordem",
+        ]
         assert db.diagnostico_banco(conn)["tabelas_faltando"] == []
     finally:
         conn.close()
@@ -341,9 +379,12 @@ def test_banco_antigo_perde_tax_candidato_ao_abrir(tmp_path):
     try:
         assert db.colunas(conn, "tax_candidato") == []
         assert db.colunas(conn, "tax_nao_encaixe") == [
-            "paper_id", "eixo", "justificativa", "registrado_em"
+            "paper_id",
+            "eixo",
+            "justificativa",
+            "registrado_em",
         ]
-        db.migrar(conn)   # segunda vez: idempotente, nao tenta apagar de novo
+        db.migrar(conn)  # segunda vez: idempotente, nao tenta apagar de novo
         assert db.diagnostico_banco(conn)["tabelas_faltando"] == []
     finally:
         conn.close()
@@ -358,13 +399,19 @@ def test_a_ponte_de_area_aceita_duas_subareas_irmas_do_mesmo_paper(conn):
         )
         db.upsert_area(conn, {"area": "Contexto", "definicao": "d"})
         for sub in ("Memória", "RAG"):
-            db.upsert_area(conn, {"area": sub, "definicao": "d", "area_pai": "Contexto"})
+            db.upsert_area(
+                conn, {"area": sub, "definicao": "d", "area_pai": "Contexto"}
+            )
         for sub, primaria in (("Memória", 1), ("RAG", 0)):
             db.inserir_ignorando(
                 conn,
                 "ponte_paper_area",
-                {"paper_id": "2608.1", "area": "Contexto", "subarea": sub,
-                 "is_primaria": primaria},
+                {
+                    "paper_id": "2608.1",
+                    "area": "Contexto",
+                    "subarea": sub,
+                    "is_primaria": primaria,
+                },
             )
     assert db.contar(conn, "ponte_paper_area") == 2
 
@@ -385,11 +432,16 @@ def test_banco_antigo_perde_a_grade_de_topicos_ao_abrir(tmp_path):
         db.upsert_area(conn, {"area": "Harness & orquestração", "definicao": "d"})
         db.upsert_area(
             conn,
-            {"area": "Sistemas multiagente", "definicao": "d", "area_pai": "Harness & orquestração"},
+            {
+                "area": "Sistemas multiagente",
+                "definicao": "d",
+                "area_pai": "Harness & orquestração",
+            },
         )
         db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
         db.upsert_paper(
-            conn, {"paper_id": "2608.00001", "titulo": "P", "primeiro_visto_em": db.agora()}
+            conn,
+            {"paper_id": "2608.00001", "titulo": "P", "primeiro_visto_em": db.agora()},
         )
     conn.close()
 
@@ -409,11 +461,13 @@ def test_banco_antigo_perde_a_grade_de_topicos_ao_abrir(tmp_path):
     try:
         assert db.colunas(conn, "dim_topico") == []
         assert db.colunas(conn, "ponte_paper_topico") == []
-        assert [r["area"] for r in conn.execute("SELECT area FROM dim_area ORDER BY area")] == [
+        assert [
+            r["area"] for r in conn.execute("SELECT area FROM dim_area ORDER BY area")
+        ] == [
             "Harness & orquestração",
             "Sistemas multiagente",
         ]
-        db.migrar(conn)   # segunda vez: idempotente, nao tem mais o que apagar
+        db.migrar(conn)  # segunda vez: idempotente, nao tem mais o que apagar
         assert db.contar(conn, "dim_area") == 2
         assert db.diagnostico_banco(conn)["tabelas_faltando"] == []
     finally:

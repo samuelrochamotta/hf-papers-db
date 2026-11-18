@@ -19,7 +19,9 @@ from hfpapers import db
 
 
 def _paper(conn, pid: str) -> None:
-    db.upsert_paper(conn, {"paper_id": pid, "titulo": "T", "primeiro_visto_em": db.agora()})
+    db.upsert_paper(
+        conn, {"paper_id": pid, "titulo": "T", "primeiro_visto_em": db.agora()}
+    )
 
 
 def _par(conn, pid: str, area: str, subarea: str, primaria: int) -> None:
@@ -42,7 +44,8 @@ def base(conn):
         db.upsert_area(conn, {"area": "Contexto & recuperação", "definicao": "d"})
         for sub in ("Memória de longo prazo", "RAG & recuperação"):
             db.upsert_area(
-                conn, {"area": sub, "definicao": "", "area_pai": "Contexto & recuperação"}
+                conn,
+                {"area": sub, "definicao": "", "area_pai": "Contexto & recuperação"},
             )
         db.upsert_vertente(conn, {"vertente": "Medir", "definicao": "d"})
         for i in range(3):
@@ -91,8 +94,13 @@ def test_a_checagem_a_reprova_a_sub_area_acima_do_teto(base):
     """66,7% e 33,3% dentro da mesma area: as duas acima dos 25% da spec."""
     texto = relatorio_massa.gerar(base, None)
 
-    assert "**Checagem A — nenhuma sub-área acima de ~25% da sua área**: FALHA, 2 acima do teto." in texto
-    assert "  - Contexto & recuperação > Memória de longo prazo: 2 papers, 66.7%" in texto
+    assert (
+        "**Checagem A — nenhuma sub-área acima de ~25% da sua área**: FALHA, 2 acima do teto."
+        in texto
+    )
+    assert (
+        "  - Contexto & recuperação > Memória de longo prazo: 2 papers, 66.7%" in texto
+    )
 
 
 def test_a_checagem_b_passa_com_a_vertente_unica(base):
@@ -100,7 +108,10 @@ def test_a_checagem_b_passa_com_a_vertente_unica(base):
     do piso de 2%."""
     texto = relatorio_massa.gerar(base, None)
 
-    assert "**Checagem B — nenhuma vertente abaixo de ~2%**: passa, 0 abaixo do piso." in texto
+    assert (
+        "**Checagem B — nenhuma vertente abaixo de ~2%**: passa, 0 abaixo do piso."
+        in texto
+    )
     assert "Atribuições no total: 3 para 3 papers (1.00 por paper)." in texto
 
 
@@ -110,12 +121,17 @@ def test_a_sub_area_que_ninguem_recebeu_entra_com_zero(base):
     with db.transacao(base):
         db.upsert_area(
             base,
-            {"area": "Janela & contexto longo", "definicao": "", "area_pai": "Contexto & recuperação"},
+            {
+                "area": "Janela & contexto longo",
+                "definicao": "",
+                "area_pai": "Contexto & recuperação",
+            },
         )
 
-    assert "| | Janela & contexto longo | 0 | 0.0% |" in _linhas(
-        relatorio_massa.gerar(base, None), "| | Janela"
-    )[0]
+    assert (
+        "| | Janela & contexto longo | 0 | 0.0% |"
+        in _linhas(relatorio_massa.gerar(base, None), "| | Janela")[0]
+    )
 
 
 def _chamada(conn, **campos) -> None:

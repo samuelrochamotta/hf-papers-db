@@ -110,7 +110,9 @@ def rodar(
 
     log.info(
         "refresh: %s datas quentes, %s mornas, %s papers, %s enriquecidos",
-        len(res.datas_quentes), len(res.datas_mornas),
-        res.papers_atualizados, res.papers_enriquecidos,
+        len(res.datas_quentes),
+        len(res.datas_mornas),
+        res.papers_atualizados,
+        res.papers_enriquecidos,
     )
     return res

@@ -98,9 +98,7 @@ def schema_estagio_a(
     subareas = list(subareas)
     vertentes = list(vertentes)
     if not areas or not subareas or not vertentes:
-        raise ValueError(
-            "vocabulario vazio: rode `hfpapers taxonomia carregar`"
-        )
+        raise ValueError("vocabulario vazio: rode `hfpapers taxonomia carregar`")
     return {
         "type": "object",
         "additionalProperties": False,
@@ -128,7 +126,10 @@ def schema_estagio_a(
             # O par secundario e nulo na maioria dos papers, e o `null` no enum
             # e o que torna isso uma resposta e nao uma falha de validacao.
             "area_secundaria": {"type": ["string", "null"], "enum": [*areas, None]},
-            "subarea_secundaria": {"type": ["string", "null"], "enum": [*subareas, None]},
+            "subarea_secundaria": {
+                "type": ["string", "null"],
+                "enum": [*subareas, None],
+            },
             # Ordenada, a dominante primeiro: e a posicao no array que vira a
             # `ordem` da ponte, e o prompt diz isso em prosa.
             "vertentes": {
@@ -197,7 +198,10 @@ SCHEMA_ESTAGIO_B: dict[str, Any] = {
         # forma da resposta. Os booleanos derivam deles no codigo.
         "pratica_contradita": _TEXTO_OU_NULO,
         "falta_o_como": _TEXTO_OU_NULO,
-        "artefato_status": {"type": ["string", "null"], "enum": [*ARTEFATO_STATUS, None]},
+        "artefato_status": {
+            "type": ["string", "null"],
+            "enum": [*ARTEFATO_STATUS, None],
+        },
         "justificativa": {
             "type": "string",
             "minLength": PISO_JUSTIFICATIVA,
@@ -206,7 +210,12 @@ SCHEMA_ESTAGIO_B: dict[str, Any] = {
         "ficha": {
             "type": ["object", "null"],
             "additionalProperties": False,
-            "required": ["achado", "implicacao_pratica", "exemplo_concreto", "ressalva"],
+            "required": [
+                "achado",
+                "implicacao_pratica",
+                "exemplo_concreto",
+                "ressalva",
+            ],
             "properties": {
                 "achado": {"type": "string"},
                 "implicacao_pratica": {"type": "string"},

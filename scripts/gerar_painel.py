@@ -246,7 +246,9 @@ a:hover { color: #ecc478; border-bottom-color: #ecc478; }
 def ler(nome: str) -> list[dict]:
     caminho = DIR_MARTS / f"{nome}.parquet"
     if not caminho.exists():
-        raise SystemExit(f"ERRO: {caminho} nao existe - rode `python -m hfpapers export` antes.")
+        raise SystemExit(
+            f"ERRO: {caminho} nao existe - rode `python -m hfpapers export` antes."
+        )
     return pq.read_table(caminho).to_pylist()
 
 
@@ -264,8 +266,10 @@ def _config() -> dict:
 def modelos() -> tuple[str, str]:
     """Rodape do painel. Vem do config para nao envelhecer quando o modelo trocar."""
     llm = _config().get("llm", {})
-    return (llm.get("estagio_a", {}).get("modelo", "?"),
-            llm.get("estagio_b", {}).get("modelo", "?"))
+    return (
+        llm.get("estagio_a", {}).get("modelo", "?"),
+        llm.get("estagio_b", {}).get("modelo", "?"),
+    )
 
 
 def janela_hall() -> int:
@@ -293,8 +297,12 @@ def periodo(d: dt.date) -> tuple[str, str, dt.date, dt.date]:
     t = (d.month - 1) // 3 + 1
     ini = dt.date(d.year, 3 * t - 2, 1)
     proximo = dt.date(d.year + 1, 1, 1) if t == 4 else dt.date(d.year, 3 * t + 1, 1)
-    return (f"{d.year}-T{t}", f"{ORDINAL[t]}º trimestre de {d.year}",
-            ini, proximo - dt.timedelta(days=1))
+    return (
+        f"{d.year}-T{t}",
+        f"{ORDINAL[t]}º trimestre de {d.year}",
+        ini,
+        proximo - dt.timedelta(days=1),
+    )
 
 
 def classificacao(triagem: dict, paper: dict) -> dict:
@@ -324,7 +332,10 @@ def url_segura(url: Any) -> bool:
     """So `http(s)://` vira link. Repositorio e pagina do projeto vem de dado
     externo (HF, abstract), e o painel e publico: um `javascript:` ali seria
     executado no clique."""
-    return isinstance(url, str) and re.match(r"https?://", url.strip(), re.IGNORECASE) is not None
+    return (
+        isinstance(url, str)
+        and re.match(r"https?://", url.strip(), re.IGNORECASE) is not None
+    )
 
 
 def por_voto(papers: list[dict]) -> list[dict]:
@@ -356,6 +367,7 @@ def montar_hall(
     nao ha nada a "selar". Enquanto isso nao acontece o trimestre e marcado como
     em consolidacao, porque o top-10 dele ainda muda a cada dia que passa.
     """
+
     def veredito(pid: str) -> str | None:
         """None = nunca classificado, e isso NAO e o mesmo que `fora`.
 
@@ -394,7 +406,7 @@ def montar_hall(
             saidos[periodo(d)[0]].append(p)
 
     hall = []
-    for chave in sorted(saidos, reverse=True):     # trimestre mais recente primeiro
+    for chave in sorted(saidos, reverse=True):  # trimestre mais recente primeiro
         rotulo, ini, fim = rotulos[chave]
         grupo = saidos[chave]
 
@@ -408,67 +420,73 @@ def montar_hall(
             t = triagem.get(pid, {})
             j, h = justificativa_exibivel(t)
             area, subarea = par_primario.get(pid, (None, None))
-            entradas_aprov.append({
-                "id": pid,
-                "t": p.get("titulo") or "",
-                "d": iso(p.get("data_hf_daily")),
-                "v": veredito(pid),
-                "a": area,
-                "sa": subarea,
-                "vt": vertentes_por_paper.get(pid, []),
-                "u": p.get("upvotes_atual") or 0,
-                "uq": ultimo_voto.get(pid),
-                "org": p.get("organizacao"),
-                "url": p.get("url_hf"),
-                # Um aprovado sem ficha e raro mas existe (o Estagio B falhou
-                # depois do veredito). Ele fica no ranking - tira-lo faria o
-                # top-10 mentir sobre quem foi mais votado - e a linha so nao
-                # abre. `f` e o que o app usa para decidir isso.
-                "f": 1 if f else 0,
-                # cabecalho da decisao (issue #2): por que esta classificacao,
-                # independente de a ficha ter sido escrita.
-                "j": j,
-                "h": h,
-                **classificacao(t, p),
-                "ach": f.get("achado") or "",
-                "imp": f.get("implicacao_pratica") or "",
-                "ex": f.get("exemplo_concreto") or "",
-                "res": f.get("ressalva") or "",
-            })
+            entradas_aprov.append(
+                {
+                    "id": pid,
+                    "t": p.get("titulo") or "",
+                    "d": iso(p.get("data_hf_daily")),
+                    "v": veredito(pid),
+                    "a": area,
+                    "sa": subarea,
+                    "vt": vertentes_por_paper.get(pid, []),
+                    "u": p.get("upvotes_atual") or 0,
+                    "uq": ultimo_voto.get(pid),
+                    "org": p.get("organizacao"),
+                    "url": p.get("url_hf"),
+                    # Um aprovado sem ficha e raro mas existe (o Estagio B falhou
+                    # depois do veredito). Ele fica no ranking - tira-lo faria o
+                    # top-10 mentir sobre quem foi mais votado - e a linha so nao
+                    # abre. `f` e o que o app usa para decidir isso.
+                    "f": 1 if f else 0,
+                    # cabecalho da decisao (issue #2): por que esta classificacao,
+                    # independente de a ficha ter sido escrita.
+                    "j": j,
+                    "h": h,
+                    **classificacao(t, p),
+                    "ach": f.get("achado") or "",
+                    "imp": f.get("implicacao_pratica") or "",
+                    "ex": f.get("exemplo_concreto") or "",
+                    "res": f.get("ressalva") or "",
+                }
+            )
 
         entradas_desc = []
         for p in desc[:TOPO_DESCARTADOS]:
             pid = p["paper_id"]
             t = triagem.get(pid, {})
             j, h = justificativa_exibivel(t)
-            entradas_desc.append({
-                "id": pid,
-                "t": p.get("titulo") or "",
-                "d": iso(p.get("data_hf_daily")),
-                "u": p.get("upvotes_atual") or 0,
-                "uq": ultimo_voto.get(pid),
-                "org": p.get("organizacao"),
-                "url": p.get("url_hf"),
-                "rf": t.get("regra_fora"),
-                # a justificativa e o contraponto do `achado`: por que o
-                # pipeline descartou o que a comunidade votou.
-                "j": j,
-                "h": h,
-            })
+            entradas_desc.append(
+                {
+                    "id": pid,
+                    "t": p.get("titulo") or "",
+                    "d": iso(p.get("data_hf_daily")),
+                    "u": p.get("upvotes_atual") or 0,
+                    "uq": ultimo_voto.get(pid),
+                    "org": p.get("organizacao"),
+                    "url": p.get("url_hf"),
+                    "rf": t.get("regra_fora"),
+                    # a justificativa e o contraponto do `achado`: por que o
+                    # pipeline descartou o que a comunidade votou.
+                    "j": j,
+                    "h": h,
+                }
+            )
 
-        hall.append({
-            "per": chave,
-            "rot": rotulo,
-            "ini": ini.isoformat(),
-            "fim": fim.isoformat(),
-            "n": total[chave],
-            "na": aprovados[chave],
-            "nd": descartados[chave],
-            "nx": total[chave] - aprovados[chave] - descartados[chave],
-            "cons": 1 if fim >= corte else 0,
-            "ap": entradas_aprov,
-            "de": entradas_desc,
-        })
+        hall.append(
+            {
+                "per": chave,
+                "rot": rotulo,
+                "ini": ini.isoformat(),
+                "fim": fim.isoformat(),
+                "n": total[chave],
+                "na": aprovados[chave],
+                "nd": descartados[chave],
+                "nx": total[chave] - aprovados[chave] - descartados[chave],
+                "cons": 1 if fim >= corte else 0,
+                "ap": entradas_aprov,
+                "de": entradas_desc,
+            }
+        )
     return hall
 
 
@@ -478,8 +496,9 @@ HORIZONTE_VOTO = 30
 JANELA_GANHO = 7
 
 
-def atencao(medidas: list[tuple[dt.date, int]], dia_hf: Any, fim: dt.date
-            ) -> tuple[list | None, list | None]:
+def atencao(
+    medidas: list[tuple[dt.date, int]], dia_hf: Any, fim: dt.date
+) -> tuple[list | None, list | None]:
     """Pre-agrega as duas leituras de voto do Panorama para um paper.
 
     `vg` e o ganho na ultima semana: `[dia_ini, votos_ini, dia_fim, votos_fim]`,
@@ -551,12 +570,17 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     # que o estagio 3 ja passou, e ele so e classificado na rodada seguinte.
     # Por isso a contagem viaja em `pendentes` e o app a exibe - some da conta
     # de veredito, nao da pagina.
-    na_janela_todos = [p for p in papers if p.get("data_hf_daily") and p["data_hf_daily"] >= corte]
+    na_janela_todos = [
+        p for p in papers if p.get("data_hf_daily") and p["data_hf_daily"] >= corte
+    ]
     na_janela = [p for p in na_janela_todos if p["paper_id"] in triagem]
     pendentes = len(na_janela_todos) - len(na_janela)
     ids = {p["paper_id"] for p in na_janela}
-    ids_hall = {p["paper_id"] for p in papers
-                if p.get("data_hf_daily") and p["data_hf_daily"] < corte_hall}
+    ids_hall = {
+        p["paper_id"]
+        for p in papers
+        if p.get("data_hf_daily") and p["data_hf_daily"] < corte_hall
+    }
     ids_uteis = ids | ids_hall
 
     # O par inteiro, e nao so a area: os dois niveis viajam juntos porque
@@ -574,7 +598,9 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     # Ordenada pela `ordem`: a dominante e a primeira que o card exibe, e sem a
     # ordenacao aqui a ordem em que o Parquet devolve as linhas decidiria isso.
     vertentes_por_paper: dict[str, list[str]] = defaultdict(list)
-    for r in sorted(ler("ponte_paper_vertente"), key=lambda x: (x["paper_id"], x["ordem"])):
+    for r in sorted(
+        ler("ponte_paper_vertente"), key=lambda x: (x["paper_id"], x["ordem"])
+    ):
         if r["paper_id"] in ids_uteis:
             vertentes_por_paper[r["paper_id"]].append(r["vertente"])
 
@@ -583,15 +609,27 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     # congelamento do refresh).
     serie: dict[str, list[tuple[dt.date, int]]] = defaultdict(list)
     ultimo_voto: dict[str, str | None] = {}
-    for m in sorted(ler("fato_metrica"), key=lambda r: (r["paper_id"], r["data_snapshot"])):
+    for m in sorted(
+        ler("fato_metrica"), key=lambda r: (r["paper_id"], r["data_snapshot"])
+    ):
         pid = m["paper_id"]
         u = m.get("upvotes")
-        if pid in ids and isinstance(u, int) and u >= 0 and isinstance(m.get("data_snapshot"), dt.date):
+        if (
+            pid in ids
+            and isinstance(u, int)
+            and u >= 0
+            and isinstance(m.get("data_snapshot"), dt.date)
+        ):
             serie[pid].append((m["data_snapshot"], u))
         if pid in ids_hall and u is not None:
-            ultimo_voto[pid] = iso(m["data_snapshot"])   # ordenado por data: o ultimo vence
+            ultimo_voto[pid] = iso(
+                m["data_snapshot"]
+            )  # ordenado por data: o ultimo vence
 
-    gerado = manifest.get("gerado_em") or dt.datetime.now().replace(microsecond=0).isoformat()
+    gerado = (
+        manifest.get("gerado_em")
+        or dt.datetime.now().replace(microsecond=0).isoformat()
+    )
     try:
         fim_voto = dt.date.fromisoformat(str(gerado)[:10])
     except ValueError:
@@ -648,7 +686,12 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         lista.append(entrada)
 
     hall = montar_hall(
-        papers, triagem, fichas, par_primario, vertentes_por_paper, ultimo_voto,
+        papers,
+        triagem,
+        fichas,
+        par_primario,
+        vertentes_por_paper,
+        ultimo_voto,
         corte=corte_hall,
     )
 
@@ -677,8 +720,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         # ela acompanha o paper em `p.sa` e agora tambem tem vista propria no
         # card "Área primária", que a agrega no navegador.
         "areas": [
-            {"a": a["area"], "def": a.get("definicao") or ""}
-            for a in areas_raiz
+            {"a": a["area"], "def": a.get("definicao") or ""} for a in areas_raiz
         ],
         # Sub-areas para o filtro SUB-ÁREA e os tooltips da vista "Sub-áreas".
         # Mapa plano porque a chave basta: os 64 nomes sao unicos entre si na
@@ -688,7 +730,8 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         # sao 9,1 KB num arquivo de ~2,5 MB.
         "subdef": {
             a["area"]: a.get("definicao") or ""
-            for a in areas_todas if a.get("area_pai")
+            for a in areas_todas
+            if a.get("area_pai")
         },
         # As 10 vertentes com a definicao, para o filtro VERTENTE e para o
         # tooltip da vista "Vertentes". Alfabetica, como tudo que e ordenado
@@ -701,9 +744,14 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
         # A natureza do ADR 004, na ordem do banco. Rotulo e definicao viajam
         # uma vez, aqui.
         "naturezas": [
-            {"k": n["natureza"], "r": n.get("rotulo") or n["natureza"],
-             "def": n.get("definicao") or ""}
-            for n in sorted(ler("dim_natureza"), key=lambda x: (x.get("ordem") or 0, x["natureza"]))
+            {
+                "k": n["natureza"],
+                "r": n.get("rotulo") or n["natureza"],
+                "def": n.get("definicao") or "",
+            }
+            for n in sorted(
+                ler("dim_natureza"), key=lambda x: (x.get("ordem") or 0, x["natureza"])
+            )
         ],
         "papers": lista,
         "fichas": [
@@ -714,7 +762,8 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
                 "ex": f.get("exemplo_concreto") or "",
                 "res": f.get("ressalva") or "",
             }
-            for pid, f in fichas.items() if pid in ids
+            for pid, f in fichas.items()
+            if pid in ids
         ],
         "hall": hall,
     }
@@ -747,9 +796,11 @@ def resumo_texto(dados: dict) -> str:
     """
     papers = dados["papers"]
     aprovados = sum(1 for p in papers if p["v"] == "aprovado")
-    return (f"{len(papers)} papers do Hugging Face Daily Papers dos últimos {dados['janela']} dias, "
-            f"triados por LLM: {aprovados} aprovados, com ficha de leitura, natureza da afirmação, "
-            f"área e vertente. Atualizado em {str(dados['gerado'])[:10]}.")
+    return (
+        f"{len(papers)} papers do Hugging Face Daily Papers dos últimos {dados['janela']} dias, "
+        f"triados por LLM: {aprovados} aprovados, com ficha de leitura, natureza da afirmação, "
+        f"área e vertente. Atualizado em {str(dados['gerado'])[:10]}."
+    )
 
 
 def versao(conteudo: str) -> str:
@@ -759,28 +810,44 @@ def versao(conteudo: str) -> str:
     return hashlib.sha256(conteudo.encode("utf-8")).hexdigest()[:10]
 
 
-def documento(dados: dict, *, embutido: bool, versoes: dict[str, str] | None = None) -> str:
+def documento(
+    dados: dict, *, embutido: bool, versoes: dict[str, str] | None = None
+) -> str:
     """O `index.html`. Embutido leva dados, fichas e ECharts dentro dele;
     senao aponta para os arquivos irmaos, cada um com o `?v=` do proprio
     conteudo (`versoes`, nome -> hash)."""
     app = APP_JS.read_text(encoding="utf-8")
     resumo = resumo_texto(dados)
+
     def esc(t: str) -> str:
-        return (t.replace("&", "&amp;").replace('"', "&quot;")
-                .replace("<", "&lt;").replace(">", "&gt;"))
-    og_url = f'<meta property="og:url" content="{esc(URL_PUBLICA)}">\n' if URL_PUBLICA else ""
+        return (
+            t.replace("&", "&amp;")
+            .replace('"', "&quot;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+    og_url = (
+        f'<meta property="og:url" content="{esc(URL_PUBLICA)}">\n'
+        if URL_PUBLICA
+        else ""
+    )
 
     if embutido:
         fichas = dados["fichas"]
         leve = {k: v for k, v in dados.items() if k != "fichas"}
-        carga = (f"<script>{_embutivel(ECHARTS_JS.read_text(encoding='utf-8'), codigo=True)}</script>\n"
-                 f"<script>var DADOS={_embutivel(_json(leve))};"
-                 f"var FICHAS={_embutivel(_json(fichas))};</script>")
+        carga = (
+            f"<script>{_embutivel(ECHARTS_JS.read_text(encoding='utf-8'), codigo=True)}</script>\n"
+            f"<script>var DADOS={_embutivel(_json(leve))};"
+            f"var FICHAS={_embutivel(_json(fichas))};</script>"
+        )
     else:
         v = {k: esc(x) for k, x in (versoes or {}).items()}
-        carga = (f'<script>var PAINEL_ARQUIVOS={{dados:"dados.json?v={v.get("dados.json", "")}",'
-                 f'fichas:"fichas.json?v={v.get("fichas.json", "")}"}};</script>\n'
-                 f'<script src="echarts.painel.min.js?v={v.get("echarts.painel.min.js", "")}"></script>')
+        carga = (
+            f'<script>var PAINEL_ARQUIVOS={{dados:"dados.json?v={v.get("dados.json", "")}",'
+            f'fichas:"fichas.json?v={v.get("fichas.json", "")}"}};</script>\n'
+            f'<script src="echarts.painel.min.js?v={v.get("echarts.painel.min.js", "")}"></script>'
+        )
 
     return f"""<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8">
@@ -806,8 +873,9 @@ def documento(dados: dict, *, embutido: bool, versoes: dict[str, str] | None = N
 </body></html>"""
 
 
-def montar(janela: int, dias_hall: int | None = None, *, embutido: bool = False
-           ) -> tuple[dict[str, str], dict]:
+def montar(
+    janela: int, dias_hall: int | None = None, *, embutido: bool = False
+) -> tuple[dict[str, str], dict]:
     """Os arquivos do painel, nome -> conteudo.
 
     Embutido e um so, `index.html`. Em pasta sao quatro: a pagina, os dados da
@@ -843,34 +911,52 @@ def escrever(arquivos: dict[str, str], destino: Path) -> int:
         caminho.parent.mkdir(parents=True, exist_ok=True)
         tmp = caminho.with_name(caminho.name + ".tmp")
         tmp.write_text(conteudo, encoding="utf-8")
-        os.replace(tmp, caminho)   # atomico: ninguem le um arquivo pela metade
+        os.replace(tmp, caminho)  # atomico: ninguem le um arquivo pela metade
         total += len(conteudo.encode("utf-8"))
     return total
 
 
 def _parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description="Gera o painel HTML estatico de marts/.")
-    ap.add_argument("--dias", type=int, default=JANELA_PADRAO,
-                    help=f"Janela em dias da aba viva (padrao {JANELA_PADRAO}). Segura o tamanho "
-                         "do arquivo. Nao afeta a aba historica, que segue refresh.janela_morna_dias.")
-    ap.add_argument("--destino", type=Path, default=DESTINO_PADRAO,
-                    help=f"Pasta de saida (padrao {DESTINO_PADRAO}). Terminado em .html gera um "
-                         "arquivo unico com dados e ECharts embutidos, que abre offline - e o "
-                         "formato das previas.")
-    ap.add_argument("--dias-hall", type=int, default=None, dest="dias_hall",
-                    help="Sobrescreve o corte da aba historica, que por padrao vem de "
-                         "refresh.janela_morna_dias. Existe para inspecionar a aba antes de o "
-                         "primeiro trimestre fechar - nao use na geracao diaria: abaixo da janela "
-                         "do refresh os votos do hall ainda estao se mexendo. Aceita valor "
-                         "negativo de proposito: --dias-hall=-30 joga o corte para o futuro e e a "
-                         "unica forma de ver um trimestre ja consolidado enquanto o corrente nao "
-                         "terminou (com valor positivo o corte nunca passa de hoje, entao "
-                         "`fim >= corte` mantem o trimestre marcado como em consolidacao).")
-    ap.add_argument("--marts", type=Path, default=None,
-                    help="Le os Parquet de outro diretorio (previa sobre a copia do piloto). "
-                         "So vale junto com --destino: o carimbo de run_id e do marts/ do repo.")
-    ap.add_argument("--force", action="store_true",
-                    help="Regera mesmo se o run_id nao mudou.")
+    ap.add_argument(
+        "--dias",
+        type=int,
+        default=JANELA_PADRAO,
+        help=f"Janela em dias da aba viva (padrao {JANELA_PADRAO}). Segura o tamanho "
+        "do arquivo. Nao afeta a aba historica, que segue refresh.janela_morna_dias.",
+    )
+    ap.add_argument(
+        "--destino",
+        type=Path,
+        default=DESTINO_PADRAO,
+        help=f"Pasta de saida (padrao {DESTINO_PADRAO}). Terminado em .html gera um "
+        "arquivo unico com dados e ECharts embutidos, que abre offline - e o "
+        "formato das previas.",
+    )
+    ap.add_argument(
+        "--dias-hall",
+        type=int,
+        default=None,
+        dest="dias_hall",
+        help="Sobrescreve o corte da aba historica, que por padrao vem de "
+        "refresh.janela_morna_dias. Existe para inspecionar a aba antes de o "
+        "primeiro trimestre fechar - nao use na geracao diaria: abaixo da janela "
+        "do refresh os votos do hall ainda estao se mexendo. Aceita valor "
+        "negativo de proposito: --dias-hall=-30 joga o corte para o futuro e e a "
+        "unica forma de ver um trimestre ja consolidado enquanto o corrente nao "
+        "terminou (com valor positivo o corte nunca passa de hoje, entao "
+        "`fim >= corte` mantem o trimestre marcado como em consolidacao).",
+    )
+    ap.add_argument(
+        "--marts",
+        type=Path,
+        default=None,
+        help="Le os Parquet de outro diretorio (previa sobre a copia do piloto). "
+        "So vale junto com --destino: o carimbo de run_id e do marts/ do repo.",
+    )
+    ap.add_argument(
+        "--force", action="store_true", help="Regera mesmo se o run_id nao mudou."
+    )
     return ap
 
 
@@ -879,13 +965,18 @@ def main() -> int:
     args = _parser().parse_args()
     if args.marts is not None:
         if args.destino == DESTINO_PADRAO:
-            print("ERRO: --marts so com --destino: a previa nao publica.", file=sys.stderr)
+            print(
+                "ERRO: --marts so com --destino: a previa nao publica.", file=sys.stderr
+            )
             return 2
         DIR_MARTS = args.marts
 
     manifest_path = DIR_MARTS / "_manifest.json"
     if not manifest_path.exists():
-        print("ERRO: marts/_manifest.json nao existe - o export ainda nao rodou.", file=sys.stderr)
+        print(
+            "ERRO: marts/_manifest.json nao existe - o export ainda nao rodou.",
+            file=sys.stderr,
+        )
         return 2
 
     run_id = json.loads(manifest_path.read_text(encoding="utf-8")).get("run_id")
@@ -893,7 +984,9 @@ def main() -> int:
 
     # A trava que torna o disparo repetido do WatchPaths inofensivo.
     if run_id and run_id == anterior and not args.force and args.marts is None:
-        print(f"sem novidade: painel ja gerado para {run_id} (use --force para regerar)")
+        print(
+            f"sem novidade: painel ja gerado para {run_id} (use --force para regerar)"
+        )
         return 0
 
     embutido = args.destino.suffix == ".html"
@@ -908,8 +1001,10 @@ def main() -> int:
         CARIMBO.write_text(run_id, encoding="utf-8")
 
     kb = total / 1024
-    print(f"painel: {args.destino} ({kb:.0f} KB em {len(arquivos)} arquivo(s), "
-          f"janela {args.dias}d, run_id {run_id})")
+    print(
+        f"painel: {args.destino} ({kb:.0f} KB em {len(arquivos)} arquivo(s), "
+        f"janela {args.dias}d, run_id {run_id})"
+    )
     return 0
 
 

@@ -33,7 +33,11 @@ class Ambiente(BaseSettings):
     openrouter_api_key: SecretStr | None = Field(default=None)
 
     def chave_openrouter(self) -> str | None:
-        return self.openrouter_api_key.get_secret_value() if self.openrouter_api_key else None
+        return (
+            self.openrouter_api_key.get_secret_value()
+            if self.openrouter_api_key
+            else None
+        )
 
 
 # ── config.yaml ─────────────────────────────────────────────────────────────

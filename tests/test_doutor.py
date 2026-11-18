@@ -167,7 +167,9 @@ def test_execucao_sem_triagem_propria_cai_no_fim_da_rodada(cfg, base):
     """Se todas as triagens da rodada foram reclassificadas depois (o `run_id`
     da linha troca), sobra so `finalizado_em` como reserva."""
     _paper(base, "2609.00001", "2026-09-04T07:31:00")
-    _triagem(base, "2609.00001", run_id="run-reclassificacao", quando="2026-09-04T10:00:00")
+    _triagem(
+        base, "2609.00001", run_id="run-reclassificacao", quando="2026-09-04T10:00:00"
+    )
     _execucao(base, "run-a", fim="2026-09-04T07:33:40", classificou=1)
     _paper(base, "2609.00002", "2026-09-04T07:33:00")
     base.commit()
@@ -227,9 +229,9 @@ def test_pendente_que_atravessou_uma_rodada_vira_aviso(cfg, base):
 
 
 def test_aviso_soma_a_fila_sem_confundir_com_atrasado(cfg, base):
-    _paper(base, "2609.00001", "2026-09-03T07:00:00")   # atrasado
+    _paper(base, "2609.00001", "2026-09-03T07:00:00")  # atrasado
     _execucao(base, "run-a", fim="2026-09-03T09:00:00", classificou=5)
-    _paper(base, "2609.00002", "2026-09-03T09:23:23")   # na fila
+    _paper(base, "2609.00002", "2026-09-03T09:23:23")  # na fila
     base.commit()
 
     item = checar_pendencias(cfg)
@@ -296,7 +298,9 @@ def test_so_areas_ainda_e_aviso(cfg, base):
     from conftest import AREA_TESTE, SUBAREA_TESTE
 
     db.upsert_area(base, {"area": AREA_TESTE, "definicao": "d"})
-    db.upsert_area(base, {"area": SUBAREA_TESTE, "definicao": "d", "area_pai": AREA_TESTE})
+    db.upsert_area(
+        base, {"area": SUBAREA_TESTE, "definicao": "d", "area_pai": AREA_TESTE}
+    )
     base.commit()
 
     item = checar_vocabulario(cfg)
@@ -403,10 +407,10 @@ def test_reclassificar_dirigido_vira_corte_de_pendencia(cfg, base):
         povoar_vocabulario(base)
     _paper(base, "2609.00001", "2026-09-03T07:00:00")
     _triagem(base, "2609.00001")
-    _paper(base, "2609.00002", "2026-09-03T07:00:00")    # pendente, e antigo
+    _paper(base, "2609.00002", "2026-09-03T07:00:00")  # pendente, e antigo
     base.commit()
 
-    assert checar_pendencias(cfg).estado == OK           # sem rodada, sem corte
+    assert checar_pendencias(cfg).estado == OK  # sem rodada, sem corte
 
     r = execucao.reclassificar(
         cfg=cfg, conn=base, ids=["2609.00001"], cliente_llm=LLMDuble(base, cfg)
@@ -416,9 +420,13 @@ def test_reclassificar_dirigido_vira_corte_de_pendencia(cfg, base):
     item = checar_pendencias(cfg)
     assert item.estado == AVISO
     assert item.dados["ids"] == ["2609.00002"]
-    assert item.dados["corte"] == base.execute(
-        "SELECT classificado_em AS c FROM fato_triagem WHERE run_id = ?", (r.run_id,)
-    ).fetchone()["c"]
+    assert (
+        item.dados["corte"]
+        == base.execute(
+            "SELECT classificado_em AS c FROM fato_triagem WHERE run_id = ?",
+            (r.run_id,),
+        ).fetchone()["c"]
+    )
 
 
 def test_rodar_inclui_a_checagem(cfg, base):
@@ -432,5 +440,5 @@ def test_rodar_inclui_a_checagem(cfg, base):
     assert not [i for i in itens.values() if i.estado == "erro" and i.nome == "triagem"]
     # a fiacao dos outros checks tambem passa por aqui: sem esta linha,
     # apagar a chamada de `checar_vocabulario` em `rodar` nao quebraria nada
-    assert itens["vocabulario"].estado == AVISO      # base de teste sem vocabulario
-    assert itens["regime"].estado == OK              # e sem triagem do regime anterior
+    assert itens["vocabulario"].estado == AVISO  # base de teste sem vocabulario
+    assert itens["regime"].estado == OK  # e sem triagem do regime anterior

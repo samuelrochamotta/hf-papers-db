@@ -79,14 +79,18 @@ def _chamar(c, **kw):
 
 
 def test_temperature_e_omitida_quando_o_modelo_nao_a_anuncia(cfg):
-    c = _cliente(cfg, [(json.dumps(RESPOSTA), "stop")], {"modelo/teste-b": {"response_format"}})
+    c = _cliente(
+        cfg, [(json.dumps(RESPOSTA), "stop")], {"modelo/teste-b": {"response_format"}}
+    )
     _chamar(c)
     assert "temperature" not in c.openai.chamadas[0]
 
 
 def test_temperature_vai_quando_suportada(cfg):
     c = _cliente(
-        cfg, [(json.dumps(RESPOSTA), "stop")], {"modelo/teste-b": {"response_format", "temperature"}}
+        cfg,
+        [(json.dumps(RESPOSTA), "stop")],
+        {"modelo/teste-b": {"response_format", "temperature"}},
     )
     _chamar(c)
     assert c.openai.chamadas[0]["temperature"] == 0.2
@@ -135,7 +139,9 @@ def test_validacao_reprovada_reenvia_com_a_mensagem(cfg):
     )
     r = _chamar(c, validar=validar)
     assert r.dados["veredito"] == "estrito"
-    assert "veredito tem de ser estrito" in c.openai.chamadas[1]["messages"][-1]["content"]
+    assert (
+        "veredito tem de ser estrito" in c.openai.chamadas[1]["messages"][-1]["content"]
+    )
 
 
 def test_justificativa_degenerada_retenta_e_o_modelo_se_corrige(cfg):
@@ -301,7 +307,9 @@ class OpenAIComProvedor(OpenAIDuble):
 def _cliente_com_provedor(cfg, conn, provedor, respostas=None):
     return ClienteLLM(
         cfg,
-        cliente=OpenAIComProvedor(respostas or [(json.dumps(RESPOSTA), "stop")], provedor),
+        cliente=OpenAIComProvedor(
+            respostas or [(json.dumps(RESPOSTA), "stop")], provedor
+        ),
         precos={"modelo/teste-b": Preco(2e-6, 1e-5)},
         parametros={},
         conn=conn,
@@ -312,7 +320,10 @@ def test_provedor_que_atendeu_e_registrado(cfg, conn):
     c = _cliente_com_provedor(cfg, conn, "Together")
     _chamar(c)
     c.drenar_registros()
-    assert conn.execute("SELECT provedor FROM log_llm").fetchone()["provedor"] == "Together"
+    assert (
+        conn.execute("SELECT provedor FROM log_llm").fetchone()["provedor"]
+        == "Together"
+    )
 
 
 def test_provedor_ausente_nao_quebra_o_registro(cfg, conn):
@@ -489,7 +500,10 @@ def test_prazo_estourado_e_registrado_em_log_llm(cfg, conn):
     with pytest.raises(ErroLLM):
         _chamar(c)
     c.drenar_registros()
-    erros = [r["erro"] for r in conn.execute("SELECT erro FROM log_llm WHERE erro IS NOT NULL")]
+    erros = [
+        r["erro"]
+        for r in conn.execute("SELECT erro FROM log_llm WHERE erro IS NOT NULL")
+    ]
     assert len(erros) == 3
     assert all("ErroPrazo" in e for e in erros)
 

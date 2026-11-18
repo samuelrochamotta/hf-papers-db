@@ -68,14 +68,20 @@ RESPOSTA_A_FORA = {
 RESPOSTA_B = {
     "regra_fora": None,
     "natureza": "proposta",
-    "padrao_extraido": {"nome": "Contrato de preservar-e-estender", "mecanismo": "Uma versao nova so entra se mantiver o que a anterior resolvia."},
+    "padrao_extraido": {
+        "nome": "Contrato de preservar-e-estender",
+        "mecanismo": "Uma versao nova so entra se mantiver o que a anterior resolvia.",
+    },
     "prerequisito": "implementar",
     "pratica_contradita": None,
     "falta_o_como": None,
     "artefato_status": None,
     "justificativa": "Proposta que se adota implementando: o contrato de preservar-e-estender e reproduzivel pela descricao, sobre qualquer modelo via API.",
     "ficha": {
-        "achado": "a", "implicacao_pratica": "b", "exemplo_concreto": "c", "ressalva": "d",
+        "achado": "a",
+        "implicacao_pratica": "b",
+        "exemplo_concreto": "c",
+        "ressalva": "d",
     },
 }
 
@@ -93,7 +99,10 @@ class LLMDuble(ClienteLLM):
         self.conn = conn
         self.run_id = "teste"
         self.uso = Uso()
-        self._precos = {"modelo/teste-a": Preco(1e-6, 2e-6), "modelo/teste-b": Preco(2e-6, 1e-5)}
+        self._precos = {
+            "modelo/teste-a": Preco(1e-6, 2e-6),
+            "modelo/teste-b": Preco(2e-6, 1e-5),
+        }
         self.openai = None
         self.chamadas = []
         self.um_a_cada = um_a_cada
@@ -146,7 +155,9 @@ class LLMQuebrado(LLMDuble):
 
 @pytest.fixture()
 def daily_bruto() -> list[dict]:
-    return json.loads((FIXTURES / "daily_papers_2026-08-25.json").read_text(encoding="utf-8"))
+    return json.loads(
+        (FIXTURES / "daily_papers_2026-08-25.json").read_text(encoding="utf-8")
+    )
 
 
 @pytest.fixture()
@@ -173,5 +184,5 @@ def cfg(tmp_path) -> Config:
     c.paths.logs = str(tmp_path / "logs")
     c.llm.estagio_a.modelo = "modelo/teste-a"
     c.llm.estagio_b.modelo = "modelo/teste-b"
-    c.llm.retry.backoff_inicial_s = 0     # sem espera artificial nos testes
+    c.llm.retry.backoff_inicial_s = 0  # sem espera artificial nos testes
     return c

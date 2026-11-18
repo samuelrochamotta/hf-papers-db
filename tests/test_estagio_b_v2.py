@@ -36,17 +36,29 @@ def _b(**over):
 
 
 def _fora(**over):
-    return _b(**{
-        "regra_fora": "percepcao_robotica_embodied", "natureza": None, "padrao_extraido": None,
-        "prerequisito": None, "ficha": None, "justificativa": JUST_FORA, **over,
-    })
+    return _b(
+        **{
+            "regra_fora": "percepcao_robotica_embodied",
+            "natureza": None,
+            "padrao_extraido": None,
+            "prerequisito": None,
+            "ficha": None,
+            "justificativa": JUST_FORA,
+            **over,
+        }
+    )
 
 
 def _panorama(**over):
-    return _b(**{
-        "natureza": "panorama", "padrao_extraido": None, "prerequisito": "sem_acao",
-        "justificativa": JUST_SEM_ACAO, **over,
-    })
+    return _b(
+        **{
+            "natureza": "panorama",
+            "padrao_extraido": None,
+            "prerequisito": "sem_acao",
+            "justificativa": JUST_SEM_ACAO,
+            **over,
+        }
+    )
 
 
 # ── vocabulario ─────────────────────────────────────────────────────────────
@@ -56,25 +68,44 @@ def test_tres_regras_na_ordem_de_teste():
     """Treino, relatorio tecnico e portabilidade sairam (ADR 004); midia vem
     primeiro porque era o que a regra de treino escondia."""
     assert schemas.REGRAS_FORA == [
-        "geracao_de_midia", "percepcao_robotica_embodied", "fora_de_escopo",
+        "geracao_de_midia",
+        "percepcao_robotica_embodied",
+        "fora_de_escopo",
     ]
 
 
 def test_vocabulario_do_banco_bate_com_os_enums(conn):
     """`dim_natureza` e `dim_prerequisito` sao semeadas no schema.sql; a ordem
     do banco e a ordem da escada, e as duas copias nao podem divergir."""
-    naturezas = [r[0] for r in conn.execute("SELECT natureza FROM dim_natureza ORDER BY ordem")]
-    degraus = [r[0] for r in conn.execute("SELECT prerequisito FROM dim_prerequisito ORDER BY ordem")]
+    naturezas = [
+        r[0] for r in conn.execute("SELECT natureza FROM dim_natureza ORDER BY ordem")
+    ]
+    degraus = [
+        r[0]
+        for r in conn.execute(
+            "SELECT prerequisito FROM dim_prerequisito ORDER BY ordem"
+        )
+    ]
     assert naturezas == schemas.NATUREZAS
     assert degraus == schemas.PREREQUISITOS
 
 
 def test_ordem_normativa_dos_campos_do_schema_b():
     assert schemas.SCHEMA_ESTAGIO_B["required"] == [
-        "regra_fora", "natureza", "padrao_extraido", "prerequisito",
-        "pratica_contradita", "falta_o_como", "artefato_status", "justificativa", "ficha",
+        "regra_fora",
+        "natureza",
+        "padrao_extraido",
+        "prerequisito",
+        "pratica_contradita",
+        "falta_o_como",
+        "artefato_status",
+        "justificativa",
+        "ficha",
     ]
-    assert list(schemas.SCHEMA_ESTAGIO_B["properties"]) == schemas.SCHEMA_ESTAGIO_B["required"]
+    assert (
+        list(schemas.SCHEMA_ESTAGIO_B["properties"])
+        == schemas.SCHEMA_ESTAGIO_B["required"]
+    )
 
 
 # ── validar: o que volta para o modelo ──────────────────────────────────────
@@ -88,9 +119,14 @@ def test_fora_valido():
     eb.validar(_fora())
 
 
-@pytest.mark.parametrize("campo,valor", [
-    ("ficha", RESPOSTA_B["ficha"]), ("natureza", "proposta"), ("prerequisito", "nenhum"),
-])
+@pytest.mark.parametrize(
+    "campo,valor",
+    [
+        ("ficha", RESPOSTA_B["ficha"]),
+        ("natureza", "proposta"),
+        ("prerequisito", "nenhum"),
+    ],
+)
 def test_fora_com_classificacao_e_invalido(campo, valor):
     with pytest.raises(ErroValidacao, match="descarte"):
         eb.validar(_fora(**{campo: valor}))
@@ -131,7 +167,10 @@ def test_padrao_so_existe_para_proposta():
 
 
 def test_padrao_impessoal():
-    padrao = {"nome": "N", "mecanismo": "Use um cache de prefixo quando voce tiver muito trafego."}
+    padrao = {
+        "nome": "N",
+        "mecanismo": "Use um cache de prefixo quando voce tiver muito trafego.",
+    }
     with pytest.raises(ErroValidacao, match="impessoal"):
         eb.validar(_b(padrao_extraido=padrao))
 
@@ -140,19 +179,25 @@ def test_padrao_que_cita_o_nome_proprio_volta():
     """Substitui o teste de portabilidade autoavaliado: o nome que vem antes do
     ":" no titulo nao pode sustentar o padrao."""
     titulo = "OpenSearch-VL: Scaling Retrieval for Vision-Language Agents"
-    padrao = {"nome": "Busca em duas fases", "mecanismo": "O OpenSearch-VL separa a busca grossa da fina."}
+    padrao = {
+        "nome": "Busca em duas fases",
+        "mecanismo": "O OpenSearch-VL separa a busca grossa da fina.",
+    }
     with pytest.raises(ErroValidacao, match="OpenSearch-VL"):
         eb.validar(_b(padrao_extraido=padrao), titulo)
     eb.validar(_b(), titulo)  # o padrao do conftest nao cita o nome
 
 
-@pytest.mark.parametrize("titulo,esperado", [
-    ("SCAPO: Token Suppression for Safer Decoding", {"SCAPO"}),
-    ("RetrievalRouter: Routing Queries Across Indexes", {"RetrievalRouter"}),
-    ("MiMo-V2.6 Technical Report", set()),          # sem ":" nao ha nome a proteger
-    ("LLM Agents: A Survey", set()),                 # sigla comum nao e nome
-    ("Qwen3-Omni: one model, all modalities", {"Qwen3-Omni"}),
-])
+@pytest.mark.parametrize(
+    "titulo,esperado",
+    [
+        ("SCAPO: Token Suppression for Safer Decoding", {"SCAPO"}),
+        ("RetrievalRouter: Routing Queries Across Indexes", {"RetrievalRouter"}),
+        ("MiMo-V2.6 Technical Report", set()),  # sem ":" nao ha nome a proteger
+        ("LLM Agents: A Survey", set()),  # sigla comum nao e nome
+        ("Qwen3-Omni: one model, all modalities", {"Qwen3-Omni"}),
+    ],
+)
 def test_nomes_proprios_do_titulo(titulo, esperado):
     assert eb.nomes_proprios(titulo) == esperado
 
@@ -167,17 +212,27 @@ def test_justificativa_curta_volta():
 
 def _resultado(**over):
     base = dict(
-        paper_id="p", regra_fora=None, natureza="proposta", padrao_extraido=None,
-        prerequisito="implementar", pratica_contradita=None, falta_o_como=None,
-        artefato_status=None, justificativa="j", ficha=None,
+        paper_id="p",
+        regra_fora=None,
+        natureza="proposta",
+        padrao_extraido=None,
+        prerequisito="implementar",
+        pratica_contradita=None,
+        falta_o_como=None,
+        artefato_status=None,
+        justificativa="j",
+        ficha=None,
     )
     base.update(over)
     return eb.ResultadoB(**base)
 
 
 def test_contradicao_sem_degrau_avisa():
-    r = _resultado(natureza="achado_empirico", prerequisito="sem_acao",
-                   pratica_contradita="monitorar o raciocinio para detectar desvio")
+    r = _resultado(
+        natureza="achado_empirico",
+        prerequisito="sem_acao",
+        pratica_contradita="monitorar o raciocinio para detectar desvio",
+    )
     assert eb.avisos_de_coerencia(r, [], False) == [eb.AVISO_CONTRADICAO_SEM_DEGRAU]
 
 
@@ -188,13 +243,20 @@ def test_achado_sem_acao_avisa():
 
 def test_treinar_dominante_com_degrau_nenhum_sem_artefato_avisa():
     r = _resultado(prerequisito="nenhum")
-    assert eb.avisos_de_coerencia(r, ["Treinar"], False) == [eb.AVISO_TREINAR_SEM_DEGRAU]
+    assert eb.avisos_de_coerencia(r, ["Treinar"], False) == [
+        eb.AVISO_TREINAR_SEM_DEGRAU
+    ]
     assert eb.avisos_de_coerencia(r, ["Treinar"], True) == []
     assert eb.avisos_de_coerencia(r, ["Medir", "Treinar"], False) == []
 
 
 def test_fora_nao_avisa():
-    assert eb.avisos_de_coerencia(_resultado(regra_fora="fora_de_escopo"), ["Treinar"], False) == []
+    assert (
+        eb.avisos_de_coerencia(
+            _resultado(regra_fora="fora_de_escopo"), ["Treinar"], False
+        )
+        == []
+    )
 
 
 # ── avaliar com o cliente real e o OpenAI dublado ──────────────────────────
@@ -210,33 +272,45 @@ class OpenAIDuble:
         self.chamadas.append(kw)
         conteudo = self.respostas.pop(0)
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=conteudo), finish_reason="stop")],
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content=conteudo), finish_reason="stop"
+                )
+            ],
             usage=SimpleNamespace(prompt_tokens=100, completion_tokens=50),
         )
 
 
 def _avaliar(cfg, respostas, paper=PAPER):
     duble = OpenAIDuble(respostas)
-    cliente = ClienteLLM(cfg, cliente=duble, precos={"modelo/teste-b": Preco(0, 0)}, parametros={})
+    cliente = ClienteLLM(
+        cfg, cliente=duble, precos={"modelo/teste-b": Preco(0, 0)}, parametros={}
+    )
     return eb.avaliar(cliente, paper, cfg=cfg), duble
 
 
 def test_artefato_sem_evidencia_e_sobrescrito_para_nulo(cfg):
     r, duble = _avaliar(cfg, [_b(artefato_status="liberado")])
     assert r.artefato_status is None
-    assert len(duble.chamadas) == 1   # sobrescrita, nao retentativa
+    assert len(duble.chamadas) == 1  # sobrescrita, nao retentativa
 
 
 def test_artefato_com_evidencia_fica_como_veio(cfg):
-    paper = ea.PaperEntrada(paper_id="p", titulo="T", evidencia_artefato=True,
-                            links_artefato=["https://github.com/x/y"])
+    paper = ea.PaperEntrada(
+        paper_id="p",
+        titulo="T",
+        evidencia_artefato=True,
+        links_artefato=["https://github.com/x/y"],
+    )
     r, duble = _avaliar(cfg, [_b(artefato_status="prometido")], paper)
     assert r.artefato_status == "prometido"
     assert "https://github.com/x/y" in duble.chamadas[0]["messages"][-1]["content"]
 
 
 def test_textos_vazios_viram_nulo(cfg):
-    r, _ = _avaliar(cfg, [_b(pratica_contradita="  ", falta_o_como="falta o criterio de parada")])
+    r, _ = _avaliar(
+        cfg, [_b(pratica_contradita="  ", falta_o_como="falta o criterio de parada")]
+    )
     assert r.pratica_contradita is None
     assert r.falta_o_como == "falta o criterio de parada"
 
@@ -244,7 +318,9 @@ def test_textos_vazios_viram_nulo(cfg):
 def test_fora_zera_o_resto(cfg):
     r, _ = _avaliar(cfg, [_fora(pratica_contradita="x", artefato_status="liberado")])
     assert (r.veredito, r.regra_fora) == ("fora", "percepcao_robotica_embodied")
-    assert r.pratica_contradita is None and r.artefato_status is None and r.ficha is None
+    assert (
+        r.pratica_contradita is None and r.artefato_status is None and r.ficha is None
+    )
 
 
 def test_regra_essencial_insistente_vira_erro_llm(cfg):

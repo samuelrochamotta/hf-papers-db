@@ -29,8 +29,12 @@ def test_volume_alto_e_atipico():
 
 def test_prerequisito_nenhum_alto():
     """Se `nenhum` domina os aprovados, o eixo de pre-requisito perdeu o sentido."""
-    c = Contagens(coletados=40, fora=15, aprovados=25,
-                  por_prerequisito={"nenhum": 15, "implementar": 10})
+    c = Contagens(
+        coletados=40,
+        fora=15,
+        aprovados=25,
+        por_prerequisito={"nenhum": 15, "implementar": 10},
+    )
     assert "prerequisito_nenhum_alto:60%" in avaliar(c)
 
 
@@ -84,8 +88,14 @@ GRADE_NOVA = {
     # volta compara o dicionario inteiro.
     "vertentes": [
         {"rotulo": "Baratear", "definicao": "reduz custo, latência, memória ou tokens"},
-        {"rotulo": "Escalar", "definicao": "faz funcionar maior: horizonte, contexto, número de agentes"},
-        {"rotulo": "Medir", "definicao": "cria o instrumento: benchmark, protocolo, métrica, auditoria"},
+        {
+            "rotulo": "Escalar",
+            "definicao": "faz funcionar maior: horizonte, contexto, número de agentes",
+        },
+        {
+            "rotulo": "Medir",
+            "definicao": "cria o instrumento: benchmark, protocolo, métrica, auditoria",
+        },
     ],
 }
 
@@ -96,7 +106,11 @@ def base(conn):
         for i in range(3):
             db.upsert_paper(
                 conn,
-                {"paper_id": f"2608.0000{i}", "titulo": f"P{i}", "primeiro_visto_em": db.agora()},
+                {
+                    "paper_id": f"2608.0000{i}",
+                    "titulo": f"P{i}",
+                    "primeiro_visto_em": db.agora(),
+                },
             )
         db.upsert_area(conn, {"area": "Agentes & automação", "definicao": "d"})
     return conn
@@ -139,7 +153,9 @@ def test_par_primario_grava_a_area_e_a_sub_area(base_facetada):
             area_primaria="Contexto & recuperação",
             subarea_primaria="Memória de longo prazo",
         )
-    assert _pares(base_facetada) == [("Contexto & recuperação", "Memória de longo prazo", 1)]
+    assert _pares(base_facetada) == [
+        ("Contexto & recuperação", "Memória de longo prazo", 1)
+    ]
 
 
 def test_par_secundario_de_mesma_area_com_sub_area_diferente_e_gravado(base_facetada):
@@ -179,7 +195,7 @@ def test_par_primario_rejeitado_promove_o_secundario_a_primario(base_facetada):
             base_facetada,
             "2608.00000",
             area_primaria="Contexto & recuperação",
-            subarea_primaria="Fala & áudio",            # filha de Interface & modalidade
+            subarea_primaria="Fala & áudio",  # filha de Interface & modalidade
             area_secundaria="Interface & modalidade",
             subarea_secundaria="Fala & áudio",
         )
@@ -201,9 +217,9 @@ def test_os_dois_pares_rejeitados_deixam_o_paper_sem_ponte(base_facetada):
             base_facetada,
             "2608.00000",
             area_primaria="Contexto & recuperação",
-            subarea_primaria="Fala & áudio",            # filha de Interface & modalidade
+            subarea_primaria="Fala & áudio",  # filha de Interface & modalidade
             area_secundaria="Interface & modalidade",
-            subarea_secundaria="RAG & recuperação",     # filha de Contexto & recuperação
+            subarea_secundaria="RAG & recuperação",  # filha de Contexto & recuperação
             vertentes_paper=["Medir"],
         )
     assert _pares(base_facetada) == []
@@ -323,7 +339,9 @@ def test_nao_encaixe_e_registrado_nos_tres_eixos_e_consultavel_por_eixo(base_fac
                 nao_coube=taxonomia.NaoEncaixe(eixo, razao),
             )
 
-    assert [(r["paper_id"], r["eixo"]) for r in taxonomia.nao_encaixes(base_facetada)] == [
+    assert [
+        (r["paper_id"], r["eixo"]) for r in taxonomia.nao_encaixes(base_facetada)
+    ] == [
         ("2608.00000", "area"),
         ("2608.00001", "subarea"),
         ("2608.00002", "vertente"),
@@ -337,7 +355,10 @@ def test_nao_encaixe_nao_impede_a_melhor_atribuicao_nem_cria_rotulo(base_facetad
     """Os dois lados do mesmo criterio: quem declara nao-encaixe continua
     saindo com par e vertente, e a classificacao nao promove nada - o
     vocabulario tem os mesmos rotulos depois da chamada que antes dela."""
-    antes = (taxonomia.arvore_de_areas(base_facetada), taxonomia.vertentes(base_facetada))
+    antes = (
+        taxonomia.arvore_de_areas(base_facetada),
+        taxonomia.vertentes(base_facetada),
+    )
     with db.transacao(base_facetada):
         taxonomia.aplicar_classificacao(
             base_facetada,
@@ -350,9 +371,14 @@ def test_nao_encaixe_nao_impede_a_melhor_atribuicao_nem_cria_rotulo(base_facetad
             ),
         )
 
-    assert _pares(base_facetada) == [("Contexto & recuperação", "Memória de longo prazo", 1)]
+    assert _pares(base_facetada) == [
+        ("Contexto & recuperação", "Memória de longo prazo", 1)
+    ]
     assert _vertentes(base_facetada) == [("Medir", 1)]
-    assert (taxonomia.arvore_de_areas(base_facetada), taxonomia.vertentes(base_facetada)) == antes
+    assert (
+        taxonomia.arvore_de_areas(base_facetada),
+        taxonomia.vertentes(base_facetada),
+    ) == antes
 
 
 def test_nao_encaixe_malformado_e_ignorado_sem_derrubar_o_paper(base_facetada):
@@ -360,7 +386,9 @@ def test_nao_encaixe_malformado_e_ignorado_sem_derrubar_o_paper(base_facetada):
     e legivel como fila; nenhum dos dois pode custar a taxonomia do paper."""
     for i, ruim in enumerate(
         (
-            taxonomia.NaoEncaixe("topico", "A grade antiga tinha topico; a nova nao tem."),
+            taxonomia.NaoEncaixe(
+                "topico", "A grade antiga tinha topico; a nova nao tem."
+            ),
             taxonomia.NaoEncaixe("subarea", "   "),
         )
     ):
@@ -426,9 +454,10 @@ def test_fusao_reescreve_a_ponte_de_todos_os_papers_do_rotulo(base_facetada):
     ) == {"papers_no_destino": 3}
 
     assert "Memória de longo prazo" not in taxonomia.hierarquia(base_facetada)
-    assert db.contar(
-        base_facetada, "ponte_paper_area", "subarea = 'RAG & recuperação'"
-    ) == 3
+    assert (
+        db.contar(base_facetada, "ponte_paper_area", "subarea = 'RAG & recuperação'")
+        == 3
+    )
 
 
 def test_fusao_recusa_rotulo_para_ele_mesmo(base_facetada):
@@ -451,7 +480,9 @@ def test_fusao_recusa_rotulo_para_ele_mesmo(base_facetada):
             base_facetada, de="Memória de longo prazo", para="Memória de longo prazo"
         )
 
-    assert _pares(base_facetada) == [("Contexto & recuperação", "Memória de longo prazo", 1)]
+    assert _pares(base_facetada) == [
+        ("Contexto & recuperação", "Memória de longo prazo", 1)
+    ]
     assert "Memória de longo prazo" in taxonomia.hierarquia(base_facetada)
 
 
@@ -530,7 +561,6 @@ def test_fusao_recusa_rotulos_que_nao_sao_irmaos(base_facetada):
         )
 
 
-
 def test_exportar_traz_rotulo_e_definicao(base):
     dados = taxonomia.exportar(base)
     # area sem filha viaja com a lista de sub-areas vazia, e nao sem o campo:
@@ -539,7 +569,6 @@ def test_exportar_traz_rotulo_e_definicao(base):
         {"rotulo": "Agentes & automação", "definicao": "d", "subareas": []}
     ]
     assert dados["vertentes"] == []
-
 
 
 def test_carregar_e_o_inverso_de_exportar(base, conn2):
@@ -553,7 +582,9 @@ def test_carregar_e_o_inverso_de_exportar(base, conn2):
 def test_carregar_e_idempotente_e_nao_toca_rotulo_existente(base, conn2):
     """Segunda carga nao pode sobrescrever a definicao que o banco ja tem."""
     with db.transacao(conn2):
-        db.upsert_area(conn2, {"area": "Agentes & automação", "definicao": "definicao viva"})
+        db.upsert_area(
+            conn2, {"area": "Agentes & automação", "definicao": "definicao viva"}
+        )
     dados = taxonomia.exportar(base)
 
     with db.transacao(conn2):
@@ -640,11 +671,18 @@ def test_a_hierarquia_carregada_tem_dois_niveis_e_um_pai_por_subarea(conn2):
     with db.transacao(conn2):
         taxonomia.carregar(conn2, _arquivo_versionado())
 
-    raizes = {r["area"] for r in conn2.execute("SELECT area FROM dim_area WHERE area_pai IS NULL")}
-    filhas = conn2.execute("SELECT area, area_pai FROM dim_area WHERE area_pai IS NOT NULL").fetchall()
+    raizes = {
+        r["area"]
+        for r in conn2.execute("SELECT area FROM dim_area WHERE area_pai IS NULL")
+    }
+    filhas = conn2.execute(
+        "SELECT area, area_pai FROM dim_area WHERE area_pai IS NOT NULL"
+    ).fetchall()
 
     assert len(filhas) >= 45
-    assert all(f["area_pai"] in raizes for f in filhas)   # nenhuma neta: a grade tem dois niveis
+    assert all(
+        f["area_pai"] in raizes for f in filhas
+    )  # nenhuma neta: a grade tem dois niveis
 
 
 def test_rodada_grava_o_par_primario_para_todo_paper_inclusive_os_fora(cfg, conn):
@@ -660,7 +698,11 @@ def test_rodada_grava_o_par_primario_para_todo_paper_inclusive_os_fora(cfg, conn
         for i in (1, 2):
             db.upsert_paper(
                 conn,
-                {"paper_id": f"2608.0000{i}", "titulo": f"P{i}", "primeiro_visto_em": db.agora()},
+                {
+                    "paper_id": f"2608.0000{i}",
+                    "titulo": f"P{i}",
+                    "primeiro_visto_em": db.agora(),
+                },
             )
         taxonomia.carregar(conn, _arquivo_versionado())
 
@@ -673,10 +715,13 @@ def test_rodada_grava_o_par_primario_para_todo_paper_inclusive_os_fora(cfg, conn
 
     assert res.avisos == []
     assert (res.fora, res.aprovados) == (1, 1)
-    assert [tuple(r) for r in conn.execute(
-        "SELECT t.paper_id, t.veredito, p.area, p.subarea, p.is_primaria "
-        "FROM fato_triagem t JOIN ponte_paper_area p USING (paper_id) ORDER BY t.paper_id"
-    )] == [
+    assert [
+        tuple(r)
+        for r in conn.execute(
+            "SELECT t.paper_id, t.veredito, p.area, p.subarea, p.is_primaria "
+            "FROM fato_triagem t JOIN ponte_paper_area p USING (paper_id) ORDER BY t.paper_id"
+        )
+    ] == [
         ("2608.00001", "fora", AREA_TESTE, SUBAREA_TESTE, 1),
         ("2608.00002", "aprovado", AREA_TESTE, SUBAREA_TESTE, 1),
     ]
@@ -694,7 +739,11 @@ def test_rodada_grava_a_vertente_para_todo_paper_inclusive_os_fora(cfg, conn):
         for i in (1, 2):
             db.upsert_paper(
                 conn,
-                {"paper_id": f"2608.0000{i}", "titulo": f"P{i}", "primeiro_visto_em": db.agora()},
+                {
+                    "paper_id": f"2608.0000{i}",
+                    "titulo": f"P{i}",
+                    "primeiro_visto_em": db.agora(),
+                },
             )
         taxonomia.carregar(conn, _arquivo_versionado())
 
@@ -704,11 +753,14 @@ def test_rodada_grava_a_vertente_para_todo_paper_inclusive_os_fora(cfg, conn):
     )
 
     assert (res.fora, res.aprovados) == (1, 1)
-    assert [tuple(r) for r in conn.execute(
-        "SELECT t.paper_id, t.veredito, v.vertente, v.ordem "
-        "FROM fato_triagem t JOIN ponte_paper_vertente v USING (paper_id) "
-        "ORDER BY t.paper_id"
-    )] == [
+    assert [
+        tuple(r)
+        for r in conn.execute(
+            "SELECT t.paper_id, t.veredito, v.vertente, v.ordem "
+            "FROM fato_triagem t JOIN ponte_paper_vertente v USING (paper_id) "
+            "ORDER BY t.paper_id"
+        )
+    ] == [
         ("2608.00001", "fora", VERTENTE_TESTE, 1),
         ("2608.00002", "aprovado", VERTENTE_TESTE, 1),
     ]
@@ -728,7 +780,11 @@ def test_rodada_registra_o_nao_encaixe_sem_criar_rotulo(cfg, conn):
         for i in (1, 2):
             db.upsert_paper(
                 conn,
-                {"paper_id": f"2608.0000{i}", "titulo": f"P{i}", "primeiro_visto_em": db.agora()},
+                {
+                    "paper_id": f"2608.0000{i}",
+                    "titulo": f"P{i}",
+                    "primeiro_visto_em": db.agora(),
+                },
             )
         taxonomia.carregar(conn, _arquivo_versionado())
     rotulos_antes = (taxonomia.arvore_de_areas(conn), taxonomia.vertentes(conn))
@@ -782,8 +838,14 @@ def test_listar_conta_o_paper_por_vertente_e_separa_a_dominante(base_facetada):
         )
 
     por_rotulo = {v["rotulo"]: v for v in taxonomia.listar(base_facetada)["vertentes"]}
-    assert (por_rotulo["Baratear"]["papers"], por_rotulo["Baratear"]["dominantes"]) == (2, 2)
-    assert (por_rotulo["Escalar"]["papers"], por_rotulo["Escalar"]["dominantes"]) == (1, 0)
+    assert (por_rotulo["Baratear"]["papers"], por_rotulo["Baratear"]["dominantes"]) == (
+        2,
+        2,
+    )
+    assert (por_rotulo["Escalar"]["papers"], por_rotulo["Escalar"]["dominantes"]) == (
+        1,
+        0,
+    )
     assert (por_rotulo["Medir"]["papers"], por_rotulo["Medir"]["dominantes"]) == (0, 0)
 
 
@@ -825,7 +887,8 @@ def test_listar_conta_o_paper_na_area_e_na_subarea(base_facetada):
 
 def _nao_encaixe(conn, paper_id="2608.00000"):
     r = conn.execute(
-        "SELECT eixo, justificativa FROM tax_nao_encaixe WHERE paper_id = ?", (paper_id,)
+        "SELECT eixo, justificativa FROM tax_nao_encaixe WHERE paper_id = ?",
+        (paper_id,),
     ).fetchone()
     return tuple(r) if r else None
 
@@ -836,7 +899,7 @@ def test_par_com_parentesco_errado_entra_na_fila_de_nao_encaixe(base_facetada):
             base_facetada,
             "2608.00000",
             area_primaria="Contexto & recuperação",
-            subarea_primaria="Fala & áudio",        # filha de Interface & modalidade
+            subarea_primaria="Fala & áudio",  # filha de Interface & modalidade
         )
     eixo, justificativa = _nao_encaixe(base_facetada)
     assert eixo == "subarea"
@@ -859,10 +922,13 @@ def test_declaracao_do_modelo_vence_o_par_rejeitado(base_facetada):
             "2608.00000",
             area_primaria="Contexto & recuperação",
             subarea_primaria="Fala & áudio",
-            nao_coube=taxonomia.NaoEncaixe("vertente", "nenhum verbo descreve o movimento"),
+            nao_coube=taxonomia.NaoEncaixe(
+                "vertente", "nenhum verbo descreve o movimento"
+            ),
         )
     assert _nao_encaixe(base_facetada) == (
-        "vertente", "nenhum verbo descreve o movimento",
+        "vertente",
+        "nenhum verbo descreve o movimento",
     )
 
 
