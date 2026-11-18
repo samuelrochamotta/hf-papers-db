@@ -1,0 +1,2 @@
+- Verifique se o código está coerente com o pedido do usuário, e, se houver, com a spec
+- Verifique se o padrão de deep modules está sendo seguido
