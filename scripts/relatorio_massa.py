@@ -163,7 +163,7 @@ def gerar(
     w("# Relatório de massa da grade facetada\n")
     w(f"- **Rodada**: `{run_id or '(log inteiro)'}`")
     w(f"- **Base**: {total} papers")
-    w("- **Checagens**: `docs/specs/taxonomia-facetada.md`, seção *Operação*, passo 5\n")
+    w("- **Checagens**: os limiares de ramificar, fundir e absorver, na seção 7 (ADR 002)\n")
 
     w("## 1. Cobertura\n")
     w("| | papers | % da base |")

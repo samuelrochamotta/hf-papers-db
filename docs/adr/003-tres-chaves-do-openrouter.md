@@ -2,7 +2,7 @@
 
 - **Data**: 2026-09-13
 - **Estado**: aceito
-- **Contexto**: `config.yaml` (seção `llm`), `src/hfpapers/llm/`, `docs/relatorios/` (roteamento por provedor)
+- **Contexto**: `config.yaml` (seção `llm`), `src/hfpapers/llm/`, `scripts/relatorio_massa.py` (roteamento por provedor)
 
 ## Decisão
 

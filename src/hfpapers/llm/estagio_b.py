@@ -4,9 +4,8 @@ Roda nos sobreviventes do Estagio A. Desde o ADR 004 isso inclui os papers de
 treino e os relatorios tecnicos de modelo de fundacao, que antes eram
 descartados no A.
 
-As validacoes da secao 2 da spec (`docs/specs/natureza-prerequisito.md`) rodam
-em codigo, depois da resposta: o schema garante forma, nao coerencia. Violacao
-vira `ErroValidacao`, que o cliente reenvia com a mensagem anexada. Se todas as
+As validacoes rodam em codigo, depois da resposta: o schema garante forma, nao
+coerencia. Violacao vira `ErroValidacao`, que o cliente reenvia com a mensagem anexada. Se todas as
 tentativas do `ClienteLLM` se esgotarem, sobe `ErroLLM` - quem decide o que
 fazer com isso e `estagios/classificacao.py` (issue #1: nao fabrica veredito,
 deixa o paper pendente para a segunda passada e, se preciso, para a proxima

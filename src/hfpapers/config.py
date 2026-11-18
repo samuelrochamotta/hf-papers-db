@@ -171,9 +171,10 @@ class Leitura(BaseModel):
     # gasta menos tokens de raciocinio. Suba so com medicao no conjunto-ouro.
     esforco: str = "low"
     max_tokens: int = 16000
-    # O Haiku 5.5 cobra o dobro acima de 100 mil tokens de prompt. ~4 caracteres
-    # por token: 320 mil caracteres ficam perto de 80 mil tokens, com folga para
-    # o esquema e as instrucoes. O que passar disso e cortado no fim (apendices
+    # O Haiku 5.5 cobra cinco vezes mais acima de 100 mil tokens de prompt
+    # (ADR 007: entrada de US$ 0,10/M para 0,50/M, saida de 0,50/M para 2,50/M).
+    # ~4 caracteres por token: 320 mil caracteres ficam perto de 80 mil tokens,
+    # com folga para o esquema e as instrucoes. O que passar disso e cortado no fim (apendices
     # primeiro, porque o texto ja chega sem as referencias).
     teto_caracteres: int = 320_000
     # Prazo de ponta a ponta por chamada (o `llm.prazo_total_s` dos estagios,

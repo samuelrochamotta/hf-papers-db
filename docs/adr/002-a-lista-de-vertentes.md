@@ -2,8 +2,10 @@
 
 - **Data**: 2026-09-08
 - **Estado**: aceito
-- **Contexto**: `docs/specs/taxonomia-facetada.md`, seção *Further Notes*; tickets 07, 08 e 09
-- **Substitui**: a lista de nove vertentes fixada na seção *A grade* da spec
+- **Contexto**: `config/taxonomia_inicial.json` (lista `vertentes`); tickets 07, 08 e 09
+- **Substitui**: a lista de nove vertentes fixada na spec da taxonomia facetada
+  (removida de `docs/specs/` em 18/11/2026; a citação abaixo é o trecho que
+  importa)
 
 ## Contexto
 

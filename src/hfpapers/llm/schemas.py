@@ -26,8 +26,7 @@ from .cliente import ErroValidacao
 
 log = logger("llm")
 
-# Regras de descarte, na ordem de teste (secao 1 da spec
-# `docs/specs/natureza-prerequisito.md`). Todo `fora` tem exatamente uma; a
+# Regras de descarte, na ordem de teste (decisao 1 do ADR 004). Todo `fora` tem exatamente uma; a
 # primeira que bate basta. Sao as mesmas nos dois estagios: o Estagio B so as
 # repete como rede de seguranca. `treino_ou_postreino`,
 # `relatorio_tecnico_de_modelo` e `portabilidade_reprovada` sairam no ADR 004 -

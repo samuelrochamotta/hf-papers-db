@@ -1,7 +1,7 @@
 # ADR 007 — Painel v2: leitura do texto completo e front-end em Svelte + ECharts 6
 
 - **Data**: 2026-11-14
-- **Estado**: proposto
+- **Estado**: aceito (era "proposto" até 2026-11-18; ver a revisão no fim)
 - **Complementa**: ADR 006 (painel público estático). O painel v1 continua
   onde está; o v2 nasce ao lado, em `relatorios/painel-v2/`.
 
@@ -26,6 +26,10 @@ quando se desce num paper.
    (40–80 mil tokens de entrada a US$ 0,10/M, 3–6 mil de saída a US$ 0,50/M).
    O teto de 320 mil caracteres mantém o prompt abaixo de 100 mil tokens, onde
    o preço quintuplica (US$ 0,50/M de entrada e 2,50/M de saída).
+   Reconferido em 2026-11-18 em `GET /api/v1/models/anthropic/claude-haiku-5.5/endpoints`:
+   os cinco provedores cobram o mesmo, com o mesmo salto aos 100 mil tokens.
+   Dois deles (Claude Platform on AWS e Amazon Bedrock) não anunciam
+   `structured_outputs`, e o `llm.provider.require_parameters` os tira da rota.
 2. **O modelo só copia e escolhe; o código confere e conta.** Cada trecho é
    procurado no texto enviado e cada valor de tabela precisa existir como
    número nele (`_ok`). Linha não conferida não entra em gráfico. Deltas,
@@ -58,7 +62,7 @@ quando se desce num paper.
 
 ## Revisão de 2026-11-16 (redesenho medido)
 
-O redesenho medido (`docs/painel-v2-redesenho/`) mantém as decisões acima e
+O redesenho medido (protocolo em `painel-v2/medir/`) mantém as decisões acima e
 muda três coisas, por decisão do Samuel:
 
 - O radar continua com seis eixos, agora com um nome por conceito (Ganho,
@@ -70,3 +74,21 @@ muda três coisas, por decisão do Samuel:
 - A lista troca a miniatura do radar pela marca de prova, que repete o nível
   no preenchimento além da cor.
 - A frase do problema escrita pelo modelo volta à tela, marcada como do modelo.
+
+## Revisão de 2026-11-18 (estado)
+
+O ADR passa a **aceito**: o front-end, o esquema da leitura, a conferência
+(`_ok`) e as contas de `leitura/derivar.py` estão no código, e o Pages publica
+`relatorios/painel-v2/` em `/v2/`.
+
+O que ainda não aconteceu, e por isso fica registrado aqui:
+
+- **A leitura pelo OpenRouter ainda não rodou contra o banco real.** O
+  `dados.json` publicado (28 papers, gerado em 2026-11-15) saiu dos arquivos
+  do estudo, por `gerar_painel_v2.de_arquivos`. O `data/hfpapers.db` ainda não
+  tem `leitura_texto` nem linhas `etapa='leitura'` em `log_llm`.
+- **O custo de ~US$ 0,006 por paper é estimativa, não medição.** A primeira
+  rodada de `hfpapers ler` (com `--limite`) é o que vai confirmar o custo.
+  Confira com `SELECT AVG(custo_usd) FROM log_llm WHERE etapa='leitura'`.
+- `hfpapers ler` continua fora do `run_daily.sh` até a medição contra o
+  conjunto-ouro.

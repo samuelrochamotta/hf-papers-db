@@ -2,9 +2,11 @@
 
 - **Data**: 2026-10-20
 - **Estado**: aceito
-- **Contexto**: `docs/specs/natureza-prerequisito.md`
-- **Supera**: a decisão 1 do ADR 001 ("o veredito já decorre da lista de
-  critérios") e o §3 de `prompts/regras_classificacao.md` até esta data.
+- **Contexto**: `prompts/regras_classificacao.md`, `src/hfpapers/llm/schemas.py`,
+  `src/hfpapers/llm/estagio_b.py`
+- **Supera**: o veredito por critérios (estrito/amplo), que a versão original
+  do ADR 001 defendia, e o §3 de `prompts/regras_classificacao.md` até esta
+  data.
 
 ## Contexto
 
