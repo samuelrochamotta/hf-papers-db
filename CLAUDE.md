@@ -59,7 +59,7 @@ As abas, o agendamento e a publicação estão no `README.md`, nas seções
 
 ## Verificação
 
-Regras para executar antes de terminar uma tarefa:
+Regras para executar antes de concluir uma tarefa:
 1. Rode lint, typecheck, build e testes depois da última alteração de código, não antes.
 2. Ao concluir, mostre para cada comando: o comando e o resultado.
 3. Se algum comando falhar ou não puder rodar, diga qual e por quê. Não declare a tarefa concluída nesse caso.
