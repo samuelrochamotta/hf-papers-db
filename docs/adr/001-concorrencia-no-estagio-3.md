@@ -15,8 +15,9 @@
 
 A rodada é sequencial, e o tempo dela é espera de rede, não CPU: o Estágio A
 leva ~65 s por paper e o B ~127 s, e só ~30% dos papers chegam ao B. A rodada
-diária (~30 papers) cabe nisso. A reclassificação total, de milhares de papers,
-leva uma noite inteira.
+diária (~30 papers) cabe nisso. A reclassificação total não cabe: com 482
+papers, a conta dá `482 × 65 s + 145 × 127 s ≈ 13,8 h` sequencial, ~3,5 h com
+4 workers e ~1,7 h com 8.
 
 ## Decisão
 
