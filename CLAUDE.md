@@ -49,11 +49,10 @@ As abas, o agendamento e a publicação estão no `README.md`, nas seções
 - `main` recebe um commit diário automático do painel. Faça
   `git pull --rebase` antes de dar push.
 - **Sessão local:** todo dia, entre ~07:30 e 08:30, o launchd roda
-  `scripts/gerar_painel.sh` neste checkout. O script faz `git add`, `commit` e
-  `push origin main`, e o commit leva o que estiver em stage e cai no branch
-  atual. Por isso:
-  - trabalhe num worktree;
-  - mantenha este checkout em `main`, com o stage limpo;
-  - comece a sessão com `git fetch` e confira que `main` não divergiu de
-    `origin/main`. Quando diverge, o push diário falha e só deixa
-    `AVISO: falha ao publicar` em `logs/painel_*.log`.
+  `scripts/gerar_painel.sh` neste checkout.
+  - O script faz `git pull --rebase` em `main`, gera o painel e
+    commita só `relatorios/painel/`.
+  - Fora de `main`, ele não publica.
+  - Trabalho em andamento neste checkout suspende a publicação do dia. Por
+    isso trabalhe num worktree e mantenha este checkout em `main`, limpo.
+  - Quando o painel para, a causa aparece como `AVISO` em `logs/painel_*.log`.

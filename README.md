@@ -108,10 +108,22 @@ python -m http.server -d relatorios/painel 8000                # ver o site loca
 `--destino` terminado em `.html` gera um **arquivo único** com dados, fichas e
 ECharts embutidos, que abre offline (prévia, e-mail). Sem `.html`, é a pasta.
 
-`gerar_painel.sh` faz commit e push de `relatorios/painel/` para `origin main`
-quando algo mudou e nenhuma opção de prévia (`--dias`, `--dias-hall`,
-`--destino`) foi passada; o push dispara o deploy do Pages. O `.py` sai em
-no-op se o `run_id` não mudou desde a última geração (`marts/.painel_run_id`).
+`gerar_painel.sh` primeiro alinha a `main` local com `origin/main`
+(`pull --rebase`), para o painel sair do código que está no GitHub. Depois,
+faz commit só de `relatorios/painel/` e dá push para `origin main`, desde que
+quatro condições valham:
+- algo mudou;
+- o checkout está em `main`;
+- não há mudança rastreada fora do painel (trabalho em andamento);
+- nenhuma opção de prévia (`--dias`, `--dias-hall`, `--destino`) foi passada.
+
+Quando alguma dessas condições falha, a rodada não publica e deixa um `AVISO`
+no log.
+
+O push dispara o deploy do Pages. Se ele falhar, o script desfaz o commit do
+painel, descarta o painel e apaga o carimbo de `run_id`, e a rodada seguinte
+refaz o painel do zero. Fora isso, o `.py` sai em no-op se o `run_id` não
+mudou desde a última geração (`marts/.painel_run_id`).
 
 ## Painel v2 (em construção)
 

@@ -53,12 +53,6 @@ fi
 } | tee -a "$LOG"
 
 cd "$RAIZ"
-set +e
-"$PYTHON_BIN" scripts/gerar_painel.py "$@" 2>&1 | tee -a "$LOG"
-CODIGO=${PIPESTATUS[0]}
-set -e
-
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] codigo de saida: $CODIGO" | tee -a "$LOG"
 
 # O painel publicado e a pasta relatorios/painel/ (index.html, dados.json,
 # fichas.json e o ECharts), que o workflow do GitHub Pages copia para o site.
@@ -76,18 +70,84 @@ for arg in "$@"; do
     esac
 done
 
+RAMO="$(git -C "$RAIZ" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+CARIMBO="$RAIZ/marts/.painel_run_id"
+
+# O painel e saida gerada: o que sobrou dele no checkout (de uma rodada que nao
+# publicou) e descartado, e o carimbo do run_id vai junto para o gerador
+# refazer o painel inteiro em vez de sair em no-op sobre uma arvore suja.
+descartar_painel() {
+    git -C "$RAIZ" checkout -q -- "$PAINEL_DIR" 2>/dev/null || true
+    git -C "$RAIZ" clean -fdq -- "$PAINEL_DIR" 2>/dev/null || true
+    rm -f "$CARIMBO"
+}
+
+# PR mergeado no GitHub deixa a `main` local para tras. Sem puxar, o painel sai
+# do codigo velho e o push e recusado todo dia, deixando so um AVISO no log -
+# foi o que parou o painel de 15 a 18/11/2026. Por isso a `main` e alinhada
+# ANTES de gerar, e o painel sai do codigo que esta no GitHub.
+#
+# Sem `--autostash`: trabalho em andamento neste checkout (mudanca rastreada
+# fora de `$PAINEL_DIR`, em stage ou nao) suspende o pull e a publicacao da
+# rodada, com AVISO. Stash automatico que conflita some com o trabalho sem
+# deixar rastro no log.
+if [ "$PUBLICAVEL" -eq 1 ] && [ "$RAMO" = "main" ]; then
+    if [ -n "$(git -C "$RAIZ" status --porcelain --untracked-files=no -- . ":(exclude)$PAINEL_DIR")" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: trabalho em andamento no checkout; nao puxa nem publica nesta rodada." | tee -a "$LOG"
+        PUBLICAVEL=0
+    else
+        if [ -n "$(git -C "$RAIZ" status --porcelain -- "$PAINEL_DIR")" ]; then
+            descartar_painel
+        fi
+        if ! git -C "$RAIZ" pull --rebase origin main >>"$LOG" 2>&1; then
+            git -C "$RAIZ" rebase --abort >>"$LOG" 2>&1 || true
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: main nao alinhou com origin/main; nao publica nesta rodada." | tee -a "$LOG"
+            PUBLICAVEL=0
+        fi
+    fi
+fi
+
+set +e
+"$PYTHON_BIN" scripts/gerar_painel.py "$@" 2>&1 | tee -a "$LOG"
+CODIGO=${PIPESTATUS[0]}
+set -e
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] codigo de saida: $CODIGO" | tee -a "$LOG"
+
 # Publica o painel no repo remoto so quando o script deu certo: o push dispara
 # o deploy do GitHub Pages (.github/workflows/pages.yml).
+#
+# Este script roda sozinho no checkout de trabalho, entao:
+# * so publica a partir de `main`: em outro branch o commit cairia nele e o
+#   push de `main` iria sem o painel novo;
+# * o commit leva so `$PAINEL_DIR` (`git commit -- <caminho>`);
+# * se o GitHub andou entre o pull acima e o push, puxa de novo. Se esse rebase
+#   conflitar, aborta, desfaz so o commit do painel e descarta o painel: um
+#   commit preso aqui faria a `main` divergir de novo todo dia, e a proxima
+#   rodada refaz o painel do zero.
+publicar() {
+    git -C "$RAIZ" add -A -- "$PAINEL_DIR" || return 1
+    git -C "$RAIZ" commit -m "chore: atualiza painel ($(date '+%Y-%m-%d %H:%M'))" -- "$PAINEL_DIR" || return 1
+    git -C "$RAIZ" push origin main && return 0
+    if git -C "$RAIZ" pull --rebase origin main; then
+        git -C "$RAIZ" push origin main && return 0
+    else
+        git -C "$RAIZ" rebase --abort 2>/dev/null || true
+    fi
+    git -C "$RAIZ" reset -q --soft HEAD~1
+    git -C "$RAIZ" restore -q --staged -- "$PAINEL_DIR"
+    descartar_painel
+    return 1
+}
+
 if [ "$CODIGO" -eq 0 ] && [ "$PUBLICAVEL" -eq 0 ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] geracao com recorte manual, nao publica." | tee -a "$LOG"
 elif [ "$CODIGO" -eq 0 ] && [ -z "$(git -C "$RAIZ" status --porcelain -- "$PAINEL_DIR" 2>/dev/null)" ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] painel sem alteracoes, nada a publicar." | tee -a "$LOG"
+elif [ "$CODIGO" -eq 0 ] && [ "$RAMO" != "main" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: checkout em '$RAMO', nao em main; painel gerado mas nao publicado." | tee -a "$LOG"
 elif [ "$CODIGO" -eq 0 ]; then
-    {
-        git -C "$RAIZ" add -A -- "$PAINEL_DIR"
-        git -C "$RAIZ" commit -m "chore: atualiza painel ($(date '+%Y-%m-%d %H:%M'))"
-        git -C "$RAIZ" push origin main
-    } >>"$LOG" 2>&1 || echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: falha ao publicar o painel no repo." | tee -a "$LOG"
+    publicar >>"$LOG" 2>&1 || echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: falha ao publicar o painel no repo." | tee -a "$LOG"
 fi
 
 # rotacao: mantem 30 dias de log, igual ao run_daily.sh
