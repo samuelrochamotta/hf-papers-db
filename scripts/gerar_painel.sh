@@ -71,15 +71,39 @@ for arg in "$@"; do
 done
 
 RAMO="$(git -C "$RAIZ" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+CARIMBO="$RAIZ/marts/.painel_run_id"
+
+# O painel e saida gerada: o que sobrou dele no checkout (de uma rodada que nao
+# publicou) e descartado, e o carimbo do run_id vai junto para o gerador
+# refazer o painel inteiro em vez de sair em no-op sobre uma arvore suja.
+descartar_painel() {
+    git -C "$RAIZ" checkout -q -- "$PAINEL_DIR" 2>/dev/null || true
+    git -C "$RAIZ" clean -fdq -- "$PAINEL_DIR" 2>/dev/null || true
+    rm -f "$CARIMBO"
+}
 
 # PR mergeado no GitHub deixa a `main` local para tras. Sem puxar, o painel sai
 # do codigo velho e o push e recusado todo dia, deixando so um AVISO no log -
 # foi o que parou o painel de 15 a 18/11/2026. Por isso a `main` e alinhada
 # ANTES de gerar, e o painel sai do codigo que esta no GitHub.
+#
+# Sem `--autostash`: trabalho em andamento neste checkout (mudanca rastreada
+# fora de `$PAINEL_DIR`, em stage ou nao) suspende o pull e a publicacao da
+# rodada, com AVISO. Stash automatico que conflita some com o trabalho sem
+# deixar rastro no log.
 if [ "$PUBLICAVEL" -eq 1 ] && [ "$RAMO" = "main" ]; then
-    if ! git -C "$RAIZ" pull --rebase --autostash origin main >>"$LOG" 2>&1; then
-        git -C "$RAIZ" rebase --abort >>"$LOG" 2>&1 || true
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: main nao alinhou com origin/main; o push deve falhar." | tee -a "$LOG"
+    if [ -n "$(git -C "$RAIZ" status --porcelain --untracked-files=no -- . ":(exclude)$PAINEL_DIR")" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: trabalho em andamento no checkout; nao puxa nem publica nesta rodada." | tee -a "$LOG"
+        PUBLICAVEL=0
+    else
+        if [ -n "$(git -C "$RAIZ" status --porcelain -- "$PAINEL_DIR")" ]; then
+            descartar_painel
+        fi
+        if ! git -C "$RAIZ" pull --rebase origin main >>"$LOG" 2>&1; then
+            git -C "$RAIZ" rebase --abort >>"$LOG" 2>&1 || true
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: main nao alinhou com origin/main; nao publica nesta rodada." | tee -a "$LOG"
+            PUBLICAVEL=0
+        fi
     fi
 fi
 
@@ -96,22 +120,23 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] codigo de saida: $CODIGO" | tee -a "$LOG"
 # Este script roda sozinho no checkout de trabalho, entao:
 # * so publica a partir de `main`: em outro branch o commit cairia nele e o
 #   push de `main` iria sem o painel novo;
-# * o commit leva so `$PAINEL_DIR` (`git commit -- <caminho>`), nunca o que
-#   estiver em stage por outro motivo;
+# * o commit leva so `$PAINEL_DIR` (`git commit -- <caminho>`);
 # * se o GitHub andou entre o pull acima e o push, puxa de novo. Se esse rebase
-#   conflitar, aborta e desfaz o commit do painel: o painel e saida gerada, a
-#   proxima rodada o refaz, e um commit preso aqui faria a `main` divergir de
-#   novo todo dia.
+#   conflitar, aborta, desfaz so o commit do painel e descarta o painel: um
+#   commit preso aqui faria a `main` divergir de novo todo dia, e a proxima
+#   rodada refaz o painel do zero.
 publicar() {
     git -C "$RAIZ" add -A -- "$PAINEL_DIR" || return 1
     git -C "$RAIZ" commit -m "chore: atualiza painel ($(date '+%Y-%m-%d %H:%M'))" -- "$PAINEL_DIR" || return 1
     git -C "$RAIZ" push origin main && return 0
-    if git -C "$RAIZ" pull --rebase --autostash origin main; then
+    if git -C "$RAIZ" pull --rebase origin main; then
         git -C "$RAIZ" push origin main && return 0
     else
         git -C "$RAIZ" rebase --abort 2>/dev/null || true
     fi
-    git -C "$RAIZ" reset -q --mixed HEAD~1
+    git -C "$RAIZ" reset -q --soft HEAD~1
+    git -C "$RAIZ" restore -q --staged -- "$PAINEL_DIR"
+    descartar_painel
     return 1
 }
 
