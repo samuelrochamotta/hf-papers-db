@@ -56,3 +56,11 @@ As abas, o agendamento e a publicação estão no `README.md`, nas seções
   - Trabalho em andamento neste checkout suspende a publicação do dia. Por
     isso trabalhe num worktree e mantenha este checkout em `main`, limpo.
   - Quando o painel para, a causa aparece como `AVISO` em `logs/painel_*.log`.
+
+## Verificação
+
+Regras:
+1. Rode build e testes depois da última alteração de código, não antes.
+2. Ao concluir, mostre para cada comando: o comando, as últimas linhas da saída e o resultado.
+3. Se algum comando falhar ou não puder rodar, diga qual e por quê. Não declare a tarefa concluída nesse caso.
+4. Em mudanças visuais, rode o app e anexe pelo menos uma captura de tela da página afetada.
