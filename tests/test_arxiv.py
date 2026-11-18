@@ -1,4 +1,3 @@
-import datetime as dt
 import json
 import sqlite3
 
@@ -119,19 +118,6 @@ def test_falha_externa_nao_bloqueia(tmp_path):
     r = auditar(banco(), cache=tmp_path, cliente=Indisponivel(), aplicar=True)
     assert r['resumo']['pendente'] == 1
     assert r['papers'][0]['motivo'] == 'timeout'
-
-
-def test_export_preserva_datas(cfg, tmp_path):
-    import pyarrow.parquet as pq
-
-    from hfpapers.estagios import export
-    conn = banco()
-    db.registrar_arxiv_v1(conn, '2608.19269', '2026-08-18', '2026-09-08T10:00:00')
-    export.rodar(conn, cfg)
-    row = pq.read_table(cfg.dir_marts / 'dim_paper.parquet').to_pylist()[0]
-    assert row['data_arxiv_v1'] == dt.date(2026,8,18)
-    assert row['data_arxiv_informada_hf'] == dt.date(2026,8,29)
-    assert row['arxiv_v1_verificado_em'] == dt.datetime(2026,9,8,10)
 
 
 def test_cli_readonly_nao_migra(tmp_path, monkeypatch):

@@ -187,7 +187,6 @@ class Leitura(BaseModel):
 
 class Export(BaseModel):
     csv: bool = False
-    faixas_upvotes: list[int] = [1, 10, 50, 100]
 
 
 class Config(BaseModel):

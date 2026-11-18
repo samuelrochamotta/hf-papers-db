@@ -727,7 +727,7 @@
 
   /* Os quatro campos da ficha exibidos, na ordem normativa, cada um com sua
      cor (slots dark do catalogo, validados contra o fundo do card). O Padrao
-     Extraido continua no banco e nos Parquet, mas saiu do painel em
+     Extraido continua no banco, mas saiu do painel em
      21/10/2026: repetia o que o achado e "o que muda para voce" ja dizem. */
   function camposFicha(f) {
     var cores = {

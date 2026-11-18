@@ -63,4 +63,3 @@ perfis:
 
 export:
   csv: false
-  faixas_upvotes: [1, 10, 50, 100]

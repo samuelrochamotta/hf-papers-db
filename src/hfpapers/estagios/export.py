@@ -1,12 +1,17 @@
 """Estagio 5 - EXPORT: materializa os Parquet que o painel le.
 
+Os Parquet sao o contrato de `scripts/gerar_painel.py`, e de mais ninguem
+(ADR 008): sai a tabela e a coluna que o painel le, e so. Dado que o painel nao
+mostra fica no banco, que e a fonte. Coluna nova no painel comeca aqui.
+
 Tres regras que valem para o arquivo inteiro:
 
-* datas saem como `date32`, nunca string, para que o painel ordene e compare
-  datas sem converter;
+* datas saem como `date32`, nunca string - o painel faz aritmetica de data
+  (janela, trimestre do registro historico) sobre o que le;
 * nada e pre-agregado: o grao fino vai inteiro e a agregacao e papel do painel;
 * escrita atomica (`os.replace`), porque o painel pode estar lendo o arquivo
-  na hora do export.
+  na hora do export. O `_manifest.json` sai por ultimo: e ele que acorda o
+  launchd do painel.
 """
 
 from __future__ import annotations
@@ -24,7 +29,6 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from .. import db
 from ..config import Config, config
 from ..log import logger
 
@@ -54,34 +58,8 @@ def _d(v: Any) -> dt.date | None:
         return None
 
 
-def _ts(v: Any) -> dt.datetime | None:
-    if v in (None, ""):
-        return None
-    if isinstance(v, dt.datetime):
-        return v
-    try:
-        return dt.datetime.fromisoformat(str(v))
-    except ValueError:
-        return None
-
-
 def _b(v: Any) -> bool | None:
     return None if v is None else bool(v)
-
-
-def faixa_upvotes(valor: int | None, bordas: Sequence[int]) -> str:
-    """Bucket textual pronto para filtro: 0 | 1-9 | 10-49 | 50-99 | 100+."""
-    if valor is None:
-        return "sem dado"
-    if valor < bordas[0]:
-        return "0"
-    for i, b in enumerate(bordas):
-        proximo = bordas[i + 1] if i + 1 < len(bordas) else None
-        if proximo is None:
-            return f"{b}+"
-        if valor < proximo:
-            return f"{b}-{proximo - 1}"
-    return f"{bordas[-1]}+"
 
 
 # ── escrita ─────────────────────────────────────────────────────────────────
@@ -90,7 +68,7 @@ def faixa_upvotes(valor: int | None, bordas: Sequence[int]) -> str:
 def _escrever(
     dir_saida: Path, nome: str, linhas: list[dict], schema: pa.Schema, *, csv_tambem: bool
 ) -> int:
-    colunas = {c: [l.get(c) for l in linhas] for c in schema.names}
+    colunas = {c: [linha.get(c) for linha in linhas] for c in schema.names}
     tabela = pa.Table.from_pydict(colunas, schema=schema)
 
     destino = dir_saida / f"{nome}.parquet"
@@ -104,8 +82,8 @@ def _escrever(
         with open(tmp_csv, "w", newline="", encoding="utf-8-sig") as f:
             w = csv.DictWriter(f, fieldnames=schema.names)
             w.writeheader()
-            for l in linhas:
-                w.writerow({c: l.get(c) for c in schema.names})
+            for linha in linhas:
+                w.writerow({c: linha.get(c) for c in schema.names})
         os.replace(tmp_csv, destino_csv)
 
     log.info("%s: %s linhas", destino.name, len(linhas))
@@ -117,9 +95,14 @@ def _rows(conn: sqlite3.Connection, sql: str, params: Sequence = ()) -> list[dic
 
 
 # ── tabelas ─────────────────────────────────────────────────────────────────
+#
+# `_escrever` monta as colunas a partir dos nomes do schema: coluna fora do
+# schema nao sai, mesmo que a consulta a traga.
 
 
-def _dim_paper(conn: sqlite3.Connection, cfg: Config, hoje: dt.date) -> tuple[list[dict], pa.Schema]:
+def _dim_paper(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
+    """O paper com o ultimo valor nao nulo de cada metrica, que e o que o card
+    e a ordenacao por voto mostram."""
     brutas = _rows(
         conn,
         """
@@ -136,229 +119,72 @@ def _dim_paper(conn: sqlite3.Connection, cfg: Config, hoje: dt.date) -> tuple[li
           FROM dim_paper p
         """,
     )
-    linhas = []
-    for r in brutas:
-        data_hf = _d(r["data_hf_daily"])
-        linhas.append(
-            {
-                **r,
-                "data_arxiv": _d(r["data_arxiv"]),
-                "data_arxiv_informada_hf": _d(r["data_arxiv_informada_hf"]),
-                "data_arxiv_v1": _d(r["data_arxiv_v1"]),
-                "arxiv_v1_verificado_em": _ts(r["arxiv_v1_verificado_em"]),
-                "data_hf_daily": data_hf,
-                "primeiro_visto_em": _ts(r["primeiro_visto_em"]),
-                "enriquecido_em": _ts(r["enriquecido_em"]),
-                "tem_project_page": bool(r["project_page"]),
-                "autor_participa": _b(r["autor_participa"]),
-                "dias_desde_publicacao": (hoje - data_hf).days if data_hf else None,
-                "faixa_upvotes_atual": faixa_upvotes(
-                    r["upvotes_atual"], cfg.export.faixas_upvotes
-                ),
-            }
-        )
+    linhas = [
+        {
+            **r,
+            "data_hf_daily": _d(r["data_hf_daily"]),
+            "tem_project_page": bool(r["project_page"]),
+        }
+        for r in brutas
+    ]
     schema = pa.schema(
         [
             ("paper_id", pa.string()),
             ("titulo", pa.string()),
-            ("abstract", pa.string()),
-            ("ai_summary", pa.string()),
-            ("ai_summary_model", pa.string()),
-            ("data_arxiv", pa.date32()),
-            ("data_arxiv_informada_hf", pa.date32()),
-            ("data_arxiv_v1", pa.date32()),
-            ("arxiv_v1_verificado_em", pa.timestamp("us")),
             ("data_hf_daily", pa.date32()),
-            ("url_arxiv", pa.string()),
             ("url_hf", pa.string()),
             ("project_page", pa.string()),
             ("github_repo", pa.string()),
-            ("github_repo_added_by", pa.string()),
             ("tem_project_page", pa.bool_()),
-            ("discussion_id", pa.string()),
-            ("thumbnail_url", pa.string()),
             ("organizacao", pa.string()),
-            ("organizacao_nome_longo", pa.string()),
-            ("submetido_por", pa.string()),
-            ("submetido_por_nome", pa.string()),
-            ("autor_participa", pa.bool_()),
             ("qtd_autores", pa.int32()),
             ("qtd_autores_verificados", pa.int32()),
             ("upvotes_atual", pa.int32()),
             ("comentarios_atual", pa.int32()),
             ("github_stars_atual", pa.int32()),
-            ("faixa_upvotes_atual", pa.string()),
-            ("dias_desde_publicacao", pa.int32()),
-            ("primeiro_visto_em", pa.timestamp("s")),
-            ("enriquecido_em", pa.timestamp("s")),
         ]
     )
     return linhas, schema
 
 
 def _fato_metrica(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
-    """Grao fino + duas derivacoes que o painel nao deve refazer sozinho:
-
-    * `qtd_modelos/datasets/spaces` propagados para frente com o ultimo valor
-      nao nulo - eles so vem nos snapshots `por_paper` e sem isso o grafico abre
-      buraco nos dias `daily`;
-    * `upvotes_delta_dia`, que e o que revela o paper pegando tracao.
-    """
-    brutas = _rows(
-        conn, "SELECT * FROM fato_metrica ORDER BY paper_id, data_snapshot"
-    )
-    linhas: list[dict] = []
-    ultimo: dict[str, dict[str, Any]] = {}
-    for r in brutas:
-        pid = r["paper_id"]
-        anterior = ultimo.get(pid, {})
-        linha = dict(r)
-        linha["data_snapshot"] = _d(r["data_snapshot"])
-        for col in ("qtd_modelos", "qtd_datasets", "qtd_spaces"):
-            if linha.get(col) is None:
-                linha[col] = anterior.get(col)
-        if r["upvotes"] is not None and anterior.get("upvotes") is not None:
-            linha["upvotes_delta_dia"] = r["upvotes"] - anterior["upvotes"]
-        else:
-            linha["upvotes_delta_dia"] = None
-        ultimo[pid] = {
-            "upvotes": r["upvotes"] if r["upvotes"] is not None else anterior.get("upvotes"),
-            "qtd_modelos": linha["qtd_modelos"],
-            "qtd_datasets": linha["qtd_datasets"],
-            "qtd_spaces": linha["qtd_spaces"],
-        }
-        linhas.append(linha)
-
+    """Grao fino, um snapshot por linha: os votos de cada dia, que o painel
+    agrega, e a data da ultima medicao do registro historico."""
+    linhas = [
+        {**r, "data_snapshot": _d(r["data_snapshot"])}
+        for r in _rows(conn, "SELECT * FROM fato_metrica ORDER BY paper_id, data_snapshot")
+    ]
     schema = pa.schema(
         [
             ("paper_id", pa.string()),
             ("data_snapshot", pa.date32()),
             ("upvotes", pa.int32()),
-            ("upvotes_delta_dia", pa.int32()),
-            ("comentarios", pa.int32()),
-            ("github_stars", pa.int32()),
-            ("qtd_modelos", pa.int32()),
-            ("qtd_datasets", pa.int32()),
-            ("qtd_spaces", pa.int32()),
-            ("origem", pa.string()),
         ]
     )
     return linhas, schema
 
 
 def _fato_triagem(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
-    """A triagem do regime do ADR 004, com os booleanos ja derivados.
-
-    `contradiz_pratica` e `como_incompleto` derivam dos textos (nao sao
-    gravados duas vezes no banco); `artefato_aberto` e `evidencia_artefato` vem
-    de `vw_artefato`, a unica fonte da regra. O painel le `artefato_aberto`
-    pronto; `contradiz_pratica` e `como_incompleto` saem para quem ler os
-    Parquet sem reimplementar a regra (o painel ainda usa os textos).
-    """
-    linhas = []
-    for r in _rows(
-        conn,
-        "SELECT t.*, a.evidencia, a.artefato_aberto FROM fato_triagem t "
-        "LEFT JOIN vw_artefato a ON a.paper_id = t.paper_id",
-    ):
-        aprovado = r["veredito"] == "aprovado"
-        linhas.append(
-            {
-                **r,
-                "aprovado": aprovado,
-                "contradiz_pratica": bool(r["pratica_contradita"]) if aprovado else None,
-                "como_incompleto": bool(r["falta_o_como"]) if aprovado else None,
-                "evidencia_artefato": _b(r["evidencia"]),
-                "artefato_aberto": _b(r["artefato_aberto"]),
-                "classificado_em": _ts(r["classificado_em"]),
-            }
+    """A triagem do regime do ADR 004. `artefato_aberto` vem de `vw_artefato`,
+    a unica fonte da regra, para o painel nao reimplementa-la."""
+    linhas = [
+        {**r, "artefato_aberto": _b(r["artefato_aberto"])}
+        for r in _rows(
+            conn,
+            "SELECT t.*, a.artefato_aberto FROM fato_triagem t "
+            "LEFT JOIN vw_artefato a ON a.paper_id = t.paper_id",
         )
+    ]
     schema = pa.schema(
         [
             ("paper_id", pa.string()),
             ("veredito", pa.string()),
-            ("aprovado", pa.bool_()),
             ("regra_fora", pa.string()),
             ("justificativa", pa.string()),
             ("natureza", pa.string()),
-            ("prerequisito", pa.string()),
             ("pratica_contradita", pa.string()),
-            ("contradiz_pratica", pa.bool_()),
             ("falta_o_como", pa.string()),
-            ("como_incompleto", pa.bool_()),
-            ("artefato_status", pa.string()),
-            ("evidencia_artefato", pa.bool_()),
             ("artefato_aberto", pa.bool_()),
-            ("classificado_em", pa.timestamp("s")),
-            ("run_id", pa.string()),
-            ("revisao", pa.int32()),
-        ]
-    )
-    return linhas, schema
-
-
-def _dim_ficha(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
-    linhas = []
-    for r in _rows(conn, "SELECT * FROM dim_ficha"):
-        linhas.append({**r, "gerada_em": _ts(r["gerada_em"]), "tem_padrao": bool(r["padrao_nome"])})
-    schema = pa.schema(
-        [
-            ("paper_id", pa.string()),
-            ("achado", pa.string()),
-            ("padrao_nome", pa.string()),
-            ("padrao_mecanismo", pa.string()),
-            ("tem_padrao", pa.bool_()),
-            ("implicacao_pratica", pa.string()),
-            ("exemplo_concreto", pa.string()),
-            ("ressalva", pa.string()),
-            ("gerada_em", pa.timestamp("s")),
-            ("modelo_usado", pa.string()),
-            ("run_id", pa.string()),
-        ]
-    )
-    return linhas, schema
-
-
-def _fato_execucao(conn: sqlite3.Connection) -> tuple[list[dict], pa.Schema]:
-    linhas = []
-    for r in _rows(conn, "SELECT * FROM log_execucao"):
-        avisos = json.loads(r["avisos"]) if r["avisos"] else []
-        linhas.append(
-            {
-                **r,
-                "iniciado_em": _ts(r["iniciado_em"]),
-                "finalizado_em": _ts(r["finalizado_em"]),
-                "data_execucao": _d(r["iniciado_em"]),
-                "qtd_avisos": len(avisos),
-            }
-        )
-    schema = pa.schema(
-        [
-            ("run_id", pa.string()),
-            ("data_execucao", pa.date32()),
-            ("iniciado_em", pa.timestamp("s")),
-            ("finalizado_em", pa.timestamp("s")),
-            ("status", pa.string()),
-            ("dias_cobertos", pa.string()),
-            ("qtd_coletados", pa.int32()),
-            ("qtd_novos", pa.int32()),
-            ("qtd_ja_vistos", pa.int32()),
-            ("qtd_fora", pa.int32()),
-            ("qtd_aprovados", pa.int32()),
-            ("qtd_pr_nenhum", pa.int32()),
-            ("qtd_pr_implementar", pa.int32()),
-            ("qtd_pr_acesso_interno", pa.int32()),
-            ("qtd_pr_treino", pa.int32()),
-            ("qtd_pr_sem_acao", pa.int32()),
-            ("qtd_amplo", pa.int32()),
-            ("qtd_estrito", pa.int32()),
-            ("taxa_fora", pa.float64()),
-            ("qtd_refresh", pa.int32()),
-            ("tokens_entrada", pa.int64()),
-            ("tokens_saida", pa.int64()),
-            ("custo_usd", pa.float64()),
-            ("qtd_avisos", pa.int32()),
-            ("avisos", pa.string()),
         ]
     )
     return linhas, schema
@@ -369,21 +195,22 @@ def _simples(conn: sqlite3.Connection, tabela: str, schema: pa.Schema) -> tuple[
 
 
 _SCHEMAS_SIMPLES = {
-    # `area_pai` e o que faz a dimensao ser hierarquica: sem ela os dois niveis
-    # chegam ao painel como uma lista plana de rotulos, sem dizer qual e area
-    # raiz (pai nulo) nem de quem cada sub-area e filha. `_escrever` monta as
-    # colunas a partir dos nomes do schema, entao coluna fora daqui nao sai.
-    "dim_area": pa.schema(
+    "dim_ficha": pa.schema(
         [
-            ("area", pa.string()),
-            ("area_pai", pa.string()),
-            ("definicao", pa.string()),
-            ("desde", pa.string()),
+            ("paper_id", pa.string()),
+            ("achado", pa.string()),
+            ("implicacao_pratica", pa.string()),
+            ("exemplo_concreto", pa.string()),
+            ("ressalva", pa.string()),
         ]
     ),
-    "dim_vertente": pa.schema(
-        [("vertente", pa.string()), ("definicao", pa.string()), ("desde", pa.string())]
+    # `area_pai` e o que faz a dimensao ser hierarquica: sem ela os dois niveis
+    # chegam ao painel como uma lista plana de rotulos, sem dizer qual e area
+    # raiz (pai nulo) nem de quem cada sub-area e filha.
+    "dim_area": pa.schema(
+        [("area", pa.string()), ("area_pai", pa.string()), ("definicao", pa.string())]
     ),
+    "dim_vertente": pa.schema([("vertente", pa.string()), ("definicao", pa.string())]),
     "ponte_paper_area": pa.schema(
         [
             ("paper_id", pa.string()),
@@ -392,13 +219,12 @@ _SCHEMAS_SIMPLES = {
             ("is_primaria", pa.bool_()),
         ]
     ),
-    # `ordem` vai como coluna, e nao so a linha da dominante: e ela que separa
-    # a vertente dominante (1) da secundaria (2) nas contagens do painel.
+    # `ordem` separa a vertente dominante (1) da secundaria (2): e a dominante
+    # que o card exibe primeiro.
     "ponte_paper_vertente": pa.schema(
         [("paper_id", pa.string()), ("vertente", pa.string()), ("ordem", pa.int32())]
     ),
-    # Vocabulario da natureza (ADR 004). `ordem` e a unica copia da
-    # ordenacao: o painel ordena `dim_natureza` por ela.
+    # `ordem` e a unica copia da ordenacao das naturezas (ADR 004).
     "dim_natureza": pa.schema(
         [
             ("natureza", pa.string()),
@@ -407,36 +233,27 @@ _SCHEMAS_SIMPLES = {
             ("ordem", pa.int32()),
         ]
     ),
-    "ponte_paper_keyword": pa.schema([("paper_id", pa.string()), ("keyword", pa.string())]),
-    "ponte_paper_autor": pa.schema(
-        [
-            ("paper_id", pa.string()),
-            ("ordem", pa.int32()),
-            ("autor", pa.string()),
-            ("hf_user", pa.string()),
-            ("verificado", pa.bool_()),
-        ]
-    ),
 }
 
 
-# Versao do contrato dos Parquet: 2 desde o ADR 004 (sai estrito/amplo e a
-# ponte de criterios; entram natureza, pre-requisito e perfis); 3 desde o
-# ADR 005 (saem as tabelas sem leitor no repositorio).
-VERSAO_SCHEMA = 3
+# Versao do contrato dos Parquet: 2 no ADR 004 (sai estrito/amplo e a ponte de
+# criterios; entram natureza, pre-requisito e perfis); 3 no ADR 005 (saem as
+# tabelas sem leitor); 4 no ADR 008 (o Parquet passa a ser so o que o painel le).
+VERSAO_SCHEMA = 4
 
 # Tabelas que deixaram de existir. O export so escreve, nao apaga: sem esta
-# lista o Parquet antigo ficaria em `marts/` e quem le `marts/` continuaria a carrega-lo.
+# lista o Parquet antigo ficaria em `marts/` parecendo vigente. As tabelas
+# seguem no banco; so o Parquet deixa de existir.
 ARQUIVOS_MORTOS = {
     "ponte_paper_criterio": "ADR 004",
-    # Sem leitor no repositorio: o painel nunca leu o calendario, e o
-    # pre-requisito e os perfis sairam dele em 21/10/2026. As tabelas seguem
-    # no banco; so o Parquet deixa de existir.
     "dim_calendario": "ADR 005",
     "dim_prerequisito": "ADR 005",
     "dim_perfil": "ADR 005",
     "ponte_perfil_prerequisito": "ADR 005",
     "ponte_paper_perfil": "ADR 005",
+    "fato_execucao": "ADR 008",
+    "ponte_paper_keyword": "ADR 008",
+    "ponte_paper_autor": "ADR 008",
 }
 
 
@@ -457,27 +274,22 @@ def rodar(
     cfg: Config | None = None,
     *,
     run_id: str | None = None,
-    hoje: dt.date | None = None,
 ) -> ResultadoExport:
     cfg = cfg or config()
-    hoje = hoje or db.hoje()
     dir_saida = cfg.dir_marts
     dir_saida.mkdir(parents=True, exist_ok=True)
     res = ResultadoExport(dir_saida=dir_saida)
     csv_tambem = cfg.export.csv
 
     tabelas: list[tuple[str, tuple[list[dict], pa.Schema]]] = [
-        ("dim_paper", _dim_paper(conn, cfg, hoje)),
+        ("dim_paper", _dim_paper(conn)),
         ("fato_metrica", _fato_metrica(conn)),
         ("fato_triagem", _fato_triagem(conn)),
-        ("dim_ficha", _dim_ficha(conn)),
-        ("fato_execucao", _fato_execucao(conn)),
     ]
     for nome, schema in _SCHEMAS_SIMPLES.items():
         linhas, sch = _simples(conn, nome, schema)
-        if nome in ("ponte_paper_area", "ponte_paper_autor"):
-            campo = "is_primaria" if nome == "ponte_paper_area" else "verificado"
-            linhas = [{**l, campo: _b(l[campo])} for l in linhas]
+        if nome == "ponte_paper_area":
+            linhas = [{**linha, "is_primaria": _b(linha["is_primaria"])} for linha in linhas]
         tabelas.append((nome, (linhas, sch)))
 
     for nome, (linhas, schema) in tabelas:

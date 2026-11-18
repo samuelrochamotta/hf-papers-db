@@ -305,7 +305,7 @@ def classificacao(triagem: dict, paper: dict) -> dict:
     existem: a janela tem centenas de aprovados, e chave vazia repetida vira
     quilobyte. O rotulo da natureza nao viaja aqui: vem uma vez so, em
     `DADOS.naturezas`, lido de `dim_natureza`. O pre-requisito nao viaja: saiu
-    do painel em 21/10/2026 e fica no banco e nos Parquet.
+    do painel em 21/10/2026 e fica no banco.
     """
     extra: dict = {
         "nt": triagem.get("natureza"),
@@ -609,7 +609,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
             "d": iso(p.get("data_hf_daily")),
             # As datas do arXiv (`data_arxiv_v1` e `data_arxiv_informada_hf`) nao
             # viajam mais: o unico consumidor era o grafico de defasagem, que saiu
-            # do painel em 08/09/2026. Elas continuam no banco e no Parquet, que e
+            # do painel em 08/09/2026. Elas continuam no banco, que e
             # de onde a auditoria de datas le.
             "v": veredito_p,
             "rf": t.get("regra_fora"),
