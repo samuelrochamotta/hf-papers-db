@@ -367,9 +367,9 @@ def montar_hall(
         """
         return triagem.get(pid, {}).get("veredito")
 
-    # Contagem sobre TODOS os papers do trimestre, inclusive os que ainda estao
-    # na janela viva: senao "10 de 41 aprovados" mentiria enquanto o trimestre
-    # esta saindo aos poucos.
+    # Contagem sobre TODOS os papers do trimestre, inclusive os que ainda estão
+    # na janela viva: senão "10 de 41 aprovados" mentiria enquanto o trimestre
+    # está saindo aos poucos.
     total: Counter[str] = Counter()
     aprovados: Counter[str] = Counter()
     descartados: Counter[str] = Counter()
