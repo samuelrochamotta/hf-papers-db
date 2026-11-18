@@ -623,6 +623,11 @@ def doutor(
     for it in itens:
         typer.echo(f"{_SIMBOLO[it.estado]} {it.nome:<18} {it.detalhe}")
     erros = [i for i in itens if i.estado == "erro"]
+    avisos = [i for i in itens if i.estado == "aviso"]
+    typer.echo(
+        f"\nresumo: {len(itens) - len(erros) - len(avisos)} ok, "
+        f"{len(avisos)} aviso(s), {len(erros)} erro(s)"
+    )
     if erros:
         typer.echo(f"\n{len(erros)} problema(s) bloqueante(s).")
         raise typer.Exit(code=1)
