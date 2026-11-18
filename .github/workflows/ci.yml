@@ -25,6 +25,7 @@ jobs:
         with:
           node-version: "22"
       - run: pip install -e ".[dev]"
+      - run: ruff format --check .
       - run: ruff check .
       - run: mypy
       - run: pytest -q
