@@ -2,7 +2,7 @@
 
 Entrada: a extracao conferida de um paper (`extrator.Leitura.dados`) e os
 metadados que o pipeline ja tem (votos, data do HF Daily, repositorio).
-Saida: um dicionario compacto por paper, que `scripts/gerar_painel_v2.py`
+Saida: um dicionario compacto por paper, que `paineis/v2/gerar_painel_v2.py`
 grava em `dados.json` para o front-end.
 
 Os cortes de solidez e esforco sao heuristicas do estudo de 2026-11-14 e

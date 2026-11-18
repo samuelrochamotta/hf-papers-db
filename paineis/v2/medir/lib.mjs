@@ -10,7 +10,7 @@ const req = createRequire(import.meta.url);
 export const { chromium } = req('playwright');
 export const AQUI = dirname(fileURLToPath(import.meta.url));
 export const RAIZ = resolve(AQUI, '..');
-export const BUILD = resolve(RAIZ, '../relatorios/painel-v2');
+export const BUILD = resolve(RAIZ, '../../relatorios/painel-v2');
 export const CASOS = resolve(RAIZ, 'casos');
 
 export const LARGURAS = [360, 768, 1280, 1600];

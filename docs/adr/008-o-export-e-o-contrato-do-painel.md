@@ -2,7 +2,7 @@
 
 - **Data**: 2026-11-18
 - **Estado**: aceito
-- **Contexto**: `src/hfpapers/estagios/export.py`, `scripts/gerar_painel.py`
+- **Contexto**: `src/hfpapers/estagios/export.py`, `paineis/v1/gerar_painel.py`
 - **Completa**: o ADR 005, que tirou do export as tabelas de calendário,
   pré-requisito e perfis, mas deixou `ponte_paper_autor`, `ponte_paper_keyword`
   e `fato_execucao` "fora desta decisão".
@@ -17,12 +17,12 @@ gravando o que o esquema estrela do Power BI pedia:
   `faixa_upvotes_atual`.
 
 O painel v2 (ADR 007) não muda isso, porque lê o SQLite direto. O único leitor
-de `marts/` é `scripts/gerar_painel.py`, e nenhuma rotina fora do repositório
+de `marts/` é `paineis/v1/gerar_painel.py`, e nenhuma rotina fora do repositório
 lê esses arquivos.
 
 ## Decisão
 
-O export grava a tabela e a coluna que `scripts/gerar_painel.py` lê, e só elas.
+O export grava a tabela e a coluna que `paineis/v1/gerar_painel.py` lê, e só elas.
 Dado que o painel não mostra fica no banco, que é a fonte.
 
 **Saem do export:**

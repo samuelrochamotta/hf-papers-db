@@ -11,7 +11,7 @@ proprio arquivo que vai para o navegador (ver `tests/js/dom_painel.mjs`). Este
 modulo so os traz para dentro da porta unica do projeto, que e o `pytest`.
 
 O painel v2 entra pela mesma porta: `tests/js/painel_v2_recorte.test.mjs`
-exercita as funcoes puras de `painel-v2/src/lib/` (filtros, ordens, busca,
+exercita as funcoes puras de `paineis/v2/src/lib/` (filtros, ordens, busca,
 periodo, radar e enxame).
 """
 

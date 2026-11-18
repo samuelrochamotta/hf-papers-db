@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
     publicDir: mode === 'development' ? 'public' : false,
     plugins: [svelte(), ...(previa ? [viteSingleFile()] : [])],
     build: {
-      outDir: previa ? '.previa' : '../relatorios/painel-v2',
+      outDir: previa ? '.previa' : '../../relatorios/painel-v2',
       emptyOutDir: previa,
       chunkSizeWarningLimit: 900,
       rollupOptions: {

@@ -29,12 +29,13 @@ e a spec correspondente em `docs/specs/`, se houver.
 
 ## Painel
 
-`relatorios/painel/` e `relatorios/painel-v2/` são gerados; edite a fonte.
+O código dos dois painéis fica em `paineis/`. `relatorios/painel/` e
+`relatorios/painel-v2/` são gerados; edite a fonte.
 
-- **v1:** `scripts/gerar_painel.py` e `scripts/painel_app.js`. Gere a prévia
-  com `python scripts/gerar_painel.py --force --destino /tmp/previa.html`.
-- **v2:** o front-end fica em `painel-v2/` (Svelte), e os dados vêm de
-  `scripts/gerar_painel_v2.py`. Antes de mexer, leia
+- **v1:** `paineis/v1/gerar_painel.py` e `paineis/v1/painel_app.js`. Gere a
+  prévia com `python paineis/v1/gerar_painel.py --force --destino /tmp/previa.html`.
+- **v2:** o front-end fica em `paineis/v2/` (Svelte), e os dados vêm de
+  `paineis/v2/gerar_painel_v2.py`. Antes de mexer, leia
   `docs/adr/007-painel-v2.md`.
 
 As abas, o agendamento e a publicação estão no `README.md`, nas seções

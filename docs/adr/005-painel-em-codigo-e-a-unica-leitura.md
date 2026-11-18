@@ -13,7 +13,7 @@
 ## Decisão
 
 A leitura do projeto é feita só pelos painéis em código deste repositório. O
-v1 (`scripts/gerar_painel.py` + `scripts/painel_app.js`) gera
+v1 (`paineis/v1/gerar_painel.py` + `paineis/v1/painel_app.js`) gera
 `relatorios/painel/` a partir dos Parquet de `marts/`. O v2 (ADR 007) lê o
 SQLite direto. Não há ferramenta de BI externa lendo os Parquet, e nenhuma
 decisão de modelagem deve ser tomada pensando numa.

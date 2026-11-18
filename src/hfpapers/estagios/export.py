@@ -1,6 +1,6 @@
 """Estagio 5 - EXPORT: materializa os Parquet que o painel le.
 
-Os Parquet sao o contrato de `scripts/gerar_painel.py`, e de mais ninguem
+Os Parquet sao o contrato de `paineis/v1/gerar_painel.py`, e de mais ninguem
 (ADR 008): sai a tabela e a coluna que o painel le, e so. Dado que o painel nao
 mostra fica no banco, que e a fonte. Coluna nova no painel comeca aqui.
 

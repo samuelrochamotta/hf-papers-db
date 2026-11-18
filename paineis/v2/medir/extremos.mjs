@@ -1,4 +1,4 @@
-// Casos extremos (painel-v2/casos/*.json, gerados de dados reais por
+// Casos extremos (paineis/v2/casos/*.json, gerados de dados reais por
 // scripts/perfil_dados.py): nada pode quebrar. Em cada caso e largura confere
 // erro de console, rolagem horizontal, elemento que sai da tela, texto cortado
 // sem reticencias e texto sobreposto; depois abre o primeiro paper e repete.

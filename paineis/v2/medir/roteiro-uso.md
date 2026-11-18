@@ -7,7 +7,7 @@ como alguém com mouse (ou dedo) e teclado. Não é um teste de programação.
 ## Regras
 
 - A única forma de usar o painel é este comando (PORTA vem na sua tarefa):
-  `node /home/claude/hf-papers-db/painel-v2/medir/agir.mjs PORTA <ação>`
+  `node /home/claude/hf-papers-db/paineis/v2/medir/agir.mjs PORTA <ação>`
   - `iniciar T1` abre o painel do zero para a tarefa T1 (sempre comece assim);
   - `clicar X Y` clica no ponto (pixels da captura, origem no canto superior esquerdo);
   - `passar X Y` leva o ponteiro ao ponto sem clicar (mostra dicas de gráfico);

@@ -36,17 +36,17 @@ packages = ["src/hfpapers"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# scripts/ entra no path por causa de gerar_painel.py: o painel nao e um
-# modulo do pacote, mas a regra de ranqueamento do hall e logica de verdade
-# e precisa de teste.
-pythonpath = ["src", "scripts"]
+# scripts/ e paineis/v1|v2 entram no path pelos testes dos scripts e dos
+# geradores dos paineis: nao sao modulos do pacote, mas a regra de
+# ranqueamento do hall e o export do v2 sao logica de verdade e precisam de teste.
+pythonpath = ["src", "scripts", "paineis/v1", "paineis/v2"]
 
 [tool.ruff]
 target-version = "py311"
 
 [tool.ruff.format]
 # Scripts de medicao do painel v2 sao densos de proposito (ver per-file-ignores).
-exclude = ["painel-v2/**"]
+exclude = ["paineis/v2/medir/**", "paineis/v2/scripts/**"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
@@ -58,10 +58,11 @@ extend-immutable-calls = ["typer.Option", "typer.Argument"]
 
 [tool.ruff.lint.per-file-ignores]
 # Scripts de medicao do painel v2, escritos densos de proposito.
-"painel-v2/**" = ["E701", "E702", "E731"]
+"paineis/v2/medir/**" = ["E701", "E702", "E731"]
+"paineis/v2/scripts/**" = ["E701", "E702", "E731"]
 
 [tool.mypy]
-files = ["src", "scripts"]
+files = ["src", "scripts", "paineis/v1/gerar_painel.py", "paineis/v2/gerar_painel_v2.py"]
 python_version = "3.11"
 warn_unused_ignores = true
 

@@ -1,7 +1,7 @@
 """Perfil do dados.json do painel v2 e casos extremos derivados dele.
 
-    python painel-v2/scripts/perfil_dados.py            # imprime o perfil em Markdown
-    python painel-v2/scripts/perfil_dados.py --casos    # grava painel-v2/casos/*.json
+    python paineis/v2/scripts/perfil_dados.py            # imprime o perfil em Markdown
+    python paineis/v2/scripts/perfil_dados.py --casos    # grava paineis/v2/casos/*.json
 
 Os casos extremos nao sao inventados: cada um parte dos papers reais e estica
 uma dimensao (quantidade, comprimento, nulos, numeros) ate onde o esquema
@@ -16,9 +16,9 @@ import json
 from collections import Counter
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parents[2]
+RAIZ = Path(__file__).resolve().parents[3]
 DADOS = RAIZ / "relatorios" / "painel-v2" / "dados.json"
-CASOS = RAIZ / "painel-v2" / "casos"
+CASOS = RAIZ / "paineis" / "v2" / "casos"
 EIXOS = ["ganho", "solidez", "abertura", "facilidade", "amplitude", "atencao"]
 
 

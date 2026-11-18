@@ -1,7 +1,7 @@
 {
   "name": "painel-echarts",
   "private": true,
-  "description": "Build do ECharts do painel com só os módulos usados. Saída versionada em scripts/vendor/.",
+  "description": "Build do ECharts do painel com só os módulos usados. Saída versionada em paineis/v1/vendor/.",
   "scripts": {
     "build": "esbuild entrada.mjs --bundle --minify --format=iife --legal-comments=eof --target=es2017 --outfile=../vendor/echarts.painel.min.js"
   },

@@ -2,7 +2,7 @@
 
 O painel nao tem teste de layout - mas o hall tem uma regra
 de verdade (quem entra, em que trimestre, em que ordem) e ela vira registro
-publicado todo dia. E o unico pedaco de `scripts/gerar_painel.py` que merece
+publicado todo dia. E o unico pedaco de `paineis/v1/gerar_painel.py` que merece
 teste: o resto e extracao de Parquet e concatenacao de string.
 """
 
