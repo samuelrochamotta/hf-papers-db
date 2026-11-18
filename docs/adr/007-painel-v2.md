@@ -38,7 +38,7 @@ quando se desce num paper.
 3. **Texto do HTML do arXiv** (`arxiv.org/html/<id>`, LaTeXML), sem as
    referências. Paper sem HTML cai para o abstract e fica marcado como leitura
    parcial; o painel mostra "não lido", nunca "não reportado".
-4. **Front-end em Svelte 5 + Apache ECharts 6** (`painel-v2/`, Vite). Svelte
+4. **Front-end em Svelte 5 + Apache ECharts 6** (`paineis/v2/`, Vite). Svelte
    dá transições e estado compartilhado (lente, comparação, realce cruzado)
    com pouco código; ECharts 6 traz radar, `jitter` nativo para o enxame,
    séries custom e animação de atualização. O build fica versionado em
@@ -62,7 +62,7 @@ quando se desce num paper.
 
 ## Revisão de 2026-11-16 (redesenho medido)
 
-O redesenho medido (protocolo em `painel-v2/medir/`) mantém as decisões acima e
+O redesenho medido (protocolo em `paineis/v2/medir/`) mantém as decisões acima e
 muda três coisas, por decisão do Samuel:
 
 - O radar continua com seis eixos, agora com um nome por conceito (Ganho,

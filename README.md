@@ -4,7 +4,7 @@ Camada de preparação de dados dos **Hugging Face Daily Papers**: coleta diári
 classificação por LLM em dois estágios, base SQLite e export em esquema estrela
 em Parquet. A interface de leitura é o painel feito por código,
 `relatorios/painel/` (site estático no GitHub Pages), gerado de `marts/` por
-`scripts/gerar_painel.py`.
+`paineis/v1/gerar_painel.py`.
 
 ## Instalação
 
@@ -68,15 +68,15 @@ tail -f logs/run_*.log
 
 ## Painel HTML
 
-Um site estático, sem servidor, publicado no GitHub Pages. `scripts/gerar_painel.py`
+Um site estático, sem servidor, publicado no GitHub Pages. `paineis/v1/gerar_painel.py`
 lê os Parquet e grava `relatorios/painel/`:
 
 | arquivo | o que é |
 |---|---|
-| `index.html` | a página, com o CSS, o app (`scripts/painel_app.js`) e um resumo em texto para buscador e prévia de link |
+| `index.html` | a página, com o CSS, o app (`paineis/v1/painel_app.js`) e um resumo em texto para buscador e prévia de link |
 | `dados.json` | o que a primeira pintura precisa: papers da janela, vocabulário, registro histórico e os votos já pré-agregados |
 | `fichas.json` | o texto das fichas, buscado depois da primeira pintura (é a maior parte do peso) |
-| `echarts.painel.min.js` | Apache ECharts só com os módulos usados (build em `scripts/echarts/`) |
+| `echarts.painel.min.js` | Apache ECharts só com os módulos usados (build em `paineis/v1/echarts/`) |
 
 Três abas: **Aprovados** (últimos 90 dias, um dia por página, ordenados por voto;
 colunas natureza, título, marcas, área › sub-área e vertente; filtros de
@@ -100,8 +100,8 @@ aparecem no painel (os perfis não são mais exportados; ADR 005). O corte do
 histórico é `refresh.janela_morna_dias`, não `--dias`.
 
 ```bash
-python scripts/gerar_painel.py --force                         # após editar JS/CSS
-python scripts/gerar_painel.py --dias 10 --force --destino /tmp/previa.html   # prévia
+python paineis/v1/gerar_painel.py --force                         # após editar JS/CSS
+python paineis/v1/gerar_painel.py --dias 10 --force --destino /tmp/previa.html   # prévia
 python -m http.server -d relatorios/painel 8000                # ver o site local
 ```
 
@@ -132,12 +132,12 @@ Claude Haiku 5.5 (ADR 007). Nasce
 ao lado do v1, em `relatorios/painel-v2/`, publicado em `/v2/` no Pages.
 
 ```bash
-hfpapers ler --dias 7 --limite 30                 # Haiku 5.5 pelo OpenRouter (mesma chave)
-python scripts/gerar_painel_v2.py --dias 14       # grava relatorios/painel-v2/dados.json
-cd painel-v2 && npm ci && npm run build           # só quando o front-end muda
+hfpapers ler --dias 7 --limite 30                  # Haiku 5.5 pelo OpenRouter (mesma chave)
+python paineis/v2/gerar_painel_v2.py --dias 14     # grava relatorios/painel-v2/dados.json
+cd paineis/v2 && npm ci && npm run build           # só quando o front-end muda
 ```
 
-O front-end é Svelte 5 + Apache ECharts 6 (`painel-v2/`). O build fica
+O front-end é Svelte 5 + Apache ECharts 6 (`paineis/v2/`). O build fica
 versionado com nomes fixos, então a rodada diária só troca o `dados.json`.
 
 ## Testes
@@ -165,13 +165,20 @@ src/hfpapers/
 └── estagios/           coleta, enriquecimento, classificação, refresh, export
 scripts/
 ├── run_daily.sh        pipeline diário (launchd)
-├── gerar_painel.sh     wrapper do painel (launchd)
-├── gerar_painel.py     monta relatorios/painel/ a partir dos Parquet
-├── painel_app.js       app do painel (gráficos em ECharts)
-├── echarts/            build do ECharts só com os módulos usados
-├── vendor/             saída desse build (versionada)
+├── gerar_painel.sh     wrapper do painel v1 (launchd)
 ├── coleta_retroativa.py  varre dias anteriores ao início do pipeline (sem LLM)
 └── relatorio_massa.py    mede a grade: distribuição, checagens, roteamento
+paineis/            código dos dois painéis (a saída vai para relatorios/)
+├── v1/
+│   ├── gerar_painel.py   monta relatorios/painel/ a partir dos Parquet
+│   ├── painel_app.js     app do painel (gráficos em ECharts)
+│   ├── echarts/          build do ECharts só com os módulos usados
+│   └── vendor/           saída desse build (versionada)
+└── v2/
+    ├── gerar_painel_v2.py  grava relatorios/painel-v2/dados.json
+    ├── src/              front-end Svelte 5 + ECharts 6 (build em relatorios/painel-v2/)
+    ├── medir/            protocolo do redesenho medido
+    └── casos/            casos extremos para testar o layout
 prompts/            regras versionadas
 config/             taxonomia_inicial.json
 docs/adr/           decisões, uma por arquivo

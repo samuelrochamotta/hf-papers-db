@@ -1,4 +1,4 @@
-/* O recorte do painel v2 (painel-v2/src/lib): o que cada filtro, ordem, busca
+/* O recorte do painel v2 (paineis/v2/src/lib): o que cada filtro, ordem, busca
  * e periodo deixa na tela. Sao funcoes puras, as mesmas que vao para o
  * navegador.
  *
@@ -33,8 +33,8 @@ import {
   radarValores, median, ganhoDe, intervalo, plural, sgn, curto, cobertura, esc, urlSegura, SOLIDEZ, realcar, ondeAchou,
   buscarFila, SEM_FATO, FATO, EIXOS, ESFORCO, TETO_AMPLITUDE, passaDoEixo, tetoDoEixo, naoLidosDe, nBench, nome, nomeMenor,
   aberturaFrase, faltaLer, faltaLerNomes, LIMITE_TIPO, LIMITE_GRAVE, corteDoPeriodo, familia,
-} from '../../painel-v2/src/lib/dados.js';
-import { enxame, rotular, toca, dominio, pontoProva, marcasRadar } from '../../painel-v2/src/lib/tema.js';
+} from '../../paineis/v2/src/lib/dados.js';
+import { enxame, rotular, toca, dominio, pontoProva, marcasRadar } from '../../paineis/v2/src/lib/tema.js';
 
 const RADAR = { atencao: 50, solidez: 50, ganho: 50, facilidade: 50, abertura: 50, amplitude: 50 };
 function paper(id, o = {}) {

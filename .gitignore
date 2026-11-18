@@ -5,8 +5,8 @@ logs/
 relatorios/*
 !relatorios/painel/
 !relatorios/painel-v2/
-painel-v2/node_modules/
-scripts/echarts/node_modules/
+paineis/v2/node_modules/
+paineis/v1/echarts/node_modules/
 .venv/
 __pycache__/
 *.py[cod]

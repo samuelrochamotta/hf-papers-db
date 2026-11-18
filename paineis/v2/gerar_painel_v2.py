@@ -7,14 +7,14 @@ Duas origens:
 * uma pasta de extracoes (`--extracoes DIR --amostra amostra.json`), usada
   para a previa e para os testes, sem banco.
 
-O front-end (painel-v2/, Svelte + ECharts) le so este arquivo. O build do
+O front-end (paineis/v2/, Svelte + ECharts) le so este arquivo. O build do
 front-end e separado e fica versionado em relatorios/painel-v2/; a rodada
 diaria so precisa regravar o dados.json.
 
 Uso:
-    python scripts/gerar_painel_v2.py
-    python scripts/gerar_painel_v2.py --dias 30
-    python scripts/gerar_painel_v2.py --extracoes pasta/ --amostra amostra.json --destino x.json
+    python paineis/v2/gerar_painel_v2.py
+    python paineis/v2/gerar_painel_v2.py --dias 30
+    python paineis/v2/gerar_painel_v2.py --extracoes pasta/ --amostra amostra.json --destino x.json
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ import json
 import sys
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parents[1]
+RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "src"))
 
 from hfpapers.leitura.derivar import derivar_todos  # noqa: E402

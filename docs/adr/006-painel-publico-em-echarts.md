@@ -18,7 +18,7 @@ gráficos que aguentem crescer.
   `relatorios/painel/`. Streamlit ou Dash exigiriam um processo Python no ar
   para um painel que muda uma vez por dia.
 - **Gráficos em Apache ECharts**, num build com só os módulos usados
-  (`scripts/echarts/`, saída versionada em `scripts/vendor/`, ~210 KB gzip).
+  (`paineis/v1/echarts/`, saída versionada em `paineis/v1/vendor/`, ~210 KB gzip).
   Zoom, tooltip e eventos de clique nativos; os gráficos são interligados pelo
   mesmo `setState` das pílulas. Plotly.js foi descartado pelo peso com muitos
   gráficos.
@@ -40,4 +40,4 @@ gráficos que aguentem crescer.
   a pasta.
 - Trocar uma cor de natureza pede validar a paleta de novo.
 - Um gráfico ou componente novo do ECharts pede acrescentar o módulo em
-  `scripts/echarts/entrada.mjs` e refazer o build.
+  `paineis/v1/echarts/entrada.mjs` e refazer o build.

@@ -133,7 +133,7 @@ if [ "$PUBLICAVEL" -eq 1 ] && [ "$RAMO" = "main" ]; then
 fi
 
 set +e
-"$PYTHON_BIN" scripts/gerar_painel.py "$@" 2>&1 | tee -a "$LOG"
+"$PYTHON_BIN" paineis/v1/gerar_painel.py "$@" 2>&1 | tee -a "$LOG"
 CODIGO=${PIPESTATUS[0]}
 set -e
 

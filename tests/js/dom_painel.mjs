@@ -1,4 +1,4 @@
-/* DOM minimo para exercitar `scripts/painel_app.js` fora do navegador.
+/* DOM minimo para exercitar `paineis/v1/painel_app.js` fora do navegador.
  *
  * O app e uma IIFE que nao exporta nada: o unico jeito de olhar para o estado
  * dele e pelo HTML que ele escreve em `#painel` e pelos handlers de clique que
@@ -17,7 +17,7 @@ import url from 'node:url';
 import vm from 'node:vm';
 
 const RAIZ = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '../..');
-const APP = path.join(RAIZ, 'scripts/painel_app.js');
+const APP = path.join(RAIZ, 'paineis/v1/painel_app.js');
 const FONTE = fs.readFileSync(APP, 'utf-8');
 
 const CAIXA_MENU = 'max-height: 288px; overflow-y: auto;';

@@ -1,19 +1,15 @@
 # ADR 005 — O painel em código é a única interface de leitura
 
-> **Nota de 18/11/2026.** O texto foi atualizado para o painel em
-> `relatorios/painel/` (ADR 006), e as consequências que o ADR 008 superou
-> foram resumidas.
-
 - **Data**: 2026-11-14
 - **Estado**: aceito
-- **Supera**: a frase do README e de `scripts/gerar_painel.py` que tratava o
+- **Supera**: a frase do README e de `paineis/v1/gerar_painel.py` que tratava o
   painel HTML como vitrine de distribuição e uma ferramenta de BI externa como
   a interface de leitura.
 
 ## Decisão
 
 A leitura do projeto é feita só pelos painéis em código deste repositório. O
-v1 (`scripts/gerar_painel.py` + `scripts/painel_app.js`) gera
+v1 (`paineis/v1/gerar_painel.py` + `paineis/v1/painel_app.js`) gera
 `relatorios/painel/` a partir dos Parquet de `marts/`. O v2 (ADR 007) lê o
 SQLite direto. Não há ferramenta de BI externa lendo os Parquet, e nenhuma
 decisão de modelagem deve ser tomada pensando numa.

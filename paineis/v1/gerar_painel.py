@@ -5,9 +5,9 @@ site estatico publico (GitHub Pages), sem servidor: uma pasta com
 `index.html`, o app, o ECharts e os dados em JSON a parte.
 
 O desenho e o mesmo do Artifact "Painel Daily Papers", que nasceu como
-artboard da Claude Design. `scripts/painel_app.js` e o app de navegador e os
+artboard da Claude Design. `paineis/v1/painel_app.js` e o app de navegador e os
 graficos sao Apache ECharts, num build com so os modulos usados
-(`scripts/echarts/`, saida versionada em `scripts/vendor/`). Este script nao
+(`paineis/v1/echarts/`, saida versionada em `paineis/v1/vendor/`). Este script nao
 desenha nada: extrai os dados, pre-agrega o que da e escreve os arquivos.
 
 Duas saidas:
@@ -63,7 +63,7 @@ from typing import Any
 import pyarrow.parquet as pq
 import yaml
 
-RAIZ = Path(__file__).resolve().parent.parent
+RAIZ = Path(__file__).resolve().parents[2]
 DIR_MARTS = RAIZ / "marts"
 DESTINO_PADRAO = RAIZ / "relatorios" / "painel"
 CARIMBO = RAIZ / "marts" / ".painel_run_id"
