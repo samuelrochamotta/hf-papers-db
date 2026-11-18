@@ -4,9 +4,6 @@
 
 - Python local: `/opt/miniconda3/envs/digest-hf/bin/python` (env conda
   `digest-hf`). Na nuvem, instale com `uv pip install -e ".[dev]"`.
-- Testes: `python -m pytest -q`. É a porta única: sem rede, com banco em
-  `tmp_path`, e já roda a suíte JS do painel via `node --test`.
-- Lint e tipos: `python -m ruff check .` e `python -m mypy`. O CI roda os três.
 
 ## Vocabulário
 
@@ -60,7 +57,9 @@ As abas, o agendamento e a publicação estão no `README.md`, nas seções
 ## Verificação
 
 Regras para executar antes de concluir uma tarefa:
-1. Rode lint, typecheck, build e testes depois da última alteração de código, não antes.
+1. Depois da última alteração de código, execute:
+- Formato, lint e tipos: `python -m ruff format --check .`, `python -m ruff check .` e `python -m mypy`
+- Testes: `python -m pytest -q`, sem rede, com banco em `tmp_path`, e já roda a suíte JS do painel via `node --test`.
 2. Ao concluir, mostre para cada comando: o comando e o resultado.
 3. Se algum comando falhar ou não puder rodar, diga qual e por quê. Não declare a tarefa concluída nesse caso.
 4. Em mudanças visuais, rode o app e anexe pelo menos uma captura de tela da página afetada.
