@@ -94,6 +94,25 @@ descartar_painel() {
 # fora de `$PAINEL_DIR`, em stage ou nao) suspende o pull e a publicacao da
 # rodada, com AVISO. Stash automatico que conflita some com o trabalho sem
 # deixar rastro no log.
+# Merge, rebase, cherry-pick ou revert em andamento, ou conflito nao resolvido
+# no indice, sao de quem esta trabalhando: a rodada nao toca em nada - nem
+# descarta nem gera o painel -, para nao apagar o estado do conflito.
+operacao_em_andamento() {
+    local p
+    for p in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do
+        [ -e "$(git -C "$RAIZ" rev-parse --git-path "$p")" ] && return 0
+    done
+    [ -n "$(git -C "$RAIZ" ls-files -u)" ]
+}
+
+# Sai antes de gerar, em qualquer branch (no rebase o HEAD fica destacado): o
+# gerador reescreveria os arquivos do painel em conflito e apagaria os
+# marcadores de quem esta resolvendo. A previa (`--destino`) grava fora daqui.
+if [ "$PUBLICAVEL" -eq 1 ] && operacao_em_andamento; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: merge/rebase ou conflito em andamento no checkout; nao gera nem publica nesta rodada." | tee -a "$LOG"
+    exit 0
+fi
+
 if [ "$PUBLICAVEL" -eq 1 ] && [ "$RAMO" = "main" ]; then
     if [ -n "$(git -C "$RAIZ" status --porcelain --untracked-files=no -- . ":(exclude)$PAINEL_DIR")" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: trabalho em andamento no checkout; nao puxa nem publica nesta rodada." | tee -a "$LOG"
