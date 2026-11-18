@@ -1,2 +1,2 @@
-- Verifique se o código está coerente com o pedido do usuário, e, se houver, com a spec
-- Verifique se o padrão de deep modules está sendo seguido
+- Verifique se o código está coerente com o pedido do usuário, e, se houver, com a spec correspondente
+- Verifique se o padrão de arquitetura do projeto, descrito em docs/arquitetura.md, está sendo seguido
