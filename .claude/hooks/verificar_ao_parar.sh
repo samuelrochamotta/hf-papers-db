@@ -42,7 +42,7 @@ rodar "testes" "$PY" -m pytest -q -x -m "not slow" -p no:cacheprovider
 
 if [ -n "$falhas" ]; then
   {
-    echo "Verificação do Stop hook falhou. Corrija e tente de novo:"
+    echo "[Stop] Verificação falhou. Corrija e tente de novo:"
     printf '%s' "$falhas"
   } >&2
   exit 2

@@ -18,7 +18,7 @@ PY=/opt/miniconda3/envs/digest-hf/bin/python
 "$PY" -m ruff format "$arquivo" >/dev/null 2>&1
 
 if ! saida=$("$PY" -m ruff check "$arquivo" 2>&1); then
-  echo "ruff check encontrou problemas em $arquivo:" >&2
+  echo "[PostToolUse] ruff check encontrou problemas em $arquivo:" >&2
   echo "$saida" >&2
   exit 2
 fi
