@@ -64,20 +64,25 @@ PAINEL_DIR="relatorios/painel"
 # rascunho - e, como o run_id ja estaria carimbado, nem a rede de seguranca das
 # 08:30 desfaria. Quem recorta na mao usa --destino e olha local.
 PUBLICAVEL=1
+GRAVA_NO_CHECKOUT=1   # 0 so com --destino: a previa grava fora de $PAINEL_DIR
 for arg in "$@"; do
     case "$arg" in
-        --dias|--dias=*|--dias-hall|--dias-hall=*|--destino|--destino=*) PUBLICAVEL=0 ;;
+        --dias|--dias=*|--dias-hall|--dias-hall=*) PUBLICAVEL=0 ;;
+        --destino|--destino=*) PUBLICAVEL=0; GRAVA_NO_CHECKOUT=0 ;;
     esac
 done
 
+SUSPENSA=0   # trabalho em andamento ou pull que falhou: gera, mas nao publica
 RAMO="$(git -C "$RAIZ" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
 CARIMBO="$RAIZ/marts/.painel_run_id"
 
 # O painel e saida gerada: o que sobrou dele no checkout (de uma rodada que nao
 # publicou) e descartado, e o carimbo do run_id vai junto para o gerador
 # refazer o painel inteiro em vez de sair em no-op sobre uma arvore suja.
+# Volta indice E arvore ao HEAD: so a arvore deixaria o painel em stage (de um
+# `git add` cujo commit falhou), e o `pull --rebase` recusa indice sujo todo dia.
 descartar_painel() {
-    git -C "$RAIZ" checkout -q -- "$PAINEL_DIR" 2>/dev/null || true
+    git -C "$RAIZ" restore -q --source=HEAD --staged --worktree -- "$PAINEL_DIR" 2>/dev/null || true
     git -C "$RAIZ" clean -fdq -- "$PAINEL_DIR" 2>/dev/null || true
     rm -f "$CARIMBO"
 }
@@ -91,10 +96,30 @@ descartar_painel() {
 # fora de `$PAINEL_DIR`, em stage ou nao) suspende o pull e a publicacao da
 # rodada, com AVISO. Stash automatico que conflita some com o trabalho sem
 # deixar rastro no log.
+# Merge, rebase, cherry-pick ou revert em andamento, ou conflito nao resolvido
+# no indice, sao de quem esta trabalhando: a rodada nao toca em nada - nem
+# descarta nem gera o painel -, para nao apagar o estado do conflito.
+operacao_em_andamento() {
+    local p
+    for p in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do
+        [ -e "$(git -C "$RAIZ" rev-parse --git-path "$p")" ] && return 0
+    done
+    [ -n "$(git -C "$RAIZ" ls-files -u)" ]
+}
+
+# Sai antes de gerar, em qualquer branch (no rebase o HEAD fica destacado): o
+# gerador reescreveria os arquivos do painel em conflito e apagaria os
+# marcadores de quem esta resolvendo. Vale tambem para `--dias`/`--dias-hall`
+# sem `--destino`, que gravam no checkout; so a previa com `--destino` escapa.
+if [ "$GRAVA_NO_CHECKOUT" -eq 1 ] && operacao_em_andamento; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: merge/rebase ou conflito em andamento no checkout; nao gera nem publica nesta rodada." | tee -a "$LOG"
+    exit 0
+fi
+
 if [ "$PUBLICAVEL" -eq 1 ] && [ "$RAMO" = "main" ]; then
     if [ -n "$(git -C "$RAIZ" status --porcelain --untracked-files=no -- . ":(exclude)$PAINEL_DIR")" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: trabalho em andamento no checkout; nao puxa nem publica nesta rodada." | tee -a "$LOG"
-        PUBLICAVEL=0
+        SUSPENSA=1
     else
         if [ -n "$(git -C "$RAIZ" status --porcelain -- "$PAINEL_DIR")" ]; then
             descartar_painel
@@ -102,7 +127,7 @@ if [ "$PUBLICAVEL" -eq 1 ] && [ "$RAMO" = "main" ]; then
         if ! git -C "$RAIZ" pull --rebase origin main >>"$LOG" 2>&1; then
             git -C "$RAIZ" rebase --abort >>"$LOG" 2>&1 || true
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: main nao alinhou com origin/main; nao publica nesta rodada." | tee -a "$LOG"
-            PUBLICAVEL=0
+            SUSPENSA=1
         fi
     fi
 fi
@@ -142,6 +167,8 @@ publicar() {
 
 if [ "$CODIGO" -eq 0 ] && [ "$PUBLICAVEL" -eq 0 ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] geracao com recorte manual, nao publica." | tee -a "$LOG"
+elif [ "$CODIGO" -eq 0 ] && [ "$SUSPENSA" -eq 1 ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] rodada suspensa (ver AVISO acima), nao publica." | tee -a "$LOG"
 elif [ "$CODIGO" -eq 0 ] && [ -z "$(git -C "$RAIZ" status --porcelain -- "$PAINEL_DIR" 2>/dev/null)" ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] painel sem alteracoes, nada a publicar." | tee -a "$LOG"
 elif [ "$CODIGO" -eq 0 ] && [ "$RAMO" != "main" ]; then
