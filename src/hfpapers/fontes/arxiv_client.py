@@ -41,7 +41,7 @@ class ClienteArxiv:
                             espera = max(espera, float(retry))
                         except ValueError:
                             try:
-                                espera = max(espera, (email.utils.parsedate_to_datetime(retry) - dt.datetime.now(dt.timezone.utc)).total_seconds())
+                                espera = max(espera, (email.utils.parsedate_to_datetime(retry) - dt.datetime.now(dt.UTC)).total_seconds())
                             except (TypeError, ValueError):
                                 pass
                     response.raise_for_status()

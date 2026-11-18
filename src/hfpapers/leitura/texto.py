@@ -18,7 +18,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
-from typing import Optional
 
 import httpx
 
@@ -41,7 +40,7 @@ class TextoPaper:
     fonte: str  # "html" | "abstract"
     secoes: list[str] = field(default_factory=list)
     tabelas: int = 0
-    cortado_em: Optional[str] = None  # ultimo titulo inteiro antes do corte
+    cortado_em: str | None = None  # ultimo titulo inteiro antes do corte
     chegou_ao_fim: bool = True  # viu o fim do corpo (referencias ou fim do html)
 
     @property
@@ -59,9 +58,9 @@ class _Extrator(HTMLParser):
         self.fim = False
         self.no_titulo = False
         self.titulo_atual: list[str] = []
-        self.tabela: Optional[list[list[str]]] = None
-        self.celula: Optional[list[str]] = None
-        self.legenda_tabela: Optional[str] = None
+        self.tabela: list[list[str]] | None = None
+        self.celula: list[str] | None = None
+        self.legenda_tabela: str | None = None
         self.no_caption = False
         self.caption: list[str] = []
         self.figura_tabela = 0  # profundidade dentro de <figure class="ltx_table">
@@ -84,7 +83,7 @@ class _Extrator(HTMLParser):
 
     # ── HTMLParser ──────────────────────────────────────────────────────────
 
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, Optional[str]]]) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if self.fim:
             return
         a = dict(attrs)
@@ -225,7 +224,7 @@ def aplicar_teto(tp: TextoPaper, teto: int) -> TextoPaper:
     return tp
 
 
-def baixar_html(arxiv_id: str, cliente: Optional[httpx.Client] = None) -> Optional[str]:
+def baixar_html(arxiv_id: str, cliente: httpx.Client | None = None) -> str | None:
     """HTML do arXiv, ou None quando o paper nao tem versao HTML (404)."""
     proprio = cliente is None
     http = cliente or httpx.Client(timeout=60, follow_redirects=True,
@@ -245,7 +244,7 @@ def baixar_html(arxiv_id: str, cliente: Optional[httpx.Client] = None) -> Option
 
 
 def texto_do_paper(arxiv_id: str, *, abstract: str = "", teto: int = 320_000,
-                   cliente: Optional[httpx.Client] = None) -> TextoPaper:
+                   cliente: httpx.Client | None = None) -> TextoPaper:
     html = baixar_html(arxiv_id, cliente)
     if html is None:
         return TextoPaper(arxiv_id=arxiv_id, texto=abstract or "", fonte="abstract",
@@ -276,7 +275,7 @@ class Conferidor:
         self.norm = normalizar(texto)
         self.numeros = set(_numeros(texto))
 
-    def trecho(self, trecho: Optional[str]) -> Optional[bool]:
+    def trecho(self, trecho: str | None) -> bool | None:
         if not trecho:
             return None
         n = normalizar(trecho).strip(" .\"'")
@@ -297,7 +296,7 @@ class Conferidor:
             return True
         return False
 
-    def numero(self, valor: object) -> Optional[bool]:
+    def numero(self, valor: object) -> bool | None:
         try:
             v = float(valor)  # type: ignore[arg-type]
         except (TypeError, ValueError):

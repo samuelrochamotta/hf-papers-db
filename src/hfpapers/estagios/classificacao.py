@@ -31,9 +31,9 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from collections.abc import Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Optional, Sequence, Union
 
 from .. import db, taxonomia
 from ..config import Config, config
@@ -130,10 +130,10 @@ def _linha_para_entrada(r: sqlite3.Row, conn: sqlite3.Connection) -> ea.PaperEnt
 def selecionar(
     conn: sqlite3.Connection,
     *,
-    ids: Optional[Sequence[str]] = None,
-    data: Optional[str] = None,
+    ids: Sequence[str] | None = None,
+    data: str | None = None,
     force: bool = False,
-    exceto_run_id: Optional[str] = None,
+    exceto_run_id: str | None = None,
 ) -> list[ea.PaperEntrada]:
     # A evidencia de artefato vem da view, e nao de uma copia da regra aqui:
     # `vw_artefato` e a unica fonte (ver db.VIEWS_SQL).
@@ -142,7 +142,8 @@ def selecionar(
         "a.evidencia, a.github_repo, a.links_abstract "
         "FROM dim_paper p JOIN vw_artefato a ON a.paper_id = p.paper_id"
     )
-    cond, params = [], []
+    cond: list[str] = []
+    params: list[object] = []
     if ids:
         cond.append(f"p.paper_id IN ({', '.join('?' for _ in ids)})")
         params.extend(ids)
@@ -168,11 +169,11 @@ def _gravar_triagem(
     conn: sqlite3.Connection,
     *,
     paper_id: str,
-    regra_fora: Optional[str],
+    regra_fora: str | None,
     justificativa: str,
     run_id: str,
-    b: Optional[eb.ResultadoB] = None,
-    revisao: Optional[int] = None,
+    b: eb.ResultadoB | None = None,
+    revisao: int | None = None,
 ) -> None:
     """Grava a linha do paper. `fora` vem do Estagio A (sem `b`) ou do B; o
     aprovado so vem do B, que e quem atribui natureza e pre-requisito."""
@@ -181,7 +182,8 @@ def _gravar_triagem(
             "SELECT revisao FROM fato_triagem WHERE paper_id = ?", (paper_id,)
         ).fetchone()
         revisao = (row["revisao"] + 1) if row else 1
-    aprovado = b is not None and b.aprovado
+    aprovado_b = b if b is not None and b.aprovado else None
+    aprovado = aprovado_b is not None
     db.upsert_triagem(
         conn,
         {
@@ -189,11 +191,11 @@ def _gravar_triagem(
             "veredito": "aprovado" if aprovado else "fora",
             "regra_fora": None if aprovado else regra_fora,
             "justificativa": justificativa,
-            "natureza": b.natureza if aprovado else None,
-            "prerequisito": b.prerequisito if aprovado else None,
-            "pratica_contradita": b.pratica_contradita if aprovado else None,
-            "falta_o_como": b.falta_o_como if aprovado else None,
-            "artefato_status": b.artefato_status if aprovado else None,
+            "natureza": aprovado_b.natureza if aprovado_b is not None else None,
+            "prerequisito": aprovado_b.prerequisito if aprovado_b is not None else None,
+            "pratica_contradita": aprovado_b.pratica_contradita if aprovado_b is not None else None,
+            "falta_o_como": aprovado_b.falta_o_como if aprovado_b is not None else None,
+            "artefato_status": aprovado_b.artefato_status if aprovado_b is not None else None,
             "classificado_em": db.agora(),
             "run_id": run_id,
             "revisao": revisao,
@@ -399,7 +401,7 @@ def _varrer_sequencial(
 # Devolvido por `_tarefa_paper`: o Estagio A, a entrada do B (None quando o
 # paper nao chega la) e o resultado do B - ou o `ErroLLM` dele **como valor**,
 # porque quem decide o que fazer com a falha e a thread principal, na ordem.
-_Tarefa = tuple[ea.ResultadoA, Optional[ea.PaperEntrada], Union[eb.ResultadoB, ErroLLM, None]]
+_Tarefa = tuple[ea.ResultadoA, ea.PaperEntrada | None, eb.ResultadoB | ErroLLM | None]
 
 
 def _tarefa_paper(
@@ -464,7 +466,7 @@ def _varrer_paralelo(
                 pool.submit(_tarefa_paper, cliente, p, vocab, cfg, so_estagio_a)
                 for p in papers
             ]
-            for paper, futuro in zip(papers, futuros):
+            for paper, futuro in zip(papers, futuros, strict=True):
                 try:
                     a, entrada_b, b = futuro.result()
                 except ErroLLM as e:
@@ -478,7 +480,7 @@ def _varrer_paralelo(
                     conn, paper, a, run_id=run_id, so_estagio_a=so_estagio_a, res=res
                 ):
                     continue
-                assert entrada_b is not None  # `_aplicar_estagio_a` so aprova quem tem B
+                assert entrada_b is not None and b is not None  # `_aplicar_estagio_a` so aprova quem tem B
                 if isinstance(b, ErroLLM):
                     _adiar_estagio_b(falhas_b, a, entrada_b, b)
                     continue
@@ -553,7 +555,7 @@ def _segunda_passada(
                 pool.submit(eb.avaliar, cliente, entrada_b, cfg=cfg)
                 for _, entrada_b in falhas_b
             ]
-            for (a, entrada_b), futuro in zip(falhas_b, futuros):
+            for (a, entrada_b), futuro in zip(falhas_b, futuros, strict=True):
                 try:
                     b = futuro.result()
                 except ErroLLM as e:
@@ -587,10 +589,10 @@ def rodar(
     papers: Sequence[ea.PaperEntrada],
     *,
     run_id: str,
-    cfg: Optional[Config] = None,
+    cfg: Config | None = None,
     so_estagio_a: bool = False,
     concorrencia: int = 1,
-    res: Optional[ResultadoClassificacao] = None,
+    res: ResultadoClassificacao | None = None,
 ) -> ResultadoClassificacao:
     """`concorrencia` e quantas chamadas ao OpenRouter podem estar no ar. Com 1 -
     o padrao, e o que a rodada diaria usa - o caminho e o sequencial de sempre.
@@ -650,7 +652,7 @@ def estimar(
     cliente: ClienteLLM,
     papers: Sequence[ea.PaperEntrada],
     *,
-    cfg: Optional[Config] = None,
+    cfg: Config | None = None,
     fracao_candidatos: float = 0.70,
 ) -> Estimativa:
     """Estimativa de custo sem chamar modelo.

@@ -7,7 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 from . import db
-from .fontes.arxiv_client import ClienteArxiv, URL
+from .fontes.arxiv_client import URL, ClienteArxiv
 
 
 def diferenca(fim, inicio):
@@ -69,7 +69,7 @@ def auditar(conn, *, cache: Path, aplicar=False, revalidar=False, cliente=None, 
         anterior = diferenca(r['data_hf_daily'], hf)
         corrigida = diferenca(r['data_hf_daily'], v1)
         conflito = bool(v1 and r.get('data_arxiv_v1') and v1 != r['data_arxiv_v1'])
-        if aplicar and v1 and not conflito:
+        if aplicar and valor and v1 and not conflito:
             conflito = not db.registrar_arxiv_v1(conn, pid, v1, valor['verificado_em'])
         candidata = v1
         if conflito:

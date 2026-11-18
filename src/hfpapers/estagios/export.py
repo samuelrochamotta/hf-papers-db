@@ -16,9 +16,10 @@ import datetime as dt
 import json
 import os
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -40,7 +41,7 @@ class ResultadoExport:
 # ── conversores ─────────────────────────────────────────────────────────────
 
 
-def _d(v: Any) -> Optional[dt.date]:
+def _d(v: Any) -> dt.date | None:
     if v in (None, ""):
         return None
     if isinstance(v, dt.datetime):
@@ -53,7 +54,7 @@ def _d(v: Any) -> Optional[dt.date]:
         return None
 
 
-def _ts(v: Any) -> Optional[dt.datetime]:
+def _ts(v: Any) -> dt.datetime | None:
     if v in (None, ""):
         return None
     if isinstance(v, dt.datetime):
@@ -64,11 +65,11 @@ def _ts(v: Any) -> Optional[dt.datetime]:
         return None
 
 
-def _b(v: Any) -> Optional[bool]:
+def _b(v: Any) -> bool | None:
     return None if v is None else bool(v)
 
 
-def faixa_upvotes(valor: Optional[int], bordas: Sequence[int]) -> str:
+def faixa_upvotes(valor: int | None, bordas: Sequence[int]) -> str:
     """Bucket textual pronto para filtro: 0 | 1-9 | 10-49 | 50-99 | 100+."""
     if valor is None:
         return "sem dado"
@@ -453,10 +454,10 @@ def _apagar_mortos(dir_saida: Path) -> None:
 
 def rodar(
     conn: sqlite3.Connection,
-    cfg: Optional[Config] = None,
+    cfg: Config | None = None,
     *,
-    run_id: Optional[str] = None,
-    hoje: Optional[dt.date] = None,
+    run_id: str | None = None,
+    hoje: dt.date | None = None,
 ) -> ResultadoExport:
     cfg = cfg or config()
     hoje = hoje or db.hoje()

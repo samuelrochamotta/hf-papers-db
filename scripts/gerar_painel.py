@@ -51,8 +51,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import json
 import hashlib
+import json
 import os
 import re
 import sys
@@ -344,7 +344,7 @@ def montar_hall(
     fichas: dict[str, dict],
     par_primario: dict[str, tuple[str, str]],
     vertentes_por_paper: dict[str, list[str]],
-    ultimo_voto: dict[str, str],
+    ultimo_voto: dict[str, str | None],
     *,
     corte: dt.date,
 ) -> list[dict]:
@@ -582,7 +582,7 @@ def montar_dados(janela: int, dias_hall: int | None = None) -> tuple[dict, dict]
     # ultima medicao para quem esta no hall (o "votos em" que honra o
     # congelamento do refresh).
     serie: dict[str, list[tuple[dt.date, int]]] = defaultdict(list)
-    ultimo_voto: dict[str, str] = {}
+    ultimo_voto: dict[str, str | None] = {}
     for m in sorted(ler("fato_metrica"), key=lambda r: (r["paper_id"], r["data_snapshot"])):
         pid = m["paper_id"]
         u = m.get("upvotes")
@@ -765,8 +765,9 @@ def documento(dados: dict, *, embutido: bool, versoes: dict[str, str] | None = N
     conteudo (`versoes`, nome -> hash)."""
     app = APP_JS.read_text(encoding="utf-8")
     resumo = resumo_texto(dados)
-    esc = lambda t: (t.replace("&", "&amp;").replace('"', "&quot;")
-                     .replace("<", "&lt;").replace(">", "&gt;"))
+    def esc(t: str) -> str:
+        return (t.replace("&", "&amp;").replace('"', "&quot;")
+                .replace("<", "&lt;").replace(">", "&gt;"))
     og_url = f'<meta property="og:url" content="{esc(URL_PUBLICA)}">\n' if URL_PUBLICA else ""
 
     if embutido:

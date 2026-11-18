@@ -13,10 +13,9 @@ chega ao Markdown nao serve para nada.
 from __future__ import annotations
 
 import pytest
+import relatorio_massa
 
 from hfpapers import db
-
-import relatorio_massa
 
 
 def _paper(conn, pid: str) -> None:

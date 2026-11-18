@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from ..config import Config, config
 
@@ -18,7 +17,7 @@ def _ler(caminho: str) -> str:
     return Path(caminho).read_text(encoding="utf-8")
 
 
-def carregar(nome: str, cfg: Optional[Config] = None) -> str:
+def carregar(nome: str, cfg: Config | None = None) -> str:
     cfg = cfg or config()
     return _ler(str(cfg.dir_prompts / f"{nome}.md"))
 

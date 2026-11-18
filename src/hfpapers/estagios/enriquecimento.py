@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
 
 from .. import db
 from ..fontes.hf_client import ClienteHF, ErroHF
@@ -52,7 +52,7 @@ def rodar(
     cliente: ClienteHF,
     ids: Sequence[str],
     *,
-    data_snapshot: Optional[dt.date] = None,
+    data_snapshot: dt.date | None = None,
 ) -> ResultadoEnriquecimento:
     data_snapshot = data_snapshot or db.hoje()
     res = ResultadoEnriquecimento()

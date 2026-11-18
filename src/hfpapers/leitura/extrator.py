@@ -24,7 +24,7 @@ import json
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..config import Config, config
 from ..log import logger
@@ -39,7 +39,7 @@ _NAO_SUPORTADAS = {"maxLength", "minLength", "pattern", "maxItems", "minItems", 
                    "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
                    "minProperties", "maxProperties", "$schema", "$id", "title"}
 
-def carregar_esquema(cfg: Optional[Config] = None) -> dict:
+def carregar_esquema(cfg: Config | None = None) -> dict:
     cfg = cfg or config()
     caminho = cfg.dir_prompts / "leitura" / f"esquema-{cfg.leitura.versao_esquema}.json"
     return json.loads(Path(caminho).read_text(encoding="utf-8"))
@@ -169,7 +169,7 @@ def config_leitura(cfg: Config) -> Config:
     return cfg.model_copy(update={"llm": llm})
 
 
-def cliente_llm(cfg: Optional[Config] = None, *, conn: Optional[sqlite3.Connection] = None,
+def cliente_llm(cfg: Config | None = None, *, conn: sqlite3.Connection | None = None,
                 run_id: str = "sem-run"):
     """O mesmo cliente do OpenRouter dos estagios A e B: retentativa, prazo,
     preco da tabela viva e linha em `log_llm` por tentativa."""
@@ -183,8 +183,8 @@ def formato_resposta(esquema: dict) -> dict:
             "json_schema": {"name": "leitura_paper", "strict": True, "schema": esquema_api(esquema)}}
 
 
-def extrair(tp: TextoPaper, meta: dict, *, cliente: Any, cfg: Optional[Config] = None,
-            esquema: Optional[dict] = None) -> Leitura:
+def extrair(tp: TextoPaper, meta: dict, *, cliente: Any, cfg: Config | None = None,
+            esquema: dict | None = None) -> Leitura:
     """`cliente` e um `ClienteLLM` (ou um duble com o mesmo `chamar`)."""
     cfg = cfg or config()
     lc = cfg.leitura

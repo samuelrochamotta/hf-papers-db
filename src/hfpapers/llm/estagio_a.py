@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from .. import taxonomia
 from ..config import Config, config
@@ -86,18 +86,18 @@ def carregar_vocabulario(conn: sqlite3.Connection) -> Vocabulario:
 class ResultadoA:
     paper_id: str
     veredito_preliminar: str
-    regra_fora: Optional[str]
+    regra_fora: str | None
     justificativa: str
     area_primaria: str
     subarea_primaria: str
-    area_secundaria: Optional[str]
-    subarea_secundaria: Optional[str]
+    area_secundaria: str | None
+    subarea_secundaria: str | None
     # Ordenada: a dominante em primeiro. E essa ordem que vira a `ordem` da
     # ponte em `taxonomia.aplicar_classificacao`.
     vertentes: list[str]
     # A constatacao de que nenhuma celula serviu, quando ela veio. Nao e rotulo
     # proposto: quem promove e a revisao da grade, nao esta classificacao.
-    nao_coube: Optional[taxonomia.NaoEncaixe]
+    nao_coube: taxonomia.NaoEncaixe | None
     uso: Uso = field(default_factory=Uso)
 
     @property
@@ -113,8 +113,8 @@ class PaperEntrada:
     titulo: str
     abstract: str = ""
     keywords: list[str] = field(default_factory=list)
-    ai_summary: Optional[str] = None
-    area_primaria: Optional[str] = None
+    ai_summary: str | None = None
+    area_primaria: str | None = None
     vertentes: list[str] = field(default_factory=list)
     # Evidencia externa de artefato (`vw_artefato`): repositorio, link no
     # abstract ou modelo/dataset vinculado no HF. So o Estagio B usa - e a
@@ -148,7 +148,7 @@ def validar(dados: dict[str, Any]) -> None:
 
 
 def montar_prompt(
-    paper: PaperEntrada, vocab: Vocabulario, cfg: Optional[Config] = None
+    paper: PaperEntrada, vocab: Vocabulario, cfg: Config | None = None
 ) -> str:
     return prompts.preencher(
         prompts.carregar("estagio_a", cfg or config()),
@@ -165,7 +165,7 @@ def classificar(
     paper: PaperEntrada,
     vocab: Vocabulario,
     *,
-    cfg: Optional[Config] = None,
+    cfg: Config | None = None,
 ) -> ResultadoA:
     cfg = cfg or config()
     est = cfg.llm.estagio_a
@@ -205,7 +205,7 @@ def classificar(
     )
 
 
-def _nao_coube(bruto: Any) -> Optional[taxonomia.NaoEncaixe]:
+def _nao_coube(bruto: Any) -> taxonomia.NaoEncaixe | None:
     """O dicionario da resposta vira o tipo do dominio, ou None.
 
     Aqui so a forma e conferida - eixo e justificativa sao julgados na

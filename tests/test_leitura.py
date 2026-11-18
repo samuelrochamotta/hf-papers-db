@@ -3,14 +3,12 @@
 import collections
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import httpx
 import pytest
 
-from hfpapers import db
+from hfpapers import db, leitura
 from hfpapers.config import Config
-from hfpapers import leitura
 from hfpapers.leitura import derivar, extrator, texto
 from hfpapers.llm.cliente import Resposta, Uso
 

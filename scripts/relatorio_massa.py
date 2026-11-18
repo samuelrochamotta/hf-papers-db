@@ -68,8 +68,11 @@ def gerar(
     conn: sqlite3.Connection, run_id: str | None, estimativa_usd: float | None = None
 ) -> str:
     conn.row_factory = sqlite3.Row
-    q = lambda s, p=(): [dict(r) for r in conn.execute(s, p)]
-    um = lambda s, p=(): conn.execute(s, p).fetchone()[0]
+    def q(s, p=()):
+        return [dict(r) for r in conn.execute(s, p)]
+
+    def um(s, p=()):
+        return conn.execute(s, p).fetchone()[0]
 
     total = um("SELECT COUNT(*) FROM dim_paper")
 
