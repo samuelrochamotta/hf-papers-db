@@ -2,11 +2,13 @@
 
 > **Nota de 18/11/2026.** O texto foi atualizado para o painel em
 > `relatorios/painel/` (ADR 006), e as consequências que o ADR 008 superou
-> foram resumidas.
+> foram resumidas. Os caminhos seguem a pasta `paineis/`, para onde o código
+> dos dois painéis foi movido no mesmo dia (`scripts/gerar_painel.py` passou a
+> `paineis/v1/gerar_painel.py`).
 
 - **Data**: 2026-11-14
 - **Estado**: aceito
-- **Supera**: a frase do README e de `scripts/gerar_painel.py` que tratava o
+- **Supera**: a frase do README e de `paineis/v1/gerar_painel.py` que tratava o
   painel HTML como vitrine de distribuição e uma ferramenta de BI externa como
   a interface de leitura.
 
