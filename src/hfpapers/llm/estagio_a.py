@@ -1,9 +1,9 @@
-"""Estagio A - triagem barata + classificacao taxonomica.
+"""Estágio A - triagem barata + classificação taxonômica.
 
-Roda em TODOS os papers do dia, inclusive nos que serao descartados: e o que
-garante area, sub-area e vertente para 100% da base, nao so para os aprovados.
+Roda em TODOS os papers do dia, inclusive nos que serão descartados: é o que
+garante área, sub-área e vertente para 100% da base, não só para os aprovados.
 
-`upvotes` nao entra no prompt (secao 6.6) - nem aqui nem no Estagio B.
+`upvotes` não entra no prompt (seção 6.6) - nem aqui nem no Estágio B.
 """
 
 from __future__ import annotations
