@@ -64,9 +64,11 @@ PAINEL_DIR="relatorios/painel"
 # rascunho - e, como o run_id ja estaria carimbado, nem a rede de seguranca das
 # 08:30 desfaria. Quem recorta na mao usa --destino e olha local.
 PUBLICAVEL=1
+GRAVA_NO_CHECKOUT=1   # 0 so com --destino: a previa grava fora de $PAINEL_DIR
 for arg in "$@"; do
     case "$arg" in
-        --dias|--dias=*|--dias-hall|--dias-hall=*|--destino|--destino=*) PUBLICAVEL=0 ;;
+        --dias|--dias=*|--dias-hall|--dias-hall=*) PUBLICAVEL=0 ;;
+        --destino|--destino=*) PUBLICAVEL=0; GRAVA_NO_CHECKOUT=0 ;;
     esac
 done
 
@@ -107,8 +109,9 @@ operacao_em_andamento() {
 
 # Sai antes de gerar, em qualquer branch (no rebase o HEAD fica destacado): o
 # gerador reescreveria os arquivos do painel em conflito e apagaria os
-# marcadores de quem esta resolvendo. A previa (`--destino`) grava fora daqui.
-if [ "$PUBLICAVEL" -eq 1 ] && operacao_em_andamento; then
+# marcadores de quem esta resolvendo. Vale tambem para `--dias`/`--dias-hall`
+# sem `--destino`, que gravam no checkout; so a previa com `--destino` escapa.
+if [ "$GRAVA_NO_CHECKOUT" -eq 1 ] && operacao_em_andamento; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVISO: merge/rebase ou conflito em andamento no checkout; nao gera nem publica nesta rodada." | tee -a "$LOG"
     exit 0
 fi
